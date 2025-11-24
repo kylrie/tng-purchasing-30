@@ -343,7 +343,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
 
     return (
-        <div className="space-y-6 relative">
+        <div className="space-y-6 relative bg-slate-900 text-slate-100 glass-dark">
             {trackingReq && <TrackingModal req={trackingReq} onClose={() => setTrackingReq(null)} />}
 
             {printReq && (
@@ -389,10 +389,10 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
             <div className="flex justify-between items-center print:hidden">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Requisitions (BURF)</h1>
-                    <p className="text-sm text-slate-500">Manage initial requests and Business Unit approvals.</p>
+                    <h1 className="text-2xl font-bold text-slate-100">Requisitions (BURF)</h1>
+                    <p className="text-sm text-slate-300">Manage initial requests and Business Unit approvals.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 text-slate-100">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input
@@ -416,7 +416,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             ))}
                         </select>
                     )}
-                    <button onClick={() => setIsCreating(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 font-medium flex items-center gap-2">
+                    <button onClick={() => setIsCreating(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-purple-700 font-medium flex items-center gap-2">
                         <Plus size={18} /> New Request
                     </button>
                 </div>

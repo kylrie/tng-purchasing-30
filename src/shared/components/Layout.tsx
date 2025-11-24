@@ -1,3 +1,4 @@
+// src/shared/components/Layout.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -11,7 +12,8 @@ import {
     Scale,
     Users,
     LogOut,
-    ChevronDown
+    ChevronDown,
+    Sparkles
 } from 'lucide-react';
 import type { User } from '../../features/auth/types';
 import type { NotificationItem } from '../types';
@@ -65,55 +67,59 @@ const Layout: React.FC<LayoutProps> = ({
     const currentPath = location.pathname;
 
     return (
-        <div className="flex h-screen bg-gray-50 overflow-hidden font-sans text-slate-800">
+        <div className="flex h-screen bg-slate-900 overflow-hidden font-sans text-white relative">
+            {/* Animated background */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+                <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl animate-pulse delay-2000" />
+            </div>
+
             {/* Mobile Sidebar Overlay */}
             {isSidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm lg:hidden transition-opacity"
+                    className="fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm lg:hidden transition-opacity"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}
 
             {/* Sidebar */}
             <aside
-                className={`
-          fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-gray-100 shadow-xl lg:shadow-none transform transition-transform duration-300 ease-in-out
-          lg:static lg:translate-x-0 flex flex-col
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
+                className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-800/80 backdrop-blur-xl border-r border-slate-700/50 shadow-2xl transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
-                <div className="flex items-center justify-between h-20 px-6 border-b border-gray-50 relative overflow-hidden">
+                {/* Logo/Header */}
+                <div className="flex items-center justify-between h-20 px-6 border-b border-slate-700/50 relative overflow-hidden">
+                    {/* Top gradient accent */}
+                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-cyan-500 to-purple-500" />
+
                     {isStaging && (
-                        <div className="absolute top-0 left-0 w-full bg-yellow-400 text-yellow-900 text-[10px] font-bold text-center py-0.5 z-20">
+                        <div className="absolute top-1 left-0 w-full bg-yellow-400 text-yellow-900 text-[10px] font-bold text-center py-0.5 z-20">
                             STAGING ENVIRONMENT
                         </div>
                     )}
+
                     <div className="flex items-center gap-3 pt-2">
-                        <div className="w-9 h-9 relative flex-shrink-0">
-                            <svg viewBox="0 0 40 40" className="w-full h-full drop-shadow-md" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <defs>
-                                    <linearGradient id="logo_gradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
-                                        <stop stopColor="#0EA5E9" />
-                                        <stop offset="1" stopColor="#3B82F6" />
-                                    </linearGradient>
-                                </defs>
-                                <rect width="40" height="40" rx="10" fill="url(#logo_gradient)" />
-                                <path d="M12 13H15L17.5 24H28.5L30.5 15H16.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                                <circle cx="19" cy="29" r="2.5" fill="white" />
-                                <circle cx="28" cy="29" r="2.5" fill="white" />
-                                <path d="M9 18H11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeOpacity="0.6" />
-                            </svg>
+                        {/* Cart icon with gradient */}
+                        <div className="relative w-10 h-10">
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-xl blur-md opacity-60" />
+                            <div className="relative bg-gradient-to-br from-purple-600 to-cyan-600 w-10 h-10 rounded-xl flex items-center justify-center">
+                                <ShoppingCart className="w-6 h-6 text-white" strokeWidth={2.5} />
+                            </div>
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-lg font-bold tracking-tight text-slate-900 leading-none">TNG</span>
-                            <span className="text-xs font-semibold text-slate-500 tracking-wide">PROCUREMENT</span>
+                            <span className="text-lg font-bold tracking-tight leading-none bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">ProcureFlow</span>
+                            <span className="text-xs font-semibold text-slate-400 tracking-wide flex items-center gap-1">
+                                <Sparkles className="w-3 h-3" />
+                                PROCUREMENT
+                            </span>
                         </div>
                     </div>
-                    <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-1 text-slate-400 hover:text-brand-600 transition-colors">
+                    <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-1 text-slate-400 hover:text-purple-400 transition-colors">
                         <X size={20} />
                     </button>
                 </div>
 
+                {/* Navigation */}
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
                     {navItems.map((item) => {
                         const isActive = currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path));
@@ -124,16 +130,11 @@ const Layout: React.FC<LayoutProps> = ({
                                     navigate(item.path);
                                     setIsSidebarOpen(false);
                                 }}
-                                className={`
-                  w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group
-                  ${isActive
-                                        ? 'bg-sky-50 text-sky-700 font-semibold'
-                                        : 'text-slate-500 hover:bg-gray-50 hover:text-slate-900 font-medium'}
-                `}
+                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${isActive ? 'bg-gradient-to-r from-purple-600/20 to-cyan-600/20 text-white font-semibold border border-purple-500/30' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'}`}
                             >
                                 <item.icon
                                     size={20}
-                                    className={`transition-colors ${isActive ? 'text-sky-600' : 'text-slate-400 group-hover:text-slate-600'}`}
+                                    className={`transition-colors ${isActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
                                     strokeWidth={isActive ? 2.5 : 2}
                                 />
                                 {item.label}
@@ -142,48 +143,50 @@ const Layout: React.FC<LayoutProps> = ({
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-gray-50 bg-white">
-                    <p className="text-[10px] text-slate-400 text-center">
+                {/* Footer */}
+                <div className="p-4 border-t border-slate-700/50 bg-slate-800/50">
+                    <p className="text-[10px] text-slate-500 text-center">
                         v2.0.0 {isStaging ? '(Staging)' : '(Production)'} Build
                     </p>
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col min-w-0 bg-gray-50">
-                <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 lg:px-10 shadow-sm z-10">
+            <main className="flex-1 flex flex-col min-w-0 bg-transparent">
+                {/* Header */}
+                <header className="h-20 bg-slate-800/80 backdrop-blur-xl border-b border-slate-700/50 flex items-center justify-between px-6 lg:px-10 shadow-lg z-10">
                     <button
                         onClick={() => setIsSidebarOpen(true)}
-                        className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-gray-100 rounded-lg transition-colors"
+                        className="lg:hidden p-2 -ml-2 text-slate-300 hover:bg-slate-700/50 rounded-lg transition-colors"
                     >
                         <Menu size={24} />
                     </button>
 
                     <div className="flex-1 px-4 lg:px-0">
-                        <h1 className="text-xl font-bold text-slate-800 hidden lg:block">
+                        <h1 className="text-xl font-bold text-white hidden lg:block">
                             {navItems.find(i => i.path === currentPath)?.label || 'Dashboard'}
                         </h1>
                     </div>
 
-                    <div className="flex items-center gap-4 lg:gap-6">
+                    <div className="flex items-center gap-4 lg:gap-6 text-white">
                         {/* Notification Bell */}
                         <div className="relative" ref={notifRef}>
                             <button
                                 onClick={() => setIsNotifOpen(!isNotifOpen)}
-                                className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-gray-50 rounded-full transition-all relative focus:outline-none focus:ring-2 focus:ring-sky-100"
+                                className="p-2.5 text-slate-300 hover:text-purple-400 hover:bg-slate-700/50 rounded-full transition-all relative focus:outline-none focus:ring-2 focus:ring-purple-500/20"
                             >
                                 <Bell size={22} strokeWidth={2} />
                                 {notifications.length > 0 && (
-                                    <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
+                                    <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-gradient-to-r from-purple-500 to-cyan-500 border-2 border-slate-800 rounded-full animate-pulse" />
                                 )}
                             </button>
 
                             {isNotifOpen && (
-                                <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
-                                        <h3 className="text-sm font-bold text-slate-900">Notifications</h3>
+                                <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 bg-slate-800 backdrop-blur-xl rounded-xl shadow-2xl border border-slate-700/50 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="p-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-700/30">
+                                        <h3 className="text-sm font-bold text-white">Notifications</h3>
                                         {notifications.length > 0 && (
-                                            <span className="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full font-semibold">
+                                            <span className="text-xs bg-gradient-to-r from-purple-600 to-cyan-600 text-white px-2 py-0.5 rounded-full font-semibold">
                                                 {notifications.length} New
                                             </span>
                                         )}
@@ -191,13 +194,13 @@ const Layout: React.FC<LayoutProps> = ({
                                     <div className="max-h-[350px] overflow-y-auto">
                                         {notifications.length === 0 ? (
                                             <div className="py-8 px-4 text-center">
-                                                <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                    <Bell size={20} className="text-slate-300" />
+                                                <div className="w-12 h-12 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                    <Bell size={20} className="text-slate-500" />
                                                 </div>
-                                                <p className="text-sm text-slate-500">No new notifications</p>
+                                                <p className="text-sm text-slate-400">No new notifications</p>
                                             </div>
                                         ) : (
-                                            <ul className="divide-y divide-gray-50">
+                                            <ul className="divide-y divide-slate-700/50">
                                                 {notifications.map((item) => (
                                                     <li
                                                         key={item.id}
@@ -205,12 +208,12 @@ const Layout: React.FC<LayoutProps> = ({
                                                             onNotificationClick(item);
                                                             setIsNotifOpen(false);
                                                         }}
-                                                        className="p-4 hover:bg-gray-50 cursor-pointer transition-colors group relative"
+                                                        className="p-4 hover:bg-slate-700/30 cursor-pointer transition-colors group relative"
                                                     >
                                                         <div className="flex gap-3">
-                                                            <div className="mt-1 w-2 h-2 rounded-full bg-sky-500 flex-shrink-0"></div>
+                                                            <div className="mt-1 w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 flex-shrink-0" />
                                                             <div>
-                                                                <p className="text-sm text-slate-800 font-medium leading-relaxed">{item.message}</p>
+                                                                <p className="text-sm text-white font-medium leading-relaxed">{item.message}</p>
                                                                 <p className="text-xs text-slate-400 mt-1 font-medium">{item.timestamp}</p>
                                                             </div>
                                                         </div>
@@ -219,22 +222,20 @@ const Layout: React.FC<LayoutProps> = ({
                                             </ul>
                                         )}
                                     </div>
-                                    <div className="p-3 border-t border-gray-50 text-center bg-gray-50/30">
-                                        <button className="text-xs font-semibold text-sky-600 hover:text-sky-700 transition-colors">Mark all as read</button>
+                                    <div className="p-3 border-t border-slate-700/50 text-center bg-slate-700/20">
+                                        <button className="text-xs font-semibold text-purple-400 hover:text-purple-300 transition-colors">Mark all as read</button>
                                     </div>
                                 </div>
                             )}
                         </div>
 
-                        <div className="h-8 w-px bg-gray-200 hidden lg:block"></div>
-
                         {/* User Menu */}
                         <div className="relative" ref={userMenuRef}>
                             <button
                                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                                className="flex items-center gap-3 p-1 rounded-full hover:bg-gray-50 transition-colors pr-3 focus:outline-none"
+                                className="flex items-center gap-3 p-1 rounded-full hover:bg-slate-700/50 transition-colors pr-3 focus:outline-none"
                             >
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-sky-100 to-sky-50 border-2 border-white shadow-sm flex items-center justify-center text-sky-600 overflow-hidden">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-cyan-600 border-2 border-slate-700 shadow-lg flex items-center justify-center text-white overflow-hidden">
                                     {currentUser.avatar ? (
                                         <img src={currentUser.avatar} alt="User" className="w-full h-full object-cover" />
                                     ) : (
@@ -242,17 +243,17 @@ const Layout: React.FC<LayoutProps> = ({
                                     )}
                                 </div>
                                 <div className="hidden md:block text-left">
-                                    <p className="text-sm font-semibold text-slate-800 leading-tight">{currentUser.name}</p>
-                                    <p className="text-xs text-slate-500 font-medium capitalize">{currentUser.role.replace(/_/g, ' ').toLowerCase()}</p>
+                                    <p className="text-sm font-semibold text-white leading-tight">{currentUser.name}</p>
+                                    <p className="text-xs text-slate-300 font-medium capitalize">{currentUser.role.replace(/_/g, ' ').toLowerCase()}</p>
                                 </div>
                                 <ChevronDown size={16} className={`text-slate-400 transition-transform duration-200 hidden md:block ${isUserMenuOpen ? 'rotate-180' : ''}`} />
                             </button>
 
                             {isUserMenuOpen && (
-                                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    <div className="p-4 border-b border-gray-50 bg-gray-50/50 md:hidden">
-                                        <p className="text-sm font-semibold text-slate-800">{currentUser.name}</p>
-                                        <p className="text-xs text-slate-500 capitalize">{currentUser.role.replace(/_/g, ' ').toLowerCase()}</p>
+                                <div className="absolute right-0 top-full mt-2 w-56 bg-slate-800 backdrop-blur-xl rounded-xl shadow-2xl border border-slate-700/50 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="p-4 border-b border-slate-700/50 bg-slate-700/30 md:hidden">
+                                        <p className="text-sm font-semibold text-white">{currentUser.name}</p>
+                                        <p className="text-xs text-slate-300 capitalize">{currentUser.role.replace(/_/g, ' ').toLowerCase()}</p>
                                     </div>
                                     <div className="p-1.5">
                                         <button
@@ -260,16 +261,16 @@ const Layout: React.FC<LayoutProps> = ({
                                                 navigate('/settings');
                                                 setIsUserMenuOpen(false);
                                             }}
-                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-600 rounded-lg hover:bg-gray-50 hover:text-slate-900 transition-colors"
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-300 rounded-lg hover:bg-slate-700/50 hover:text-white transition-colors"
                                         >
                                             <Settings size={16} />
                                             Account Settings
                                         </button>
-                                        <div className="h-px bg-gray-100 my-1 mx-2"></div>
+                                        <div className="h-px bg-slate-700/50 my-1 mx-2" />
                                         {onLogout && (
                                             <button
                                                 onClick={onLogout}
-                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 hover:text-red-700 transition-colors"
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-400 rounded-lg hover:bg-red-500/10 hover:text-red-300 transition-colors"
                                             >
                                                 <LogOut size={16} />
                                                 Sign Out
@@ -282,6 +283,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </div>
                 </header>
 
+                {/* Content Area */}
                 <div className="flex-1 overflow-y-auto p-6 lg:p-10 scroll-smooth">
                     <div className="max-w-7xl mx-auto w-full">
                         {children}
