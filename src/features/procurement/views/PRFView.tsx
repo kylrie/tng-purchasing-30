@@ -384,10 +384,10 @@ export const PrfView: React.FC<PrfViewProps> = ({
             // 2. Handle the PRF request
             // Check if it already exists (editing) or is new (splitting)
             const exists = nextState.some(r => r.id === prfReq.id);
-            
+
             if (exists) {
                 // Update existing
-                nextState = nextState.map(r => 
+                nextState = nextState.map(r =>
                     r.id === prfReq.id ? { ...prfReq, status: RequisitionStatus.PRF_PENDING_MANAGER } : r
                 );
             } else {
@@ -399,8 +399,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
         });
 
         setPreparePRFReq(null);
-        alert(updatedOrigin 
-            ? `PRF ${prfReq.id} created (Split). Original request updated.` 
+        alert(updatedOrigin
+            ? `PRF ${prfReq.id} created (Split). Original request updated.`
             : `PRF ${prfReq.id} submitted for Manager approval`
         );
     };
@@ -408,13 +408,13 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // Filter and Sort
     const filteredAndSortedReqs = visibleRequisitions
         .filter(r => [RequisitionStatus.READY_FOR_PRF, RequisitionStatus.PRF_PENDING_MANAGER, RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.REJECTED].includes(r.status))
-        .filter(r => 
+        .filter(r =>
             // Include rejected items only if they have PRF details (meaning they were rejected at PRF stage)
             r.status !== RequisitionStatus.REJECTED || r.prfDetails
         )
         .filter(r =>
-            r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (r.projectName || r.description).toLowerCase().includes(searchTerm.toLowerCase())
+            (r.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (r.projectName || r.description || '').toLowerCase().includes(searchTerm.toLowerCase())
         )
         .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
@@ -465,7 +465,14 @@ export const PrfView: React.FC<PrfViewProps> = ({
 
                             return (
                                 <tr key={req.id} className="hover:bg-slate-50">
-                                    <td className="px-6 py-4 font-medium">{req.id}</td>
+                                    <td className="px-6 py-4 font-medium">
+                                        {req.id}
+                                        {req.prfIdentifier && (
+                                            <div className="text-xs text-blue-600 font-normal mt-0.5">
+                                                {req.prfDetails?.requisitionId || req.id} - Batch {req.prfIdentifier}
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-slate-700 font-medium text-xs">
                                         {business?.name || requester?.department || 'N/A'}
                                     </td>
@@ -504,8 +511,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                             </div>
                                         )}
                                         {req.status === RequisitionStatus.REJECTED && req.prfDetails && (currentUser.role === UserRole.PURCHASING_OFFICER || currentUser.role === UserRole.SUPER_ADMIN) && (
-                                            <button 
-                                                onClick={() => setPreparePRFReq(req)} 
+                                            <button
+                                                onClick={() => setPreparePRFReq(req)}
                                                 className="text-orange-600 bg-orange-50 px-2 py-1 rounded text-xs border border-orange-200 flex items-center gap-1"
                                             >
                                                 <RefreshCw size={12} /> Retry / Edit

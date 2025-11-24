@@ -10,6 +10,17 @@ export enum UserRole {
   AUDITOR = 'AUDITOR' // Checks Liquidation
 }
 
+// Helper function to determine if user has global access to all business units
+export const hasGlobalAccess = (role: UserRole): boolean => {
+  return [
+    UserRole.SUPER_ADMIN,
+    UserRole.CIC,
+    UserRole.PURCHASING_OFFICER,
+    UserRole.FINANCE,
+    UserRole.AUDITOR
+  ].includes(role);
+};
+
 export enum RequisitionStatus {
   DRAFT = 'DRAFT', // Initial draft state
   BURF_PENDING_MANAGER = 'BURF_PENDING_MANAGER',
@@ -73,7 +84,7 @@ export interface RequisitionItem {
   stockOnHand: number;
   price: number; // Estimated in BURF, Actual in PRF
   remarks?: string; // Item specific justification
-  
+
   // Liquidation Data
   actualCost?: number;
   receiptRef?: string;
@@ -111,7 +122,11 @@ export interface Requisition {
   description: string; // General description for the whole batch
   projectName?: string; // Project Name for PRF
   remarks?: string; // General remarks
-  
+  dateNeeded?: string; // Date needed for the request
+  priority?: 'NORMAL' | 'URGENT'; // Priority level
+  attachments?: string[]; // Array of attachment links
+  prfIdentifier?: string; // Custom identifier for PRFs
+
   fundReleaseDate?: string; // Date when funds were released by Finance
 
   // PRF Specific Data
@@ -119,14 +134,17 @@ export interface Requisition {
     supplier: SupplierDetails;
     preparedBy: string; // Purchasing Officer ID
     datePrepared: string;
+    requisitionId?: string;
+    timestamp: string;
   };
 
   // Liquidation Specific Data
   liquidationDetails?: LiquidationDetails;
+  requisitionId?: string;
+  timestamp: string;
 
   // New Enhancements
   history?: RequisitionHistory[];
-  attachments?: string[]; // Google Drive Links
 }
 
 export interface NotificationItem {

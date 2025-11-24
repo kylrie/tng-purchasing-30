@@ -26,12 +26,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     // Calculate Stats
     const pendingCount = requisitions.filter(r => {
         if (currentUser.role === UserRole.SUPER_ADMIN) {
-             return [
-                 RequisitionStatus.BURF_PENDING_MANAGER, 
-                 RequisitionStatus.BURF_PENDING_CIC, 
-                 RequisitionStatus.PRF_PENDING_MANAGER,
-                 RequisitionStatus.APPROVED_FOR_PAYMENT
-             ].includes(r.status);
+            return [
+                RequisitionStatus.BURF_PENDING_MANAGER,
+                RequisitionStatus.BURF_PENDING_CIC,
+                RequisitionStatus.PRF_PENDING_MANAGER,
+                RequisitionStatus.APPROVED_FOR_PAYMENT
+            ].includes(r.status);
         }
         if (currentUser.role === UserRole.MANAGER) {
             return r.status === RequisitionStatus.BURF_PENDING_MANAGER || r.status === RequisitionStatus.PRF_PENDING_MANAGER;
@@ -47,7 +47,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         }
         // Employee sees their own pending requests? Or maybe count of their requests in progress?
         if (currentUser.role === UserRole.EMPLOYEE) {
-             return r.requesterId === currentUser.id && r.status !== RequisitionStatus.DRAFT && r.status !== RequisitionStatus.FUNDS_RELEASED;
+            return r.requesterId === currentUser.id && r.status !== RequisitionStatus.DRAFT && r.status !== RequisitionStatus.FUNDS_RELEASED;
         }
         return false;
     }).length;
@@ -69,14 +69,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'submitted BURF';
             if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'submitted PRF';
             if (r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) action = 'approved PRF';
-            
+
             return {
                 id: r.id,
                 user: r.requesterId, // In a real app, we would map ID to Name
                 action: action,
                 target: r.projectName || r.description,
                 time: new Date(r.dateCreated).toLocaleDateString(),
-                avatar: r.requesterId.charAt(0).toUpperCase(),
+                avatar: (r.requesterId || '?').charAt(0).toUpperCase(),
                 status: r.status
             };
         });
@@ -181,21 +181,21 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         <h2 className="text-lg font-bold text-slate-800">Quick Actions</h2>
                     </div>
                     <div className="p-6 space-y-3">
-                        <button 
+                        <button
                             onClick={() => navigate('/burf')}
                             className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
                         >
                             <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700">Create New BURF</span>
                             <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
                         </button>
-                        <button 
+                        <button
                             onClick={() => navigate('/liquidation')}
                             className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
                         >
                             <span className="text-sm font-medium text-slate-700 group-hover:text-orange-700">View Liquidations</span>
                             <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-orange-500" />
                         </button>
-                        <button 
+                        <button
                             onClick={() => navigate('/suppliers')}
                             className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
                         >

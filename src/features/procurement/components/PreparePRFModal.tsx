@@ -22,18 +22,18 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     const [items, setItems] = useState<(RequisitionItem & { selected: boolean })[]>(
         requisition.items.map(item => ({ ...item, selected: true }))
     );
-    
+
     // Check if we are editing an existing PRF
     const existingSupplier = requisition.prfDetails?.supplier;
-    
+
     // Find if the existing supplier matches a known supplier ID
-    const knownSupplierId = existingSupplier 
-        ? suppliers.find(s => s.name === existingSupplier.name)?.id || '' 
+    const knownSupplierId = existingSupplier
+        ? suppliers.find(s => s.name === existingSupplier.name)?.id || ''
         : '';
 
     const [createNewSupplier, setCreateNewSupplier] = useState(!!existingSupplier && !knownSupplierId);
     const [selectedSupplierId, setSelectedSupplierId] = useState(knownSupplierId);
-    
+
     const [supplierDetails, setSupplierDetails] = useState<SupplierDetails>(
         existingSupplier || {
             name: '',
@@ -43,6 +43,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             terms: ''
         }
     );
+
+    // PRF Identifier State
+    const [prfIdentifier, setPrfIdentifier] = useState(requisition.prfIdentifier || '');
 
     // Calculate total amount based on SELECTED items
     const totalAmount = items
@@ -55,11 +58,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         const selectedItems = items.filter(item => item.selected);
         const hasSelection = selectedItems.length > 0;
         const allPricesFilled = selectedItems.every(item => item.price > 0);
-        
+
         const supplierValid = createNewSupplier
             ? supplierDetails.name && supplierDetails.tin && supplierDetails.address && supplierDetails.paymentMode
             : selectedSupplierId !== '';
-            
+
         return hasSelection && allPricesFilled && supplierValid;
     };
 
@@ -117,9 +120,13 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                 prfDetails: {
                     supplier: supplierDetails,
                     preparedBy: currentUserId,
-                    datePrepared: new Date().toISOString()
+                    datePrepared: new Date().toISOString(),
+                    requisitionId: requisition.id, // Store original BURF ID
+                    timestamp: new Date().toISOString()
                 },
-                remarks: `${requisition.remarks || ''} (Split from ${requisition.id})`
+
+                remarks: `${requisition.remarks || ''} (Split from ${requisition.id})`,
+                prfIdentifier // Add identifier
             };
 
             // 2. Update ORIGINAL BURF with remaining items
@@ -143,9 +150,12 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                 prfDetails: {
                     supplier: supplierDetails,
                     preparedBy: currentUserId,
-                    datePrepared: new Date().toISOString()
+                    datePrepared: new Date().toISOString(),
+                    requisitionId: requisition.prfDetails?.requisitionId || requisition.id, // Preserve or set original BURF ID
+                    timestamp: new Date().toISOString()
                 },
-                status: RequisitionStatus.PRF_PENDING_MANAGER
+                status: RequisitionStatus.PRF_PENDING_MANAGER,
+                prfIdentifier // Add identifier
             };
             onSubmit(updatedRequisition);
         }
@@ -171,9 +181,32 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                             {requisition.prfDetails ? 'Edit Purchase Requisition (PRF)' : 'Prepare Purchase Requisition (PRF)'}
                         </h2>
                     </div>
+
                 </div>
 
+
                 <div className="p-6 space-y-6">
+                    {/* PRF Identifier Input */}
+                    {(isSplitting || requisition.prfDetails) && (
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                            <label className="block text-sm font-medium text-blue-900 mb-1">PRF Identifier</label>
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium text-slate-700 whitespace-nowrap">{requisition.prfDetails?.requisitionId || requisition.id} - Batch</span>
+                                <input
+                                    type="number"
+                                    value={prfIdentifier}
+                                    onChange={(e) => setPrfIdentifier(e.target.value)}
+                                    placeholder="1"
+                                    min="1"
+                                    className="w-24 px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                />
+                            </div>
+                            <p className="text-xs text-blue-600 mt-1">
+                                {isSplitting ? 'Enter a batch number to identify this split PRF.' : 'Update the batch number for this PRF.'}
+                            </p>
+                        </div>
+                    )}
+
                     {/* Item Specification & Costing */}
                     <div>
                         <div className="flex justify-between items-center mb-4">
@@ -185,11 +218,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                 <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-700 w-8">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={allSelected} 
+                                            <input
+                                                type="checkbox"
+                                                checked={allSelected}
                                                 onChange={(e) => handleToggleAll(e.target.checked)}
-                                                className="rounded cursor-pointer" 
+                                                className="rounded cursor-pointer"
                                             />
                                         </th>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-700">ITEM</th>
@@ -203,11 +236,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                     {items.map((item, index) => (
                                         <tr key={index} className={`hover:bg-slate-50 ${!item.selected ? 'opacity-50 bg-slate-50' : ''}`}>
                                             <td className="px-4 py-3">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={item.selected} 
+                                                <input
+                                                    type="checkbox"
+                                                    checked={item.selected}
                                                     onChange={() => handleSelectionToggle(index)}
-                                                    className="rounded cursor-pointer" 
+                                                    className="rounded cursor-pointer"
                                                 />
                                             </td>
                                             <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
@@ -354,12 +387,12 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                 <h4 className="font-semibold text-blue-900 mb-1">Ready to {requisition.prfDetails ? 'Update' : 'Submit'}?</h4>
                                 <div className="text-sm text-blue-700">
                                     <p>Please ensure all costs are final and supplier details are verified.</p>
-                                    {isSplitting && 
+                                    {isSplitting &&
                                         <div className="mt-2 font-medium text-orange-700 bg-orange-100 p-2 rounded border border-orange-200">
-                                            Splitting Request: You selected {items.length - unselectedCount} of {items.length} items. 
-                                            <br/>
+                                            Splitting Request: You selected {items.length - unselectedCount} of {items.length} items.
+                                            <br />
                                             • A NEW PRF will be created for the selected items.
-                                            <br/>
+                                            <br />
                                             • The original request will remain as BURF with the {unselectedCount} remaining items.
                                         </div>
                                     }

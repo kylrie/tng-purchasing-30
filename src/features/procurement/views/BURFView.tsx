@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronRight, X, Check, Save, Edit2, Printer, Link as LinkIcon, Search } from 'lucide-react';
 import BURFPrintModal from '../components/BURFPrintModal';
 import type { Requisition, RequisitionItem, RequisitionHistory } from '../types';
-import { RequisitionStatus } from '../types';
+import { RequisitionStatus, hasGlobalAccess } from '../types';
 import type { User, Business } from '../../../shared/types';
 import { UserRole } from '../../auth/types';
 
@@ -94,6 +94,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
 
     // Requisition Form State
     const [description, setDescription] = useState('');
@@ -111,6 +112,45 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const [actionComment, setActionComment] = useState('');
 
     const UOM_OPTIONS = ['pcs', 'box', 'pack', 'kg', 'g', 'l', 'm', 'set', 'roll', 'pad', 'ream'];
+
+    // Filter requisitions based on role and business unit
+    const filteredRequisitions = useMemo(() => {
+        const userHasGlobalAccess = hasGlobalAccess(currentUser.role);
+
+        return visibleRequisitions
+            .filter(req => {
+                // Business unit filtering based on role
+                if (userHasGlobalAccess) {
+                    // Global users can filter by selected business unit
+                    if (selectedBusinessUnit !== 'all' && req.businessId !== selectedBusinessUnit) {
+                        return false;
+                    }
+                } else {
+                    // Restricted users only see their business unit
+                    if (req.businessId !== currentUser.businessId) {
+                        return false;
+                    }
+                }
+
+                // Search term filtering
+                if (searchTerm) {
+                    const searchLower = searchTerm.toLowerCase();
+                    const requester = allUsers.find(u => u.id === req.requesterId);
+                    const business = businesses.find(b => b.id === req.businessId);
+
+                    const matches = (
+                        (req.id || '').toLowerCase().includes(searchLower) ||
+                        (req.description || '').toLowerCase().includes(searchLower) ||
+                        (requester?.name || '').toLowerCase().includes(searchLower) ||
+                        (business?.name || '').toLowerCase().includes(searchLower)
+                    );
+
+                    if (!matches) return false;
+                }
+
+                return true;
+            });
+    }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit]);
 
     const toggleRow = (id: string) => {
         setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
@@ -301,20 +341,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
         );
     }
 
-    const filteredRequisitions = useMemo(() => {
-        return visibleRequisitions.filter(req => {
-            const searchLower = searchTerm.toLowerCase();
-            const requester = allUsers.find(u => u.id === req.requesterId);
-            const business = businesses.find(b => b.id === req.businessId);
-
-            return (
-                req.id.toLowerCase().includes(searchLower) ||
-                req.description.toLowerCase().includes(searchLower) ||
-                (requester?.name || '').toLowerCase().includes(searchLower) ||
-                (business?.name || '').toLowerCase().includes(searchLower)
-            );
-        });
-    }, [visibleRequisitions, searchTerm, allUsers, businesses]);
 
     return (
         <div className="space-y-6 relative">
@@ -377,6 +403,19 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
+                    {/* Business Unit Filter - Only visible for global roles */}
+                    {hasGlobalAccess(currentUser.role) && (
+                        <select
+                            value={selectedBusinessUnit}
+                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
+                            className="px-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="all">All Business Units</option>
+                            {businesses.map(business => (
+                                <option key={business.id} value={business.id}>{business.name}</option>
+                            ))}
+                        </select>
+                    )}
                     <button onClick={() => setIsCreating(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-blue-700 font-medium flex items-center gap-2">
                         <Plus size={18} /> New Request
                     </button>
