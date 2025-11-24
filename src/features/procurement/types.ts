@@ -49,6 +49,11 @@ export interface Supplier {
   category: string;
   rating: number;
   contractEnd: string;
+  // Extended details
+  tin?: string;
+  address?: string;
+  paymentMode?: string;
+  terms?: string;
 }
 
 // Used for the PRF details

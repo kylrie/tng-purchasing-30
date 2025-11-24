@@ -12,21 +12,29 @@ import LiquidationView from './features/finance/views/LiquidationView';
 import SuppliersView from './features/inventory/views/SuppliersView';
 import MaintenanceView from './features/admin/views/MaintenanceView';
 import { SettingsView } from './features/admin/views/SettingsView';
-import type { Requisition, Business, User } from './shared/types';
+import type { Requisition, Business, User, NotificationItem } from './shared/types';
 import { RequisitionStatus, type Supplier } from './features/procurement/types';
 import { UserRole } from './features/auth/types';
 
 function AppContent() {
   // Mock user for Layout prop (will be replaced by real auth context later)
-  const userJson = localStorage.getItem('currentUser');
-  const currentUser: User = userJson ? JSON.parse(userJson) : {
-    id: 'user-1',
-    name: 'Guest User',
-    role: UserRole.SUPER_ADMIN,
-    avatar: '',
-    email: 'guest@example.com',
-    businessId: 'biz-1'
-  };
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+      const userJson = localStorage.getItem('currentUser');
+      try {
+          const parsed = userJson ? JSON.parse(userJson) : null;
+          if (parsed && parsed.role) return parsed;
+      } catch (e) {
+          console.error("Error parsing user", e);
+      }
+      return {
+        id: 'user-1',
+        name: 'Guest User',
+        role: UserRole.SUPER_ADMIN,
+        avatar: '',
+        email: 'guest@example.com',
+        businessId: 'biz-1'
+      };
+  });
 
   // Mock businesses
   const [businesses] = useState<Business[]>([
@@ -42,13 +50,29 @@ function AppContent() {
   ]);
 
   // Mock suppliers for PRF
-  const [suppliers] = useState<Supplier[]>([
-    { id: 'sup-1', name: 'ABC Office Supplies', category: 'Office Supplies', rating: 4.5, contractEnd: '2025-12-31' },
-    { id: 'sup-2', name: 'Tech Solutions Inc.', category: 'IT Equipment', rating: 4.8, contractEnd: '2025-06-30' },
-    { id: 'sup-3', name: 'Furniture World', category: 'Furniture', rating: 4.3, contractEnd: '2025-09-15' },
-    { id: 'sup-4', name: 'Print Masters', category: 'Printing Services', rating: 4.6, contractEnd: '2025-11-30' },
-    { id: 'sup-5', name: 'Clean Pro Services', category: 'Cleaning Supplies', rating: 4.4, contractEnd: '2025-08-20' }
+  const [suppliers, setSuppliers] = useState<Supplier[]>([
+    { id: 'sup-1', name: 'ABC Office Supplies', category: 'Office Supplies', rating: 4.5, contractEnd: '2025-12-31', tin: '000-111-222', address: '123 Business Rd', paymentMode: 'Check', terms: '30 Days' },
+    { id: 'sup-2', name: 'Tech Solutions Inc.', category: 'IT Equipment', rating: 4.8, contractEnd: '2025-06-30', tin: '111-222-333', address: '456 Tech Ave', paymentMode: 'Bank Transfer', terms: '15 Days' },
+    { id: 'sup-3', name: 'Furniture World', category: 'Furniture', rating: 4.3, contractEnd: '2025-09-15', tin: '222-333-444', address: '789 Furnish Blvd', paymentMode: 'Check', terms: 'COD' },
+    { id: 'sup-4', name: 'Print Masters', category: 'Printing Services', rating: 4.6, contractEnd: '2025-11-30', tin: '333-444-555', address: '101 Print St', paymentMode: 'Cash', terms: 'COD' },
+    { id: 'sup-5', name: 'Clean Pro Services', category: 'Cleaning Supplies', rating: 4.4, contractEnd: '2025-08-20', tin: '444-555-666', address: '202 Clean Ln', paymentMode: 'Check', terms: '30 Days' }
   ]);
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  // Helper to add notifications
+  const addNotification = (message: string, targetRoles: UserRole[], reqId?: string, type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO' = 'INFO') => {
+    const newNotif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      type,
+      message,
+      requisitionId: reqId,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      targetRoles
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  };
 
   // Requisitions state with mock data for all workflow stages
   const [requisitions, setRequisitions] = useState<Requisition[]>([
@@ -69,7 +93,6 @@ function AppContent() {
       remarks: 'Urgent - stock running low',
       attachments: []
     },
-    // BURF_PENDING_MANAGER - Waiting for manager approval
     {
       id: 'REQ-1002',
       requesterId: 'user-1',
@@ -86,7 +109,6 @@ function AppContent() {
       remarks: 'For new hires',
       attachments: ['https://drive.google.com/file/d/sample123']
     },
-    // BURF_PENDING_CIC - Manager approved, waiting for CIC
     {
       id: 'REQ-1003',
       requesterId: 'user-1',
@@ -103,7 +125,6 @@ function AppContent() {
       remarks: 'Campaign launch Feb 1',
       attachments: []
     },
-    // READY_FOR_PRF - CIC approved, ready for PRF submission
     {
       id: 'REQ-1004',
       requesterId: 'user-1',
@@ -121,7 +142,6 @@ function AppContent() {
       remarks: 'New office opening Feb 15',
       attachments: []
     },
-    // PRF_PENDING_MANAGER - PRF submitted, waiting for manager approval
     {
       id: 'REQ-1005',
       requesterId: 'user-1',
@@ -149,7 +169,6 @@ function AppContent() {
         datePrepared: '2025-01-19T10:00:00'
       }
     },
-    // APPROVED_FOR_PAYMENT - Manager approved PRF, ready for finance
     {
       id: 'REQ-1006',
       requesterId: 'user-1',
@@ -177,7 +196,6 @@ function AppContent() {
         datePrepared: '2025-01-20T14:30:00'
       }
     },
-    // FUNDS_RELEASED - Finance released funds
     {
       id: 'REQ-1007',
       requesterId: 'user-1',
@@ -205,7 +223,6 @@ function AppContent() {
         datePrepared: '2025-01-21T09:00:00'
       }
     },
-    // LIQUIDATION_FILED - Liquidation documents submitted
     {
       id: 'REQ-1008',
       requesterId: 'user-1',
@@ -247,6 +264,7 @@ function AppContent() {
     setRequisitions(prev => prev.map(r =>
       r.id === id ? { ...r, status: RequisitionStatus.REJECTED } : r
     ));
+    addNotification(`Requisition ${id} rejected. Please review.`, [UserRole.EMPLOYEE, UserRole.PURCHASING_OFFICER], id, 'INFO');
     alert(`Requisition ${id} rejected${comment ? `: ${comment}` : ''}`);
   };
 
@@ -254,6 +272,7 @@ function AppContent() {
     setRequisitions(prev => prev.map(r =>
       r.id === id ? { ...r, status: RequisitionStatus.BURF_PENDING_CIC } : r
     ));
+    addNotification(`New BURF ${id} approved by Manager. Inventory Check Required.`, [UserRole.CIC, UserRole.SUPER_ADMIN], id, 'BURF');
     alert(`BURF ${id} approved by manager`);
   };
 
@@ -261,6 +280,7 @@ function AppContent() {
     setRequisitions(prev => prev.map(r =>
       r.id === id ? { ...r, status: RequisitionStatus.READY_FOR_PRF } : r
     ));
+    addNotification(`BURF ${id} inventory checked. Ready for PRF.`, [UserRole.PURCHASING_OFFICER, UserRole.SUPER_ADMIN], id, 'BURF');
     alert(`BURF ${id} approved by CIC`);
   };
 
@@ -268,29 +288,40 @@ function AppContent() {
     setRequisitions(prev => prev.map(r =>
       r.id === id ? { ...r, status: RequisitionStatus.APPROVED_FOR_PAYMENT } : r
     ));
+    addNotification(`PRF ${id} approved. Ready for Payment Processing.`, [UserRole.FINANCE, UserRole.SUPER_ADMIN], id, 'PRF');
     alert(`PRF ${id} approved for payment`);
   };
 
   const onCreateRequisition = (req: Requisition) => {
     setRequisitions(prev => [req, ...prev]);
+    if (req.status === RequisitionStatus.BURF_PENDING_MANAGER) {
+        addNotification(`New BURF Request ${req.id} pending approval.`, [UserRole.MANAGER, UserRole.SUPER_ADMIN], req.id, 'BURF');
+    }
     alert(`Requisition ${req.id} created successfully`);
   };
 
   const onUpdateRequisition = (req: Requisition) => {
     setRequisitions(prev => prev.map(r => r.id === req.id ? req : r));
+    if (req.status === RequisitionStatus.LIQUIDATION_FILED) {
+        addNotification(`Liquidation filed for ${req.id}. Audit required.`, [UserRole.AUDITOR, UserRole.FINANCE, UserRole.SUPER_ADMIN], req.id, 'LIQUIDATION');
+    } else if (req.status === RequisitionStatus.PRF_PENDING_MANAGER) {
+        addNotification(`PRF Prepared for ${req.id}. Manager approval required.`, [UserRole.MANAGER, UserRole.SUPER_ADMIN], req.id, 'PRF');
+    }
     alert(`Requisition ${req.id} updated successfully`);
-  };
-
-  const onEditPRF = (id: string) => {
-    alert(`Edit PRF ${id} - navigation to be implemented`);
   };
 
   const handleReleaseFunds = (id: string) => {
     setRequisitions(prev => prev.map(r =>
       r.id === id ? { ...r, status: RequisitionStatus.FUNDS_RELEASED } : r
     ));
+    addNotification(`Funds released for ${id}. Please proceed with purchase.`, [UserRole.EMPLOYEE, UserRole.PURCHASING_OFFICER], id, 'LIQUIDATION');
     alert(`Funds released for requisition ${id}. Ready for liquidation filing.`);
   };
+
+  // Filter notifications for current user
+  const userNotifications = notifications.filter(n => 
+    n.targetRoles?.includes(currentUser.role) || currentUser.role === UserRole.SUPER_ADMIN
+  );
 
   return (
     <Routes>
@@ -300,14 +331,14 @@ function AppContent() {
         <ProtectedRoute>
           <Layout
             currentUser={currentUser}
-            notifications={[]}
+            notifications={userNotifications}
             onNotificationClick={() => { }}
             onLogout={() => {
               localStorage.removeItem('currentUser');
               window.location.href = '/login';
             }}
           >
-            <DashboardView />
+            <DashboardView requisitions={requisitions} currentUser={currentUser} />
           </Layout>
         </ProtectedRoute>
       } />
@@ -316,7 +347,7 @@ function AppContent() {
         <ProtectedRoute>
           <Layout
             currentUser={currentUser}
-            notifications={[]}
+            notifications={userNotifications}
             onNotificationClick={() => { }}
             onLogout={() => {
               localStorage.removeItem('currentUser');
@@ -345,7 +376,7 @@ function AppContent() {
         <ProtectedRoute>
           <Layout
             currentUser={currentUser}
-            notifications={[]}
+            notifications={userNotifications}
             onNotificationClick={() => { }}
             onLogout={() => {
               localStorage.removeItem('currentUser');
@@ -362,7 +393,6 @@ function AppContent() {
               getStatusBadge={getStatusBadge}
               businesses={businesses}
               allUsers={allUsers}
-              onEditPRF={onEditPRF}
               onCreateRequisition={onCreateRequisition}
               suppliers={suppliers}
             />
@@ -374,7 +404,7 @@ function AppContent() {
         <ProtectedRoute>
           <Layout
             currentUser={currentUser}
-            notifications={[]}
+            notifications={userNotifications}
             onNotificationClick={() => { }}
             onLogout={() => {
               localStorage.removeItem('currentUser');
@@ -388,6 +418,7 @@ function AppContent() {
               getStatusBadge={getStatusBadge}
               businesses={businesses}
               allUsers={allUsers}
+              onUpdateRequisition={onUpdateRequisition}
             />
           </Layout>
         </ProtectedRoute>
@@ -397,14 +428,14 @@ function AppContent() {
         <ProtectedRoute>
           <Layout
             currentUser={currentUser}
-            notifications={[]}
+            notifications={userNotifications}
             onNotificationClick={() => { }}
             onLogout={() => {
               localStorage.removeItem('currentUser');
               window.location.href = '/login';
             }}
           >
-            <SuppliersView />
+            <SuppliersView suppliers={suppliers} setSuppliers={setSuppliers} />
           </Layout>
         </ProtectedRoute>
       } />
@@ -413,7 +444,7 @@ function AppContent() {
         <ProtectedRoute>
           <Layout
             currentUser={currentUser}
-            notifications={[]}
+            notifications={userNotifications}
             onNotificationClick={() => { }}
             onLogout={() => {
               localStorage.removeItem('currentUser');
@@ -433,7 +464,7 @@ function AppContent() {
         <ProtectedRoute>
           <Layout
             currentUser={currentUser}
-            notifications={[]}
+            notifications={userNotifications}
             onNotificationClick={() => { }}
             onLogout={() => {
               localStorage.removeItem('currentUser');
@@ -455,7 +486,7 @@ function AppContent() {
         <ProtectedRoute>
           <Layout
             currentUser={currentUser}
-            notifications={[]}
+            notifications={userNotifications}
             onNotificationClick={() => { }}
             onLogout={() => {
               localStorage.removeItem('currentUser');
@@ -465,7 +496,7 @@ function AppContent() {
             <PRFFormView
               requisitionId={window.location.pathname.split('/').pop() || ''}
               onCancel={() => window.history.back()}
-              requisitions={[]}
+              requisitions={requisitions}
               handleSubmitPRF={() => alert('PRF submission not yet implemented')}
             />
           </Layout>

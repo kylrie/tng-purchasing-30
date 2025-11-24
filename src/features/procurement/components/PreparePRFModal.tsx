@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, DollarSign, ArrowLeft } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
+import { RequisitionStatus } from '../types';
 
 interface PreparePRFModalProps {
     requisition: Requisition;
     suppliers: Supplier[];
     onClose: () => void;
-    onSubmit: (requisition: Requisition) => void;
+    onSubmit: (prfReq: Requisition, updatedOrigin?: Requisition) => void;
     currentUserId: string;
 }
 
@@ -17,27 +18,49 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     onSubmit,
     currentUserId
 }) => {
-    const [items, setItems] = useState<RequisitionItem[]>(requisition.items.map(item => ({ ...item })));
-    const [createNewSupplier, setCreateNewSupplier] = useState(false);
-    const [selectedSupplierId, setSelectedSupplierId] = useState('');
-    const [supplierDetails, setSupplierDetails] = useState<SupplierDetails>({
-        name: '',
-        tin: '',
-        address: '',
-        paymentMode: '',
-        terms: ''
-    });
+    // Initialize items from requisition with a selected flag
+    const [items, setItems] = useState<(RequisitionItem & { selected: boolean })[]>(
+        requisition.items.map(item => ({ ...item, selected: true }))
+    );
+    
+    // Check if we are editing an existing PRF
+    const existingSupplier = requisition.prfDetails?.supplier;
+    
+    // Find if the existing supplier matches a known supplier ID
+    const knownSupplierId = existingSupplier 
+        ? suppliers.find(s => s.name === existingSupplier.name)?.id || '' 
+        : '';
 
-    // Calculate total amount
-    const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const [createNewSupplier, setCreateNewSupplier] = useState(!!existingSupplier && !knownSupplierId);
+    const [selectedSupplierId, setSelectedSupplierId] = useState(knownSupplierId);
+    
+    const [supplierDetails, setSupplierDetails] = useState<SupplierDetails>(
+        existingSupplier || {
+            name: '',
+            tin: '',
+            address: '',
+            paymentMode: '',
+            terms: ''
+        }
+    );
+
+    // Calculate total amount based on SELECTED items
+    const totalAmount = items
+        .filter(item => item.selected)
+        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     // Check if form is valid
     const isValid = () => {
-        const allPricesFilled = items.every(item => item.price > 0);
+        // Only check prices for selected items
+        const selectedItems = items.filter(item => item.selected);
+        const hasSelection = selectedItems.length > 0;
+        const allPricesFilled = selectedItems.every(item => item.price > 0);
+        
         const supplierValid = createNewSupplier
             ? supplierDetails.name && supplierDetails.tin && supplierDetails.address && supplierDetails.paymentMode
             : selectedSupplierId !== '';
-        return allPricesFilled && supplierValid;
+            
+        return hasSelection && allPricesFilled && supplierValid;
     };
 
     // Handle supplier selection
@@ -47,10 +70,10 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         if (supplier) {
             setSupplierDetails({
                 name: supplier.name,
-                tin: '',
-                address: '',
-                paymentMode: '',
-                terms: ''
+                tin: supplier.tin || '',
+                address: supplier.address || '',
+                paymentMode: supplier.paymentMode || '',
+                terms: supplier.terms || ''
             });
         }
     };
@@ -62,20 +85,75 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         setItems(newItems);
     };
 
+    // Handle item selection toggle
+    const handleSelectionToggle = (index: number) => {
+        const newItems = [...items];
+        newItems[index] = { ...newItems[index], selected: !newItems[index].selected };
+        setItems(newItems);
+    };
+
+    // Handle toggle all
+    const handleToggleAll = (checked: boolean) => {
+        const newItems = items.map(item => ({ ...item, selected: checked }));
+        setItems(newItems);
+    }
+
     // Handle submit
     const handleSubmit = () => {
-        const updatedRequisition: Requisition = {
-            ...requisition,
-            items,
-            totalAmount,
-            prfDetails: {
-                supplier: supplierDetails,
-                preparedBy: currentUserId,
-                datePrepared: new Date().toISOString()
-            }
-        };
-        onSubmit(updatedRequisition);
+        // Filter items
+        const selectedItems = items.filter(item => item.selected).map(({ selected, ...item }) => item);
+        const unselectedItems = items.filter(item => !item.selected).map(({ selected, ...item }) => item);
+
+        // Check if we are converting a BURF to PRF (Split logic)
+        // If status is READY_FOR_PRF, we are creating a PRF from a BURF.
+        if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length > 0) {
+            // 1. Create NEW PRF with selected items
+            const newPrf: Requisition = {
+                ...requisition,
+                id: `PRF-${Math.floor(10000 + Math.random() * 90000)}`, // New ID
+                items: selectedItems,
+                totalAmount,
+                status: RequisitionStatus.PRF_PENDING_MANAGER,
+                prfDetails: {
+                    supplier: supplierDetails,
+                    preparedBy: currentUserId,
+                    datePrepared: new Date().toISOString()
+                },
+                remarks: `${requisition.remarks || ''} (Split from ${requisition.id})`
+            };
+
+            // 2. Update ORIGINAL BURF with remaining items
+            const updatedBurf: Requisition = {
+                ...requisition,
+                items: unselectedItems,
+                // Reset total amount for BURF logic (assuming BURF usually doesn't have prices or just sums them)
+                // If prices were entered during preparation but item unselected, we might want to keep them or reset.
+                // Here we keep the price if entered, but user can change later.
+                totalAmount: unselectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+                status: RequisitionStatus.READY_FOR_PRF // Remains ready for next PRF
+            };
+
+            onSubmit(newPrf, updatedBurf);
+        } else {
+            // Standard Flow: Update the existing requisition (either converting full BURF or editing PRF)
+            const updatedRequisition: Requisition = {
+                ...requisition,
+                items: selectedItems,
+                totalAmount,
+                prfDetails: {
+                    supplier: supplierDetails,
+                    preparedBy: currentUserId,
+                    datePrepared: new Date().toISOString()
+                },
+                status: RequisitionStatus.PRF_PENDING_MANAGER
+            };
+            onSubmit(updatedRequisition);
+        }
     };
+
+    const allSelected = items.every(i => i.selected);
+    const unselectedCount = items.filter(i => !i.selected).length;
+    const isSplitting = requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedCount > 0;
 
     return (
         <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
@@ -89,23 +167,30 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                         >
                             <ArrowLeft size={20} /> Back
                         </button>
-                        <h2 className="text-xl font-bold text-slate-900">Prepare Purchase Requisition (PRF)</h2>
-                    </div>
-                    <div className="text-xs text-slate-600 bg-white px-3 py-1 rounded-full border border-slate-200">
-                        STAGING - ROLE SIMULATOR ACTIVE (SUPER_ADMIN)
+                        <h2 className="text-xl font-bold text-slate-900">
+                            {requisition.prfDetails ? 'Edit Purchase Requisition (PRF)' : 'Prepare Purchase Requisition (PRF)'}
+                        </h2>
                     </div>
                 </div>
 
                 <div className="p-6 space-y-6">
                     {/* Item Specification & Costing */}
                     <div>
-                        <h3 className="text-lg font-semibold text-slate-800 mb-4">Item Specification & Costing</h3>
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-slate-800">Item Specification & Costing</h3>
+                            <span className="text-xs text-slate-500">Select items to include in this PRF</span>
+                        </div>
                         <div className="border border-slate-200 rounded-lg overflow-hidden">
                             <table className="w-full text-sm">
                                 <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-700 w-8">
-                                            <input type="checkbox" checked readOnly className="rounded" />
+                                            <input 
+                                                type="checkbox" 
+                                                checked={allSelected} 
+                                                onChange={(e) => handleToggleAll(e.target.checked)}
+                                                className="rounded cursor-pointer" 
+                                            />
                                         </th>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-700">ITEM</th>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-700">QTY / UOM</th>
@@ -116,9 +201,14 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {items.map((item, index) => (
-                                        <tr key={index} className="hover:bg-slate-50">
+                                        <tr key={index} className={`hover:bg-slate-50 ${!item.selected ? 'opacity-50 bg-slate-50' : ''}`}>
                                             <td className="px-4 py-3">
-                                                <input type="checkbox" checked readOnly className="rounded" />
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={item.selected} 
+                                                    onChange={() => handleSelectionToggle(index)}
+                                                    className="rounded cursor-pointer" 
+                                                />
                                             </td>
                                             <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
                                             <td className="px-4 py-3 text-slate-600">{item.quantity} {item.uom}</td>
@@ -126,10 +216,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                             <td className="px-4 py-3">
                                                 <input
                                                     type="number"
+                                                    disabled={!item.selected}
                                                     value={item.price || ''}
                                                     onChange={(e) => handlePriceChange(index, parseFloat(e.target.value) || 0)}
                                                     placeholder="0"
-                                                    className="w-24 px-2 py-1 border border-slate-300 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-24 px-2 py-1 border border-slate-300 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
                                                 />
                                             </td>
                                             <td className="px-4 py-3 text-right font-semibold text-slate-900">
@@ -260,10 +351,19 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <div className="flex items-start gap-3">
                             <div className="flex-1">
-                                <h4 className="font-semibold text-blue-900 mb-1">Ready to Submit?</h4>
-                                <p className="text-sm text-blue-700">
-                                    Please ensure all costs are final and supplier details are verified. This will be sent to the Business Unit Manager for final approval.
-                                </p>
+                                <h4 className="font-semibold text-blue-900 mb-1">Ready to {requisition.prfDetails ? 'Update' : 'Submit'}?</h4>
+                                <div className="text-sm text-blue-700">
+                                    <p>Please ensure all costs are final and supplier details are verified.</p>
+                                    {isSplitting && 
+                                        <div className="mt-2 font-medium text-orange-700 bg-orange-100 p-2 rounded border border-orange-200">
+                                            Splitting Request: You selected {items.length - unselectedCount} of {items.length} items. 
+                                            <br/>
+                                            • A NEW PRF will be created for the selected items.
+                                            <br/>
+                                            • The original request will remain as BURF with the {unselectedCount} remaining items.
+                                        </div>
+                                    }
+                                </div>
                             </div>
                             <button
                                 onClick={handleSubmit}
@@ -273,7 +373,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                     : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                                     }`}
                             >
-                                <Check size={18} /> Submit PRF
+                                <Check size={18} /> {requisition.prfDetails ? 'Update PRF' : 'Submit PRF'}
                             </button>
                         </div>
                     </div>

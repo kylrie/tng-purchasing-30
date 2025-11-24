@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     TrendingUp,
     Clock,
@@ -9,31 +10,100 @@ import {
     FileText,
     DollarSign
 } from 'lucide-react';
+import type { Requisition } from '../../procurement/types';
+import { RequisitionStatus } from '../../procurement/types';
+import type { User } from '../../../shared/types';
+import { UserRole } from '../../auth/types';
 
-const DashboardView = () => {
+interface DashboardViewProps {
+    requisitions: Requisition[];
+    currentUser: User;
+}
+
+const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser }) => {
+    const navigate = useNavigate();
+
+    // Calculate Stats
+    const pendingCount = requisitions.filter(r => {
+        if (currentUser.role === UserRole.SUPER_ADMIN) {
+             return [
+                 RequisitionStatus.BURF_PENDING_MANAGER, 
+                 RequisitionStatus.BURF_PENDING_CIC, 
+                 RequisitionStatus.PRF_PENDING_MANAGER,
+                 RequisitionStatus.APPROVED_FOR_PAYMENT
+             ].includes(r.status);
+        }
+        if (currentUser.role === UserRole.MANAGER) {
+            return r.status === RequisitionStatus.BURF_PENDING_MANAGER || r.status === RequisitionStatus.PRF_PENDING_MANAGER;
+        }
+        if (currentUser.role === UserRole.CIC) {
+            return r.status === RequisitionStatus.BURF_PENDING_CIC;
+        }
+        if (currentUser.role === UserRole.PURCHASING_OFFICER) {
+            return r.status === RequisitionStatus.READY_FOR_PRF;
+        }
+        if (currentUser.role === UserRole.FINANCE) {
+            return r.status === RequisitionStatus.APPROVED_FOR_PAYMENT;
+        }
+        // Employee sees their own pending requests? Or maybe count of their requests in progress?
+        if (currentUser.role === UserRole.EMPLOYEE) {
+             return r.requesterId === currentUser.id && r.status !== RequisitionStatus.DRAFT && r.status !== RequisitionStatus.FUNDS_RELEASED;
+        }
+        return false;
+    }).length;
+
+    const activePRFs = requisitions.filter(r =>
+        [RequisitionStatus.READY_FOR_PRF, RequisitionStatus.PRF_PENDING_MANAGER, RequisitionStatus.APPROVED_FOR_PAYMENT].includes(r.status)
+    ).length;
+
+    const totalSpend = requisitions
+        .filter(r => [RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.LIQUIDATION_FILED, RequisitionStatus.AUDITED_CLEARED].includes(r.status))
+        .reduce((sum, r) => sum + r.totalAmount, 0);
+
+    // Recent Activity - Derived from latest requisitions
+    const recentActivity = [...requisitions]
+        .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
+        .slice(0, 5)
+        .map(r => {
+            let action = 'created request';
+            if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'submitted BURF';
+            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'submitted PRF';
+            if (r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) action = 'approved PRF';
+            
+            return {
+                id: r.id,
+                user: r.requesterId, // In a real app, we would map ID to Name
+                action: action,
+                target: r.projectName || r.description,
+                time: new Date(r.dateCreated).toLocaleDateString(),
+                avatar: r.requesterId.charAt(0).toUpperCase(),
+                status: r.status
+            };
+        });
+
     const stats = [
         {
             label: 'Pending Approvals',
-            value: '12',
-            change: '+2.5%',
-            trend: 'up',
+            value: pendingCount.toString(),
+            change: 'Active',
+            trend: 'neutral',
             icon: Clock,
             color: 'text-orange-600',
             bg: 'bg-orange-50'
         },
         {
             label: 'Active PRFs',
-            value: '24',
-            change: '+12%',
+            value: activePRFs.toString(),
+            change: 'In Progress',
             trend: 'up',
             icon: FileText,
             color: 'text-blue-600',
             bg: 'bg-blue-50'
         },
         {
-            label: 'Total Spend (MTD)',
-            value: '₱1.2M',
-            change: '-4.1%',
+            label: 'Total Spend (Est)',
+            value: `₱${(totalSpend / 1000).toFixed(1)}k`,
+            change: 'MTD',
             trend: 'down',
             icon: DollarSign,
             color: 'text-emerald-600',
@@ -41,47 +111,12 @@ const DashboardView = () => {
         },
         {
             label: 'Critical Stock',
-            value: '3',
-            change: '0%',
+            value: '0', // Mock for now as we don't track inventory levels deeply yet
+            change: 'Stable',
             trend: 'neutral',
             icon: AlertCircle,
             color: 'text-red-600',
             bg: 'bg-red-50'
-        }
-    ];
-
-    const recentActivity = [
-        {
-            id: 1,
-            user: 'Sarah Johnson',
-            action: 'submitted a new BURF request',
-            target: 'IT Equipment Upgrade',
-            time: '2 hours ago',
-            avatar: 'SJ'
-        },
-        {
-            id: 2,
-            user: 'Mike Chen',
-            action: 'approved PRF #1023',
-            target: 'Office Supplies Q4',
-            time: '4 hours ago',
-            avatar: 'MC'
-        },
-        {
-            id: 3,
-            user: 'System',
-            action: 'alert: Low stock warning',
-            target: 'Printer Paper A4',
-            time: '5 hours ago',
-            avatar: 'SYS'
-        },
-        {
-            id: 4,
-            user: 'Anna Smith',
-            action: 'completed liquidation',
-            target: 'Travel Expenses - Cebu',
-            time: '1 day ago',
-            avatar: 'AS'
         }
     ];
 
@@ -90,7 +125,7 @@ const DashboardView = () => {
             {/* Welcome Section */}
             <div>
                 <h1 className="text-2xl font-bold text-slate-800">Dashboard Overview</h1>
-                <p className="text-slate-500">Welcome back! Here's what's happening today.</p>
+                <p className="text-slate-500">Welcome back, {currentUser.name}! Here's what's happening today.</p>
             </div>
 
             {/* Stats Grid */}
@@ -101,11 +136,7 @@ const DashboardView = () => {
                             <div className={`p-3 rounded-lg ${stat.bg}`}>
                                 <stat.icon className={`w-6 h-6 ${stat.color}`} />
                             </div>
-                            <div className={`flex items-center text-xs font-medium ${stat.trend === 'up' ? 'text-emerald-600' :
-                                    stat.trend === 'down' ? 'text-red-600' : 'text-slate-500'
-                                }`}>
-                                {stat.trend === 'up' && <ArrowUpRight className="w-3 h-3 mr-1" />}
-                                {stat.trend === 'down' && <ArrowDownRight className="w-3 h-3 mr-1" />}
+                            <div className={`flex items-center text-xs font-medium text-slate-500`}>
                                 {stat.change}
                             </div>
                         </div>
@@ -120,7 +151,7 @@ const DashboardView = () => {
                 <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm">
                     <div className="p-6 border-b border-gray-50 flex justify-between items-center">
                         <h2 className="text-lg font-bold text-slate-800">Recent Activity</h2>
-                        <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
+                        <button onClick={() => navigate('/burf')} className="text-sm text-blue-600 hover:text-blue-700 font-medium">View All</button>
                     </div>
                     <div className="p-6">
                         <div className="space-y-6">
@@ -133,10 +164,13 @@ const DashboardView = () => {
                                         <p className="text-sm text-slate-800">
                                             <span className="font-semibold">{activity.user}</span> {activity.action} <span className="font-medium text-slate-900">"{activity.target}"</span>
                                         </p>
-                                        <p className="text-xs text-slate-400 mt-1">{activity.time}</p>
+                                        <p className="text-xs text-slate-400 mt-1">{activity.time} • <span className="uppercase">{activity.status.replace(/_/g, ' ')}</span></p>
                                     </div>
                                 </div>
                             ))}
+                            {recentActivity.length === 0 && (
+                                <p className="text-slate-500 text-center text-sm">No recent activity.</p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -147,16 +181,25 @@ const DashboardView = () => {
                         <h2 className="text-lg font-bold text-slate-800">Quick Actions</h2>
                     </div>
                     <div className="p-6 space-y-3">
-                        <button className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group">
-                            <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700">Create New PRF</span>
+                        <button 
+                            onClick={() => navigate('/burf')}
+                            className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all group"
+                        >
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-blue-700">Create New BURF</span>
                             <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
                         </button>
-                        <button className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all group">
-                            <span className="text-sm font-medium text-slate-700 group-hover:text-orange-700">Submit Liquidation</span>
+                        <button 
+                            onClick={() => navigate('/liquidation')}
+                            className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all group"
+                        >
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-orange-700">View Liquidations</span>
                             <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-orange-500" />
                         </button>
-                        <button className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all group">
-                            <span className="text-sm font-medium text-slate-700 group-hover:text-emerald-700">Add Supplier</span>
+                        <button 
+                            onClick={() => navigate('/suppliers')}
+                            className="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
+                        >
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-emerald-700">Manage Suppliers</span>
                             <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" />
                         </button>
                     </div>

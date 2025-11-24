@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Trash2, X, Link as LinkIcon, Check, Printer } from 'lucide-react';
+import { Search, Plus, Trash2, X, Link as LinkIcon, Check, Printer, Edit, RefreshCw } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -17,7 +17,6 @@ interface PrfViewProps {
     getStatusBadge: (status: RequisitionStatus) => React.ReactNode;
     businesses: Business[];
     allUsers: User[];
-    onEditPRF: (id: string) => void;
     onCreateRequisition?: (req: Requisition) => void;
     suppliers: Supplier[];
 }
@@ -145,10 +144,10 @@ const DirectPrfModal = ({ onCancel, currentUser, requisitions, setRequisitions, 
             if (!sup) return;
             supplierDetails = {
                 name: sup.name,
-                tin: '000-000-000', // Mock
-                address: 'Registered Address', // Mock
-                paymentMode: 'Check',
-                terms: '30 Days'
+                tin: sup.tin || '',
+                address: sup.address || '',
+                paymentMode: sup.paymentMode || '',
+                terms: sup.terms || ''
             };
         }
 
@@ -359,7 +358,6 @@ export const PrfView: React.FC<PrfViewProps> = ({
     getStatusBadge,
     businesses,
     allUsers,
-    onEditPRF,
     onCreateRequisition,
     suppliers
 }) => {
@@ -369,22 +367,51 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // Tracking Modal State
     const [trackingReq, setTrackingReq] = useState<Requisition | null>(null);
 
-    // Prepare PRF Modal State
+    // Prepare PRF Modal State (Also used for Editing)
     const [preparePRFReq, setPreparePRFReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
 
     // Handle PRF Submit from modal
-    const handlePreparePRFSubmit = (updatedReq: Requisition) => {
-        setRequisitions(prev => prev.map(r =>
-            r.id === updatedReq.id ? { ...updatedReq, status: RequisitionStatus.PRF_PENDING_MANAGER } : r
-        ));
+    const handlePreparePRFSubmit = (prfReq: Requisition, updatedOrigin?: Requisition) => {
+        setRequisitions(prev => {
+            let nextState = [...prev];
+
+            // 1. If we have an updated origin (split BURF), update it in the list
+            if (updatedOrigin) {
+                nextState = nextState.map(r => r.id === updatedOrigin.id ? updatedOrigin : r);
+            }
+
+            // 2. Handle the PRF request
+            // Check if it already exists (editing) or is new (splitting)
+            const exists = nextState.some(r => r.id === prfReq.id);
+            
+            if (exists) {
+                // Update existing
+                nextState = nextState.map(r => 
+                    r.id === prfReq.id ? { ...prfReq, status: RequisitionStatus.PRF_PENDING_MANAGER } : r
+                );
+            } else {
+                // Add new PRF
+                nextState = [prfReq, ...nextState];
+            }
+
+            return nextState;
+        });
+
         setPreparePRFReq(null);
-        alert(`PRF ${updatedReq.id} submitted for Manager approval`);
+        alert(updatedOrigin 
+            ? `PRF ${prfReq.id} created (Split). Original request updated.` 
+            : `PRF ${prfReq.id} submitted for Manager approval`
+        );
     };
 
     // Filter and Sort
     const filteredAndSortedReqs = visibleRequisitions
-        .filter(r => [RequisitionStatus.READY_FOR_PRF, RequisitionStatus.PRF_PENDING_MANAGER, RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED].includes(r.status))
+        .filter(r => [RequisitionStatus.READY_FOR_PRF, RequisitionStatus.PRF_PENDING_MANAGER, RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.REJECTED].includes(r.status))
+        .filter(r => 
+            // Include rejected items only if they have PRF details (meaning they were rejected at PRF stage)
+            r.status !== RequisitionStatus.REJECTED || r.prfDetails
+        )
         .filter(r =>
             r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.projectName || r.description).toLowerCase().includes(searchTerm.toLowerCase())
@@ -469,11 +496,22 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                         )}
                                         {req.status === RequisitionStatus.PRF_PENDING_MANAGER && (currentUser.role === UserRole.MANAGER || currentUser.role === UserRole.SUPER_ADMIN) && (
                                             <div className="flex gap-2">
+                                                <button onClick={() => setPreparePRFReq(req)} className="text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs border border-blue-200 flex items-center gap-1">
+                                                    <Edit size={12} /> Edit
+                                                </button>
                                                 <button onClick={() => handleReject(req.id)} className="text-red-600 bg-red-50 px-2 py-1 rounded text-xs border border-red-200">Reject</button>
                                                 <button onClick={() => handleManagerApprovePRF(req.id)} className="text-green-600 bg-green-50 px-2 py-1 rounded text-xs border border-green-200">Approve</button>
                                             </div>
                                         )}
-                                        {req.prfDetails && (
+                                        {req.status === RequisitionStatus.REJECTED && req.prfDetails && (currentUser.role === UserRole.PURCHASING_OFFICER || currentUser.role === UserRole.SUPER_ADMIN) && (
+                                            <button 
+                                                onClick={() => setPreparePRFReq(req)} 
+                                                className="text-orange-600 bg-orange-50 px-2 py-1 rounded text-xs border border-orange-200 flex items-center gap-1"
+                                            >
+                                                <RefreshCw size={12} /> Retry / Edit
+                                            </button>
+                                        )}
+                                        {req.prfDetails && req.status !== RequisitionStatus.REJECTED && (
                                             <button onClick={() => setPrintReq(req)} className="text-slate-600 bg-slate-100 px-2 py-1 rounded text-xs flex items-center gap-1"><Printer size={12} /> Print</button>
                                         )}
                                     </td>
@@ -487,7 +525,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 </table>
             </div>
 
-            {/* Prepare PRF Modal */}
+            {/* Prepare PRF Modal - Used for Preparation and Editing */}
             {preparePRFReq && (
                 <PreparePRFModal
                     requisition={preparePRFReq}

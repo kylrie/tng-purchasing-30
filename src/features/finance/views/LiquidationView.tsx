@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Search, DollarSign } from 'lucide-react';
+import { Search, Edit, FileText, RefreshCw } from 'lucide-react';
 import type { Requisition } from '../../procurement/types';
 import { RequisitionStatus } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
 import { UserRole } from '../../auth/types';
+import LiquidationModal from '../components/LiquidationModal';
 
 interface LiquidationViewProps {
     requisitions: Requisition[];
@@ -12,6 +13,7 @@ interface LiquidationViewProps {
     getStatusBadge: (status: RequisitionStatus) => React.ReactNode;
     businesses: Business[];
     allUsers: User[];
+    onUpdateRequisition?: (req: Requisition) => void;
 }
 
 const LiquidationView: React.FC<LiquidationViewProps> = ({
@@ -20,18 +22,31 @@ const LiquidationView: React.FC<LiquidationViewProps> = ({
     handleReleaseFunds,
     getStatusBadge,
     businesses,
-    allUsers
+    allUsers,
+    onUpdateRequisition
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [editingLiquidationReq, setEditingLiquidationReq] = useState<Requisition | null>(null);
 
-    // Filter requisitions for Finance dashboard (Approved for Payment and Funds Released)
+    // Filter requisitions for Finance dashboard (Approved for Payment, Funds Released, Liquidation Filed, and Rejected Liquidations)
     const financeRequisitions = requisitions
-        .filter(r => [RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.LIQUIDATION_FILED].includes(r.status))
+        .filter(r => [RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.LIQUIDATION_FILED, RequisitionStatus.REJECTED].includes(r.status))
+        .filter(r => 
+            // Include rejected items only if they have Liquidation details (meaning they were rejected at Liquidation stage)
+            r.status !== RequisitionStatus.REJECTED || r.liquidationDetails
+        )
         .filter(r =>
             r.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.projectName || r.description).toLowerCase().includes(searchTerm.toLowerCase())
         )
         .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
+
+    const handleLiquidationSubmit = (updatedReq: Requisition) => {
+        if (onUpdateRequisition) {
+            onUpdateRequisition(updatedReq);
+        }
+        setEditingLiquidationReq(null);
+    };
 
     return (
         <div className="space-y-6">
@@ -94,21 +109,37 @@ const LiquidationView: React.FC<LiquidationViewProps> = ({
                                     <td className="px-6 py-4">
                                         {getStatusBadge(req.status)}
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-6 py-4 text-right flex justify-end gap-2">
                                         {req.status === RequisitionStatus.APPROVED_FOR_PAYMENT &&
                                             (currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.FINANCE || currentUser.role === UserRole.MANAGER) && (
                                                 <button
                                                     onClick={() => handleReleaseFunds(req.id)}
                                                     className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium flex items-center gap-1 ml-auto"
                                                 >
-                                                    <DollarSign size={14} /> Release Funds
+                                                    <span className="mr-1 font-bold text-sm">₱</span> Release Funds
                                                 </button>
                                             )}
-                                        {req.status === RequisitionStatus.FUNDS_RELEASED && (
-                                            <span className="text-xs text-slate-500 italic">Funds Released</span>
+                                        
+                                        {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) && (
+                                            <button
+                                                onClick={() => setEditingLiquidationReq(req)}
+                                                className="text-blue-600 hover:text-blue-800 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-blue-200 bg-blue-50"
+                                            >
+                                                {req.status === RequisitionStatus.FUNDS_RELEASED ? (
+                                                    <><FileText size={14} /> File Liquidation</>
+                                                ) : (
+                                                    <><Edit size={14} /> Edit Liquidation</>
+                                                )}
+                                            </button>
                                         )}
-                                        {req.status === RequisitionStatus.LIQUIDATION_FILED && (
-                                            <span className="text-xs text-blue-600 font-medium">Pending Audit</span>
+
+                                        {req.status === RequisitionStatus.REJECTED && req.liquidationDetails && (
+                                             <button
+                                             onClick={() => setEditingLiquidationReq(req)}
+                                             className="text-orange-600 hover:text-orange-800 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-orange-200 bg-orange-50"
+                                         >
+                                             <RefreshCw size={14} /> Re-file Liquidation
+                                         </button>
                                         )}
                                     </td>
                                 </tr>
@@ -124,6 +155,15 @@ const LiquidationView: React.FC<LiquidationViewProps> = ({
                     </tbody>
                 </table>
             </div>
+
+            {editingLiquidationReq && (
+                <LiquidationModal
+                    requisition={editingLiquidationReq}
+                    onClose={() => setEditingLiquidationReq(null)}
+                    onSubmit={handleLiquidationSubmit}
+                    currentUserId={currentUser.id}
+                />
+            )}
         </div>
     );
 };
