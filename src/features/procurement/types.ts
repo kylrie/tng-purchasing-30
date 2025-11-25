@@ -7,7 +7,9 @@ export enum UserRole {
   CIC = 'CIC', // Corporate Inventory Controller
   PURCHASING_OFFICER = 'PURCHASING_OFFICER',
   FINANCE = 'FINANCE', // Treasury (Releases Budget)
-  AUDITOR = 'AUDITOR' // Checks Liquidation
+  AUDITOR = 'AUDITOR', // Checks Liquidation
+  GENERAL_MANAGER = 'GENERAL_MANAGER',
+  BOARD_OF_DIRECTOR = 'BOARD_OF_DIRECTOR'
 }
 
 // Helper function to determine if user has global access to all business units
@@ -17,7 +19,9 @@ export const hasGlobalAccess = (role: UserRole): boolean => {
     UserRole.CIC,
     UserRole.PURCHASING_OFFICER,
     UserRole.FINANCE,
-    UserRole.AUDITOR
+    UserRole.AUDITOR,
+    UserRole.GENERAL_MANAGER,
+    UserRole.BOARD_OF_DIRECTOR
   ].includes(role);
 };
 
@@ -129,7 +133,7 @@ export interface Requisition {
   prfIdentifier?: string; // Custom identifier for PRFs
 
   fundReleaseDate?: string; // Date when funds were released by Finance
-  chequeNumber?: string; // Cheque number for the fund release
+  chequeNumber?: string;
 
   // PRF Specific Data
   prfDetails?: {

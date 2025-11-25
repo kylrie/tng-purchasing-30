@@ -17,7 +17,7 @@ interface AuthContextType {
   setError: (error: string | null) => void;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  completeNewUserRegistration: (role: UserRole, password?: string) => Promise<void>;
+  completeNewUserRegistration: (role: UserRole, businessId: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
   mockLogin: () => Promise<void>;
 }
@@ -109,7 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const completeNewUserRegistration = async (role: UserRole, password?: string) => {
+  const completeNewUserRegistration = async (role: UserRole, businessId: string, password?: string) => {
     if (!tempFirebaseUser) {
       setError("No temporary user data found to complete registration.");
       return;
@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           name: tempFirebaseUser.displayName || 'Google User',
           email: tempFirebaseUser.email!,
           role: role,
-          businessId: 'tng-systems', // Default or from selection
+          businessId: businessId,
           avatar: tempFirebaseUser.photoURL || '',
           status: UserStatus.PENDING_APPROVAL,
           isPasswordSet: !!password,

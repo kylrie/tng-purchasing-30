@@ -7,6 +7,7 @@ import DashboardView from './features/dashboard/views/DashboardView';
 import PendingApprovalsView from './features/admin/views/PendingApprovalsView';
 import BurfView from './features/procurement/views/BURFView';
 import PrfView from './features/procurement/views/PRFView';
+import ProcurementApprovalsView from './features/procurement/views/ProcurementApprovalsView';
 import LiquidationView from './features/finance/views/LiquidationView';
 import SuppliersView from './features/inventory/views/SuppliersView';
 import { SettingsView } from './features/admin/views/SettingsView';
@@ -17,9 +18,11 @@ import { useRequisitions } from './features/procurement/hooks/useRequisitions';
 import { useUsers } from './features/admin/hooks/useUsers';
 import { useBusinesses } from './features/admin/hooks/useBusinesses';
 import { useSuppliers } from './features/inventory/hooks/useSuppliers';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from './config/firebase';
 import { COLLECTIONS } from './shared/types/firebase.types';
+import type { Permission } from './config/permissions';
+import { usePermissions } from './hooks/usePermissions';
 
 function ProtectedApp() {
   const { currentUser, logout, loading } = useAuth();
@@ -27,6 +30,7 @@ function ProtectedApp() {
   const { users, setUsers, updateUser } = useUsers();
   const { businesses, addBusiness } = useBusinesses();
   const { suppliers, createSupplier, updateSupplier, deleteSupplier } = useSuppliers();
+  const { hasPermission } = usePermissions();
 
   const [notifications] = useState<NotificationItem[]>([]);
   const [approvalLoadingId, setApprovalLoadingId] = useState<string | null>(null);
@@ -54,6 +58,15 @@ function ProtectedApp() {
       console.error("Error rejecting user: ", error);
     } finally {
       setApprovalLoadingId(null);
+    }
+  };
+
+  const handleSavePermissions = async (permissions: Record<UserRole, Permission[]>) => {
+    try {
+      const permissionsRef = doc(db, 'config', 'permissions');
+      await setDoc(permissionsRef, { roles: permissions });
+    } catch (error) {
+      console.error("Error saving permissions: ", error);
     }
   };
 
@@ -91,7 +104,6 @@ function ProtectedApp() {
     );
   };
 
-  // Requisition Action Handlers
   const handleManagerApprovePRF = async (id: string) => {
     const requisition = requisitions.find(r => r.id === id);
     if (requisition) {
@@ -161,6 +173,17 @@ function ProtectedApp() {
             />
         } />
 
+        <Route path="/procurement-approvals" element={
+            <ProcurementApprovalsView
+                currentUser={currentUser}
+                requisitions={requisitions}
+                allUsers={users}
+                businesses={businesses}
+                onUpdateRequisition={updateRequisition}
+                getStatusBadge={getStatusBadge}
+            />
+        } />
+
         <Route path="/liquidation" element={
             <LiquidationView 
                 currentUser={currentUser}
@@ -168,6 +191,8 @@ function ProtectedApp() {
                 getStatusBadge={getStatusBadge}
                 handleReleaseFunds={handleReleaseFunds}
                 businesses={businesses}
+                onUpdateRequisition={updateRequisition}
+                allUsers={users}
             />
         } />
         
@@ -187,10 +212,11 @@ function ProtectedApp() {
                 handleAddBusiness={addBusiness}
                 allUsers={users}
                 setAllUsers={updateUser}
+                onSavePermissions={handleSavePermissions}
             />
         } />
 
-        {currentUser.role === UserRole.SUPER_ADMIN && (
+        {hasPermission('admin:view:user_approvals') && (
           <Route path="/approvals" element={
             <PendingApprovalsView 
               pendingUsers={pendingUsers} 

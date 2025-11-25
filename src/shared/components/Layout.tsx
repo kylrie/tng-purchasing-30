@@ -12,11 +12,12 @@ import {
     Settings,
     LogOut,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    CheckSquare
 } from 'lucide-react';
 import type { User } from '../../features/auth/types';
-import { UserRole } from '../../features/auth/types';
 import type { NotificationItem } from '../types';
+import { usePermissions } from '../../hooks/usePermissions';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -37,6 +38,7 @@ const Layout: React.FC<LayoutProps> = ({
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { hasPermission } = usePermissions();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -53,26 +55,20 @@ const Layout: React.FC<LayoutProps> = ({
     }, []);
 
     const navItems = [
-        { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-        { path: '/burf', label: 'BURF Requisitions', icon: ClipboardList },
-        { path: '/prf', label: 'PRF Management', icon: ShoppingCart },
-        { path: '/liquidation', label: 'Liquidation & Audit', icon: Scale },
-        { path: '/suppliers', label: 'Suppliers', icon: Users },
-        ...(currentUser.role === UserRole.SUPER_ADMIN ? [
-            {
-                path: '/approvals',
-                label: 'Pending Approvals',
-                icon: UserCheck,
-                badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined
-            }
-        ] : [])
+        { path: '/', label: 'Dashboard', icon: LayoutDashboard, canView: true },
+        { path: '/burf', label: 'My Requisitions', icon: ClipboardList, canView: true },
+        { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('requisition:create:prf') },
+        { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('ui:view:approvals_page') },
+        { path: '/liquidation', label: 'Finance', icon: Scale, canView: hasPermission('finance:release_funds') || hasPermission('finance:audit_liquidation') },
+        { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('supplier:view') },
+        { path: '/approvals', label: 'User Approvals', icon: UserCheck, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined, canView: hasPermission('admin:view:user_approvals') },
+        { path: '/settings', label: 'Settings', icon: Settings, canView: hasPermission('ui:view:settings_page') }
     ];
 
     const currentPath = location.pathname;
 
     return (
         <div className="flex h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden font-sans text-white relative">
-            {/* Mobile Sidebar Overlay */}
             {isSidebarOpen && (
                 <div 
                     className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
@@ -80,11 +76,9 @@ const Layout: React.FC<LayoutProps> = ({
                 />
             )}
 
-            {/* Sidebar */}
             <aside
                 className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'lg:w-20 w-72' : 'w-72'} bg-slate-800/50 backdrop-blur-md border-r border-slate-700/50 shadow-2xl transform transition-all duration-300 ease-in-out lg:static lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
-                {/* Toggle Button for Desktop */}
                 <button 
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className="hidden lg:flex absolute -right-3 top-20 bg-slate-800 border border-slate-700 rounded-full p-1 text-slate-400 hover:text-white cursor-pointer z-50 shadow-md"
@@ -103,7 +97,7 @@ const Layout: React.FC<LayoutProps> = ({
                 </div>
 
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-                    {navItems.map((item) => {
+                    {navItems.filter(item => item.canView).map((item) => {
                         const isActive = currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path));
                         return (
                             <button
@@ -172,16 +166,13 @@ const Layout: React.FC<LayoutProps> = ({
                 </div>
             </aside>
 
-            {/* Main Content */}
             <main className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
-                {/* Floating Mobile Menu Button (Top Left) */}
                 <div className="absolute top-4 left-4 z-30 lg:hidden">
                     <button onClick={() => setIsSidebarOpen(true)} className="text-slate-400 hover:text-white p-2 bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50">
                         <Menu size={24} />
                     </button>
                 </div>
 
-                {/* Floating Notification Bell (Bottom Right) */}
                 <div className="absolute bottom-8 right-8 z-50" ref={notifRef}>
                     <button 
                         onClick={() => setIsNotifOpen(!isNotifOpen)}

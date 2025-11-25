@@ -1,41 +1,34 @@
-import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { createRequire } from 'module';
-import { initialBusinesses, INITIAL_MOCK_USERS } from '../src/config/mockData.js';
+import { initialBusinesses } from '../src/config/mockData.js';
 import { COLLECTIONS } from '../src/shared/types/firebase.types.js';
+import serviceAccount from '../../firebase-adminsdk.json' assert { type: 'json' };
 
-const require = createRequire(import.meta.url);
-const serviceAccount = require('../firebase-adminsdk.json');
-
-const app = admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+initializeApp({
+  credential: cert(serviceAccount)
 });
 
-// Connect to the specific database 'tng-systems'
-const db = getFirestore(app, 'tng-systems');
+const db = getFirestore();
 
-async function seedDatabase() {
-  try {
-    console.log('Seeding businesses...');
-    const businessesCollection = db.collection(COLLECTIONS.BUSINESSES);
-    for (const business of initialBusinesses) {
-      await businessesCollection.add(business);
+async function seedBusinesses() {
+  console.log('Seeding businesses...');
+  const businessCollection = db.collection(COLLECTIONS.BUSINESSES);
+  
+  const promises = initialBusinesses.map(async (business) => {
+    try {
+      await businessCollection.doc(business.id).set(business);
+      console.log(`  - Added: ${business.name}`);
+    } catch (error) {
+      console.error(`  - Error adding ${business.name}:`, error);
     }
-    console.log('Businesses seeded successfully!');
+  });
 
-    console.log('Seeding users...');
-    const usersCollection = db.collection(COLLECTIONS.USERS);
-    for (const user of INITIAL_MOCK_USERS) {
-      await usersCollection.add(user);
-    }
-    console.log('Users seeded successfully!');
-
-  } catch (error) {
-    console.error('Error seeding database: ', error);
-  } finally {
-    // Close the connection to allow the script to exit
-    // Not strictly necessary for one-off scripts but good practice
-  }
+  await Promise.all(promises);
+  console.log('Business seeding complete.');
 }
 
-seedDatabase();
+async function main() {
+  await seedBusinesses();
+}
+
+main().catch(console.error);

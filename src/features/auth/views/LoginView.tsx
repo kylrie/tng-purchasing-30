@@ -18,25 +18,28 @@ const LoginView = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleFlow, setIsGoogleFlow] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setIsGoogleFlow(false);
     await loginWithEmail(email, password);
   };
   
   const handleGoogleSignIn = async () => {
     setError('');
+    setIsGoogleFlow(true);
     await loginWithGoogle();
   };
 
-  const handleRegistrationSubmit = async (role: UserRole, password?: string) => {
-    await completeNewUserRegistration(role, password);
+  const handleRegistrationSubmit = async (role: UserRole, businessId: string, password?: string) => {
+    await completeNewUserRegistration(role, businessId, password);
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {isNewUser && <RegistrationModal onRegister={handleRegistrationSubmit} loading={loading} isGoogleSignIn={true} />}
+      {isNewUser && <RegistrationModal onRegister={handleRegistrationSubmit} loading={loading} isGoogleSignIn={isGoogleFlow} />}
 
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
