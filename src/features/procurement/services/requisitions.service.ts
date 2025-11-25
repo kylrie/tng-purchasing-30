@@ -1,276 +1,195 @@
-import { FirestoreService, where, orderBy, Timestamp } from '../../../shared/services/firestore.service';
+import { FirestoreService, where, Timestamp } from '../../../shared/services/firestore.service';
+import {
+  Requisition, RequisitionStatus, RequisitionHistory,
+  UserRole, hasGlobalAccess
+} from '../types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
-import type { FirestoreRequisition } from '../../../shared/types/firebase.types';
-import { RequisitionStatus } from '../types';
-import { UserRole } from '../../../features/auth/types';
-import { generateRequisitionId, getCurrentDateString } from '../../../shared/utils/firestore.utils';
-import { NotificationsService } from '../../../shared/services/notifications.service';
-import type { Unsubscribe } from 'firebase/firestore';
+
+const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
 
 /**
- * Requisitions Service
- * Handles requisition-related operations and business logic
+ * Service for all requisition related database operations
  */
-export class RequisitionsService {
-    /**
-     * Create a new requisition with auto-generated ID
-     */
-    static async createRequisition(
-        data: Omit<FirestoreRequisition, 'id' | 'createdAt' | 'updatedAt'>
-    ): Promise<string> {
-        // Get the last requisition to generate new ID
-        const allRequisitions = await this.getAllRequisitions();
-        const lastId = allRequisitions.length > 0 ? allRequisitions[0].id : undefined;
-        const newId = generateRequisitionId(lastId);
+export class RequisitionService {
 
-        const newDoc = {
-            ...data,
-            dateCreated: data.dateCreated || getCurrentDateString(),
-            createdAt: Timestamp.now(),
-            updatedAt: Timestamp.now(),
-        };
+  /**
+   * Get requisitions based on user role and business ID
+   */
+  static async getRequisitions(userRole: UserRole, businessId: string): Promise<Requisition[]> {
+    const constraints = hasGlobalAccess(userRole)
+      ? []
+      : [where('businessId', '==', businessId)];
 
-        // Create requisition with custom ID
-        await FirestoreService.setDocument<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            newId,
-            newDoc as FirestoreRequisition
-        );
+    return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, constraints);
+  }
 
-        // Create notification if submitted for approval
-        if (data.status === RequisitionStatus.BURF_PENDING_MANAGER) {
-            await NotificationsService.createNotification({
-                type: 'BURF',
-                message: `New BURF Request ${newId} pending approval.`,
-                requisitionId: newId,
-                targetRoles: [UserRole.MANAGER, UserRole.SUPER_ADMIN],
-            });
-        }
+  /**
+   * Get a single requisition by ID
+   */
+  static async getRequisitionById(id: string): Promise<Requisition | null> {
+    return FirestoreService.getDocument<Requisition>(REQUISITIONS_COLLECTION, id);
+  }
 
-        return newId;
+  /**
+   * Subscribe to real-time updates for requisitions
+   */
+  static subscribeToRequisitions(
+    userRole: UserRole,
+    businessId: string,
+    callback: (requisitions: Requisition[]) => void
+  ): () => void {
+    const constraints = hasGlobalAccess(userRole)
+      ? []
+      : [where('businessId', '==', businessId)];
+
+    return FirestoreService.subscribeToCollection<Requisition>(
+      REQUISITIONS_COLLECTION,
+      callback,
+      constraints
+    );
+  }
+
+  /**
+   * Create a new requisition
+   */
+  static async createRequisition(requisition: Omit<Requisition, 'id'>): Promise<string> {
+    return FirestoreService.createDocument(REQUISITIONS_COLLECTION, requisition);
+  }
+
+  /**
+   * Update an existing requisition
+   */
+  static async updateRequisition(
+    id: string,
+    updates: Partial<Requisition>
+  ): Promise<void> {
+    return FirestoreService.updateDocument(REQUISITIONS_COLLECTION, id, updates);
+  }
+
+  /**
+   * Delete a requisition
+   */
+  static async deleteRequisition(id: string): Promise<void> {
+    return FirestoreService.deleteDocument(REQUISITIONS_COLLECTION, id);
+  }
+
+  /**
+   * Add a history entry to a requisition
+   */
+  static async addHistoryEntry(
+    requisitionId: string,
+    actorId: string,
+    actorName: string,
+    action: string,
+    stage: RequisitionStatus,
+    comments?: string
+  ): Promise<void> {
+    const currentRequisition = await this.getRequisitionById(requisitionId);
+    if (!currentRequisition) throw new Error('Requisition not found');
+
+    const newHistoryEntry: RequisitionHistory = {
+      date: new Date().toISOString(),
+      actorId,
+      actorName,
+      action,
+      stage,
+      comments,
+    };
+
+    const updatedHistory = [newHistoryEntry, ...(currentRequisition.history || [])];
+
+    return this.updateRequisition(requisitionId, { history: updatedHistory });
+  }
+
+  /**
+   * Approve a requisition (Manager, CIC, etc.)
+   */
+  static async approveRequisition(
+    requisitionId: string,
+    userId: string,
+    userName: string,
+    userRole: UserRole,
+    comments?: string
+  ): Promise<void> {
+    const requisition = await this.getRequisitionById(requisitionId);
+    if (!requisition) throw new Error('Requisition not found');
+
+    let nextStatus: RequisitionStatus | undefined;
+    let approvalAction = 'Approved';
+
+    switch (requisition.status) {
+      case RequisitionStatus.BURF_PENDING_MANAGER:
+        nextStatus = RequisitionStatus.BURF_PENDING_CIC;
+        break;
+      case RequisitionStatus.BURF_PENDING_CIC:
+        nextStatus = RequisitionStatus.READY_FOR_PRF;
+        break;
+      case RequisitionStatus.PRF_PENDING_MANAGER:
+        nextStatus = RequisitionStatus.APPROVED_FOR_PAYMENT;
+        break;
+      // Add other approval steps here
     }
 
-    /**
-     * Get a single requisition by ID
-     */
-    static async getRequisition(id: string): Promise<FirestoreRequisition | null> {
-        return await FirestoreService.getDocument<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            id
-        );
+    if (nextStatus) {
+      await this.updateRequisition(requisitionId, { status: nextStatus });
+      await this.addHistoryEntry(
+        requisitionId,
+        userId,
+        userName,
+        approvalAction,
+        nextStatus,
+        comments
+      );
     }
+  }
 
-    /**
-     * Get all requisitions (use with caution)
-     */
-    static async getAllRequisitions(): Promise<(FirestoreRequisition & { id: string })[]> {
-        return await FirestoreService.getDocuments<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            [orderBy('dateCreated', 'desc')]
-        );
-    }
+  /**
+   * Reject a requisition
+   */
+  static async rejectRequisition(
+    requisitionId: string,
+    userId: string,
+    userName: string,
+    userRole: string,
+    comments: string
+  ): Promise<void> {
+    await this.updateRequisition(requisitionId, { status: RequisitionStatus.REJECTED });
+    await this.addHistoryEntry(
+      requisitionId,
+      userId,
+      userName,
+      'Rejected',
+      RequisitionStatus.REJECTED,
+      comments
+    );
+  }
 
-    /**
-     * Get requisitions by business
-     */
-    static async getRequisitionsByBusiness(businessId: string): Promise<(FirestoreRequisition & { id: string })[]> {
-        return await FirestoreService.getDocuments<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            [
-                where('businessId', '==', businessId),
-                orderBy('dateCreated', 'desc'),
-            ]
-        );
-    }
+  /**
+   * Re-file a rejected requisition
+   */
+  static async reFileRequisition(
+    requisitionId: string,
+    userId: string,
+    userName: string,
+    userRole: string,
+    updates: Partial<Requisition>
+  ): Promise<void> {
+    const nextStatus = updates.prfIdentifier
+      ? RequisitionStatus.PRF_PENDING_MANAGER
+      : RequisitionStatus.BURF_PENDING_MANAGER;
 
-    /**
-     * Get requisitions by user (requester)
-     */
-    static async getRequisitionsByUser(userId: string): Promise<(FirestoreRequisition & { id: string })[]> {
-        return await FirestoreService.getDocuments<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            [
-                where('requesterId', '==', userId),
-                orderBy('dateCreated', 'desc'),
-            ]
-        );
-    }
+    await this.updateRequisition(requisitionId, {
+      ...updates,
+      status: nextStatus,
+    });
 
-    /**
-     * Get requisitions by status
-     */
-    static async getRequisitionsByStatus(status: RequisitionStatus): Promise<(FirestoreRequisition & { id: string })[]> {
-        return await FirestoreService.getDocuments<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            [
-                where('status', '==', status),
-                orderBy('dateCreated', 'desc'),
-            ]
-        );
-    }
-
-    /**
-     * Get requisitions pending approval for a specific role
-     */
-    static async getRequisitionsPendingForRole(role: UserRole): Promise<(FirestoreRequisition & { id: string })[]> {
-        const statusMap: Record<UserRole, RequisitionStatus[]> = {
-            [UserRole.MANAGER]: [RequisitionStatus.BURF_PENDING_MANAGER, RequisitionStatus.PRF_PENDING_MANAGER],
-            [UserRole.CIC]: [RequisitionStatus.BURF_PENDING_CIC],
-            [UserRole.FINANCE]: [RequisitionStatus.APPROVED_FOR_PAYMENT],
-            [UserRole.AUDITOR]: [RequisitionStatus.LIQUIDATION_FILED],
-            [UserRole.PURCHASING_OFFICER]: [RequisitionStatus.READY_FOR_PRF],
-            [UserRole.EMPLOYEE]: [],
-            [UserRole.SUPER_ADMIN]: [], // Super admin gets all, handled separately
-            [UserRole.ADMIN]: [],
-        };
-
-        const relevantStatuses = statusMap[role];
-        if (!relevantStatuses || relevantStatuses.length === 0) {
-            return [];
-        }
-
-        // Get all requisitions and filter by status
-        const allRequisitions = await this.getAllRequisitions();
-        return allRequisitions.filter(req => relevantStatuses.includes(req.status));
-    }
-
-    /**
-     * Update a requisition
-     */
-    static async updateRequisition(
-        id: string,
-        data: Partial<Omit<FirestoreRequisition, 'id' | 'createdAt' | 'updatedAt'>>
-    ): Promise<void> {
-        await FirestoreService.updateDocument<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            id,
-            { ...data, updatedAt: Timestamp.now() }
-        );
-    }
-
-    /**
-     * Update requisition status and trigger notifications
-     */
-    static async updateRequisitionStatus(
-        id: string,
-        status: RequisitionStatus,
-        comment?: string
-    ): Promise<void> {
-        await this.updateRequisition(id, { status });
-
-        const req = await this.getRequisition(id);
-        const requesterId = req?.requesterId;
-
-        // Create appropriate notifications based on status
-        const notificationMap: Partial<Record<RequisitionStatus, { message: string; roles: UserRole[]; type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO' }>> = {
-            [RequisitionStatus.BURF_PENDING_CIC]: {
-                message: `BURF ${id} approved by Manager. Inventory Check Required.`,
-                roles: [UserRole.CIC, UserRole.SUPER_ADMIN],
-                type: 'BURF',
-            },
-            [RequisitionStatus.READY_FOR_PRF]: {
-                message: `BURF ${id} inventory checked. Ready for PRF.`,
-                roles: [UserRole.PURCHASING_OFFICER, UserRole.SUPER_ADMIN],
-                type: 'BURF',
-            },
-            [RequisitionStatus.PRF_PENDING_MANAGER]: {
-                message: `PRF Prepared for ${id}. Manager approval required.`,
-                roles: [UserRole.MANAGER, UserRole.SUPER_ADMIN],
-                type: 'PRF',
-            },
-            [RequisitionStatus.APPROVED_FOR_PAYMENT]: {
-                message: `PRF ${id} approved. Ready for Payment Processing.`,
-                roles: [UserRole.FINANCE, UserRole.SUPER_ADMIN],
-                type: 'PRF',
-            },
-            [RequisitionStatus.FUNDS_RELEASED]: {
-                message: `Funds released for ${id}. Please proceed with purchase.`,
-                roles: [UserRole.PURCHASING_OFFICER, ...(requesterId ? [requesterId] : [])],
-                type: 'LIQUIDATION',
-            },
-            [RequisitionStatus.LIQUIDATION_FILED]: {
-                message: `Liquidation filed for ${id}. Audit required.`,
-                roles: [UserRole.AUDITOR, UserRole.FINANCE, UserRole.SUPER_ADMIN],
-                type: 'LIQUIDATION',
-            },
-            [RequisitionStatus.REJECTED]: {
-                message: `Requisition ${id} rejected${comment ? `: ${comment}` : ''}. Please review.`,
-                roles: [UserRole.PURCHASING_OFFICER, ...(requesterId ? [requesterId] : [])],
-                type: 'INFO',
-            },
-        };
-
-        const notification = notificationMap[status];
-        if (notification) {
-            await NotificationsService.createNotification({
-                type: notification.type,
-                message: notification.message,
-                requisitionId: id,
-                targetRoles: notification.roles,
-            });
-        }
-    }
-
-    /**
-     * Delete a requisition
-     */
-    static async deleteRequisition(id: string): Promise<void> {
-        await FirestoreService.deleteDocument(COLLECTIONS.REQUISITIONS, id);
-        // Also delete related notifications
-        await NotificationsService.deleteNotificationsByRequisition(id);
-    }
-
-    /**
-     * Subscribe to requisitions for a specific business (real-time)
-     */
-    static subscribeToRequisitionsByBusiness(
-        businessId: string,
-        callback: (requisitions: (FirestoreRequisition & { id: string })[]) => void,
-        onError?: (error: Error) => void
-    ): Unsubscribe {
-        return FirestoreService.subscribeToCollection<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            callback,
-            [
-                where('businessId', '==', businessId),
-                orderBy('dateCreated', 'desc'),
-            ],
-            onError
-        );
-    }
-
-    /**
-     * Subscribe to requisitions for a specific user (real-time)
-     */
-    static subscribeToRequisitionsByUser(
-        userId: string,
-        callback: (requisitions: (FirestoreRequisition & { id: string })[]) => void,
-        onError?: (error: Error) => void
-    ): Unsubscribe {
-        return FirestoreService.subscribeToCollection<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            callback,
-            [
-                where('requesterId', '==', userId),
-                orderBy('dateCreated', 'desc'),
-            ],
-            onError
-        );
-    }
-
-    /**
-     * Subscribe to all requisitions (real-time)
-     * Use only for SUPER_ADMIN
-     */
-    static subscribeToAllRequisitions(
-        callback: (requisitions: (FirestoreRequisition & { id: string })[]) => void,
-        onError?: (error: Error) => void
-    ): Unsubscribe {
-        return FirestoreService.subscribeToCollection<FirestoreRequisition>(
-            COLLECTIONS.REQUISITIONS,
-            callback,
-            [orderBy('dateCreated', 'desc')],
-            onError
-        );
-    }
+    await this.addHistoryEntry(
+      requisitionId,
+      userId,
+      userName,
+      'Re-filed',
+      nextStatus,
+      'Requisition has been updated and re-filed for approval.'
+    );
+  }
 }

@@ -59,6 +59,7 @@ export interface FirestorePRFDetails {
   };
   preparedBy: string;
   datePrepared: string;
+  timestamp: string;
 }
 
 // Requisition document in Firestore

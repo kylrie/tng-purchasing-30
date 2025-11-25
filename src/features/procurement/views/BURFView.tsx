@@ -121,7 +121,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
     };
 
     const saveRequisition = (isFinalSubmission: boolean) => {
-        // If it was rejected, re-submitting sets it back to PENDING_MANAGER
         const status = isFinalSubmission ? RequisitionStatus.BURF_PENDING_MANAGER : RequisitionStatus.DRAFT;
         const attachments = attachmentLink ? [attachmentLink] : [];
         const baseReq: any = {
@@ -132,8 +131,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
             status: status,
             dateCreated: new Date().toISOString().split('T')[0],
             description,
-            remarks, // This overwrites rejection remarks if user didn't manually keep them, but typically re-filing cleans slate or appends.
-            // Actually, for re-filing, we might want to keep history, but for now simple overwrite is standard.
+            remarks,
             dateNeeded,
             priority: isUrgent ? 'URGENT' : 'NORMAL',
             attachments,
@@ -141,7 +139,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
         };
 
         if (editingId) {
-            // Keep existing creation date/id, update fields
             const original = visibleRequisitions.find(r => r.id === editingId);
             onUpdateRequisition({ ...original, ...baseReq, id: editingId });
         } else {
@@ -156,7 +153,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     const handleRejectConfirm = (reason: string) => {
         if (rejectingReq) {
-            // Append rejection reason to remarks or overwrite? Append is safer.
             const newRemarks = rejectingReq.remarks 
                 ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}` 
                 : `[REJECTED]: ${reason}`;
@@ -177,7 +173,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 </div>
 
                 <Card className="!p-6 space-y-6">
-                    {/* Form fields same as before */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="col-span-1">
                             <label className="block text-sm font-medium text-slate-300 mb-1">Description / Purpose</label>
@@ -273,7 +268,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     return (
         <div className="space-y-6 text-white">
-            {/* Header code remains... */}
             <div className="flex justify-between items-center print:hidden">
                 <div>
                     <h1 className="text-2xl font-bold">Requisitions (BURF)</h1>

@@ -12,8 +12,9 @@ import {
     orderBy,
     limit,
     onSnapshot,
-    QueryConstraint,
+    Timestamp, // Import Timestamp
     type Unsubscribe,
+    type QueryConstraint, // Keep this as a type import
     type DocumentData,
     type QuerySnapshot,
     type DocumentSnapshot,
@@ -210,5 +211,5 @@ export class FirestoreService {
     }
 }
 
-// Re-export query helpers for convenience
-export { where, orderBy, limit, query };
+// Re-export query helpers and Timestamp for convenience
+export { where, orderBy, limit, query, Timestamp };

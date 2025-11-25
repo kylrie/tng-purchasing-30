@@ -12,6 +12,7 @@ export interface Business {
 }
 
 export interface NotificationItem {
+    read: any;
     id: string;
     type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO';
     message: string;

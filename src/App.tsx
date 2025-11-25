@@ -9,7 +9,7 @@ import BurfView from './features/procurement/views/BURFView';
 import PrfView from './features/procurement/views/PRFView';
 import LiquidationView from './features/finance/views/LiquidationView';
 import SuppliersView from './features/inventory/views/SuppliersView';
-import { SettingsView } from './features/admin/views/SettingsView'; // Import SettingsView
+import { SettingsView } from './features/admin/views/SettingsView';
 import type { NotificationItem } from './shared/types';
 import { UserRole, UserStatus } from './shared/types/firebase.types';
 import { RequisitionStatus } from './features/procurement/types';
@@ -25,8 +25,8 @@ import { updateRequisitionStatus } from './features/procurement/services/requisi
 function ProtectedApp() {
   const { currentUser, logout, loading } = useAuth();
   const { requisitions, createRequisition, updateRequisition } = useRequisitions();
-  const { users, setUsers, updateUser } = useUsers(); // Get updateUser
-  const { businesses, addBusiness } = useBusinesses(); // Get addBusiness
+  const { users, setUsers, updateUser } = useUsers();
+  const { businesses, addBusiness } = useBusinesses();
   const { suppliers, createSupplier, updateSupplier, deleteSupplier } = useSuppliers();
 
   const [notifications] = useState<NotificationItem[]>([]);
