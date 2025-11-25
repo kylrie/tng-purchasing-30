@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Check, DollarSign, ArrowLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { Check, ArrowLeft } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
 
@@ -18,15 +18,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     onSubmit,
     currentUserId
 }) => {
-    // Initialize items from requisition with a selected flag
     const [items, setItems] = useState<(RequisitionItem & { selected: boolean })[]>(
-        requisition.items.map(item => ({ ...item, selected: true }))
+        requisition.items.map(item => ({ ...item, price: item.price ?? 0, selected: true }))
     );
 
-    // Check if we are editing an existing PRF
     const existingSupplier = requisition.prfDetails?.supplier;
-
-    // Find if the existing supplier matches a known supplier ID
     const knownSupplierId = existingSupplier
         ? suppliers.find(s => s.name === existingSupplier.name)?.id || ''
         : '';
@@ -44,19 +40,25 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         }
     );
 
-    // PRF Identifier State
     const [prfIdentifier, setPrfIdentifier] = useState(requisition.prfIdentifier || '');
 
-    // Calculate total amount based on SELECTED items
     const totalAmount = items
         .filter(item => item.selected)
         .reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-    // Check if form is valid
     const isValid = () => {
-        // Only check prices for selected items
         const selectedItems = items.filter(item => item.selected);
         const hasSelection = selectedItems.length > 0;
+        // Allow price to be 0 if that's what the user intends, or enforce > 0? 
+        // User said "Make 0 default price", implying 0 is a valid starting point.
+        // But typically PRF should have costs. 
+        // The previous check was: const allPricesFilled = selectedItems.every(item => item.price > 0);
+        // If 0 is default, then this validation might prevent submission until changed.
+        // I will keep item.price >= 0 to allow submission if free items exist? 
+        // Or keep > 0 to force user to enter value. Usually PRF requires value.
+        // I will keep > 0 check, so 0 is default but you must change it to submit (or maybe 0 is allowed?).
+        // Requisition flow usually implies spending money.
+        // Let's stick to > 0 for validity to ensure data entry, but display 0 initially.
         const allPricesFilled = selectedItems.every(item => item.price > 0);
 
         const supplierValid = createNewSupplier
@@ -66,7 +68,6 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         return hasSelection && allPricesFilled && supplierValid;
     };
 
-    // Handle supplier selection
     const handleSupplierSelect = (supplierId: string) => {
         setSelectedSupplierId(supplierId);
         const supplier = suppliers.find(s => s.id === supplierId);
@@ -81,39 +82,31 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         }
     };
 
-    // Handle item price change
     const handlePriceChange = (index: number, price: number) => {
         const newItems = [...items];
         newItems[index] = { ...newItems[index], price };
         setItems(newItems);
     };
 
-    // Handle item selection toggle
     const handleSelectionToggle = (index: number) => {
         const newItems = [...items];
         newItems[index] = { ...newItems[index], selected: !newItems[index].selected };
         setItems(newItems);
     };
 
-    // Handle toggle all
     const handleToggleAll = (checked: boolean) => {
         const newItems = items.map(item => ({ ...item, selected: checked }));
         setItems(newItems);
     }
 
-    // Handle submit
     const handleSubmit = () => {
-        // Filter items
         const selectedItems = items.filter(item => item.selected).map(({ selected, ...item }) => item);
         const unselectedItems = items.filter(item => !item.selected).map(({ selected, ...item }) => item);
 
-        // Check if we are converting a BURF to PRF (Split logic)
-        // If status is READY_FOR_PRF, we are creating a PRF from a BURF.
         if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length > 0) {
-            // 1. Create NEW PRF with selected items
             const newPrf: Requisition = {
                 ...requisition,
-                id: `PRF-${Math.floor(10000 + Math.random() * 90000)}`, // New ID
+                id: `PRF-${Math.floor(10000 + Math.random() * 90000)}`,
                 items: selectedItems,
                 totalAmount,
                 status: RequisitionStatus.PRF_PENDING_MANAGER,
@@ -121,28 +114,22 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     supplier: supplierDetails,
                     preparedBy: currentUserId,
                     datePrepared: new Date().toISOString(),
-                    requisitionId: requisition.id, // Store original BURF ID
+                    requisitionId: requisition.id,
                     timestamp: new Date().toISOString()
                 },
-
                 remarks: `${requisition.remarks || ''} (Split from ${requisition.id})`,
-                prfIdentifier // Add identifier
+                prfIdentifier
             };
 
-            // 2. Update ORIGINAL BURF with remaining items
             const updatedBurf: Requisition = {
                 ...requisition,
                 items: unselectedItems,
-                // Reset total amount for BURF logic (assuming BURF usually doesn't have prices or just sums them)
-                // If prices were entered during preparation but item unselected, we might want to keep them or reset.
-                // Here we keep the price if entered, but user can change later.
                 totalAmount: unselectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                status: RequisitionStatus.READY_FOR_PRF // Remains ready for next PRF
+                status: RequisitionStatus.READY_FOR_PRF
             };
 
             onSubmit(newPrf, updatedBurf);
         } else {
-            // Standard Flow: Update the existing requisition (either converting full BURF or editing PRF)
             const updatedRequisition: Requisition = {
                 ...requisition,
                 items: selectedItems,
@@ -151,11 +138,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     supplier: supplierDetails,
                     preparedBy: currentUserId,
                     datePrepared: new Date().toISOString(),
-                    requisitionId: requisition.prfDetails?.requisitionId || requisition.id, // Preserve or set original BURF ID
+                    requisitionId: requisition.prfDetails?.requisitionId || requisition.id,
                     timestamp: new Date().toISOString()
                 },
                 status: RequisitionStatus.PRF_PENDING_MANAGER,
-                prfIdentifier // Add identifier
+                prfIdentifier
             };
             onSubmit(updatedRequisition);
         }
@@ -166,42 +153,40 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     const isSplitting = requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedCount > 0;
 
     return (
-        <div className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
-            <div className="bg-white rounded-2xl shadow-2xl border border-white/20 max-w-5xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+            <div className="bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 max-w-5xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-100 px-8 py-5 flex items-center justify-between z-10">
+                <div className="sticky top-0 bg-slate-800/90 backdrop-blur-md border-b border-slate-700 px-8 py-5 flex items-center justify-between z-10">
                     <div className="flex items-center gap-3">
                         <button
                             onClick={onClose}
-                            className="text-slate-600 hover:text-slate-800 flex items-center gap-1"
+                            className="text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
                         >
                             <ArrowLeft size={20} /> Back
                         </button>
-                        <h2 className="text-xl font-bold text-slate-900">
+                        <h2 className="text-xl font-bold text-white">
                             {requisition.prfDetails ? 'Edit Purchase Requisition (PRF)' : 'Prepare Purchase Requisition (PRF)'}
                         </h2>
                     </div>
-
                 </div>
-
 
                 <div className="p-6 space-y-6">
                     {/* PRF Identifier Input */}
                     {(isSplitting || requisition.prfDetails) && (
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                            <label className="block text-sm font-medium text-blue-900 mb-1">PRF Identifier</label>
+                        <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30">
+                            <label className="block text-sm font-medium text-blue-300 mb-1">PRF Identifier</label>
                             <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-slate-700 whitespace-nowrap">{requisition.prfDetails?.requisitionId || requisition.id} - Batch</span>
+                                <span className="text-sm font-medium text-slate-300 whitespace-nowrap">{requisition.prfDetails?.requisitionId || requisition.id} - Batch</span>
                                 <input
                                     type="number"
                                     value={prfIdentifier}
                                     onChange={(e) => setPrfIdentifier(e.target.value)}
                                     placeholder="1"
                                     min="1"
-                                    className="w-24 px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    className="w-24 px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                                 />
                             </div>
-                            <p className="text-xs text-blue-600 mt-1">
+                            <p className="text-xs text-blue-400 mt-1">
                                 {isSplitting ? 'Enter a batch number to identify this split PRF.' : 'Update the batch number for this PRF.'}
                             </p>
                         </div>
@@ -210,64 +195,64 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     {/* Item Specification & Costing */}
                     <div>
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-semibold text-slate-800">Item Specification & Costing</h3>
-                            <span className="text-xs text-slate-500">Select items to include in this PRF</span>
+                            <h3 className="text-lg font-semibold text-white">Item Specification & Costing</h3>
+                            <span className="text-xs text-slate-400">Select items to include in this PRF</span>
                         </div>
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
+                        <div className="border border-slate-700 rounded-lg overflow-hidden">
                             <table className="w-full text-sm">
-                                <thead className="bg-slate-50 border-b border-slate-200">
+                                <thead className="bg-slate-900/50 border-b border-slate-700">
                                     <tr>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700 w-8">
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-400 w-8">
                                             <input
                                                 type="checkbox"
                                                 checked={allSelected}
                                                 onChange={(e) => handleToggleAll(e.target.checked)}
-                                                className="rounded cursor-pointer"
+                                                className="rounded cursor-pointer bg-slate-800 border-slate-600"
                                             />
                                         </th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700">ITEM</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700">QTY / UOM</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700">REMARKS</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-700">UNIT PRICE</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-slate-700">TOTAL</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">ITEM</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">QTY / UOM</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">REMARKS</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">UNIT PRICE</th>
+                                        <th className="px-4 py-3 text-right font-semibold text-slate-400">TOTAL</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100">
+                                <tbody className="divide-y divide-slate-700">
                                     {items.map((item, index) => (
-                                        <tr key={index} className={`hover:bg-slate-50 ${!item.selected ? 'opacity-50 bg-slate-50' : ''}`}>
+                                        <tr key={index} className={`hover:bg-slate-700/30 ${!item.selected ? 'opacity-50 bg-slate-900/30' : ''}`}>
                                             <td className="px-4 py-3">
                                                 <input
                                                     type="checkbox"
                                                     checked={item.selected}
                                                     onChange={() => handleSelectionToggle(index)}
-                                                    className="rounded cursor-pointer"
+                                                    className="rounded cursor-pointer bg-slate-800 border-slate-600"
                                                 />
                                             </td>
-                                            <td className="px-4 py-3 font-medium text-slate-900">{item.name}</td>
-                                            <td className="px-4 py-3 text-slate-600">{item.quantity} {item.uom}</td>
-                                            <td className="px-4 py-3 text-slate-600 text-xs">{item.remarks || '-'}</td>
+                                            <td className="px-4 py-3 font-medium text-slate-200">{item.name}</td>
+                                            <td className="px-4 py-3 text-slate-400">{item.quantity} {item.uom}</td>
+                                            <td className="px-4 py-3 text-slate-500 text-xs">{item.remarks || '-'}</td>
                                             <td className="px-4 py-3">
                                                 <input
                                                     type="number"
                                                     disabled={!item.selected}
-                                                    value={item.price || ''}
+                                                    value={item.price}
                                                     onChange={(e) => handlePriceChange(index, parseFloat(e.target.value) || 0)}
                                                     placeholder="0"
-                                                    className="w-24 px-2 py-1 border border-slate-300 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100"
+                                                    className="w-24 px-2 py-1 bg-slate-900/50 border border-slate-600 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-800 text-white placeholder-slate-600"
                                                 />
                                             </td>
-                                            <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                                            <td className="px-4 py-3 text-right font-semibold text-slate-200">
                                                 ₱{(item.price * item.quantity).toLocaleString()}
                                             </td>
                                         </tr>
                                     ))}
                                 </tbody>
-                                <tfoot className="bg-slate-50 border-t-2 border-slate-300">
+                                <tfoot className="bg-slate-900/50 border-t-2 border-slate-700">
                                     <tr>
-                                        <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-800">
+                                        <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-300">
                                             Total Amount (Selected)
                                         </td>
-                                        <td className="px-4 py-3 text-right font-bold text-blue-600 text-lg">
+                                        <td className="px-4 py-3 text-right font-bold text-blue-400 text-lg">
                                             ₱{totalAmount.toLocaleString()}
                                         </td>
                                     </tr>
@@ -278,11 +263,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
                     {/* Supplier Information */}
                     <div>
-                        <h3 className="text-lg font-semibold text-slate-800 mb-4">Supplier Information</h3>
+                        <h3 className="text-lg font-semibold text-white mb-4">Supplier Information</h3>
                         <div className="space-y-4">
                             {/* Toggle for new supplier */}
                             <div className="flex items-center gap-3">
-                                <span className="text-sm text-slate-700">Create new supplier?</span>
+                                <span className="text-sm text-slate-300">Create new supplier?</span>
                                 <button
                                     onClick={() => {
                                         setCreateNewSupplier(!createNewSupplier);
@@ -291,7 +276,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                             setSupplierDetails({ name: '', tin: '', address: '', paymentMode: '', terms: '' });
                                         }
                                     }}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${createNewSupplier ? 'bg-blue-600' : 'bg-slate-300'
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${createNewSupplier ? 'bg-blue-600' : 'bg-slate-700'
                                         }`}
                                 >
                                     <span
@@ -304,20 +289,20 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                             {/* Supplier Selection or Input */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Supplier Name</label>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">Supplier Name</label>
                                     {createNewSupplier ? (
                                         <input
                                             type="text"
                                             value={supplierDetails.name}
                                             onChange={(e) => setSupplierDetails({ ...supplierDetails, name: e.target.value })}
                                             placeholder="Enter supplier name"
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
                                         />
                                     ) : (
                                         <select
                                             value={selectedSupplierId}
                                             onChange={(e) => handleSupplierSelect(e.target.value)}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                                         >
                                             <option value="">-- Choose Supplier --</option>
                                             {suppliers.map(supplier => (
@@ -328,11 +313,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Payment Mode</label>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">Payment Mode</label>
                                     <select
                                         value={supplierDetails.paymentMode}
                                         onChange={(e) => setSupplierDetails({ ...supplierDetails, paymentMode: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                                     >
                                         <option value="">Select Mode</option>
                                         <option value="Cash">Cash</option>
@@ -345,50 +330,50 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">TIN</label>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">TIN</label>
                                     <input
                                         type="text"
                                         value={supplierDetails.tin}
                                         onChange={(e) => setSupplierDetails({ ...supplierDetails, tin: e.target.value })}
                                         placeholder="000-000-000"
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Terms</label>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">Terms</label>
                                     <input
                                         type="text"
                                         value={supplierDetails.terms || ''}
                                         onChange={(e) => setSupplierDetails({ ...supplierDetails, terms: e.target.value })}
                                         placeholder="e.g. 30 Days, COD"
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
                                     />
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
+                                <label className="block text-sm font-medium text-slate-300 mb-1">Address</label>
                                 <input
                                     type="text"
                                     value={supplierDetails.address}
                                     onChange={(e) => setSupplierDetails({ ...supplierDetails, address: e.target.value })}
                                     placeholder="Registered Address"
-                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
                                 />
                             </div>
                         </div>
                     </div>
 
                     {/* Ready to Submit Section */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
                         <div className="flex items-start gap-3">
                             <div className="flex-1">
-                                <h4 className="font-semibold text-blue-900 mb-1">Ready to {requisition.prfDetails ? 'Update' : 'Submit'}?</h4>
-                                <div className="text-sm text-blue-700">
+                                <h4 className="font-semibold text-blue-300 mb-1">Ready to {requisition.prfDetails ? 'Update' : 'Submit'}?</h4>
+                                <div className="text-sm text-blue-200">
                                     <p>Please ensure all costs are final and supplier details are verified.</p>
                                     {isSplitting &&
-                                        <div className="mt-2 font-medium text-orange-700 bg-orange-100 p-2 rounded border border-orange-200">
+                                        <div className="mt-2 font-medium text-orange-300 bg-orange-900/30 p-2 rounded border border-orange-500/30">
                                             Splitting Request: You selected {items.length - unselectedCount} of {items.length} items.
                                             <br />
                                             • A NEW PRF will be created for the selected items.
@@ -403,7 +388,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                 disabled={!isValid()}
                                 className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${isValid()
                                     ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                                     }`}
                             >
                                 <Check size={18} /> {requisition.prfDetails ? 'Update PRF' : 'Submit PRF'}

@@ -1,10 +1,9 @@
 import { Timestamp } from 'firebase/firestore';
-import type { UserRole } from '../../features/auth/types';
+import { UserRole, UserStatus } from '../../features/auth/types';
 import type { RequisitionStatus } from '../../features/procurement/types';
 
 // Base Firestore document with timestamps
 export interface FirestoreDocument {
-  id: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -15,7 +14,19 @@ export interface FirestoreUser extends FirestoreDocument {
   name: string;
   role: UserRole;
   businessId: string;
+  status: UserStatus;
   avatar?: string;
+}
+
+// Main User type for the application
+export interface User {
+    id: string;
+    name: string;
+    role: UserRole;
+    status: UserStatus;
+    avatar: string;
+    email: string;
+    businessId: string;
 }
 
 // Business document in Firestore
@@ -97,3 +108,6 @@ export const COLLECTIONS = {
 
 // Query constraints type
 export type FirestoreConstraint = any; // Will be typed from firebase/firestore
+
+// Re-export enums for convenience
+export { UserRole, UserStatus };

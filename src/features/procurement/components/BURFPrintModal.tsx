@@ -1,7 +1,6 @@
 import React from 'react';
 import { X, Printer } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
-import { RequisitionStatus } from '../types';
 
 interface BURFPrintModalProps {
     req: Requisition;
@@ -39,14 +38,14 @@ const BURFPrintModal: React.FC<BURFPrintModalProps> = ({ req, onClose, business,
                     </div>
                 </div>
 
-                {/* Printable Content */}
-                <div className="p-8 print:p-0">
+                {/* Printable Content - Enforce text color */}
+                <div className="p-8 print:p-0 text-slate-900">
                     <div className="max-w-3xl mx-auto print:max-w-none">
 
                         {/* Form Header */}
                         <div className="text-center mb-8 border-b-2 border-slate-800 pb-4">
                             <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-wide mb-1">Budget Utilization Request Form</h1>
-                            <p className="text-slate-500 font-medium">Procurement Department</p>
+                            <p className="text-slate-600 font-medium">Procurement Department</p>
                         </div>
 
                         {/* Header Details */}
@@ -81,23 +80,23 @@ const BURFPrintModal: React.FC<BURFPrintModalProps> = ({ req, onClose, business,
                         <div className="mb-8">
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-2">Requested Items</h3>
                             <table className="w-full text-sm border-collapse border border-slate-300">
-                                <thead className="bg-slate-100 print:bg-slate-50">
+                                <thead className="bg-slate-100 print:bg-slate-100">
                                     <tr>
-                                        <th className="border border-slate-300 px-3 py-2 text-left w-12">#</th>
-                                        <th className="border border-slate-300 px-3 py-2 text-left">Item Description</th>
-                                        <th className="border border-slate-300 px-3 py-2 text-center w-24">Qty</th>
-                                        <th className="border border-slate-300 px-3 py-2 text-center w-24">UOM</th>
-                                        <th className="border border-slate-300 px-3 py-2 text-left">Remarks</th>
+                                        <th className="border border-slate-300 px-3 py-2 text-left text-slate-800 w-12">#</th>
+                                        <th className="border border-slate-300 px-3 py-2 text-left text-slate-800">Item Description</th>
+                                        <th className="border border-slate-300 px-3 py-2 text-center text-slate-800 w-24">Qty</th>
+                                        <th className="border border-slate-300 px-3 py-2 text-center text-slate-800 w-24">UOM</th>
+                                        <th className="border border-slate-300 px-3 py-2 text-left text-slate-800">Remarks</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {req.items.map((item, index) => (
                                         <tr key={index}>
-                                            <td className="border border-slate-300 px-3 py-2 text-center">{index + 1}</td>
-                                            <td className="border border-slate-300 px-3 py-2 font-medium">{item.name}</td>
-                                            <td className="border border-slate-300 px-3 py-2 text-center">{item.quantity}</td>
-                                            <td className="border border-slate-300 px-3 py-2 text-center">{item.uom}</td>
-                                            <td className="border border-slate-300 px-3 py-2 text-slate-600 italic">{item.remarks || '-'}</td>
+                                            <td className="border border-slate-300 px-3 py-2 text-center text-slate-900">{index + 1}</td>
+                                            <td className="border border-slate-300 px-3 py-2 font-medium text-slate-900">{item.name}</td>
+                                            <td className="border border-slate-300 px-3 py-2 text-center text-slate-900">{item.quantity}</td>
+                                            <td className="border border-slate-300 px-3 py-2 text-center text-slate-900">{item.uom}</td>
+                                            <td className="border border-slate-300 px-3 py-2 text-slate-700 italic">{item.remarks || '-'}</td>
                                         </tr>
                                     ))}
                                     {/* Fill empty rows if needed for layout */}
@@ -117,7 +116,7 @@ const BURFPrintModal: React.FC<BURFPrintModalProps> = ({ req, onClose, business,
                         {/* Description/Purpose */}
                         <div className="mb-8">
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-2">Purpose / Justification</h3>
-                            <div className="border border-slate-300 rounded p-4 min-h-[80px] text-sm text-slate-800">
+                            <div className="border border-slate-300 rounded p-4 min-h-[80px] text-sm text-slate-900">
                                 {req.description}
                             </div>
                         </div>

@@ -31,7 +31,8 @@ export enum RequisitionStatus {
   FUNDS_RELEASED = 'FUNDS_RELEASED', // Funds given to employee/supplier
   LIQUIDATION_FILED = 'LIQUIDATION_FILED', // Employee submitted receipts
   AUDITED_CLEARED = 'AUDITED_CLEARED', // Finance approved liquidation
-  REJECTED = 'REJECTED'
+  REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED' // New Status
 }
 
 export interface Business {
@@ -153,4 +154,6 @@ export interface NotificationItem {
   message: string;
   requisitionId?: string;
   timestamp: string;
+  read: boolean;
+  targetRoles?: UserRole[];
 }

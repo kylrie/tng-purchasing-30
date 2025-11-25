@@ -1,4 +1,4 @@
-import { FirestoreService, where, orderBy } from './firestore.service';
+import { FirestoreService, where, orderBy, Timestamp } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
 import type { FirestoreNotification } from '../types/firebase.types';
 import type { UserRole } from '../../features/auth/types';
@@ -16,40 +16,42 @@ export class NotificationsService {
         type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO';
         message: string;
         requisitionId?: string;
-        targetRoles: UserRole[];
+        targetRoles: (UserRole | string)[]; // Can include user IDs
     }): Promise<string> {
-        const notificationData = {
+        const newDoc = {
             ...data,
             read: false,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
         };
 
         return await FirestoreService.createDocument<FirestoreNotification>(
             COLLECTIONS.NOTIFICATIONS,
-            notificationData
+            newDoc as FirestoreNotification
         );
     }
 
     /**
-     * Get notifications for a specific role
+     * Get notifications for a specific role or user
      */
-    static async getNotificationsByRole(role: UserRole): Promise<FirestoreNotification[]> {
+    static async getNotificationsByRole(roleOrUserId: UserRole | string): Promise<(FirestoreNotification & { id: string })[]> {
         return await FirestoreService.getDocuments<FirestoreNotification>(
             COLLECTIONS.NOTIFICATIONS,
             [
-                where('targetRoles', 'array-contains', role),
+                where('targetRoles', 'array-contains', roleOrUserId),
                 orderBy('createdAt', 'desc'),
             ]
         );
     }
 
     /**
-     * Get unread notifications for a specific role
+     * Get unread notifications for a specific role or user
      */
-    static async getUnreadNotificationsByRole(role: UserRole): Promise<FirestoreNotification[]> {
+    static async getUnreadNotificationsByRole(roleOrUserId: UserRole | string): Promise<(FirestoreNotification & { id: string })[]> {
         return await FirestoreService.getDocuments<FirestoreNotification>(
             COLLECTIONS.NOTIFICATIONS,
             [
-                where('targetRoles', 'array-contains', role),
+                where('targetRoles', 'array-contains', roleOrUserId),
                 where('read', '==', false),
                 orderBy('createdAt', 'desc'),
             ]
@@ -63,15 +65,15 @@ export class NotificationsService {
         await FirestoreService.updateDocument<FirestoreNotification>(
             COLLECTIONS.NOTIFICATIONS,
             notificationId,
-            { read: true }
+            { read: true, updatedAt: Timestamp.now() }
         );
     }
 
     /**
-     * Mark all notifications as read for a specific role
+     * Mark all notifications as read for a specific role or user
      */
-    static async markAllAsReadForRole(role: UserRole): Promise<void> {
-        const unreadNotifications = await this.getUnreadNotificationsByRole(role);
+    static async markAllAsReadForRole(roleOrUserId: UserRole | string): Promise<void> {
+        const unreadNotifications = await this.getUnreadNotificationsByRole(roleOrUserId);
 
         const updatePromises = unreadNotifications.map(notification =>
             this.markAsRead(notification.id)
@@ -81,18 +83,18 @@ export class NotificationsService {
     }
 
     /**
-     * Subscribe to notifications for a specific role (real-time)
+     * Subscribe to notifications for a specific role or user (real-time)
      */
     static subscribeToNotifications(
-        role: UserRole,
-        callback: (notifications: FirestoreNotification[]) => void,
+        roleOrUserId: UserRole | string,
+        callback: (notifications: (FirestoreNotification & { id: string })[]) => void,
         onError?: (error: Error) => void
     ): Unsubscribe {
         return FirestoreService.subscribeToCollection<FirestoreNotification>(
             COLLECTIONS.NOTIFICATIONS,
             callback,
             [
-                where('targetRoles', 'array-contains', role),
+                where('targetRoles', 'array-contains', roleOrUserId),
                 orderBy('createdAt', 'desc'),
             ],
             onError

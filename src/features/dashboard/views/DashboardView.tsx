@@ -2,12 +2,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    TrendingUp,
     Clock,
-    CheckCircle,
     AlertCircle,
     ArrowUpRight,
-    ArrowDownRight,
     FileText,
     DollarSign
 } from 'lucide-react';
@@ -87,8 +84,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             change: 'Active',
             trend: 'neutral',
             icon: Clock,
-            color: 'text-orange-600',
-            bg: 'bg-orange-900/30'
+            color: 'text-orange-400', // Adjusted color for better visibility
+            bg: 'bg-orange-900/50' // Adjusted bg for better visibility
         },
         {
             label: 'Active PRFs',
@@ -96,8 +93,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             change: 'In Progress',
             trend: 'up',
             icon: FileText,
-            color: 'text-blue-600',
-            bg: 'bg-blue-900/30'
+            color: 'text-blue-400', // Adjusted color
+            bg: 'bg-blue-900/50' // Adjusted bg
         },
         {
             label: 'Total Spend (Est)',
@@ -105,8 +102,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             change: 'MTD',
             trend: 'down',
             icon: DollarSign,
-            color: 'text-emerald-600',
-            bg: 'bg-emerald-900/30'
+            color: 'text-emerald-400', // Adjusted color
+            bg: 'bg-emerald-900/50' // Adjusted bg
         },
         {
             label: 'Critical Stock',
@@ -114,13 +111,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             change: 'Stable',
             trend: 'neutral',
             icon: AlertCircle,
-            color: 'text-red-600',
-            bg: 'bg-red-900/30'
+            color: 'text-red-400', // Adjusted color
+            bg: 'bg-red-900/50' // Adjusted bg
         }
     ];
 
     return (
-        <div className="space-y-8 bg-slate-900 text-white min-h-screen p-6 lg:p-10">
+        <div className="space-y-8 text-white min-h-screen">
             {/* Welcome Section */}
             <div>
                 <h1 className="text-2xl font-bold">Dashboard Overview</h1>
@@ -130,7 +127,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat, index) => (
-                    <div key={index} className={`bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-sm hover:shadow-md transition-shadow`}>
+                    <div key={index} className={`bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50 shadow-lg hover:border-slate-600/50 transition-all`}>
                         <div className="flex justify-between items-start mb-4">
                             <div className={`p-3 rounded-lg ${stat.bg}`}>
                                 <stat.icon className={`w-6 h-6 ${stat.color}`} />
@@ -139,67 +136,67 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 {stat.change}
                             </div>
                         </div>
-                        <h3 className="text-slate-400 text-sm font-medium mb-1">{stat.label}</h3>
-                        <p className="text-2xl font-bold text-white">{stat.value}</p>
+                        <h3 className="text-slate-300 text-sm font-medium mb-1">{stat.label}</h3>
+                        <p className="text-3xl font-bold text-white">{stat.value}</p>
                     </div>
                 ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Recent Activity */}
-                <div className="lg:col-span-2 bg-slate-800 rounded-xl border border-slate-700 shadow-sm">
-                    <div className="p-6 border-b border-slate-700 flex justify-between items-center">
+                <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg">
+                    <div className="p-6 flex justify-between items-center">
                         <h2 className="text-lg font-bold text-white">Recent Activity</h2>
-                        <button onClick={() => navigate('/burf')} className="text-sm text-blue-400 hover:text-blue-300 font-medium">View All</button>
+                        <button onClick={() => navigate('/burf')} className="text-sm text-purple-400 hover:text-purple-300 font-medium">View All</button>
                     </div>
                     <div className="p-6">
                         <div className="space-y-6">
                             {recentActivity.map(activity => (
-                                <div key={activity.id} className="flex gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs flex-shrink-0">
+                                <div key={activity.id} className="flex gap-4 items-center">
+                                    <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-300 font-bold text-sm flex-shrink-0">
                                         {activity.avatar}
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-sm text-white">
-                                            <span className="font-semibold">{activity.user}</span> {activity.action} <span className="font-medium text-slate-200">"{activity.target}"</span>
+                                        <p className="text-sm text-slate-200">
+                                            <span className="font-semibold text-white">{activity.user}</span> {activity.action} <span className="font-medium text-purple-300">"{activity.target}"</span>
                                         </p>
-                                        <p className="text-xs text-slate-400 mt-1"><span className="uppercase">{activity.time}</span> • <span className="uppercase">{activity.status.replace(/_/g, ' ')}</span></p>
+                                        <p className="text-xs text-slate-400 mt-1"><span className="uppercase">{activity.time}</span> • <span className={`font-semibold ${activity.status.includes('PENDING') ? 'text-orange-400' : 'text-cyan-400'}`}>{activity.status.replace(/_/g, ' ')}</span></p>
                                     </div>
                                 </div>
                             ))}
                             {recentActivity.length === 0 && (
-                                <p className="text-slate-400 text-center text-sm">No recent activity.</p>
+                                <p className="text-slate-400 text-center text-sm py-4">No recent activity.</p>
                             )}
                         </div>
                     </div>
                 </div>
 
                 {/* Quick Actions */}
-                <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-sm h-fit">
-                    <div className="p-6 border-b border-slate-700">
+                <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg h-fit">
+                    <div className="p-6">
                         <h2 className="text-lg font-bold text-white">Quick Actions</h2>
                     </div>
-                    <div className="p-6 space-y-3">
+                    <div className="p-6 pt-0 space-y-3">
                         <button
                             onClick={() => navigate('/burf')}
-                            className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-600 hover:border-blue-500 hover:bg-blue-900/30 transition-all group"
+                            className="w-full flex items-center justify-between p-4 rounded-lg bg-slate-700/30 hover:bg-purple-600/30 border border-slate-600/50 hover:border-purple-500 transition-all group"
                         >
-                            <span className="text-sm font-medium text-slate-300 group-hover:text-blue-400">Create New BURF</span>
-                            <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-blue-500" />
+                            <span className="text-sm font-medium text-slate-200 group-hover:text-white">Create New BURF</span>
+                            <ArrowUpRight className="w-5 h-5 text-slate-400 group-hover:text-purple-300 transition-transform group-hover:rotate-45" />
                         </button>
                         <button
                             onClick={() => navigate('/liquidation')}
-                            className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-600 hover:border-orange-500 hover:bg-orange-900/30 transition-all group"
+                            className="w-full flex items-center justify-between p-4 rounded-lg bg-slate-700/30 hover:bg-cyan-600/30 border border-slate-600/50 hover:border-cyan-500 transition-all group"
                         >
-                            <span className="text-sm font-medium text-slate-300 group-hover:text-orange-400">View Liquidations</span>
-                            <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-orange-500" />
+                            <span className="text-sm font-medium text-slate-200 group-hover:text-white">View Liquidations</span>
+                            <ArrowUpRight className="w-5 h-5 text-slate-400 group-hover:text-cyan-300 transition-transform group-hover:rotate-45" />
                         </button>
                         <button
                             onClick={() => navigate('/suppliers')}
-                            className="w-full flex items-center justify-between p-3 rounded-lg border border-slate-600 hover:border-emerald-500 hover:bg-emerald-900/30 transition-all group"
+                            className="w-full flex items-center justify-between p-4 rounded-lg bg-slate-700/30 hover:bg-emerald-600/30 border border-slate-600/50 hover:border-emerald-500 transition-all group"
                         >
-                            <span className="text-sm font-medium text-slate-300 group-hover:text-emerald-400">Manage Suppliers</span>
-                            <ArrowUpRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" />
+                            <span className="text-sm font-medium text-slate-200 group-hover:text-white">Manage Suppliers</span>
+                            <ArrowUpRight className="w-5 h-5 text-slate-400 group-hover:text-emerald-300 transition-transform group-hover:rotate-45" />
                         </button>
                     </div>
                 </div>

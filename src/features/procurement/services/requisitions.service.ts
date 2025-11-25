@@ -1,10 +1,10 @@
-import { FirestoreService, where, orderBy } from '../../shared/services/firestore.service';
-import { COLLECTIONS } from '../../shared/types/firebase.types';
-import type { FirestoreRequisition } from '../../shared/types/firebase.types';
+import { FirestoreService, where, orderBy, Timestamp } from '../../../shared/services/firestore.service';
+import { COLLECTIONS } from '../../../shared/types/firebase.types';
+import type { FirestoreRequisition } from '../../../shared/types/firebase.types';
 import { RequisitionStatus } from '../types';
-import { UserRole } from '../../features/auth/types';
-import { generateRequisitionId, getCurrentDateString } from '../../shared/utils/firestore.utils';
-import { NotificationsService } from '../../shared/services/notifications.service';
+import { UserRole } from '../../../features/auth/types';
+import { generateRequisitionId, getCurrentDateString } from '../../../shared/utils/firestore.utils';
+import { NotificationsService } from '../../../shared/services/notifications.service';
 import type { Unsubscribe } from 'firebase/firestore';
 
 /**
@@ -23,14 +23,18 @@ export class RequisitionsService {
         const lastId = allRequisitions.length > 0 ? allRequisitions[0].id : undefined;
         const newId = generateRequisitionId(lastId);
 
+        const newDoc = {
+            ...data,
+            dateCreated: data.dateCreated || getCurrentDateString(),
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        };
+
         // Create requisition with custom ID
         await FirestoreService.setDocument<FirestoreRequisition>(
             COLLECTIONS.REQUISITIONS,
             newId,
-            {
-                ...data,
-                dateCreated: data.dateCreated || getCurrentDateString(),
-            }
+            newDoc as FirestoreRequisition
         );
 
         // Create notification if submitted for approval
@@ -59,7 +63,7 @@ export class RequisitionsService {
     /**
      * Get all requisitions (use with caution)
      */
-    static async getAllRequisitions(): Promise<FirestoreRequisition[]> {
+    static async getAllRequisitions(): Promise<(FirestoreRequisition & { id: string })[]> {
         return await FirestoreService.getDocuments<FirestoreRequisition>(
             COLLECTIONS.REQUISITIONS,
             [orderBy('dateCreated', 'desc')]
@@ -69,7 +73,7 @@ export class RequisitionsService {
     /**
      * Get requisitions by business
      */
-    static async getRequisitionsByBusiness(businessId: string): Promise<FirestoreRequisition[]> {
+    static async getRequisitionsByBusiness(businessId: string): Promise<(FirestoreRequisition & { id: string })[]> {
         return await FirestoreService.getDocuments<FirestoreRequisition>(
             COLLECTIONS.REQUISITIONS,
             [
@@ -82,7 +86,7 @@ export class RequisitionsService {
     /**
      * Get requisitions by user (requester)
      */
-    static async getRequisitionsByUser(userId: string): Promise<FirestoreRequisition[]> {
+    static async getRequisitionsByUser(userId: string): Promise<(FirestoreRequisition & { id: string })[]> {
         return await FirestoreService.getDocuments<FirestoreRequisition>(
             COLLECTIONS.REQUISITIONS,
             [
@@ -95,7 +99,7 @@ export class RequisitionsService {
     /**
      * Get requisitions by status
      */
-    static async getRequisitionsByStatus(status: RequisitionStatus): Promise<FirestoreRequisition[]> {
+    static async getRequisitionsByStatus(status: RequisitionStatus): Promise<(FirestoreRequisition & { id: string })[]> {
         return await FirestoreService.getDocuments<FirestoreRequisition>(
             COLLECTIONS.REQUISITIONS,
             [
@@ -108,7 +112,7 @@ export class RequisitionsService {
     /**
      * Get requisitions pending approval for a specific role
      */
-    static async getRequisitionsPendingForRole(role: UserRole): Promise<FirestoreRequisition[]> {
+    static async getRequisitionsPendingForRole(role: UserRole): Promise<(FirestoreRequisition & { id: string })[]> {
         const statusMap: Record<UserRole, RequisitionStatus[]> = {
             [UserRole.MANAGER]: [RequisitionStatus.BURF_PENDING_MANAGER, RequisitionStatus.PRF_PENDING_MANAGER],
             [UserRole.CIC]: [RequisitionStatus.BURF_PENDING_CIC],
@@ -116,7 +120,8 @@ export class RequisitionsService {
             [UserRole.AUDITOR]: [RequisitionStatus.LIQUIDATION_FILED],
             [UserRole.PURCHASING_OFFICER]: [RequisitionStatus.READY_FOR_PRF],
             [UserRole.EMPLOYEE]: [],
-            [UserRole.SUPER_ADMIN]: [],
+            [UserRole.SUPER_ADMIN]: [], // Super admin gets all, handled separately
+            [UserRole.ADMIN]: [],
         };
 
         const relevantStatuses = statusMap[role];
@@ -139,7 +144,7 @@ export class RequisitionsService {
         await FirestoreService.updateDocument<FirestoreRequisition>(
             COLLECTIONS.REQUISITIONS,
             id,
-            data
+            { ...data, updatedAt: Timestamp.now() }
         );
     }
 
@@ -152,6 +157,9 @@ export class RequisitionsService {
         comment?: string
     ): Promise<void> {
         await this.updateRequisition(id, { status });
+
+        const req = await this.getRequisition(id);
+        const requesterId = req?.requesterId;
 
         // Create appropriate notifications based on status
         const notificationMap: Partial<Record<RequisitionStatus, { message: string; roles: UserRole[]; type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO' }>> = {
@@ -177,7 +185,7 @@ export class RequisitionsService {
             },
             [RequisitionStatus.FUNDS_RELEASED]: {
                 message: `Funds released for ${id}. Please proceed with purchase.`,
-                roles: [UserRole.EMPLOYEE, UserRole.PURCHASING_OFFICER],
+                roles: [UserRole.PURCHASING_OFFICER, ...(requesterId ? [requesterId] : [])],
                 type: 'LIQUIDATION',
             },
             [RequisitionStatus.LIQUIDATION_FILED]: {
@@ -187,7 +195,7 @@ export class RequisitionsService {
             },
             [RequisitionStatus.REJECTED]: {
                 message: `Requisition ${id} rejected${comment ? `: ${comment}` : ''}. Please review.`,
-                roles: [UserRole.EMPLOYEE, UserRole.PURCHASING_OFFICER],
+                roles: [UserRole.PURCHASING_OFFICER, ...(requesterId ? [requesterId] : [])],
                 type: 'INFO',
             },
         };
@@ -217,7 +225,7 @@ export class RequisitionsService {
      */
     static subscribeToRequisitionsByBusiness(
         businessId: string,
-        callback: (requisitions: FirestoreRequisition[]) => void,
+        callback: (requisitions: (FirestoreRequisition & { id: string })[]) => void,
         onError?: (error: Error) => void
     ): Unsubscribe {
         return FirestoreService.subscribeToCollection<FirestoreRequisition>(
@@ -236,7 +244,7 @@ export class RequisitionsService {
      */
     static subscribeToRequisitionsByUser(
         userId: string,
-        callback: (requisitions: FirestoreRequisition[]) => void,
+        callback: (requisitions: (FirestoreRequisition & { id: string })[]) => void,
         onError?: (error: Error) => void
     ): Unsubscribe {
         return FirestoreService.subscribeToCollection<FirestoreRequisition>(
@@ -255,7 +263,7 @@ export class RequisitionsService {
      * Use only for SUPER_ADMIN
      */
     static subscribeToAllRequisitions(
-        callback: (requisitions: FirestoreRequisition[]) => void,
+        callback: (requisitions: (FirestoreRequisition & { id: string })[]) => void,
         onError?: (error: Error) => void
     ): Unsubscribe {
         return FirestoreService.subscribeToCollection<FirestoreRequisition>(

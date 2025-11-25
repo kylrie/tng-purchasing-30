@@ -9,10 +9,10 @@ import {
     type UserCredential,
 } from 'firebase/auth';
 import { auth, googleProvider } from '../../config/firebase';
-import { FirestoreService } from './firestore.service';
+import { FirestoreService, Timestamp } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
 import type { FirestoreUser } from '../types/firebase.types';
-import type { UserRole } from '../../features/auth/types';
+import type { UserRole, UserStatus } from '../../features/auth/types';
 
 /**
  * Authentication Service
@@ -92,17 +92,22 @@ export class AuthService {
             // Create Firebase Auth user
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
+            const newDoc = {
+                email,
+                name: userData.name,
+                role: userData.role,
+                businessId: userData.businessId,
+                avatar: userData.avatar || '',
+                status: 'active' as UserStatus,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            };
+
             // Create Firestore user document
             await FirestoreService.setDocument<FirestoreUser>(
                 COLLECTIONS.USERS,
                 userCredential.user.uid,
-                {
-                    email,
-                    name: userData.name,
-                    role: userData.role,
-                    businessId: userData.businessId,
-                    avatar: userData.avatar || '',
-                }
+                newDoc as FirestoreUser
             );
 
             return userCredential;
@@ -132,13 +137,13 @@ export class AuthService {
      */
     static async updateUserProfile(
         uid: string,
-        data: Partial<Omit<FirestoreUser, 'id' | 'email' | 'createdAt' | 'updatedAt'>>
+        data: Partial<Omit<FirestoreUser, 'id' | 'email' | 'createdAt'>>
     ): Promise<void> {
         try {
             await FirestoreService.updateDocument<FirestoreUser>(
                 COLLECTIONS.USERS,
                 uid,
-                data
+                { ...data, updatedAt: Timestamp.now() }
             );
         } catch (error) {
             console.error('Error updating user profile:', error);

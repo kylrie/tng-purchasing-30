@@ -1,4 +1,4 @@
-import { UserRole } from '../features/auth/types';
+import { UserRole, UserStatus } from '../features/auth/types';
 import type { User } from '../features/auth/types';
 import type { Business } from '../shared/types';
 import type { Requisition, Supplier } from '../features/procurement/types';
@@ -13,7 +13,8 @@ export const INITIAL_MOCK_USERS: User[] = [
         email: 'super@thenextperience.com',
         department: 'HQ',
         businessId: 'b1',
-        permissionLevel: 10
+        permissionLevel: 10,
+        status: UserStatus.ACTIVE
     }
 ];
 

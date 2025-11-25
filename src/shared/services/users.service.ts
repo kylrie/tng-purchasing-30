@@ -1,5 +1,5 @@
 import { FirestoreService, where } from './firestore.service';
-import { COLLECTIONS } from '../types/firebase.types';
+import { COLLECTIONS, UserStatus } from '../types/firebase.types';
 import type { FirestoreUser } from '../types/firebase.types';
 import type { UserRole } from '../../features/auth/types';
 
@@ -22,10 +22,14 @@ export class UsersService {
             avatar?: string;
         }
     ): Promise<void> {
+        const newUser: Omit<FirestoreUser, 'id' | 'createdAt' | 'updatedAt'> = {
+            ...userData,
+            status: UserStatus.PENDING_APPROVAL,
+        };
         await FirestoreService.setDocument<FirestoreUser>(
             COLLECTIONS.USERS,
             uid,
-            userData
+            newUser as FirestoreUser
         );
     }
 

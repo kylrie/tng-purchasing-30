@@ -31,7 +31,7 @@ export class FirestoreService {
      */
     static async createDocument<T extends DocumentData>(
         collectionName: string,
-        data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>
+        data: T
     ): Promise<string> {
         try {
             const collectionRef = collection(db, collectionName);
@@ -55,7 +55,7 @@ export class FirestoreService {
     static async setDocument<T extends DocumentData>(
         collectionName: string,
         documentId: string,
-        data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>,
+        data: T,
         merge: boolean = false
     ): Promise<void> {
         try {
@@ -79,13 +79,13 @@ export class FirestoreService {
     static async getDocument<T extends DocumentData>(
         collectionName: string,
         documentId: string
-    ): Promise<T | null> {
+    ): Promise<(T & { id: string }) | null> {
         try {
             const docRef = doc(db, collectionName, documentId);
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists()) {
-                return { id: docSnap.id, ...docSnap.data() } as T;
+                return { id: docSnap.id, ...docSnap.data() } as T & { id: string };
             }
             return null;
         } catch (error) {
@@ -100,16 +100,16 @@ export class FirestoreService {
     static async getDocuments<T extends DocumentData>(
         collectionName: string,
         constraints: QueryConstraint[] = []
-    ): Promise<T[]> {
+    ): Promise<(T & { id: string })[]> {
         try {
             const collectionRef = collection(db, collectionName);
-            const q = constraints.length > 0 ? query(collectionRef, ...constraints) : collectionRef as any;
+            const q = constraints.length > 0 ? query(collectionRef, ...constraints) : collectionRef;
 
             const querySnapshot = await getDocs(q);
             return querySnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data(),
-            })) as T[];
+            })) as (T & { id: string })[];
         } catch (error) {
             console.error(`Error getting documents from ${collectionName}:`, error);
             throw error;
@@ -122,12 +122,12 @@ export class FirestoreService {
     static async updateDocument<T extends DocumentData>(
         collectionName: string,
         documentId: string,
-        data: Partial<Omit<T, 'id' | 'createdAt'>>
+        data: Partial<T>
     ): Promise<void> {
         try {
             const docRef = doc(db, collectionName, documentId);
             const updateData = {
-                ...data,
+                ...(data as object),
                 updatedAt: firestoreTimestamp(),
             };
 
@@ -160,7 +160,7 @@ export class FirestoreService {
     static subscribeToDocument<T extends DocumentData>(
         collectionName: string,
         documentId: string,
-        callback: (data: T | null) => void,
+        callback: (data: (T & { id: string }) | null) => void,
         onError?: (error: Error) => void
     ): Unsubscribe {
         const docRef = doc(db, collectionName, documentId);
@@ -169,7 +169,7 @@ export class FirestoreService {
             docRef,
             (docSnap: DocumentSnapshot) => {
                 if (docSnap.exists()) {
-                    callback({ id: docSnap.id, ...docSnap.data() } as T);
+                    callback({ id: docSnap.id, ...docSnap.data() } as T & { id: string });
                 } else {
                     callback(null);
                 }
@@ -186,12 +186,12 @@ export class FirestoreService {
      */
     static subscribeToCollection<T extends DocumentData>(
         collectionName: string,
-        callback: (data: T[]) => void,
+        callback: (data: (T & { id: string })[]) => void,
         constraints: QueryConstraint[] = [],
         onError?: (error: Error) => void
     ): Unsubscribe {
         const collectionRef = collection(db, collectionName);
-        const q = constraints.length > 0 ? query(collectionRef, ...constraints) : collectionRef as any;
+        const q = constraints.length > 0 ? query(collectionRef, ...constraints) : collectionRef;
 
         return onSnapshot(
             q,
@@ -199,7 +199,7 @@ export class FirestoreService {
                 const documents = querySnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data(),
-                })) as T[];
+                })) as (T & { id: string })[];
                 callback(documents);
             },
             (error) => {

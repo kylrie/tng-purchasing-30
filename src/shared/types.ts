@@ -18,5 +18,4 @@ export interface NotificationItem {
     requisitionId?: string;
     timestamp: string;
     targetRoles?: UserRole[];
-    read?: boolean;
 }

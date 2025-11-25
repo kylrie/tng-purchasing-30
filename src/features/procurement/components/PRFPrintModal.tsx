@@ -10,7 +10,7 @@ interface PRFPrintModalProps {
     preparedBy?: User;
 }
 
-const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, requester, preparedBy }) => {
+const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, preparedBy }) => {
 
     const handlePrint = () => {
         window.print();
@@ -133,7 +133,7 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, r
                                 <tbody>
                                     {req.items.map((item, index) => (
                                         <tr key={index}>
-                                            <td className="border border-slate-900 px-2 py-1 text-center">{item.itemId.substring(0, 12)}</td>
+                                            <td className="border border-slate-900 px-2 py-1 text-center">{item.name.substring(0, 12)}</td>
                                             <td className="border border-slate-900 px-2 py-1">{item.name}</td>
                                             <td className="border border-slate-900 px-2 py-1 text-center">{item.quantity}</td>
                                             <td className="border border-slate-900 px-2 py-1 text-center">{item.uom}</td>

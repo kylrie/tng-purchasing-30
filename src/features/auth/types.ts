@@ -9,10 +9,17 @@ export enum UserRole {
     AUDITOR = 'AUDITOR'
 }
 
+export enum UserStatus {
+    ACTIVE = 'ACTIVE',
+    PENDING_APPROVAL = 'PENDING_APPROVAL',
+    INACTIVE = 'INACTIVE',
+}
+
 export interface User {
     id: string;
     name: string;
     role: UserRole;
+    status: UserStatus;
     permissionLevel?: number;
     avatar: string;
     email: string;
