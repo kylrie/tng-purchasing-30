@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, signInWithPopup } from 'firebase/auth';
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, signInWithPopup, updatePassword } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../config/firebase';
@@ -13,13 +13,13 @@ interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   error: string | null;
-  isNewUser: boolean; // State to trigger the popup
+  isNewUser: boolean;
   setError: (error: string | null) => void;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
-  mockLogin: () => Promise<void>;
-  completeNewUserRegistration: (role: UserRole) => Promise<void>;
+  completeNewUserRegistration: (role: UserRole, password?: string) => Promise<void>;
   logout: () => Promise<void>;
+  mockLogin: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,38 +46,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
-      // If we are already logged in via mock, ignore null updates from firebase
-      // But this is tricky. Let's assume real firebase always wins if it connects.
-      
       if (firebaseUser) {
         const userDocRef = doc(db, COLLECTIONS.USERS, firebaseUser.uid);
-        try {
-            const userDoc = await getDoc(userDocRef);
+        const userDoc = await getDoc(userDocRef);
 
-            if (userDoc.exists()) {
-              const userData = userDoc.data() as User;
-              if (userData.status === UserStatus.PENDING_APPROVAL) {
-                setError('Your account is awaiting approval from an administrator.');
-                await signOut(auth);
-                setCurrentUser(null);
-              } else {
-                setCurrentUser({ ...userData, id: userDoc.id });
-              }
-            } else if (!isNewUser) {
-                setTempFirebaseUser(firebaseUser);
-                setIsNewUser(true);
-            }
-        } catch (e) {
-            console.error("Firestore error:", e);
-            // If firestore fails (e.g. no permission or no connection), we might want to fallback or just show error
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as User;
+          if (userData.status === UserStatus.PENDING_APPROVAL) {
+            setError('Your account is awaiting approval from an administrator.');
+            await signOut(auth);
+            setCurrentUser(null);
+          } else {
+            setCurrentUser({ ...userData, id: userDoc.id });
+          }
+        } else if (!isNewUser) {
+          setTempFirebaseUser(firebaseUser);
+          setIsNewUser(true);
         }
       } else {
-        // Only set to null if we are NOT in a mock session?
-        // But we don't track "isMock".
-        // For simplicity, we'll let this run. If user calls mockLogin, it sets state.
-        // If firebase listener fires subsequently with null, it might overwrite.
-        // But usually listener fires once on load.
-        // If we are using mock login, we probably don't have a firebase session.
         if (!currentUser?.id.startsWith('mock-')) {
             setCurrentUser(null);
         }
@@ -122,30 +108,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false);
     }
   };
-  
-  const mockLogin = async () => {
-      setLoading(true);
-      const mockUser: User = {
-          id: 'mock-super-admin',
-          name: 'Mock Super Admin',
-          email: 'super@mock.com',
-          role: UserRole.SUPER_ADMIN,
-          businessId: 'b1',
-          status: UserStatus.ACTIVE,
-          avatar: ''
-      };
-      setCurrentUser(mockUser);
-      setLoading(false);
-      navigate('/');
-  };
 
-  const completeNewUserRegistration = async (role: UserRole) => {
+  const completeNewUserRegistration = async (role: UserRole, password?: string) => {
     if (!tempFirebaseUser) {
       setError("No temporary user data found to complete registration.");
       return;
     }
     setLoading(true);
     try {
+      if (password) {
+        await updatePassword(tempFirebaseUser, password);
+      }
+
       const userDocRef = doc(db, COLLECTIONS.USERS, tempFirebaseUser.uid);
       const newUser: Omit<User, 'id'> = {
           name: tempFirebaseUser.displayName || 'Google User',
@@ -153,7 +127,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role: role,
           businessId: 'tng-systems', // Default or from selection
           avatar: tempFirebaseUser.photoURL || '',
-          status: UserStatus.PENDING_APPROVAL
+          status: UserStatus.PENDING_APPROVAL,
+          isPasswordSet: !!password,
       };
       await setDoc(userDocRef, newUser as User);
 
@@ -190,6 +165,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const mockLogin = async () => {
+    setLoading(true);
+    const mockUser: User = {
+        id: 'mock-super-admin',
+        name: 'Mock Super Admin',
+        email: 'super@mock.com',
+        role: UserRole.SUPER_ADMIN,
+        businessId: 'b1',
+        status: UserStatus.ACTIVE,
+        avatar: '',
+    };
+    setCurrentUser(mockUser);
+    setLoading(false);
+    navigate('/');
+};
+
   const value = {
     currentUser,
     loading,
@@ -198,9 +189,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setError,
     loginWithEmail,
     loginWithGoogle,
-    mockLogin,
     completeNewUserRegistration,
     logout,
+    mockLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

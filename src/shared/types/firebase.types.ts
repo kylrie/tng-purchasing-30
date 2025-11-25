@@ -27,6 +27,7 @@ export interface User {
     avatar: string;
     email: string;
     businessId: string;
+    isPasswordSet?: boolean;
 }
 
 // Business document in Firestore
@@ -49,7 +50,7 @@ export interface FirestoreRequisitionItem {
 }
 
 // PRF Details
-export interface FirestorePRFDetails {
+export interface PRFDetails {
   supplier: {
     name: string;
     tin: string;
@@ -74,7 +75,7 @@ export interface FirestoreRequisition extends FirestoreDocument {
   dateCreated: string;
   remarks?: string;
   attachments?: string[];
-  prfDetails?: FirestorePRFDetails;
+  prfDetails?: PRFDetails;
 }
 
 // Supplier document in Firestore

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronRight, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
 import { RequisitionStatus, hasGlobalAccess } from '../types';

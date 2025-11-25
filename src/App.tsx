@@ -20,7 +20,6 @@ import { useSuppliers } from './features/inventory/hooks/useSuppliers';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './config/firebase';
 import { COLLECTIONS } from './shared/types/firebase.types';
-import { updateRequisitionStatus } from './features/procurement/services/requisitionService';
 
 function ProtectedApp() {
   const { currentUser, logout, loading } = useAuth();
@@ -94,18 +93,22 @@ function ProtectedApp() {
 
   // Requisition Action Handlers
   const handleManagerApprovePRF = async (id: string) => {
-      await updateRequisitionStatus(id, RequisitionStatus.APPROVED_FOR_PAYMENT);
-      window.location.reload(); 
+    const requisition = requisitions.find(r => r.id === id);
+    if (requisition) {
+      await updateRequisition({ ...requisition, status: RequisitionStatus.APPROVED_FOR_PAYMENT });
+    }
   };
 
-  const handleReject = async (id: string) => {
-      await updateRequisitionStatus(id, RequisitionStatus.REJECTED);
-      window.location.reload();
-  };
-
-  const handleReleaseFunds = async (id: string) => {
-      await updateRequisitionStatus(id, RequisitionStatus.FUNDS_RELEASED);
-      window.location.reload();
+  const handleReleaseFunds = async (id: string, chequeNumber: string) => {
+    const requisition = requisitions.find(r => r.id === id);
+    if (requisition) {
+      await updateRequisition({
+        ...requisition,
+        status: RequisitionStatus.FUNDS_RELEASED,
+        chequeNumber: chequeNumber,
+        fundReleaseDate: new Date().toISOString(),
+      });
+    }
   };
 
   if (loading) {
@@ -148,7 +151,6 @@ function ProtectedApp() {
             <PrfView 
                 currentUser={currentUser}
                 visibleRequisitions={requisitions}
-                handleReject={handleReject}
                 handleManagerApprovePRF={handleManagerApprovePRF}
                 getStatusBadge={getStatusBadge}
                 businesses={businesses}
@@ -163,11 +165,9 @@ function ProtectedApp() {
             <LiquidationView 
                 currentUser={currentUser}
                 requisitions={requisitions}
-                onUpdateRequisition={updateRequisition}
                 getStatusBadge={getStatusBadge}
                 handleReleaseFunds={handleReleaseFunds}
                 businesses={businesses}
-                allUsers={users}
             />
         } />
         

@@ -1,8 +1,6 @@
-import { FirestoreService, where, Timestamp } from '../../../shared/services/firestore.service';
-import {
-  Requisition, RequisitionStatus, RequisitionHistory,
-  UserRole, hasGlobalAccess
-} from '../types';
+import { FirestoreService, where } from '../../../shared/services/firestore.service';
+import type { Requisition, RequisitionHistory } from '../types';
+import { RequisitionStatus, UserRole, hasGlobalAccess } from '../types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 
 const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
@@ -108,14 +106,13 @@ export class RequisitionService {
     requisitionId: string,
     userId: string,
     userName: string,
-    userRole: UserRole,
     comments?: string
   ): Promise<void> {
     const requisition = await this.getRequisitionById(requisitionId);
     if (!requisition) throw new Error('Requisition not found');
 
     let nextStatus: RequisitionStatus | undefined;
-    let approvalAction = 'Approved';
+    const approvalAction = 'Approved';
 
     switch (requisition.status) {
       case RequisitionStatus.BURF_PENDING_MANAGER:
@@ -150,7 +147,6 @@ export class RequisitionService {
     requisitionId: string,
     userId: string,
     userName: string,
-    userRole: string,
     comments: string
   ): Promise<void> {
     await this.updateRequisition(requisitionId, { status: RequisitionStatus.REJECTED });
@@ -171,7 +167,6 @@ export class RequisitionService {
     requisitionId: string,
     userId: string,
     userName: string,
-    userRole: string,
     updates: Partial<Requisition>
   ): Promise<void> {
     const nextStatus = updates.prfIdentifier

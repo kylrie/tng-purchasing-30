@@ -129,6 +129,7 @@ export interface Requisition {
   prfIdentifier?: string; // Custom identifier for PRFs
 
   fundReleaseDate?: string; // Date when funds were released by Finance
+  chequeNumber?: string; // Cheque number for the fund release
 
   // PRF Specific Data
   prfDetails?: {

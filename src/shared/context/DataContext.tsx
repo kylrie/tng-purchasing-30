@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Unsubscribe } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
-import { RequisitionsService } from '../../features/procurement/services/requisitions.service';
+import { RequisitionService } from '../../features/procurement/services/requisitions.service';
 import { FirestoreService, where } from '../services/firestore.service';
 import { NotificationsService } from '../services/notifications.service';
 import { COLLECTIONS } from '../types/firebase.types';
@@ -124,22 +124,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
                 setRequisitions(firestoreReqs.map(convertRequisition));
                 setLoadingRequisitions(false);
             };
-            const handleError = (err: Error) => {
-                setError(err.message);
-                setLoadingRequisitions(false);
-            };
+            
+            unsubscribe = RequisitionService.subscribeToRequisitions(
+                currentUser.role,
+                currentUser.businessId,
+                processReqs as any
+            );
 
-            if (currentUser.role === UserRole.SUPER_ADMIN) {
-                // Super admin sees all requisitions
-                unsubscribe = RequisitionsService.subscribeToAllRequisitions(processReqs, handleError);
-            } else {
-                // Other users see requisitions from their business
-                unsubscribe = RequisitionsService.subscribeToRequisitionsByBusiness(
-                    currentUser.businessId,
-                    processReqs,
-                    handleError
-                );
-            }
         } catch (err: any) {
             setError(err.message);
             setLoadingRequisitions(false);
@@ -238,7 +229,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     // Requisition operations
     const createRequisition = async (data: Omit<Requisition, 'id' | 'dateCreated' | 'timestamp'>): Promise<string> => {
         try {
-            const id = await RequisitionsService.createRequisition(data as any);
+            const id = await RequisitionService.createRequisition(data as any);
             return id;
         } catch (err: any) {
             setError(err.message);
@@ -248,7 +239,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     const updateRequisition = async (id: string, data: Partial<Requisition>): Promise<void> => {
         try {
-            await RequisitionsService.updateRequisition(id, data as any);
+            await RequisitionService.updateRequisition(id, data as any);
         } catch (err: any) {
             setError(err.message);
             throw err;
@@ -261,7 +252,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         comment?: string
     ): Promise<void> => {
         try {
-            await RequisitionsService.updateRequisitionStatus(id, status, comment);
+            await RequisitionService.updateRequisition(id, { status, remarks: comment });
         } catch (err: any) {
             setError(err.message);
             throw err;
@@ -270,7 +261,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     const deleteRequisition = async (id: string): Promise<void> => {
         try {
-            await RequisitionsService.deleteRequisition(id);
+            await RequisitionService.deleteRequisition(id);
         } catch (err: any) {
             setError(err.message);
             throw err;
