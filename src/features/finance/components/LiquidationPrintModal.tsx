@@ -27,6 +27,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
         <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:block text-slate-900">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:rounded-none">
 
+                {/* Modal Header - Hidden when printing */}
                 <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between print:hidden">
                     <h2 className="text-lg font-bold text-slate-800">Liquidation Report Preview</h2>
                     <div className="flex items-center gap-2">
@@ -45,14 +46,17 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                     </div>
                 </div>
 
-                <div className="p-8 print:p-0 [&_*]:text-slate-900">
+                {/* Printable Content - Only this div and its children will be visible when printing */}
+                <div id="printable-content" className="p-8 print:p-0 [&_*]:text-slate-900">
                     <div className="max-w-3xl mx-auto print:max-w-none">
 
+                        {/* Title */}
                         <div className="text-center mb-8 border-b-2 border-slate-800 pb-4">
                             <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-wide mb-1">Liquidation Report</h1>
                             <p className="text-slate-600 font-medium">Finance Department</p>
                         </div>
 
+                        {/* Header Details */}
                         <div className="grid grid-cols-2 gap-x-12 gap-y-4 mb-8 text-sm">
                             <div>
                                 <div className="grid grid-cols-[100px_1fr] gap-2 mb-2">
@@ -84,6 +88,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             </div>
                         </div>
 
+                        {/* Expense Breakdown Table */}
                         <div className="mb-8">
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-2">Expense Breakdown</h3>
                             <table className="w-full text-sm border-collapse border border-slate-300">
@@ -116,6 +121,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             </table>
                         </div>
 
+                        {/* Summary Table */}
                         <div className="mb-12 w-1/2 ml-auto">
                             <table className="w-full text-sm border border-slate-300">
                                 <tbody>
@@ -139,6 +145,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             </table>
                         </div>
 
+                        {/* Signatures */}
                         <div className="grid grid-cols-3 gap-8 mt-12 break-inside-avoid">
                             <div className="text-center">
                                 <div className="text-xs font-bold text-slate-500 uppercase mb-8">Liquidated By</div>
@@ -155,11 +162,12 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             <div className="text-center">
                                 <div className="text-xs font-bold text-slate-500 uppercase mb-8">Audited By</div>
                                 <div className="border-b border-slate-800 mb-2"></div>
-                                <div className="font-bold text-sm text-slate-900">{liquidation.auditedBy ? 'Auditor' : '________________'}</div>
+                                <div className="font-bold text-sm text-slate-900">{liquidation.auditedBy ? 'Auditor' : 'Auditor'}</div>
                                 <div className="text-xs text-slate-500">Auditor</div>
                             </div>
                         </div>
 
+                        {/* Footer */}
                         <div className="mt-12 pt-4 border-t border-slate-200 flex justify-between text-[10px] text-slate-400">
                             <span>Generated via ProcureFlow System</span>
                             <span>Printed: {new Date().toLocaleString()}</span>

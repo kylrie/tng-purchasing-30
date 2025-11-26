@@ -85,8 +85,8 @@ function ProtectedApp() {
     };
     const labels = {
       [RequisitionStatus.DRAFT]: 'Draft',
-      [RequisitionStatus.BURF_PENDING_MANAGER]: 'Pending Mgr Approval',
-      [RequisitionStatus.BURF_PENDING_CIC]: 'Pending CIC Review',
+      [RequisitionStatus.BURF_PENDING_MANAGER]: 'For BUM Approval',
+      [RequisitionStatus.BURF_PENDING_CIC]: 'For CIC Approval',
       [RequisitionStatus.READY_FOR_PRF]: 'Ready for PRF',
       [RequisitionStatus.PRF_PENDING_MANAGER]: 'Pending PRF Approval',
       [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'Approved for Payment',
@@ -101,13 +101,6 @@ function ProtectedApp() {
         {labels[status] || status}
       </span>
     );
-  };
-
-  const handleManagerApprovePRF = async (id: string) => {
-    const requisition = requisitions.find(r => r.id === id);
-    if (requisition) {
-      await updateRequisition({ ...requisition, status: RequisitionStatus.APPROVED_FOR_PAYMENT });
-    }
   };
 
   const handleReleaseFunds = async (id: string, chequeNumber: string) => {
@@ -162,7 +155,6 @@ function ProtectedApp() {
           <PrfView
             currentUser={currentUser}
             visibleRequisitions={requisitions}
-            handleManagerApprovePRF={handleManagerApprovePRF}
             getStatusBadge={getStatusBadge}
             businesses={businesses}
             allUsers={users}

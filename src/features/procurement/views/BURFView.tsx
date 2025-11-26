@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronRight, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
 import { RequisitionStatus, hasGlobalAccess } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -18,6 +18,9 @@ interface BurfViewProps {
     businesses: Business[];
 }
 
+type SortField = 'id' | 'description' | 'businessId' | 'requesterId' | 'dateNeeded' | 'status';
+type SortDirection = 'asc' | 'desc';
+
 export const BurfView: React.FC<BurfViewProps> = ({
     currentUser,
     visibleRequisitions,
@@ -34,6 +37,10 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+
+    // Sorting state
+    const [sortField, setSortField] = useState<SortField>('id');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     const [description, setDescription] = useState('');
     const [remarks, setRemarks] = useState('');
@@ -55,10 +62,26 @@ export const BurfView: React.FC<BurfViewProps> = ({
         return diffDays < 3;
     }, [dateNeeded]);
 
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const renderSortIcon = (field: SortField) => {
+        if (sortField !== field) return <ArrowUpDown size={14} className="text-slate-600 ml-1" />;
+        return sortDirection === 'asc' 
+            ? <ArrowUp size={14} className="text-purple-400 ml-1" />
+            : <ArrowDown size={14} className="text-purple-400 ml-1" />;
+    };
+
     const filteredRequisitions = useMemo(() => {
         const userHasGlobalAccess = hasGlobalAccess(currentUser.role);
 
-        return visibleRequisitions
+        let filtered = visibleRequisitions
             .filter(req => {
                 if (userHasGlobalAccess) {
                     if (selectedBusinessUnit !== 'all' && req.businessId !== selectedBusinessUnit) {
@@ -82,7 +105,24 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 }
                 return true;
             });
-    }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit]);
+
+        return filtered.sort((a, b) => {
+            let aValue: any = a[sortField];
+            let bValue: any = b[sortField];
+
+            if (sortField === 'businessId') {
+                aValue = businesses.find(biz => biz.id === a.businessId)?.name || '';
+                bValue = businesses.find(biz => biz.id === b.businessId)?.name || '';
+            } else if (sortField === 'requesterId') {
+                aValue = allUsers.find(u => u.id === a.requesterId)?.name || '';
+                bValue = allUsers.find(u => u.id === b.requesterId)?.name || '';
+            }
+
+            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit, sortField, sortDirection]);
 
     const toggleRow = (id: string) => {
         setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
@@ -270,7 +310,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
         <div className="space-y-6 text-white">
             <div className="flex justify-between items-center print:hidden">
                 <div>
-                    <h1 className="text-2xl font-bold">Requisitions (BURF)</h1>
+                    <h1 className="text-2xl font-bold">BURF Management</h1>
                     <p className="text-sm text-slate-300">Manage initial requests and Business Unit approvals.</p>
                 </div>
                 <div className="flex gap-2">
@@ -307,12 +347,54 @@ export const BurfView: React.FC<BurfViewProps> = ({
                     <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
                         <tr>
                             <th className="px-6 py-4 w-10"></th>
-                            <th className="px-6 py-4">ID</th>
-                            <th className="px-6 py-4">Description</th>
-                            <th className="px-6 py-4">Business Unit</th>
-                            <th className="px-6 py-4">Requested By</th>
-                            <th className="px-6 py-4">Date Needed</th>
-                            <th className="px-6 py-4">Status</th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('id')}
+                            >
+                                <div className="flex items-center">
+                                    ID {renderSortIcon('id')}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('description')}
+                            >
+                                <div className="flex items-center">
+                                    Description {renderSortIcon('description')}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('businessId')}
+                            >
+                                <div className="flex items-center">
+                                    Business Unit {renderSortIcon('businessId')}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('requesterId')}
+                            >
+                                <div className="flex items-center">
+                                    Requested By {renderSortIcon('requesterId')}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('dateNeeded')}
+                            >
+                                <div className="flex items-center">
+                                    Date Needed {renderSortIcon('dateNeeded')}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('status')}
+                            >
+                                <div className="flex items-center">
+                                    Status {renderSortIcon('status')}
+                                </div>
+                            </th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>

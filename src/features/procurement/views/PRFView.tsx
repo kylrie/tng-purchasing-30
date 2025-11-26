@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Printer, X, Save, Ban, RefreshCw } from 'lucide-react';
+import { Search, Plus, Printer, X, Save, Ban, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus, hasGlobalAccess } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -7,13 +7,11 @@ import { UserRole } from '../../auth/types';
 import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
 import Card from '../../../shared/components/Card';
-import RejectionModal from '../../../shared/components/RejectionModal';
 import { CounterService } from '../../../shared/services/counter.service';
 
 interface PrfViewProps {
     currentUser: User;
     visibleRequisitions: Requisition[];
-    handleManagerApprovePRF: (id: string) => void;
     getStatusBadge: (status: RequisitionStatus) => React.ReactNode;
     businesses: Business[];
     allUsers: User[];
@@ -225,10 +223,12 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     );
 };
 
+type SortField = 'id' | 'description' | 'businessId' | 'dateCreated' | 'status';
+type SortDirection = 'asc' | 'desc';
+
 export const PrfView: React.FC<PrfViewProps> = ({
     currentUser,
     visibleRequisitions,
-    handleManagerApprovePRF,
     getStatusBadge,
     businesses,
     allUsers,
@@ -238,10 +238,14 @@ export const PrfView: React.FC<PrfViewProps> = ({
 }) => {
     const [isDirectOpen, setIsDirectOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [preparePRFReq, setPreparePRFReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
-    const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [editingPrf, setEditingPrf] = useState<Requisition | null>(null);
+
+    // Sorting state
+    const [sortField, setSortField] = useState<SortField>('dateCreated');
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
     const handlePreparePRFSubmit = (prfReq: Requisition, updatedOrigin?: Requisition) => {
         if (updatedOrigin) {
@@ -269,15 +273,20 @@ export const PrfView: React.FC<PrfViewProps> = ({
         }
     };
 
-    const handleRejectConfirm = (reason: string) => {
-        if (rejectingReq) {
-            const newRemarks = rejectingReq.remarks
-                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}`
-                : `[REJECTED]: ${reason}`;
-
-            onUpdateRequisition({ ...rejectingReq, status: RequisitionStatus.REJECTED, remarks: newRemarks });
-            setRejectingReq(null);
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
         }
+    };
+
+    const renderSortIcon = (field: SortField) => {
+        if (sortField !== field) return <ArrowUpDown size={14} className="text-slate-600 ml-1" />;
+        return sortDirection === 'asc'
+            ? <ArrowUp size={14} className="text-purple-400 ml-1" />
+            : <ArrowDown size={14} className="text-purple-400 ml-1" />;
     };
 
     const filteredAndSortedReqs = visibleRequisitions
@@ -287,11 +296,33 @@ export const PrfView: React.FC<PrfViewProps> = ({
             RequisitionStatus.REJECTED, RequisitionStatus.CANCELLED].includes(r.status)
         )
         .filter(r => r.status !== RequisitionStatus.REJECTED || r.prfDetails)
+        .filter(r => {
+            if (selectedBusinessUnit !== 'all' && r.businessId !== selectedBusinessUnit) {
+                return false;
+            }
+            return true;
+        })
         .filter(r =>
             (r.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.description || '').toLowerCase().includes(searchTerm.toLowerCase())
         )
-        .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
+        .sort((a, b) => {
+            let aValue: any = a[sortField];
+            let bValue: any = b[sortField];
+
+            if (sortField === 'businessId') {
+                aValue = businesses.find(biz => biz.id === a.businessId)?.name || '';
+                bValue = businesses.find(biz => biz.id === b.businessId)?.name || '';
+            } else if (sortField === 'dateCreated') {
+                return sortDirection === 'asc'
+                    ? new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime()
+                    : new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime();
+            }
+
+            if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+            if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
 
     return (
         <div className="space-y-6 text-white">
@@ -314,6 +345,18 @@ export const PrfView: React.FC<PrfViewProps> = ({
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
+                    {hasGlobalAccess(currentUser.role) && (
+                        <select
+                            value={selectedBusinessUnit}
+                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
+                            className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
+                        >
+                            <option value="all">All Business Units</option>
+                            {businesses.map(business => (
+                                <option key={business.id} value={business.id}>{business.name}</option>
+                            ))}
+                        </select>
+                    )}
                     {(currentUser.role === UserRole.PURCHASING_OFFICER || hasGlobalAccess(currentUser.role)) && (
                         <button onClick={() => setIsDirectOpen(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 font-medium">
                             <Plus size={16} /> Create PRF
@@ -326,12 +369,47 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
                         <tr>
-                            <th className="px-6 py-4">ID</th>
-                            <th className="px-6 py-4">Business Unit</th>
-                            <th className="px-6 py-4">Description</th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('id')}
+                            >
+                                <div className="flex items-center">
+                                    ID {renderSortIcon('id')}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('businessId')}
+                            >
+                                <div className="flex items-center">
+                                    Business Unit {renderSortIcon('businessId')}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('description')}
+                            >
+                                <div className="flex items-center">
+                                    Description {renderSortIcon('description')}
+                                </div>
+                            </th>
                             <th className="px-6 py-4">Items</th>
-                            <th className="px-6 py-4">Date & Time</th>
-                            <th className="px-6 py-4">Status</th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('dateCreated')}
+                            >
+                                <div className="flex items-center">
+                                    Date & Time {renderSortIcon('dateCreated')}
+                                </div>
+                            </th>
+                            <th 
+                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                onClick={() => handleSort('status')}
+                            >
+                                <div className="flex items-center">
+                                    Status {renderSortIcon('status')}
+                                </div>
+                            </th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
@@ -383,12 +461,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                         {req.status === RequisitionStatus.READY_FOR_PRF && (currentUser.role === UserRole.PURCHASING_OFFICER || hasGlobalAccess(currentUser.role)) && (
                                             <button onClick={() => setPreparePRFReq(req)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium">Prepare PRF</button>
                                         )}
-                                        {req.status === RequisitionStatus.PRF_PENDING_MANAGER && (currentUser.role === UserRole.MANAGER || hasGlobalAccess(currentUser.role)) && (
-                                            <div className="flex gap-2">
-                                                <button onClick={() => setRejectingReq(req)} className="text-red-400 text-xs font-medium border border-red-500/50 px-2 py-1 rounded hover:bg-red-900/20">Reject</button>
-                                                <button onClick={() => handleManagerApprovePRF(req.id)} className="text-green-400 text-xs font-medium border border-green-500/50 px-2 py-1 rounded hover:bg-green-900/20">Approve</button>
-                                            </div>
-                                        )}
+                                        
                                         {req.prfDetails && (
                                             <button onClick={() => setPrintReq(req)} className="text-slate-400 p-1 hover:text-white"><Printer size={16} /></button>
                                         )}
@@ -405,13 +478,6 @@ export const PrfView: React.FC<PrfViewProps> = ({
 
             {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} />}
             {printReq && <PRFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)} />}
-
-            <RejectionModal
-                isOpen={!!rejectingReq}
-                onClose={() => setRejectingReq(null)}
-                onConfirm={handleRejectConfirm}
-                title="Reject PRF"
-            />
         </div>
     );
 };

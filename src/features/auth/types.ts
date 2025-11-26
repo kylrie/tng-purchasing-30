@@ -6,7 +6,9 @@ export enum UserRole {
     CIC = 'CIC',
     PURCHASING_OFFICER = 'PURCHASING_OFFICER',
     FINANCE = 'FINANCE',
-    AUDITOR = 'AUDITOR'
+    AUDITOR = 'AUDITOR',
+    GENERAL_MANAGER = 'GENERAL_MANAGER',
+    BOARD_OF_DIRECTOR = 'BOARD_OF_DIRECTOR'
 }
 
 export enum UserStatus {

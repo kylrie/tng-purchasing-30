@@ -64,3 +64,59 @@
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
+
+/* Print Styles */
+@media print {
+  @page {
+    size: auto;
+    margin: 10mm; /* Use reasonable margins */
+  }
+
+  /* Hide all elements in the body */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Ensure the body and html take up full space */
+  html, body {
+    height: auto;
+    overflow: visible;
+    background: white;
+  }
+
+  /* Make the printable content visible */
+  #printable-content, #printable-content * {
+    visibility: visible;
+  }
+
+  /* Position the printable content to fill the page */
+  #printable-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: white;
+    color: black !important; /* Force black text */
+    z-index: 9999;
+  }
+  
+  /* Allow page breaks inside the printable content if needed */
+  #printable-content {
+    page-break-inside: auto;
+  }
+  
+  /* Avoid breaking inside specific elements like tables or rows if possible */
+  tr, td, th, div {
+    page-break-inside: avoid;
+  }
+
+  /* Hide the modal overlay/backdrop specifically to prevent it from overlaying the content */
+  .fixed.inset-0 {
+    position: static !important;
+    background: none !important;
+    backdrop-filter: none !important;
+    z-index: auto !important;
+  }
+}

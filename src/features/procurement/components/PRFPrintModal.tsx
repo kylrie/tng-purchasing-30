@@ -10,7 +10,7 @@ interface PRFPrintModalProps {
     preparedBy?: User;
 }
 
-const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, preparedBy }) => {
+const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, preparedBy }) => {
 
     const handlePrint = () => {
         window.print();
@@ -46,15 +46,15 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, preparedBy 
                 </div>
 
                 {/* Printable Content */}
-                <div className="p-8 print:p-0 font-serif text-slate-900">
+                <div id="printable-content" className="p-8 print:p-0 font-serif text-slate-900">
                     <div className="max-w-3xl mx-auto print:max-w-none">
 
                         {/* Company Header */}
                         <div className="text-center mb-6">
-                            <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900 mb-1">THE FUN GUYS CORP.</h1>
-                            <p className="text-xs font-bold mb-1">TIN: 618-365-031</p>
+                            <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900 mb-1">{business?.name || 'THE FUN GUYS CORP.'}</h1>
+                            <p className="text-xs font-bold mb-1">TIN: {business?.tin || '618-365-031'}</p>
                             <p className="text-xs max-w-lg mx-auto leading-tight">
-                                Matheus Building, 5382 General Luna St. Poblacion, City of Makati, Fourth District, National Capital Region (NCR), 1210
+                                {business?.address || 'Matheus Building, 5382 General Luna St. Poblacion, City of Makati, Fourth District, National Capital Region (NCR), 1210'}
                             </p>
                         </div>
 
@@ -78,9 +78,9 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, preparedBy 
                                 <div className="grid grid-cols-[100px_1fr] gap-2 items-start">
                                     <span className="font-bold mt-1">Delivery Addr:</span>
                                     <div className="border-b border-slate-900">
-                                        <div className="font-bold uppercase">THE FUN GUYS CORP.</div>
+                                        <div className="font-bold uppercase">{business?.name || 'THE FUN GUYS CORP.'}</div>
                                         <div className="italic text-[10px] leading-tight pb-1">
-                                            Matheus Building, 5382 General Luna St. Poblacion, City of Makati, Fourth District, National Capital Region (NCR), 1210
+                                            {business?.address || 'Matheus Building, 5382 General Luna St. Poblacion, City of Makati, Fourth District, National Capital Region (NCR), 1210'}
                                         </div>
                                     </div>
                                 </div>

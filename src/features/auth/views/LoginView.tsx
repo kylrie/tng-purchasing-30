@@ -14,7 +14,7 @@ const GoogleIcon = () => (
 );
 
 const LoginView = () => {
-  const { loginWithEmail, loginWithGoogle, completeNewUserRegistration, isNewUser, loading, error, setError } = useAuth();
+  const { loginWithEmail, loginWithGoogle, completeNewUserRegistration, isNewUser, loading, error, setError, mockLogin } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -103,6 +103,10 @@ const LoginView = () => {
             <button onClick={handleGoogleSignIn} disabled={loading} className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-slate-900/50 hover:bg-slate-900 border border-slate-700 rounded-xl text-white font-semibold transition-all duration-300 disabled:opacity-50">
                 <GoogleIcon />
                 Sign in with Google
+            </button>
+
+            <button onClick={mockLogin} className="w-full mt-4 flex items-center justify-center gap-3 px-6 py-2 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-600/50 rounded-xl text-yellow-500 font-semibold transition-all duration-300">
+                Mock Login
             </button>
             
             <div className="mt-6 pt-6 border-t border-slate-700/50 text-center">

@@ -39,7 +39,7 @@ const BURFPrintModal: React.FC<BURFPrintModalProps> = ({ req, onClose, business,
                 </div>
 
                 {/* Printable Content - Enforce text color */}
-                <div className="p-8 print:p-0 text-slate-900">
+                <div id="printable-content" className="p-8 print:p-0 text-slate-900">
                     <div className="max-w-3xl mx-auto print:max-w-none">
 
                         {/* Form Header */}

@@ -56,7 +56,7 @@ const Layout: React.FC<LayoutProps> = ({
 
     const navItems = [
         { path: '/', label: 'Dashboard', icon: LayoutDashboard, canView: true },
-        { path: '/burf', label: 'My Requisitions', icon: ClipboardList, canView: true },
+        { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: true },
         { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('requisition:create:prf') },
         { path: '/procurement-approvals', label: 'Pending Approvals', icon: CheckSquare, canView: hasPermission('ui:view:approvals_page') },
         { path: '/approved', label: 'Approved', icon: CheckCircle, canView: true },
