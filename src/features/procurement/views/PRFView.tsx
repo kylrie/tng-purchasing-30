@@ -8,6 +8,7 @@ import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
 import Card from '../../../shared/components/Card';
 import RejectionModal from '../../../shared/components/RejectionModal';
+import { CounterService } from '../../../shared/services/counter.service';
 
 interface PrfViewProps {
     currentUser: User;
@@ -16,7 +17,7 @@ interface PrfViewProps {
     getStatusBadge: (status: RequisitionStatus) => React.ReactNode;
     businesses: Business[];
     allUsers: User[];
-    onCreateRequisition: (req: Omit<Requisition, 'id'>) => void; 
+    onCreateRequisition: (req: Omit<Requisition, 'id'>) => void;
     onUpdateRequisition: (req: Requisition) => void;
     suppliers: Supplier[];
 }
@@ -33,19 +34,20 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     const [newItems, setNewItems] = useState<RequisitionItem[]>(initialData?.items || []);
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', price: 0 });
     const [selectedSupplierId, setSelectedSupplierId] = useState<string>(
-        initialData?.prfDetails?.supplier 
-        ? suppliers.find(s => s.name === initialData.prfDetails?.supplier.name)?.id || ''
-        : ''
+        initialData?.prfDetails?.supplier
+            ? suppliers.find(s => s.name === initialData.prfDetails?.supplier.name)?.id || ''
+            : ''
     );
     const [description, setDescription] = useState(initialData?.description || '');
     const [remarks] = useState(initialData?.remarks || '');
     const [attachmentLink, setAttachmentLink] = useState(initialData?.attachments?.[0] || '');
-    
+    const [customId, setCustomId] = useState('');
+
     const canSelectBusiness = [
-        UserRole.SUPER_ADMIN, 
-        UserRole.ADMIN, 
-        UserRole.PURCHASING_OFFICER, 
-        UserRole.FINANCE, 
+        UserRole.SUPER_ADMIN,
+        UserRole.ADMIN,
+        UserRole.PURCHASING_OFFICER,
+        UserRole.FINANCE,
         UserRole.AUDITOR
     ].includes(currentUser.role);
 
@@ -62,7 +64,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
         setNewItems(newItems.filter((_, i) => i !== index));
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!selectedSupplierId) {
             alert("Please select a supplier.");
             return;
@@ -73,12 +75,15 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
             return;
         }
 
-        const supplierDetails: SupplierDetails = { 
-            name: sup.name, tin: sup.tin || '', address: sup.address || '', 
-            paymentMode: sup.paymentMode || '', terms: sup.terms || '' 
+        const supplierDetails: SupplierDetails = {
+            name: sup.name, tin: sup.tin || '', address: sup.address || '',
+            paymentMode: sup.paymentMode || '', terms: sup.terms || ''
         };
 
+        const prfId = customId || await CounterService.generatePRFId();
+
         const baseReq: any = {
+            id: prfId,
             requesterId: currentUser.id,
             businessId: selectedBusinessId,
             items: newItems,
@@ -114,14 +119,13 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                         <X size={20} />
                     </button>
                 </div>
-                
+
                 <div className="p-6 overflow-y-auto space-y-4 flex-1">
-                    {/* Form fields... */}
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm text-slate-400 mb-1">Business Unit</label>
                             {canSelectBusiness ? (
-                                <select 
+                                <select
                                     className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                                     value={selectedBusinessId}
                                     onChange={(e) => setSelectedBusinessId(e.target.value)}
@@ -136,19 +140,26 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                 </div>
                             )}
                         </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm text-slate-400 mb-1">Custom PRF ID (Optional)</label>
+                            <input
+                                type="text"
+                                className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white placeholder-slate-500"
+                                value={customId}
+                                onChange={(e) => setCustomId(e.target.value)}
+                                placeholder="Auto-generated if empty"
+                            />
+                        </div>
                         <div className="col-span-2">
                             <label className="block text-sm text-slate-400 mb-1">Description</label>
                             <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Purchase of materials" />
                         </div>
                         <div>
-                             <label className="block text-sm text-slate-400 mb-1">Supplier</label>
-                             <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={selectedSupplierId} onChange={e => setSelectedSupplierId(e.target.value)}>
-                                 <option value="">Select Supplier</option>
-                                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                             </select>
+                            <label className="block text-sm text-slate-400 mb-1">Supplier</label>
+                            <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={selectedSupplierId} onChange={e => setSelectedSupplierId(e.target.value)}>
+                                <option value="">Select Supplier</option>
+                                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
                         </div>
                         <div>
                             <label className="block text-sm text-slate-400 mb-1">Attachments (Link)</label>
@@ -159,46 +170,46 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                     <div className="border-t border-slate-700 pt-4">
                         <h4 className="text-sm font-bold text-slate-300 mb-2">Items</h4>
                         <div className="flex gap-2 items-end mb-2">
-                             <div className="flex-1">
+                            <div className="flex-1">
                                 <label className="block text-xs text-slate-400 mb-1">Item Name</label>
-                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Item Name" value={tempItem.name} onChange={e => setTempItem({...tempItem, name: e.target.value})} />
-                             </div>
-                             <div className="w-20">
+                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Item Name" value={tempItem.name} onChange={e => setTempItem({ ...tempItem, name: e.target.value })} />
+                            </div>
+                            <div className="w-20">
                                 <label className="block text-xs text-slate-400 mb-1">Qty</label>
-                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" type="number" placeholder="Qty" value={tempItem.quantity} onChange={e => setTempItem({...tempItem, quantity: parseFloat(e.target.value)})} />
-                             </div>
-                             <div className="w-24">
+                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" type="number" placeholder="Qty" value={tempItem.quantity} onChange={e => setTempItem({ ...tempItem, quantity: parseFloat(e.target.value) })} />
+                            </div>
+                            <div className="w-24">
                                 <label className="block text-xs text-slate-400 mb-1">Price</label>
-                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Price" type="number" value={tempItem.price} onChange={e => setTempItem({...tempItem, price: parseFloat(e.target.value)})} />
-                             </div>
-                             <button onClick={addItem} className="bg-purple-600 text-white p-2 rounded hover:bg-purple-700 mb-[1px]"><Plus size={16} /></button>
+                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Price" type="number" value={tempItem.price} onChange={e => setTempItem({ ...tempItem, price: parseFloat(e.target.value) })} />
+                            </div>
+                            <button onClick={addItem} className="bg-purple-600 text-white p-2 rounded hover:bg-purple-700 mb-[1px]"><Plus size={16} /></button>
                         </div>
 
                         <div className="border border-slate-700 rounded overflow-hidden">
-                             <table className="w-full text-sm text-left text-slate-300">
-                                 <thead className="bg-slate-800 text-xs uppercase">
-                                     <tr>
-                                         <th className="px-4 py-2">Item</th>
-                                         <th className="px-4 py-2">Qty</th>
-                                         <th className="px-4 py-2">Price</th>
-                                         <th className="px-4 py-2">Total</th>
-                                         <th className="px-4 py-2"></th>
-                                     </tr>
-                                 </thead>
-                                 <tbody className="divide-y divide-slate-700">
-                                     {newItems.map((item, idx) => (
-                                         <tr key={idx}>
-                                             <td className="px-4 py-2">{item.name}</td>
-                                             <td className="px-4 py-2">{item.quantity} {item.uom}</td>
-                                             <td className="px-4 py-2">₱{item.price.toLocaleString()}</td>
-                                             <td className="px-4 py-2">₱{(item.quantity * item.price).toLocaleString()}</td>
-                                             <td className="px-4 py-2 text-right">
-                                                 <button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300"><X size={14} /></button>
-                                             </td>
-                                         </tr>
-                                     ))}
-                                 </tbody>
-                             </table>
+                            <table className="w-full text-sm text-left text-slate-300">
+                                <thead className="bg-slate-800 text-xs uppercase">
+                                    <tr>
+                                        <th className="px-4 py-2">Item</th>
+                                        <th className="px-4 py-2">Qty</th>
+                                        <th className="px-4 py-2">Price</th>
+                                        <th className="px-4 py-2">Total</th>
+                                        <th className="px-4 py-2"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700">
+                                    {newItems.map((item, idx) => (
+                                        <tr key={idx}>
+                                            <td className="px-4 py-2">{item.name}</td>
+                                            <td className="px-4 py-2">{item.quantity} {item.uom}</td>
+                                            <td className="px-4 py-2">₱{item.price.toLocaleString()}</td>
+                                            <td className="px-4 py-2">₱{(item.quantity * item.price).toLocaleString()}</td>
+                                            <td className="px-4 py-2 text-right">
+                                                <button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300"><X size={14} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -209,8 +220,8 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                         <Save size={16} /> {initialData ? 'Update PRF' : 'Create PRF'}
                     </button>
                 </div>
-            </Card>
-        </div>
+            </Card >
+        </div >
     );
 };
 
@@ -238,7 +249,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
         }
 
         const exists = visibleRequisitions.some(r => r.id === prfReq.id);
-        
+
         if (exists) {
             onUpdateRequisition({ ...prfReq, status: RequisitionStatus.PRF_PENDING_MANAGER });
         } else {
@@ -260,22 +271,22 @@ export const PrfView: React.FC<PrfViewProps> = ({
 
     const handleRejectConfirm = (reason: string) => {
         if (rejectingReq) {
-            const newRemarks = rejectingReq.remarks 
-                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}` 
+            const newRemarks = rejectingReq.remarks
+                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}`
                 : `[REJECTED]: ${reason}`;
-            
+
             onUpdateRequisition({ ...rejectingReq, status: RequisitionStatus.REJECTED, remarks: newRemarks });
             setRejectingReq(null);
         }
     };
 
     const filteredAndSortedReqs = visibleRequisitions
-        .filter(r => 
-            [RequisitionStatus.READY_FOR_PRF, RequisitionStatus.PRF_PENDING_MANAGER, 
-             RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, 
-             RequisitionStatus.REJECTED, RequisitionStatus.CANCELLED].includes(r.status)
+        .filter(r =>
+            [RequisitionStatus.READY_FOR_PRF, RequisitionStatus.PRF_PENDING_MANAGER,
+            RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED,
+            RequisitionStatus.REJECTED, RequisitionStatus.CANCELLED].includes(r.status)
         )
-        .filter(r => r.status !== RequisitionStatus.REJECTED || r.prfDetails) 
+        .filter(r => r.status !== RequisitionStatus.REJECTED || r.prfDetails)
         .filter(r =>
             (r.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.description || '').toLowerCase().includes(searchTerm.toLowerCase())
@@ -285,7 +296,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
     return (
         <div className="space-y-6 text-white">
             {isDirectOpen && <DirectPrfModal onCancel={() => setIsDirectOpen(false)} currentUser={currentUser} onCreateRequisition={onCreateRequisition} suppliers={suppliers} businesses={businesses} />}
-            
+
             {editingPrf && <DirectPrfModal onCancel={() => setEditingPrf(null)} currentUser={currentUser} onUpdate={onUpdateRequisition} suppliers={suppliers} businesses={businesses} initialData={editingPrf} />}
 
             <div className="flex justify-between items-center">
@@ -314,7 +325,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
             <Card className="overflow-hidden !p-0">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
-                         <tr>
+                        <tr>
                             <th className="px-6 py-4">ID</th>
                             <th className="px-6 py-4">Business Unit</th>
                             <th className="px-6 py-4">Description</th>
@@ -347,21 +358,21 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                     </td>
                                     <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
                                         {/* Cancel Button for Admin/Super Admin */}
-                                        {(currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN) && 
-                                         req.status !== RequisitionStatus.CANCELLED && 
-                                         req.status !== RequisitionStatus.REJECTED && (
-                                            <button 
-                                                onClick={() => handleCancel(req.id)} 
-                                                className="text-slate-500 hover:text-red-400 p-1"
-                                                title="Cancel PRF"
-                                            >
-                                                <Ban size={16} />
-                                            </button>
-                                        )}
+                                        {(currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN) &&
+                                            req.status !== RequisitionStatus.CANCELLED &&
+                                            req.status !== RequisitionStatus.REJECTED && (
+                                                <button
+                                                    onClick={() => handleCancel(req.id)}
+                                                    className="text-slate-500 hover:text-red-400 p-1"
+                                                    title="Cancel PRF"
+                                                >
+                                                    <Ban size={16} />
+                                                </button>
+                                            )}
 
                                         {canEdit && (
-                                            <button 
-                                                onClick={() => setEditingPrf(req)} 
+                                            <button
+                                                onClick={() => setEditingPrf(req)}
                                                 className="text-blue-400 hover:text-blue-300 p-1"
                                                 title="Re-file / Edit"
                                             >
@@ -394,10 +405,10 @@ export const PrfView: React.FC<PrfViewProps> = ({
 
             {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} />}
             {printReq && <PRFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)} />}
-            
-            <RejectionModal 
-                isOpen={!!rejectingReq} 
-                onClose={() => setRejectingReq(null)} 
+
+            <RejectionModal
+                isOpen={!!rejectingReq}
+                onClose={() => setRejectingReq(null)}
                 onConfirm={handleRejectConfirm}
                 title="Reject PRF"
             />

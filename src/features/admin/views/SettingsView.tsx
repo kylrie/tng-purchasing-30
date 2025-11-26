@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase } from 'lucide-react';
+import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X } from 'lucide-react';
 import type { Business, User } from '../../../shared/types';
 import { UserRole, UserStatus } from '../../auth/types';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -13,47 +13,62 @@ interface SettingsViewProps {
     allUsers: User[];
     setAllUsers: (user: User) => void;
     onSavePermissions: (permissions: Record<UserRole, Permission[]>) => void;
+    pendingUsers: User[];
+    onApproveUser: (userId: string) => void;
+    onRejectUser: (userId: string) => void;
+    loadingUserId: string | null;
 }
 
-export const SettingsView: React.FC<SettingsViewProps> = ({ currentUser, businesses, handleAddBusiness, allUsers, setAllUsers: updateUser, onSavePermissions }) => {
+export const SettingsView: React.FC<SettingsViewProps> = ({
+    currentUser,
+    businesses,
+    handleAddBusiness,
+    allUsers,
+    setAllUsers: updateUser,
+    onSavePermissions,
+    pendingUsers,
+    onApproveUser,
+    onRejectUser,
+    loadingUserId
+}) => {
     const [newBiz, setNewBiz] = useState({ name: '', tin: '', address: '', currency: 'PHP' });
     const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '' });
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const { hasPermission } = usePermissions();
-    
+
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
 
     const isStaging = import.meta.env.MODE === 'staging';
 
-    const handleCreateOrUpdateUser = () => {
-        if (newUser.name && newUser.email && newUser.role && newUser.businessId) {
-            const userToSave: User = {
-                id: editingUserId || ``,
-                avatar: newUser.avatar || '',
-                department: newUser.department || 'General',
-                name: newUser.name,
-                email: newUser.email,
-                role: newUser.role,
-                businessId: newUser.businessId,
-                status: newUser.status || UserStatus.ACTIVE,
-            };
-            if(editingUserId) {
-                updateUser(userToSave);
-            }
-            alert(editingUserId ? "User Updated" : "Create User functionality not implemented in this view");
-            resetUserForm();
-        }
-    };
+    // const handleCreateOrUpdateUser = () => {
+    //     if (newUser.name && newUser.email && newUser.role && newUser.businessId) {
+    //         const userToSave: User = {
+    //             id: editingUserId || ``,
+    //             avatar: newUser.avatar || '',
+    //             department: newUser.department || 'General',
+    //             name: newUser.name,
+    //             email: newUser.email,
+    //             role: newUser.role,
+    //             businessId: newUser.businessId,
+    //             status: newUser.status || UserStatus.ACTIVE,
+    //         };
+    //         if(editingUserId) {
+    //             updateUser(userToSave);
+    //         }
+    //         alert(editingUserId ? "User Updated" : "Create User functionality not implemented in this view");
+    //         resetUserForm();
+    //     }
+    // };
 
-    const handleEditUserClick = (user: User) => {
-        setNewUser(user);
-        setEditingUserId(user.id);
-    };
+    // const handleEditUserClick = (user: User) => {
+    //     setNewUser(user);
+    //     setEditingUserId(user.id);
+    // };
 
-    const resetUserForm = () => {
-        setNewUser({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '' });
-        setEditingUserId(null);
-    };
+    // const resetUserForm = () => {
+    //     setNewUser({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '' });
+    //     setEditingUserId(null);
+    // };
 
     const handleChangePassword = () => {
         if (passwords.new !== passwords.confirm) {
@@ -123,32 +138,32 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ currentUser, busines
                 <div className="max-w-md space-y-4">
                     <div>
                         <label className={labelClass}>Current Password</label>
-                        <input 
-                            type="password" 
-                            className={inputClass} 
+                        <input
+                            type="password"
+                            className={inputClass}
                             value={passwords.current}
-                            onChange={e => setPasswords({...passwords, current: e.target.value})}
+                            onChange={e => setPasswords({ ...passwords, current: e.target.value })}
                         />
                     </div>
                     <div>
                         <label className={labelClass}>New Password</label>
-                        <input 
-                            type="password" 
-                            className={inputClass} 
+                        <input
+                            type="password"
+                            className={inputClass}
                             value={passwords.new}
-                            onChange={e => setPasswords({...passwords, new: e.target.value})}
+                            onChange={e => setPasswords({ ...passwords, new: e.target.value })}
                         />
                     </div>
                     <div>
                         <label className={labelClass}>Confirm New Password</label>
-                        <input 
-                            type="password" 
-                            className={inputClass} 
+                        <input
+                            type="password"
+                            className={inputClass}
                             value={passwords.confirm}
-                            onChange={e => setPasswords({...passwords, confirm: e.target.value})}
+                            onChange={e => setPasswords({ ...passwords, confirm: e.target.value })}
                         />
                     </div>
-                    <button 
+                    <button
                         onClick={handleChangePassword}
                         disabled={!passwords.current || !passwords.new || !passwords.confirm}
                         className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
@@ -178,6 +193,60 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ currentUser, busines
                 </div>
             )}
 
+            {hasPermission('admin:view:user_approvals') && (
+                <div className={cardClass}>
+                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white">
+                        <Shield size={20} className="text-orange-400" /> Pending User Approvals
+                        {pendingUsers.length > 0 && (
+                            <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">{pendingUsers.length}</span>
+                        )}
+                    </h3>
+
+                    {pendingUsers.length === 0 ? (
+                        <div className="text-center py-8 border border-slate-700 rounded-lg bg-slate-900/30">
+                            <p className="text-slate-400">No pending approvals at this time.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {pendingUsers.map((user) => (
+                                <div key={user.id} className="bg-slate-900/30 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-slate-300 border-2 border-slate-600">
+                                            {user.name.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-white">{user.name}</h3>
+                                            <p className="text-sm text-slate-400">{user.email}</p>
+                                            <p className="text-sm text-slate-500 mt-1">
+                                                Requested Role: <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400">{user.role}</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 self-end sm:self-center">
+                                        <button
+                                            onClick={() => onApproveUser(user.id)}
+                                            disabled={!!loadingUserId}
+                                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
+                                        >
+                                            <Check className="w-4 h-4" />
+                                            {loadingUserId === user.id ? '...' : 'Approve'}
+                                        </button>
+                                        <button
+                                            onClick={() => onRejectUser(user.id)}
+                                            disabled={!!loadingUserId}
+                                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
+                                        >
+                                            <X className="w-4 h-4" />
+                                            {loadingUserId === user.id ? '...' : 'Reject'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {hasPermission('admin:manage:users') && (
                 <div className={cardClass}>
                     <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Shield size={20} className="text-red-400" /> User & Role Management</h3>
@@ -192,10 +261,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ currentUser, busines
                             {/* ... User table ... */}
                         </table>
                     </div>
-                    
+
                     <div className="mt-8">
-                      <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white"><Shield size={20} className="text-purple-400" /> Permissions Matrix</h3>
-                      <PermissionsMatrix onSave={onSavePermissions} />
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white"><Shield size={20} className="text-purple-400" /> Permissions Matrix</h3>
+                        <PermissionsMatrix onSave={onSavePermissions} />
                     </div>
                 </div>
             )}

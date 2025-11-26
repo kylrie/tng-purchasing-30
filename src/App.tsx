@@ -4,15 +4,18 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './shared/components/Layout';
 import LoginView from './features/auth/views/LoginView';
 import DashboardView from './features/dashboard/views/DashboardView';
-import PendingApprovalsView from './features/admin/views/PendingApprovalsView';
+
 import BurfView from './features/procurement/views/BURFView';
 import PrfView from './features/procurement/views/PRFView';
 import ProcurementApprovalsView from './features/procurement/views/ProcurementApprovalsView';
+import ApprovedView from './features/procurement/views/ApprovedView';
+import FinanceView from './features/finance/views/FinanceView';
 import LiquidationView from './features/finance/views/LiquidationView';
 import SuppliersView from './features/inventory/views/SuppliersView';
 import { SettingsView } from './features/admin/views/SettingsView';
 import type { NotificationItem } from './shared/types';
-import { UserRole, UserStatus } from './shared/types/firebase.types';
+import { UserRole, UserStatus, COLLECTIONS } from './shared/types/firebase.types';
+import type { Permission } from './config/permissions';
 import { RequisitionStatus } from './features/procurement/types';
 import { useRequisitions } from './features/procurement/hooks/useRequisitions';
 import { useUsers } from './features/admin/hooks/useUsers';
@@ -20,9 +23,6 @@ import { useBusinesses } from './features/admin/hooks/useBusinesses';
 import { useSuppliers } from './features/inventory/hooks/useSuppliers';
 import { doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
 import { db } from './config/firebase';
-import { COLLECTIONS } from './shared/types/firebase.types';
-import type { Permission } from './config/permissions';
-import { usePermissions } from './hooks/usePermissions';
 
 function ProtectedApp() {
   const { currentUser, logout, loading } = useAuth();
@@ -30,7 +30,6 @@ function ProtectedApp() {
   const { users, setUsers, updateUser } = useUsers();
   const { businesses, addBusiness } = useBusinesses();
   const { suppliers, createSupplier, updateSupplier, deleteSupplier } = useSuppliers();
-  const { hasPermission } = usePermissions();
 
   const [notifications] = useState<NotificationItem[]>([]);
   const [approvalLoadingId, setApprovalLoadingId] = useState<string | null>(null);
@@ -137,7 +136,7 @@ function ProtectedApp() {
   const layoutProps = {
     currentUser,
     notifications: userNotifications,
-    onNotificationClick: () => {},
+    onNotificationClick: () => { },
     onLogout: logout,
     pendingApprovalsCount: pendingUsers.length
   };
@@ -145,87 +144,104 @@ function ProtectedApp() {
   return (
     <Layout {...layoutProps}>
       <Routes>
-        <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} />} />
-        
+        <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} />} />
+
         <Route path="/burf" element={
-            <BurfView 
-                currentUser={currentUser}
-                visibleRequisitions={requisitions} 
-                allUsers={users}
-                businesses={businesses}
-                getStatusBadge={getStatusBadge}
-                onCreateRequisition={createRequisition}
-                onUpdateRequisition={updateRequisition}
-            />
+          <BurfView
+            currentUser={currentUser}
+            visibleRequisitions={requisitions}
+            allUsers={users}
+            businesses={businesses}
+            getStatusBadge={getStatusBadge}
+            onCreateRequisition={createRequisition}
+            onUpdateRequisition={updateRequisition}
+          />
         } />
 
         <Route path="/prf" element={
-            <PrfView 
-                currentUser={currentUser}
-                visibleRequisitions={requisitions}
-                handleManagerApprovePRF={handleManagerApprovePRF}
-                getStatusBadge={getStatusBadge}
-                businesses={businesses}
-                allUsers={users}
-                onCreateRequisition={createRequisition}
-                onUpdateRequisition={updateRequisition}
-                suppliers={suppliers}
-            />
+          <PrfView
+            currentUser={currentUser}
+            visibleRequisitions={requisitions}
+            handleManagerApprovePRF={handleManagerApprovePRF}
+            getStatusBadge={getStatusBadge}
+            businesses={businesses}
+            allUsers={users}
+            onCreateRequisition={createRequisition}
+            onUpdateRequisition={updateRequisition}
+            suppliers={suppliers}
+          />
         } />
 
         <Route path="/procurement-approvals" element={
-            <ProcurementApprovalsView
-                currentUser={currentUser}
-                requisitions={requisitions}
-                allUsers={users}
-                businesses={businesses}
-                onUpdateRequisition={updateRequisition}
-                getStatusBadge={getStatusBadge}
-            />
+          <ProcurementApprovalsView
+            currentUser={currentUser}
+            requisitions={requisitions}
+            allUsers={users}
+            businesses={businesses}
+            onUpdateRequisition={updateRequisition}
+            getStatusBadge={getStatusBadge}
+          />
+        } />
+
+        <Route path="/approved" element={
+          <ApprovedView
+            currentUser={currentUser}
+            requisitions={requisitions}
+            allUsers={users}
+            businesses={businesses}
+            getStatusBadge={getStatusBadge}
+          />
+        } />
+
+        <Route path="/finance" element={
+          <FinanceView
+            currentUser={currentUser}
+            requisitions={requisitions}
+            getStatusBadge={getStatusBadge}
+            handleReleaseFunds={handleReleaseFunds}
+            businesses={businesses}
+            allUsers={users}
+          />
         } />
 
         <Route path="/liquidation" element={
-            <LiquidationView 
-                currentUser={currentUser}
-                requisitions={requisitions}
-                getStatusBadge={getStatusBadge}
-                handleReleaseFunds={handleReleaseFunds}
-                businesses={businesses}
-                onUpdateRequisition={updateRequisition}
-                allUsers={users}
-            />
+          <LiquidationView
+            currentUser={currentUser}
+            requisitions={requisitions}
+            getStatusBadge={getStatusBadge}
+            handleReleaseFunds={handleReleaseFunds}
+            businesses={businesses}
+            onUpdateRequisition={updateRequisition}
+            allUsers={users}
+          />
         } />
-        
+
         <Route path="/suppliers" element={
-            <SuppliersView 
-                suppliers={suppliers}
-                onCreateSupplier={createSupplier}
-                onUpdateSupplier={updateSupplier}
-                onDeleteSupplier={deleteSupplier}
-            />
+          <SuppliersView
+            suppliers={suppliers}
+            onCreateSupplier={createSupplier}
+            onUpdateSupplier={updateSupplier}
+            onDeleteSupplier={deleteSupplier}
+          />
         } />
 
         <Route path="/settings" element={
-            <SettingsView 
-                currentUser={currentUser}
-                businesses={businesses}
-                handleAddBusiness={addBusiness}
-                allUsers={users}
-                setAllUsers={updateUser}
-                onSavePermissions={handleSavePermissions}
-            />
+          <SettingsView
+            currentUser={currentUser}
+            businesses={businesses}
+            handleAddBusiness={addBusiness}
+            allUsers={users}
+            setAllUsers={updateUser}
+            onSavePermissions={handleSavePermissions}
+            pendingUsers={pendingUsers}
+            onApproveUser={handleApproveUser}
+            onRejectUser={handleRejectUser}
+            loadingUserId={approvalLoadingId}
+          />
         } />
 
-        {hasPermission('admin:view:user_approvals') && (
-          <Route path="/approvals" element={
-            <PendingApprovalsView 
-              pendingUsers={pendingUsers} 
-              onApproveUser={handleApproveUser} 
-              onRejectUser={handleRejectUser}
-              loadingUserId={approvalLoadingId}
-            />
-          } />
-        )}
+
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

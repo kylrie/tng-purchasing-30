@@ -6,14 +6,15 @@ import {
     ShoppingCart,
     Scale,
     Users,
-    UserCheck,
+
     Bell,
     Menu,
     Settings,
     LogOut,
     ChevronLeft,
     ChevronRight,
-    CheckSquare
+    CheckSquare,
+    CheckCircle
 } from 'lucide-react';
 import type { User } from '../../features/auth/types';
 import type { NotificationItem } from '../types';
@@ -33,8 +34,7 @@ const Layout: React.FC<LayoutProps> = ({
     currentUser,
     notifications = [],
     onNotificationClick,
-    onLogout,
-    pendingApprovalsCount = 0
+    onLogout
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -58,11 +58,11 @@ const Layout: React.FC<LayoutProps> = ({
         { path: '/', label: 'Dashboard', icon: LayoutDashboard, canView: true },
         { path: '/burf', label: 'My Requisitions', icon: ClipboardList, canView: true },
         { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('requisition:create:prf') },
-        { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('ui:view:approvals_page') },
-        { path: '/liquidation', label: 'Finance', icon: Scale, canView: hasPermission('finance:release_funds') || hasPermission('finance:audit_liquidation') },
-        { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('supplier:view') },
-        { path: '/approvals', label: 'User Approvals', icon: UserCheck, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined, canView: hasPermission('admin:view:user_approvals') },
-        { path: '/settings', label: 'Settings', icon: Settings, canView: hasPermission('ui:view:settings_page') }
+        { path: '/procurement-approvals', label: 'Pending Approvals', icon: CheckSquare, canView: hasPermission('ui:view:approvals_page') },
+        { path: '/approved', label: 'Approved', icon: CheckCircle, canView: true },
+        { path: '/finance', label: 'Finance', icon: Scale, canView: hasPermission('finance:release_funds') },
+        { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('finance:audit_liquidation') },
+        { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('supplier:view') }
     ];
 
     const currentPath = location.pathname;
@@ -70,7 +70,7 @@ const Layout: React.FC<LayoutProps> = ({
     return (
         <div className="flex h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden font-sans text-white relative">
             {isSidebarOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
                     onClick={() => setIsSidebarOpen(false)}
                 />
@@ -79,7 +79,7 @@ const Layout: React.FC<LayoutProps> = ({
             <aside
                 className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'lg:w-20 w-72' : 'w-72'} bg-slate-800/50 backdrop-blur-md border-r border-slate-700/50 shadow-2xl transform transition-all duration-300 ease-in-out lg:static lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
-                <button 
+                <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
                     className="hidden lg:flex absolute -right-3 top-20 bg-slate-800 border border-slate-700 rounded-full p-1 text-slate-400 hover:text-white cursor-pointer z-50 shadow-md"
                 >
@@ -117,14 +117,6 @@ const Layout: React.FC<LayoutProps> = ({
                                     />
                                     <span className={`${isCollapsed ? 'lg:hidden' : 'block'} whitespace-nowrap transition-all duration-300`}>{item.label}</span>
                                 </div>
-                                {!isCollapsed && item.badge && (
-                                    <span className="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                                        {item.badge}
-                                    </span>
-                                )}
-                                {isCollapsed && item.badge && (
-                                     <span className="hidden lg:block absolute top-2 right-2 w-2 h-2 bg-purple-500 rounded-full"></span>
-                                )}
                             </button>
                         );
                     })}
@@ -143,7 +135,7 @@ const Layout: React.FC<LayoutProps> = ({
                         </div>
                     </div>
                     <div className={`grid ${isCollapsed ? 'lg:grid-cols-1' : 'grid-cols-2'} gap-2`}>
-                        <button 
+                        <button
                             onClick={() => {
                                 navigate('/settings');
                                 setIsSidebarOpen(false);
@@ -154,7 +146,7 @@ const Layout: React.FC<LayoutProps> = ({
                             <Settings size={18} />
                             <span className={`${isCollapsed ? 'lg:hidden' : 'block'} text-xs font-medium`}>Settings</span>
                         </button>
-                        <button 
+                        <button
                             onClick={onLogout}
                             className="flex items-center justify-center gap-2 p-2 rounded-lg bg-slate-800 hover:bg-red-900/30 border border-slate-700/50 text-slate-300 hover:text-red-400 transition-colors"
                             title="Sign Out"
@@ -174,7 +166,7 @@ const Layout: React.FC<LayoutProps> = ({
                 </div>
 
                 <div className="absolute bottom-8 right-8 z-50" ref={notifRef}>
-                    <button 
+                    <button
                         onClick={() => setIsNotifOpen(!isNotifOpen)}
                         className="p-4 text-white bg-purple-600 hover:bg-purple-700 rounded-full shadow-lg shadow-purple-900/40 transition-all hover:scale-110 flex items-center justify-center"
                     >
@@ -183,7 +175,7 @@ const Layout: React.FC<LayoutProps> = ({
                             <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-purple-600"></span>
                         )}
                     </button>
-                    
+
                     {isNotifOpen && (
                         <div className="absolute bottom-16 right-0 w-80 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
                             <div className="p-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
@@ -194,11 +186,10 @@ const Layout: React.FC<LayoutProps> = ({
                                 {notifications.length > 0 ? notifications.map(notif => (
                                     <div key={notif.id} className="p-4 border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors cursor-pointer" onClick={() => onNotificationClick?.(notif.id)}>
                                         <div className="flex gap-3">
-                                            <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${
-                                                notif.type === 'BURF' ? 'bg-orange-500' :
+                                            <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${notif.type === 'BURF' ? 'bg-orange-500' :
                                                 notif.type === 'PRF' ? 'bg-purple-500' :
-                                                notif.type === 'LIQUIDATION' ? 'bg-emerald-500' : 'bg-blue-500'
-                                            }`} />
+                                                    notif.type === 'LIQUIDATION' ? 'bg-emerald-500' : 'bg-blue-500'
+                                                }`} />
                                             <div>
                                                 <p className="text-sm text-slate-200">{notif.message}</p>
                                                 <p className="text-xs text-slate-500 mt-1">{new Date(notif.timestamp).toLocaleDateString()}</p>
@@ -217,7 +208,7 @@ const Layout: React.FC<LayoutProps> = ({
                     {children}
                 </div>
             </main>
-        </div>
+        </div >
     );
 };
 

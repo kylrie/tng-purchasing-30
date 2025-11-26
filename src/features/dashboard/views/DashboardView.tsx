@@ -16,9 +16,10 @@ import { UserRole } from '../../auth/types';
 interface DashboardViewProps {
     requisitions: Requisition[];
     currentUser: User;
+    allUsers: User[];
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser, allUsers }) => {
     const navigate = useNavigate();
 
     // Calculate Stats
@@ -57,22 +58,47 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         .filter(r => [RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.LIQUIDATION_FILED, RequisitionStatus.AUDITED_CLEARED].includes(r.status))
         .reduce((sum, r) => sum + r.totalAmount, 0);
 
-    // Recent Activity - Derived from latest requisitions
-    const recentActivity = [...requisitions]
+    // Pending Approvals - Show items that need the current user's approval
+    const pendingApprovals = [...requisitions]
+        .filter(r => {
+            if (currentUser.role === UserRole.MANAGER) {
+                return r.status === RequisitionStatus.BURF_PENDING_MANAGER || r.status === RequisitionStatus.PRF_PENDING_MANAGER;
+            }
+            if (currentUser.role === UserRole.CIC) {
+                return r.status === RequisitionStatus.BURF_PENDING_CIC;
+            }
+            if (currentUser.role === UserRole.FINANCE) {
+                return r.status === RequisitionStatus.APPROVED_FOR_PAYMENT;
+            }
+            if (currentUser.role === UserRole.SUPER_ADMIN) {
+                return [
+                    RequisitionStatus.BURF_PENDING_MANAGER,
+                    RequisitionStatus.BURF_PENDING_CIC,
+                    RequisitionStatus.PRF_PENDING_MANAGER,
+                    RequisitionStatus.APPROVED_FOR_PAYMENT
+                ].includes(r.status);
+            }
+            return false;
+        })
         .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
         .slice(0, 5)
         .map(r => {
-            let action = 'created request';
-            if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'submitted BURF';
-            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'submitted PRF';
+            let action = 'needs approval';
+            if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'approved PRF';
+            if (r.status === RequisitionStatus.BURF_PENDING_CIC) action = 'approved PRF';
+            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'approved PRF';
             if (r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) action = 'approved PRF';
+
+            const requester = allUsers.find(u => u.id === r.requesterId);
+            const requesterName = requester?.name || 'Unknown User';
+
             return {
                 id: r.id,
-                user: r.requesterId,
+                user: requesterName,
                 action,
                 target: r.projectName || r.description,
                 time: new Date(r.dateCreated).toLocaleDateString(),
-                avatar: (r.requesterId || '?').charAt(0).toUpperCase(),
+                avatar: requesterName.charAt(0).toUpperCase(),
                 status: r.status
             };
         });
@@ -84,8 +110,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             change: 'Active',
             trend: 'neutral',
             icon: Clock,
-            color: 'text-orange-400', // Adjusted color for better visibility
-            bg: 'bg-orange-900/50' // Adjusted bg for better visibility
+            color: 'text-orange-400',
+            bg: 'bg-orange-900/50',
+            route: '/procurement-approvals' // Navigate to Procurement Approvals module
         },
         {
             label: 'Active PRFs',
@@ -93,8 +120,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             change: 'In Progress',
             trend: 'up',
             icon: FileText,
-            color: 'text-blue-400', // Adjusted color
-            bg: 'bg-blue-900/50' // Adjusted bg
+            color: 'text-blue-400',
+            bg: 'bg-blue-900/50',
+            route: '/prf' // Navigate to PRF view
         },
         {
             label: 'Total Spend (Est)',
@@ -102,8 +130,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             change: 'MTD',
             trend: 'down',
             icon: DollarSign,
-            color: 'text-emerald-400', // Adjusted color
-            bg: 'bg-emerald-900/50' // Adjusted bg
+            color: 'text-emerald-400',
+            bg: 'bg-emerald-900/50',
+            route: '/liquidation' // Navigate to liquidation view for spend tracking
         },
         {
             label: 'Critical Stock',
@@ -111,8 +140,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             change: 'Stable',
             trend: 'neutral',
             icon: AlertCircle,
-            color: 'text-red-400', // Adjusted color
-            bg: 'bg-red-900/50' // Adjusted bg
+            color: 'text-red-400',
+            bg: 'bg-red-900/50',
+            route: '/suppliers' // Navigate to suppliers view
         }
     ];
 
@@ -127,31 +157,35 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {stats.map((stat, index) => (
-                    <div key={index} className={`bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50 shadow-lg hover:border-slate-600/50 transition-all`}>
+                    <button
+                        key={index}
+                        onClick={() => navigate(stat.route)}
+                        className={`bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50 shadow-lg hover:border-purple-500/50 hover:shadow-purple-500/20 transition-all cursor-pointer group text-left w-full`}
+                    >
                         <div className="flex justify-between items-start mb-4">
-                            <div className={`p-3 rounded-lg ${stat.bg}`}>
+                            <div className={`p-3 rounded-lg ${stat.bg} group-hover:scale-110 transition-transform`}>
                                 <stat.icon className={`w-6 h-6 ${stat.color}`} />
                             </div>
                             <div className="flex items-center text-xs font-medium text-slate-400">
                                 {stat.change}
                             </div>
                         </div>
-                        <h3 className="text-slate-300 text-sm font-medium mb-1">{stat.label}</h3>
+                        <h3 className="text-slate-300 text-sm font-medium mb-1 group-hover:text-white transition-colors">{stat.label}</h3>
                         <p className="text-3xl font-bold text-white">{stat.value}</p>
-                    </div>
+                    </button>
                 ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Recent Activity */}
+                {/* Pending Approvals */}
                 <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg">
                     <div className="p-6 flex justify-between items-center">
-                        <h2 className="text-lg font-bold text-white">Recent Activity</h2>
-                        <button onClick={() => navigate('/burf')} className="text-sm text-purple-400 hover:text-purple-300 font-medium">View All</button>
+                        <h2 className="text-lg font-bold text-white">Pending Approvals</h2>
+                        <button onClick={() => navigate('/procurement-approvals')} className="text-sm text-purple-400 hover:text-purple-300 font-medium">View All</button>
                     </div>
                     <div className="p-6">
                         <div className="space-y-6">
-                            {recentActivity.map(activity => (
+                            {pendingApprovals.map(activity => (
                                 <div key={activity.id} className="flex gap-4 items-center">
                                     <div className="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center text-slate-300 font-bold text-sm flex-shrink-0">
                                         {activity.avatar}
@@ -164,8 +198,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                     </div>
                                 </div>
                             ))}
-                            {recentActivity.length === 0 && (
-                                <p className="text-slate-400 text-center text-sm py-4">No recent activity.</p>
+                            {pendingApprovals.length === 0 && (
+                                <p className="text-slate-400 text-center text-sm py-4">No pending approvals.</p>
                             )}
                         </div>
                     </div>

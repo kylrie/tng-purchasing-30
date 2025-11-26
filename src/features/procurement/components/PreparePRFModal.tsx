@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Check, ArrowLeft } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
+import { CounterService } from '../../../shared/services/counter.service';
 
 interface PreparePRFModalProps {
     requisition: Requisition;
@@ -99,14 +100,14 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         setItems(newItems);
     }
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         const selectedItems = items.filter(item => item.selected).map(({ selected, ...item }) => item);
         const unselectedItems = items.filter(item => !item.selected).map(({ selected, ...item }) => item);
 
         if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length > 0) {
             const newPrf: Requisition = {
                 ...requisition,
-                id: `PRF-${Math.floor(10000 + Math.random() * 90000)}`,
+                id: await CounterService.generatePRFId(),
                 items: selectedItems,
                 totalAmount,
                 status: RequisitionStatus.PRF_PENDING_MANAGER,

@@ -21,9 +21,9 @@ export const useRequisitions = () => {
             // Sort by ID descending (newest first)
             requisitionsData.sort((a, b) => {
                 // primitive sort for BURF-XXXX
-                    if (a.id > b.id) return -1;
-                    if (a.id < b.id) return 1;
-                    return 0;
+                if (a.id > b.id) return -1;
+                if (a.id < b.id) return 1;
+                return 0;
             });
             setRequisitions(requisitionsData);
         } catch (err: any) {
@@ -38,27 +38,41 @@ export const useRequisitions = () => {
         fetchRequisitions();
     }, [fetchRequisitions]);
 
-    const createRequisition = async (requisitionData: Omit<Requisition, 'id'>) => {
+    const createRequisition = async (requisitionData: Omit<Requisition, 'id'> | Requisition) => {
         try {
             let newId = '';
-            await runTransaction(db, async (transaction) => {
-                const counterRef = doc(db, 'counters', 'requisitions');
-                const counterDoc = await transaction.get(counterRef);
-                
-                let nextCount = 1;
-                if (counterDoc.exists()) {
-                    nextCount = (counterDoc.data().count || 0) + 1;
-                }
 
-                const paddedCount = nextCount.toString().padStart(4, '0');
-                newId = `BURF-${paddedCount}`;
+            // Check if an ID was already provided (e.g., from CounterService for PRF)
+            const providedId = 'id' in requisitionData ? requisitionData.id : null;
 
-                transaction.set(counterRef, { count: nextCount }, { merge: true });
-                
+            if (providedId) {
+                // Use the provided ID (e.g., PRF-0001 from CounterService)
+                newId = providedId;
                 const newReqRef = doc(db, COLLECTIONS.REQUISITIONS, newId);
-                // Ensure the data includes the ID
-                transaction.set(newReqRef, { ...requisitionData, id: newId });
-            });
+                await runTransaction(db, async (transaction) => {
+                    transaction.set(newReqRef, { ...requisitionData, id: newId });
+                });
+            } else {
+                // Generate a BURF ID using the counter
+                await runTransaction(db, async (transaction) => {
+                    const counterRef = doc(db, 'counters', 'requisitions');
+                    const counterDoc = await transaction.get(counterRef);
+
+                    let nextCount = 1;
+                    if (counterDoc.exists()) {
+                        nextCount = (counterDoc.data().count || 0) + 1;
+                    }
+
+                    const paddedCount = nextCount.toString().padStart(4, '0');
+                    newId = `BURF-${paddedCount}`;
+
+                    transaction.set(counterRef, { count: nextCount }, { merge: true });
+
+                    const newReqRef = doc(db, COLLECTIONS.REQUISITIONS, newId);
+                    // Ensure the data includes the ID
+                    transaction.set(newReqRef, { ...requisitionData, id: newId });
+                });
+            }
 
             // Update local state locally to avoid refetch
             if (newId) {
