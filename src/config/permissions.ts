@@ -19,7 +19,10 @@ export const ALL_PERMISSIONS = [
 
   // Finance Workflow
   'finance:release_funds',
-  'finance:audit_liquidation',
+  'liquidation:view',
+  'liquidation:file:own',
+  'liquidation:file:all',
+  'liquidation:audit',
 
   // Data Visibility
   'requisition:view:own',
@@ -38,7 +41,18 @@ export const ALL_PERMISSIONS = [
   'admin:manage:permissions',
   'admin:view:user_approvals',
 
-  // UI Component Visibility
+  // Module View Permissions
+  'module:view:dashboard',
+  'module:view:burf',
+  'module:view:prf',
+  'module:view:approvals',
+  'module:view:approved',
+  'module:view:finance',
+  'module:view:liquidation',
+  'module:view:suppliers',
+  'module:view:settings',
+
+  // UI Component Visibility (deprecated, use module:view instead)
   'ui:view:approvals_page',
   'ui:view:settings_page',
 
@@ -54,10 +68,21 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.ADMIN]: [
     'requisition:cancel',
     'requisition:view:all',
+    'liquidation:view',
+    'liquidation:file:all',
     'admin:manage:users',
     'admin:manage:businesses',
     'admin:view:user_approvals',
     'ui:view:settings_page',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approvals',
+    'module:view:approved',
+    'module:view:finance',
+    'module:view:liquidation',
+    'module:view:suppliers',
+    'module:view:settings',
   ],
 
   // High-level approver, global view
@@ -66,11 +91,25 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'approval:manager:burf',
     'approval:manager:prf',
     'ui:view:approvals_page',
+    'liquidation:view',
+    'liquidation:file:own',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approvals',
+    'module:view:approved',
+    'module:view:liquidation',
   ],
-  
+
   // View-only global role
   [UserRole.BOARD_OF_DIRECTOR]: [
     'requisition:view:all',
+    'liquidation:view',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approved',
+    'module:view:liquidation',
   ],
 
   // Approver for their specific business unit
@@ -81,6 +120,13 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'approval:manager:burf',
     'approval:manager:prf',
     'ui:view:approvals_page',
+    'liquidation:file:own',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approvals',
+    'module:view:approved',
+    'module:view:liquidation',
   ],
 
   // Basic user, can only create requests and see their own
@@ -88,6 +134,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'requisition:create:burf',
     'requisition:refile:rejected',
     'requisition:view:own',
+    'liquidation:file:own',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:liquidation',
   ],
 
   // Specialist approver with global view
@@ -95,6 +145,13 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'requisition:view:all',
     'approval:cic:burf',
     'ui:view:approvals_page',
+    'liquidation:view',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approvals',
+    'module:view:approved',
+    'module:view:liquidation',
   ],
 
   // Creates PRFs and manages suppliers
@@ -105,17 +162,39 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'supplier:create',
     'supplier:edit',
     'supplier:delete',
+    'liquidation:view',
+    'liquidation:file:own',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approved',
+    'module:view:liquidation',
+    'module:view:suppliers',
   ],
 
   // Handles money, releases funds
   [UserRole.FINANCE]: [
     'requisition:view:all',
     'finance:release_funds',
+    'liquidation:view',
+    'liquidation:file:all',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approved',
+    'module:view:finance',
+    'module:view:liquidation',
   ],
 
   // Audits liquidations
   [UserRole.AUDITOR]: [
     'requisition:view:all',
-    'finance:audit_liquidation',
+    'liquidation:view',
+    'liquidation:audit',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approved',
+    'module:view:liquidation',
   ],
 };

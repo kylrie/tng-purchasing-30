@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronRight, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
-import { RequisitionStatus, hasGlobalAccess } from '../types';
+import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
-import { UserRole } from '../../auth/types';
-import Card from '../../../shared/components/Card'; 
+import { usePermissions } from '../../../hooks/usePermissions';
+import Card from '../../../shared/components/Card';
 import BURFPrintModal from '../components/BURFPrintModal';
 import RejectionModal from '../../../shared/components/RejectionModal';
 
@@ -37,6 +37,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const { hasPermission } = usePermissions();
 
     // Sorting state
     const [sortField, setSortField] = useState<SortField>('id');
@@ -44,7 +45,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     const [description, setDescription] = useState('');
     const [remarks, setRemarks] = useState('');
-    const [dateNeeded, setDateNeeded] = useState(''); 
+    const [dateNeeded, setDateNeeded] = useState('');
     const [attachmentLink, setAttachmentLink] = useState('');
     const [newItems, setNewItems] = useState<RequisitionItem[]>([]);
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', remarks: '' });
@@ -58,7 +59,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
         const today = new Date();
         const needed = new Date(dateNeeded);
         const diffTime = needed.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays < 3;
     }, [dateNeeded]);
 
@@ -73,13 +74,13 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     const renderSortIcon = (field: SortField) => {
         if (sortField !== field) return <ArrowUpDown size={14} className="text-slate-600 ml-1" />;
-        return sortDirection === 'asc' 
+        return sortDirection === 'asc'
             ? <ArrowUp size={14} className="text-purple-400 ml-1" />
             : <ArrowDown size={14} className="text-purple-400 ml-1" />;
     };
 
     const filteredRequisitions = useMemo(() => {
-        const userHasGlobalAccess = hasGlobalAccess(currentUser.role);
+        const userHasGlobalAccess = hasPermission('requisition:view:all');
 
         let filtered = visibleRequisitions
             .filter(req => {
@@ -122,7 +123,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
             if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit, sortField, sortDirection]);
+    }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit, sortField, sortDirection, hasPermission]);
 
     const toggleRow = (id: string) => {
         setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
@@ -193,15 +194,15 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     const handleRejectConfirm = (reason: string) => {
         if (rejectingReq) {
-            const newRemarks = rejectingReq.remarks 
-                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}` 
+            const newRemarks = rejectingReq.remarks
+                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}`
                 : `[REJECTED]: ${reason}`;
-            
+
             onUpdateRequisition({ ...rejectingReq, status: RequisitionStatus.REJECTED, remarks: newRemarks });
             setRejectingReq(null);
         }
     };
-    
+
     if (isCreating) {
         return (
             <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 text-white">
@@ -220,11 +221,11 @@ export const BurfView: React.FC<BurfViewProps> = ({
                         </div>
                         <div className="col-span-1">
                             <label className="block text-sm font-medium text-slate-300 mb-1">Date Needed</label>
-                            <input 
-                                type="date" 
-                                className={`w-full p-2 border ${isUrgent ? 'border-orange-500' : 'border-slate-700'} bg-slate-800 rounded-md`} 
-                                value={dateNeeded} 
-                                onChange={e => setDateNeeded(e.target.value)} 
+                            <input
+                                type="date"
+                                className={`w-full p-2 border ${isUrgent ? 'border-orange-500' : 'border-slate-700'} bg-slate-800 rounded-md`}
+                                value={dateNeeded}
+                                onChange={e => setDateNeeded(e.target.value)}
                             />
                             {isUrgent && (
                                 <div className="flex items-center gap-1 text-orange-400 text-xs mt-1">
@@ -314,7 +315,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                     <p className="text-sm text-slate-300">Manage initial requests and Business Unit approvals.</p>
                 </div>
                 <div className="flex gap-2">
-                     <div className="relative">
+                    <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input
                             type="text"
@@ -324,7 +325,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    {hasGlobalAccess(currentUser.role) && (
+                    {hasPermission('requisition:view:all') && (
                         <select
                             value={selectedBusinessUnit}
                             onChange={(e) => setSelectedBusinessUnit(e.target.value)}
@@ -347,7 +348,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                     <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
                         <tr>
                             <th className="px-6 py-4 w-10"></th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
                                 onClick={() => handleSort('id')}
                             >
@@ -355,7 +356,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     ID {renderSortIcon('id')}
                                 </div>
                             </th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
                                 onClick={() => handleSort('description')}
                             >
@@ -363,7 +364,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     Description {renderSortIcon('description')}
                                 </div>
                             </th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
                                 onClick={() => handleSort('businessId')}
                             >
@@ -371,7 +372,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     Business Unit {renderSortIcon('businessId')}
                                 </div>
                             </th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
                                 onClick={() => handleSort('requesterId')}
                             >
@@ -379,7 +380,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     Requested By {renderSortIcon('requesterId')}
                                 </div>
                             </th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
                                 onClick={() => handleSort('dateNeeded')}
                             >
@@ -387,7 +388,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     Date Needed {renderSortIcon('dateNeeded')}
                                 </div>
                             </th>
-                            <th 
+                            <th
                                 className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
                                 onClick={() => handleSort('status')}
                             >
@@ -441,8 +442,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                                 </button>
 
                                                 {canEdit && (
-                                                    <button 
-                                                        onClick={() => editRequisition(req)} 
+                                                    <button
+                                                        onClick={() => editRequisition(req)}
                                                         className="text-blue-400 hover:text-blue-300 p-1"
                                                         title={req.status === RequisitionStatus.REJECTED ? "Re-file" : "Edit"}
                                                     >
@@ -450,15 +451,15 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                                     </button>
                                                 )}
 
-                                                {req.status === RequisitionStatus.BURF_PENDING_MANAGER && (currentUser.role === UserRole.MANAGER || currentUser.role === UserRole.SUPER_ADMIN) && (
-                                                     <>
+                                                {req.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('approval:manager:burf') && (
+                                                    <>
                                                         <button onClick={() => setRejectingReq(req)} className="text-red-400 hover:text-red-300 text-xs font-medium px-2 py-1 border border-red-500/50 rounded">Reject</button>
                                                         <button onClick={() => updateStatus(req, RequisitionStatus.BURF_PENDING_CIC)} className="text-green-400 hover:text-green-300 text-xs font-medium px-2 py-1 border border-green-500/50 rounded">Approve</button>
-                                                     </>
+                                                    </>
                                                 )}
-                                                
-                                                {req.status === RequisitionStatus.BURF_PENDING_CIC && (currentUser.role === UserRole.CIC || currentUser.role === UserRole.SUPER_ADMIN) && (
-                                                     <button onClick={() => updateStatus(req, RequisitionStatus.READY_FOR_PRF)} className="text-emerald-400 hover:text-emerald-300 text-xs font-medium px-2 py-1 border border-emerald-500/50 rounded">Verify & Proceed</button>
+
+                                                {req.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('approval:cic:burf') && (
+                                                    <button onClick={() => updateStatus(req, RequisitionStatus.READY_FOR_PRF)} className="text-emerald-400 hover:text-emerald-300 text-xs font-medium px-2 py-1 border border-emerald-500/50 rounded">Verify & Proceed</button>
                                                 )}
                                             </div>
                                         </td>
@@ -466,7 +467,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     {expandedRows[req.id] && (
                                         <tr className="bg-slate-900/50">
                                             <td colSpan={8} className="p-4">
-                                                 <div className="p-4 bg-slate-800 rounded-lg">
+                                                <div className="p-4 bg-slate-800 rounded-lg">
                                                     <h4 className="text-sm font-bold text-white mb-2">Item Details</h4>
                                                     <table className="w-full text-xs text-left">
                                                         <thead className="text-slate-500 border-b border-slate-700">
@@ -493,14 +494,14 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                                             <span className="font-bold text-slate-300">Remarks:</span> {req.remarks}
                                                         </div>
                                                     )}
-                                                 </div>
+                                                </div>
                                             </td>
                                         </tr>
                                     )}
                                 </React.Fragment>
                             )
                         })}
-                         {filteredRequisitions.length === 0 && (
+                        {filteredRequisitions.length === 0 && (
                             <tr><td colSpan={8} className="px-6 py-8 text-center text-slate-400 italic">No requisitions found.</td></tr>
                         )}
                     </tbody>
@@ -508,10 +509,10 @@ export const BurfView: React.FC<BurfViewProps> = ({
             </Card>
 
             {printReq && <BURFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} />}
-            
-            <RejectionModal 
-                isOpen={!!rejectingReq} 
-                onClose={() => setRejectingReq(null)} 
+
+            <RejectionModal
+                isOpen={!!rejectingReq}
+                onClose={() => setRejectingReq(null)}
                 onConfirm={handleRejectConfirm}
                 title="Reject BURF Requisition"
             />

@@ -34,6 +34,7 @@ export enum RequisitionStatus {
   APPROVED_FOR_PAYMENT = 'APPROVED_FOR_PAYMENT',
   FUNDS_RELEASED = 'FUNDS_RELEASED', // Funds given to employee/supplier
   LIQUIDATION_FILED = 'LIQUIDATION_FILED', // Employee submitted receipts
+  LIQUIDATION_REJECTED = 'LIQUIDATION_REJECTED', // Auditor rejected, can refile
   AUDITED_CLEARED = 'AUDITED_CLEARED', // Finance approved liquidation
   REJECTED = 'REJECTED',
   CANCELLED = 'CANCELLED' // New Status
@@ -105,6 +106,8 @@ export interface LiquidationDetails {
   auditNotes?: string;
   auditedBy?: string;
   auditDate?: string;
+  rejectionReason?: string; // Reason for rejection
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED'; // Liquidation status
 }
 
 export interface RequisitionHistory {
@@ -139,6 +142,7 @@ export interface Requisition {
   prfDetails?: {
     supplier: SupplierDetails;
     preparedBy: string; // Purchasing Officer ID
+    createdBy?: string; // User who initiated/created the PRF (optional for backward compatibility)
     datePrepared: string;
     requisitionId?: string;
     timestamp: string;

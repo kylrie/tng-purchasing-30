@@ -20,6 +20,7 @@ interface AuthContextType {
   completeNewUserRegistration: (role: UserRole, businessId: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
   mockLogin: () => Promise<void>;
+  simulateRole: (role: UserRole, businessId?: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,7 +66,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } else {
         if (!currentUser?.id.startsWith('mock-')) {
-            setCurrentUser(null);
+          setCurrentUser(null);
         }
       }
       setLoading(false);
@@ -122,13 +123,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       const userDocRef = doc(db, COLLECTIONS.USERS, tempFirebaseUser.uid);
       const newUser: Omit<User, 'id'> = {
-          name: tempFirebaseUser.displayName || 'Google User',
-          email: tempFirebaseUser.email!,
-          role: role,
-          businessId: businessId,
-          avatar: tempFirebaseUser.photoURL || '',
-          status: UserStatus.PENDING_APPROVAL,
-          isPasswordSet: !!password,
+        name: tempFirebaseUser.displayName || 'Google User',
+        email: tempFirebaseUser.email!,
+        role: role,
+        businessId: businessId,
+        avatar: tempFirebaseUser.photoURL || '',
+        status: UserStatus.PENDING_APPROVAL,
+        isPasswordSet: !!password,
       };
       await setDoc(userDocRef, newUser as User);
 
@@ -149,9 +150,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setLoading(true);
     try {
       if (currentUser?.id.startsWith('mock-')) {
-          setCurrentUser(null);
-          navigate('/login');
-          return;
+        setCurrentUser(null);
+        navigate('/login');
+        return;
       }
       await signOut(auth);
       setCurrentUser(null);
@@ -168,18 +169,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const mockLogin = async () => {
     setLoading(true);
     const mockUser: User = {
-        id: 'mock-super-admin',
-        name: 'Mock Super Admin',
-        email: 'super@mock.com',
-        role: UserRole.SUPER_ADMIN,
-        businessId: 'b1',
-        status: UserStatus.ACTIVE,
-        avatar: '',
+      id: 'mock-super-admin',
+      name: 'Mock Super Admin',
+      email: 'super@mock.com',
+      role: UserRole.SUPER_ADMIN,
+      businessId: 'b1',
+      status: UserStatus.ACTIVE,
+      avatar: '',
     };
     setCurrentUser(mockUser);
     setLoading(false);
     navigate('/');
-};
+  };
+
+  const simulateRole = (role: UserRole, businessId: string = 'b1') => {
+    if (!currentUser) return;
+
+    const roleNames: Record<UserRole, string> = {
+      [UserRole.SUPER_ADMIN]: 'Super Admin',
+      [UserRole.ADMIN]: 'Admin',
+      [UserRole.GENERAL_MANAGER]: 'General Manager',
+      [UserRole.BOARD_OF_DIRECTOR]: 'Board of Director',
+      [UserRole.MANAGER]: 'Manager',
+      [UserRole.EMPLOYEE]: 'Employee',
+      [UserRole.CIC]: 'Inventory Checker',
+      [UserRole.PURCHASING_OFFICER]: 'Purchasing Officer',
+      [UserRole.FINANCE]: 'Finance',
+      [UserRole.AUDITOR]: 'Auditor',
+    };
+
+    const simulatedUser: User = {
+      ...currentUser,
+      role: role,
+      businessId: businessId,
+      name: `[SIM] ${roleNames[role]}`,
+    };
+
+    setCurrentUser(simulatedUser);
+  };
 
   const value = {
     currentUser,
@@ -192,6 +219,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     completeNewUserRegistration,
     logout,
     mockLogin,
+    simulateRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -3,8 +3,8 @@ import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, C
 import type { Business, User } from '../../../shared/types';
 import { UserRole, UserStatus } from '../../auth/types';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { usePermissionsContext } from '../../../contexts/PermissionsContext';
 import PermissionsMatrix from '../components/PermissionsMatrix';
-import type { Permission } from '../../../config/permissions';
 
 interface SettingsViewProps {
     currentUser: User;
@@ -12,7 +12,6 @@ interface SettingsViewProps {
     handleAddBusiness: (business: Omit<Business, 'id'>) => void;
     allUsers: User[];
     setAllUsers: (user: User) => void;
-    onSavePermissions: (permissions: Record<UserRole, Permission[]>) => void;
     pendingUsers: User[];
     onApproveUser: (userId: string) => void;
     onRejectUser: (userId: string) => void;
@@ -25,7 +24,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     handleAddBusiness,
     allUsers,
     setAllUsers: updateUser,
-    onSavePermissions,
     pendingUsers,
     onApproveUser,
     onRejectUser,
@@ -35,6 +33,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '' });
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const { hasPermission } = usePermissions();
+    const { updatePermissions } = usePermissionsContext();
 
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
 
@@ -52,16 +51,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 businessId: newUser.businessId,
                 status: newUser.status || UserStatus.ACTIVE,
             };
-            if(editingUserId) {
+            if (editingUserId) {
                 updateUser(userToSave);
             } else {
-                 // In a real scenario, this would call an API to create the user
-                 // For now, we mock adding it to the list via the update function if it handles both
-                 // Or we would need a separate addUser prop.
-                 // Assuming setAllUsers handles updates/adds or just updates state for now
-                 // But since setAllUsers prop is typed as (user: User) => void, it's likely just updating one user in a list or context.
-                 // We will just alert for now as per original code logic if it wasn't fully implemented
-                 console.log("Create user", userToSave);
+                // In a real scenario, this would call an API to create the user
+                // For now, we mock adding it to the list via the update function if it handles both
+                // Or we would need a separate addUser prop.
+                // Assuming setAllUsers handles updates/adds or just updates state for now
+                // But since setAllUsers prop is typed as (user: User) => void, it's likely just updating one user in a list or context.
+                // We will just alert for now as per original code logic if it wasn't fully implemented
+                console.log("Create user", userToSave);
             }
             alert(editingUserId ? "User Updated" : "Create User functionality not fully implemented in this view in demo");
             resetUserForm();
@@ -325,7 +324,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </div>
                     <div className="overflow-x-auto border border-slate-700 rounded-lg">
                         <table className="w-full text-left text-sm text-slate-300">
-                             <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
+                            <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
                                 <tr>
                                     <th className="p-3">User</th>
                                     <th className="p-3">Role</th>
@@ -333,7 +332,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     <th className="p-3 text-right">Actions</th>
                                 </tr>
                             </thead>
-                             <tbody className="divide-y divide-slate-700">
+                            <tbody className="divide-y divide-slate-700">
                                 {allUsers.map(user => (
                                     <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
                                         <td className="p-3">
@@ -343,12 +342,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         <td className="p-3">
                                             <span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{user.role.replace(/_/g, ' ')}</span>
                                         </td>
-                                         <td className="p-3 text-slate-400">
+                                        <td className="p-3 text-slate-400">
                                             {businesses.find(b => b.id === user.businessId)?.name || 'N/A'}
                                         </td>
                                         <td className="p-3 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                 <button
+                                                <button
                                                     onClick={() => handleEditUserClick(user)}
                                                     className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                                                 >
@@ -369,7 +368,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                     <div className="mt-8">
                         <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white"><Shield size={20} className="text-purple-400" /> Permissions Matrix</h3>
-                        <PermissionsMatrix onSave={onSavePermissions} />
+                        <PermissionsMatrix onSave={updatePermissions} />
                     </div>
                 </div>
             )}

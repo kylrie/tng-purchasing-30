@@ -1,15 +1,22 @@
-import React, { useState } from 'react';
-import { ROLES_TO_PERMISSIONS, ALL_PERMISSIONS } from '../../../config/permissions';
+import React, { useState, useEffect } from 'react';
+import { ALL_PERMISSIONS } from '../../../config/permissions';
 import type { Permission } from '../../../config/permissions';
 import { UserRole } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
+import { usePermissionsContext } from '../../../contexts/PermissionsContext';
 
 interface PermissionsMatrixProps {
   onSave: (newPermissions: Record<UserRole, Permission[]>) => void;
 }
 
 const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
-  const [permissions, setPermissions] = useState(ROLES_TO_PERMISSIONS);
+  const { permissions: contextPermissions } = usePermissionsContext();
+  const [permissions, setPermissions] = useState(contextPermissions);
+
+  // Sync with context when it changes (e.g. initial load)
+  useEffect(() => {
+    setPermissions(contextPermissions);
+  }, [contextPermissions]);
 
   const handleCheckboxChange = (role: UserRole, permission: Permission) => {
     const currentPermissions = permissions[role] || [];

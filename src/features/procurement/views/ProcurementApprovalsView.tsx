@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
-import { RequisitionStatus, hasGlobalAccess, UserRole } from '../types';
+import { RequisitionStatus } from '../types';
+import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import RejectionModal from '../../../shared/components/RejectionModal';
 
@@ -26,29 +27,24 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
+    const { hasPermission } = usePermissions();
 
     // Determine which statuses the current user is allowed to approve
     const userApprovalStatuses = useMemo(() => {
         const statuses: RequisitionStatus[] = [];
-        
-        if (currentUser.role === UserRole.SUPER_ADMIN) {
-            return [
-                RequisitionStatus.BURF_PENDING_MANAGER,
-                RequisitionStatus.BURF_PENDING_CIC,
-                RequisitionStatus.PRF_PENDING_MANAGER
-            ];
-        }
 
-        if (currentUser.role === UserRole.MANAGER) {
+        if (hasPermission('approval:manager:burf')) {
             statuses.push(RequisitionStatus.BURF_PENDING_MANAGER);
-            statuses.push(RequisitionStatus.PRF_PENDING_MANAGER);
         }
-        if (currentUser.role === UserRole.CIC) {
+        if (hasPermission('approval:cic:burf')) {
             statuses.push(RequisitionStatus.BURF_PENDING_CIC);
         }
-        
+        if (hasPermission('approval:manager:prf')) {
+            statuses.push(RequisitionStatus.PRF_PENDING_MANAGER);
+        }
+
         return statuses;
-    }, [currentUser.role]);
+    }, [hasPermission]);
 
     const filteredRequisitions = useMemo(() => {
         return requisitions.filter(req => {
@@ -59,7 +55,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             if (statusFilter !== 'all' && req.status !== statusFilter) return false;
 
             // 3. Filter by Business Unit
-            const hasGlobal = hasGlobalAccess(currentUser.role);
+            const hasGlobal = hasPermission('requisition:view:all');
             if (hasGlobal) {
                 if (selectedBusinessUnit !== 'all' && req.businessId !== selectedBusinessUnit) return false;
             } else {
@@ -71,7 +67,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 const term = searchTerm.toLowerCase();
                 const requester = allUsers.find(u => u.id === req.requesterId)?.name.toLowerCase() || '';
                 const business = businesses.find(b => b.id === req.businessId)?.name.toLowerCase() || '';
-                
+
                 return (
                     req.id.toLowerCase().includes(term) ||
                     req.description.toLowerCase().includes(term) ||
@@ -82,7 +78,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
             return true;
         });
-    }, [requisitions, userApprovalStatuses, statusFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses]);
+    }, [requisitions, userApprovalStatuses, statusFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission]);
 
     const handleApprove = (req: Requisition) => {
         let nextStatus: RequisitionStatus | null = null;
@@ -104,10 +100,10 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
     const handleRejectConfirm = (reason: string) => {
         if (rejectingReq) {
-            const newRemarks = rejectingReq.remarks 
-                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}` 
+            const newRemarks = rejectingReq.remarks
+                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}`
                 : `[REJECTED]: ${reason}`;
-            
+
             onUpdateRequisition({ ...rejectingReq, status: RequisitionStatus.REJECTED, remarks: newRemarks });
             setRejectingReq(null);
         }
@@ -120,10 +116,10 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                     <h1 className="text-2xl font-bold">Procurement Approvals</h1>
                     <p className="text-slate-400 text-sm">Review and manage pending requests.</p>
                 </div>
-                
+
                 <div className="flex flex-wrap gap-3 items-center">
                     {/* Business Unit Filter (Global Roles Only) */}
-                    {hasGlobalAccess(currentUser.role) && (
+                    {hasPermission('requisition:view:all') && (
                         <div className="relative">
                             <select
                                 value={selectedBusinessUnit}
@@ -151,7 +147,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                             <option value={RequisitionStatus.BURF_PENDING_CIC}>Pending CIC (BURF)</option>
                             <option value={RequisitionStatus.PRF_PENDING_MANAGER}>Pending Manager (PRF)</option>
                         </select>
-                         <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                     </div>
 
                     {/* Search */}
@@ -217,15 +213,15 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button 
-                                                onClick={() => setRejectingReq(req)} 
+                                            <button
+                                                onClick={() => setRejectingReq(req)}
                                                 className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
                                                 title="Reject"
                                             >
                                                 <XCircle size={18} />
                                             </button>
-                                            <button 
-                                                onClick={() => handleApprove(req)} 
+                                            <button
+                                                onClick={() => handleApprove(req)}
                                                 className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
                                                 title="Approve"
                                             >
@@ -247,9 +243,9 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 </table>
             </Card>
 
-            <RejectionModal 
-                isOpen={!!rejectingReq} 
-                onClose={() => setRejectingReq(null)} 
+            <RejectionModal
+                isOpen={!!rejectingReq}
+                onClose={() => setRejectingReq(null)}
                 onConfirm={handleRejectConfirm}
                 title={`Reject ${rejectingReq?.id}`}
             />

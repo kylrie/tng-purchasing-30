@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PermissionsProvider } from './contexts/PermissionsContext';
 import Layout from './shared/components/Layout';
 import LoginView from './features/auth/views/LoginView';
 import DashboardView from './features/dashboard/views/DashboardView';
@@ -15,13 +16,12 @@ import SuppliersView from './features/inventory/views/SuppliersView';
 import { SettingsView } from './features/admin/views/SettingsView';
 import type { NotificationItem } from './shared/types';
 import { UserRole, UserStatus, COLLECTIONS } from './shared/types/firebase.types';
-import type { Permission } from './config/permissions';
 import { RequisitionStatus } from './features/procurement/types';
 import { useRequisitions } from './features/procurement/hooks/useRequisitions';
 import { useUsers } from './features/admin/hooks/useUsers';
 import { useBusinesses } from './features/admin/hooks/useBusinesses';
 import { useSuppliers } from './features/inventory/hooks/useSuppliers';
-import { doc, updateDoc, deleteDoc, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './config/firebase';
 
 function ProtectedApp() {
@@ -60,14 +60,7 @@ function ProtectedApp() {
     }
   };
 
-  const handleSavePermissions = async (permissions: Record<UserRole, Permission[]>) => {
-    try {
-      const permissionsRef = doc(db, 'config', 'permissions');
-      await setDoc(permissionsRef, { roles: permissions });
-    } catch (error) {
-      console.error("Error saving permissions: ", error);
-    }
-  };
+
 
   const getStatusBadge = (status: RequisitionStatus) => {
     const styles = {
@@ -79,6 +72,7 @@ function ProtectedApp() {
       [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'bg-cyan-900/50 text-cyan-400 border border-cyan-700/50',
       [RequisitionStatus.FUNDS_RELEASED]: 'bg-green-900/50 text-green-400 border border-green-700/50',
       [RequisitionStatus.LIQUIDATION_FILED]: 'bg-indigo-900/50 text-indigo-400 border border-indigo-700/50',
+      [RequisitionStatus.LIQUIDATION_REJECTED]: 'bg-red-900/50 text-red-400 border border-red-700/50',
       [RequisitionStatus.AUDITED_CLEARED]: 'bg-teal-900/50 text-teal-400 border border-teal-700/50',
       [RequisitionStatus.REJECTED]: 'bg-red-900/50 text-red-400 border border-red-700/50',
       [RequisitionStatus.CANCELLED]: 'bg-gray-800 text-gray-400 border border-gray-600',
@@ -92,6 +86,7 @@ function ProtectedApp() {
       [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'Approved for Payment',
       [RequisitionStatus.FUNDS_RELEASED]: 'Funds Released',
       [RequisitionStatus.LIQUIDATION_FILED]: 'Liquidation Filed',
+      [RequisitionStatus.LIQUIDATION_REJECTED]: 'Liquidation Rejected',
       [RequisitionStatus.AUDITED_CLEARED]: 'Audited & Cleared',
       [RequisitionStatus.REJECTED]: 'Rejected',
       [RequisitionStatus.CANCELLED]: 'Cancelled',
@@ -224,7 +219,6 @@ function ProtectedApp() {
             handleAddBusiness={addBusiness}
             allUsers={users}
             setAllUsers={updateUser}
-            onSavePermissions={handleSavePermissions}
             pendingUsers={pendingUsers}
             onApproveUser={handleApproveUser}
             onRejectUser={handleRejectUser}
@@ -240,15 +234,60 @@ function ProtectedApp() {
   );
 }
 
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("Uncaught error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-8">
+          <div className="max-w-2xl w-full bg-slate-800 p-8 rounded-xl border border-red-500/50">
+            <h1 className="text-2xl font-bold text-red-400 mb-4">Something went wrong</h1>
+            <pre className="bg-slate-950 p-4 rounded overflow-auto text-sm text-red-200">
+              {this.state.error?.toString()}
+              {this.state.error?.stack}
+            </pre>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-6 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+
+
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginView />} />
-          <Route path="/*" element={<ProtectedApp />} />
-        </Routes>
-      </AuthProvider>
+      <ErrorBoundary>
+        <AuthProvider>
+          <PermissionsProvider>
+            <Routes>
+              <Route path="/login" element={<LoginView />} />
+              <Route path="/*" element={<ProtectedApp />} />
+            </Routes>
+          </PermissionsProvider>
+        </AuthProvider>
+      </ErrorBoundary>
     </Router>
   );
 }

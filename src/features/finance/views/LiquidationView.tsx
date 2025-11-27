@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import type { Requisition } from '../../procurement/types';
-import { RequisitionStatus, UserRole } from '../../procurement/types';
+import { RequisitionStatus } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
+import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import LiquidationPrintModal from '../components/LiquidationPrintModal';
 import LiquidationModal from '../components/LiquidationModal';
-import RejectionModal from '../../../shared/components/RejectionModal';
-import { hasGlobalAccess } from '../../procurement/types';
-import { Printer, Edit, FileText, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import LiquidationAuditModal from '../components/LiquidationAuditModal';
+import { Printer, Edit, FileText, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface LiquidationViewProps {
   currentUser: User;
@@ -29,9 +29,11 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
 }) => {
   const [printReq, setPrintReq] = useState<Requisition | null>(null);
   const [editingLiquidationReq, setEditingLiquidationReq] = useState<Requisition | null>(null);
-  const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
+  const [auditReq, setAuditReq] = useState<Requisition | null>(null);
+  const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit'>('liquidations');
+  const { hasPermission } = usePermissions();
 
-  const canView = hasGlobalAccess(currentUser.role);
+  const canView = hasPermission('liquidation:view');
 
   if (!canView) {
     return (
@@ -40,45 +42,47 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   }
 
   const handleLiquidationSubmit = (updatedReq: Requisition) => {
-    if (onUpdateRequisition) {
-      onUpdateRequisition(updatedReq);
-    }
+    onUpdateRequisition(updatedReq);
     setEditingLiquidationReq(null);
   };
 
-  const handleAuditClear = (req: Requisition) => {
-    if (onUpdateRequisition) {
+  const handleAuditSubmit = (updatedReq: Requisition) => {
+    onUpdateRequisition(updatedReq);
+    setAuditReq(null);
+  };
+
+  const handleAuditApprove = async (auditNotes: string) => {
+    if (auditReq) {
       const updatedReq = {
-        ...req,
+        ...auditReq,
         status: RequisitionStatus.AUDITED_CLEARED,
         liquidationDetails: {
-          ...req.liquidationDetails!,
+          ...auditReq.liquidationDetails!,
           auditedBy: currentUser.id,
-          auditDate: new Date().toISOString()
+          auditDate: new Date().toISOString(),
+          auditNotes: auditNotes,
+          status: 'APPROVED' as const
         }
       };
-      onUpdateRequisition(updatedReq);
+      handleAuditSubmit(updatedReq);
     }
   };
 
-  const handleAuditRejectClick = (req: Requisition) => {
-    setRejectingReq(req);
-  };
-
-  const handleRejectConfirm = (reason: string) => {
-    if (rejectingReq && onUpdateRequisition) {
+  const handleAuditReject = async (reason: string) => {
+    if (auditReq) {
       const updatedReq = {
-        ...rejectingReq,
-        status: RequisitionStatus.REJECTED,
+        ...auditReq,
+        status: RequisitionStatus.LIQUIDATION_REJECTED,
         liquidationDetails: {
-          ...rejectingReq.liquidationDetails!,
+          ...auditReq.liquidationDetails!,
           auditedBy: currentUser.id,
           auditDate: new Date().toISOString(),
-          auditNotes: reason
+          auditNotes: reason,
+          rejectionReason: reason,
+          status: 'REJECTED' as const
         }
       };
-      onUpdateRequisition(updatedReq);
-      setRejectingReq(null);
+      handleAuditSubmit(updatedReq);
     }
   };
 
@@ -86,10 +90,16 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const liquidationReqs = requisitions.filter(
     req => [
       RequisitionStatus.FUNDS_RELEASED,
-      RequisitionStatus.LIQUIDATION_FILED,
-      RequisitionStatus.AUDITED_CLEARED
+      RequisitionStatus.AUDITED_CLEARED,
+      RequisitionStatus.LIQUIDATION_REJECTED
     ].includes(req.status) || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)
   );
+
+  const auditingReqs = requisitions.filter(
+    req => req.status === RequisitionStatus.LIQUIDATION_FILED
+  );
+
+  const displayedReqs = activeTab === 'liquidations' ? liquidationReqs : auditingReqs;
 
   return (
     <>
@@ -98,6 +108,30 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           <h1 className="text-2xl font-bold text-white">Liquidations</h1>
           <p className="text-slate-400 text-sm">File and audit liquidation reports for released funds.</p>
         </div>
+
+        <div className="flex border-b border-slate-700 mb-4">
+          <button
+            className={`py-2 px-4 text-sm font-medium ${activeTab === 'liquidations'
+              ? 'border-b-2 border-cyan-500 text-cyan-400'
+              : 'text-slate-400 hover:text-slate-300'
+              }`}
+            onClick={() => setActiveTab('liquidations')}
+          >
+            My Liquidations
+          </button>
+          {hasPermission('liquidation:audit') && (
+            <button
+              className={`py-2 px-4 text-sm font-medium ${activeTab === 'for_audit'
+                ? 'border-b-2 border-cyan-500 text-cyan-400'
+                : 'text-slate-400 hover:text-slate-300'
+                }`}
+              onClick={() => setActiveTab('for_audit')}
+            >
+              For Audit ({auditingReqs.length})
+            </button>
+          )}
+        </div>
+
         <Card className="!p-0">
           <table className="w-full text-left text-sm text-white">
             <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
@@ -112,7 +146,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700">
-              {liquidationReqs.map(req => (
+              {displayedReqs.map(req => (
                 <tr key={req.id} className="hover:bg-slate-800/60">
                   <td className="px-6 py-4 font-medium">{req.id}</td>
                   <td className="px-6 py-4 text-slate-300">
@@ -127,7 +161,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
                       {/* File/Edit Liquidation */}
-                      {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) && (
+                      {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) && activeTab === 'liquidations' && (
                         <button
                           onClick={() => setEditingLiquidationReq(req)}
                           className="text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-700 bg-cyan-900/50 hover:bg-cyan-800/50"
@@ -142,25 +176,17 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
 
                       {/* Audit (Auditor/SuperAdmin) */}
                       {req.status === RequisitionStatus.LIQUIDATION_FILED &&
-                        (currentUser.role === UserRole.AUDITOR || currentUser.role === UserRole.SUPER_ADMIN) && (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAuditRejectClick(req)}
-                              className="text-red-400 hover:text-red-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-red-500/50 bg-red-900/20 hover:bg-red-900/40"
-                            >
-                              <XCircle size={14} /> Reject
-                            </button>
-                            <button
-                              onClick={() => handleAuditClear(req)}
-                              className="bg-teal-600 text-white px-3 py-1 rounded text-xs hover:bg-teal-700 font-medium flex items-center gap-1 border border-teal-500/50 shadow-sm"
-                            >
-                              <CheckCircle size={14} /> Clear
-                            </button>
-                          </div>
+                        hasPermission('liquidation:audit') && activeTab === 'for_audit' && (
+                          <button
+                            onClick={() => setAuditReq(req)}
+                            className="bg-teal-600 text-white px-3 py-1 rounded text-xs hover:bg-teal-700 font-medium flex items-center gap-1 border border-teal-500/50 shadow-sm"
+                          >
+                            <CheckCircle size={14} /> Audit
+                          </button>
                         )}
 
                       {/* Re-file (Rejected) */}
-                      {req.status === RequisitionStatus.REJECTED && req.liquidationDetails && (
+                      {(req.status === RequisitionStatus.LIQUIDATION_REJECTED || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)) && (
                         <button
                           onClick={() => setEditingLiquidationReq(req)}
                           className="text-orange-400 hover:text-orange-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-orange-700 bg-orange-900/50 hover:bg-orange-800/50"
@@ -179,7 +205,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                   </td>
                 </tr>
               ))}
-              {liquidationReqs.length === 0 && (
+              {displayedReqs.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center text-slate-500 italic">
                     No liquidations to display.
@@ -206,12 +232,14 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           currentUserId={currentUser.id}
         />
       )}
-      <RejectionModal
-        isOpen={!!rejectingReq}
-        onClose={() => setRejectingReq(null)}
-        onConfirm={handleRejectConfirm}
-        title={`Reject Liquidation - ${rejectingReq?.id}`}
-      />
+      {auditReq && (
+        <LiquidationAuditModal
+          requisition={auditReq}
+          onClose={() => setAuditReq(null)}
+          onApprove={handleAuditApprove}
+          onReject={handleAuditReject}
+        />
+      )}
     </>
   );
 };

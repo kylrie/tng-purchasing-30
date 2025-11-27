@@ -1,17 +1,19 @@
 import { useAuth } from '../contexts/AuthContext';
-import { ROLES_TO_PERMISSIONS } from '../config/permissions';
+import { usePermissionsContext } from '../contexts/PermissionsContext';
 import type { Permission } from '../config/permissions';
 import type { Requisition } from '../features/procurement/types';
+import { RequisitionStatus } from '../features/procurement/types';
 
 export const usePermissions = () => {
   const { currentUser } = useAuth();
+  const { permissions } = usePermissionsContext();
 
   const hasPermission = (permission: Permission): boolean => {
     if (!currentUser) {
       return false;
     }
 
-    const userPermissions = ROLES_TO_PERMISSIONS[currentUser.role];
+    const userPermissions = permissions[currentUser.role];
     if (!userPermissions) {
       return false;
     }
@@ -43,6 +45,38 @@ export const usePermissions = () => {
     return false;
   };
 
+  /**
+   * Checks if the current user can file liquidation for a specific requisition.
+   * Option C: Either BURF creator OR PRF creator can file liquidation.
+   */
+  const canFileLiquidation = (requisition: Requisition): boolean => {
+    if (!currentUser) return false;
 
-  return { hasPermission, canPerformAction, currentUser };
+    // Must be in a state where liquidation can be filed
+    const validStatuses = [
+      RequisitionStatus.FUNDS_RELEASED,
+      RequisitionStatus.LIQUIDATION_REJECTED
+    ];
+    if (!validStatuses.includes(requisition.status)) {
+      return false;
+    }
+
+    // Finance can file for anyone
+    if (hasPermission('liquidation:file:all')) return true;
+
+    // Check if user has permission to file for own
+    if (hasPermission('liquidation:file:own')) {
+      // Option C: Check if user is BURF creator OR PRF creator
+      const isBurfCreator = requisition.requesterId === currentUser.id;
+      const isPrfCreator = requisition.prfDetails?.createdBy === currentUser.id;
+
+      return isBurfCreator || isPrfCreator;
+    }
+
+    return false;
+  };
+
+
+  return { hasPermission, canPerformAction, canFileLiquidation, currentUser };
 };
+

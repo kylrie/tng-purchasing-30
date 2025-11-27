@@ -1,4 +1,3 @@
-// src/features/dashboard/views/DashboardView.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -11,7 +10,7 @@ import {
 import type { Requisition } from '../../procurement/types';
 import { RequisitionStatus } from '../../procurement/types';
 import type { User } from '../../../shared/types';
-import { UserRole } from '../../auth/types';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 interface DashboardViewProps {
     requisitions: Requisition[];
@@ -21,10 +20,12 @@ interface DashboardViewProps {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser, allUsers }) => {
     const navigate = useNavigate();
+    const { hasPermission } = usePermissions();
 
     // Calculate Stats
     const pendingCount = requisitions.filter(r => {
-        if (currentUser.role === UserRole.SUPER_ADMIN) {
+        // Super Admin / Global View
+        if (hasPermission('requisition:view:all') && hasPermission('admin:manage:users')) {
             return [
                 RequisitionStatus.BURF_PENDING_MANAGER,
                 RequisitionStatus.BURF_PENDING_CIC,
@@ -32,21 +33,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 RequisitionStatus.APPROVED_FOR_PAYMENT
             ].includes(r.status);
         }
-        if (currentUser.role === UserRole.MANAGER) {
-            return r.status === RequisitionStatus.BURF_PENDING_MANAGER || r.status === RequisitionStatus.PRF_PENDING_MANAGER;
+
+        // Check for specific approval permissions
+        if (hasPermission('approval:manager:burf') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
+        if (hasPermission('approval:manager:prf') && r.status === RequisitionStatus.PRF_PENDING_MANAGER) return true;
+        if (hasPermission('approval:cic:burf') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
+        if (hasPermission('finance:release_funds') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
+        if (hasPermission('requisition:create:prf') && r.status === RequisitionStatus.READY_FOR_PRF) return true;
+
+        // Default for employees (their own pending requests)
+        if (r.requesterId === currentUser.id && r.status !== RequisitionStatus.DRAFT && r.status !== RequisitionStatus.FUNDS_RELEASED && r.status !== RequisitionStatus.REJECTED && r.status !== RequisitionStatus.AUDITED_CLEARED) {
+            return true;
         }
-        if (currentUser.role === UserRole.CIC) {
-            return r.status === RequisitionStatus.BURF_PENDING_CIC;
-        }
-        if (currentUser.role === UserRole.PURCHASING_OFFICER) {
-            return r.status === RequisitionStatus.READY_FOR_PRF;
-        }
-        if (currentUser.role === UserRole.FINANCE) {
-            return r.status === RequisitionStatus.APPROVED_FOR_PAYMENT;
-        }
-        if (currentUser.role === UserRole.EMPLOYEE) {
-            return r.requesterId === currentUser.id && r.status !== RequisitionStatus.DRAFT && r.status !== RequisitionStatus.FUNDS_RELEASED;
-        }
+
         return false;
     }).length;
 
@@ -61,16 +60,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     // Pending Approvals - Show items that need the current user's approval
     const pendingApprovals = [...requisitions]
         .filter(r => {
-            if (currentUser.role === UserRole.MANAGER) {
-                return r.status === RequisitionStatus.BURF_PENDING_MANAGER || r.status === RequisitionStatus.PRF_PENDING_MANAGER;
-            }
-            if (currentUser.role === UserRole.CIC) {
-                return r.status === RequisitionStatus.BURF_PENDING_CIC;
-            }
-            if (currentUser.role === UserRole.FINANCE) {
-                return r.status === RequisitionStatus.APPROVED_FOR_PAYMENT;
-            }
-            if (currentUser.role === UserRole.SUPER_ADMIN) {
+            // Super Admin / Global View - see all pending
+            if (hasPermission('requisition:view:all') && hasPermission('admin:manage:users')) {
                 return [
                     RequisitionStatus.BURF_PENDING_MANAGER,
                     RequisitionStatus.BURF_PENDING_CIC,
@@ -78,16 +69,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     RequisitionStatus.APPROVED_FOR_PAYMENT
                 ].includes(r.status);
             }
+
+            if (hasPermission('approval:manager:burf') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
+            if (hasPermission('approval:manager:prf') && r.status === RequisitionStatus.PRF_PENDING_MANAGER) return true;
+            if (hasPermission('approval:cic:burf') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
+            if (hasPermission('finance:release_funds') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
+
             return false;
         })
         .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
         .slice(0, 5)
         .map(r => {
             let action = 'needs approval';
-            if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'approved PRF';
-            if (r.status === RequisitionStatus.BURF_PENDING_CIC) action = 'approved PRF';
-            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'approved PRF';
-            if (r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) action = 'approved PRF';
+            if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'submitted BURF';
+            if (r.status === RequisitionStatus.BURF_PENDING_CIC) action = 'approved BURF';
+            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'submitted PRF';
+            if (r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) action = 'approved Payment';
 
             const requester = allUsers.find(u => u.id === r.requesterId);
             const requesterName = requester?.name || 'Unknown User';
@@ -103,6 +100,48 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             };
         });
 
+    // Calculate Liquidation Stat based on role
+    let liquidationStat = {
+        label: 'Liquidations',
+        value: '0',
+        change: 'Total',
+        trend: 'neutral',
+        icon: AlertCircle,
+        color: 'text-slate-400',
+        bg: 'bg-slate-900/50',
+        route: '/liquidation'
+    };
+
+    if (hasPermission('liquidation:audit')) {
+        const pendingAuditCount = requisitions.filter(r => r.status === RequisitionStatus.LIQUIDATION_FILED).length;
+        liquidationStat = {
+            label: 'Pending Audit',
+            value: pendingAuditCount.toString(),
+            change: 'Needs Review',
+            trend: pendingAuditCount > 0 ? 'up' : 'neutral',
+            icon: AlertCircle,
+            color: 'text-orange-400',
+            bg: 'bg-orange-900/50',
+            route: '/liquidation'
+        };
+    } else if (hasPermission('liquidation:file:own') || hasPermission('liquidation:file:all')) {
+        const toFileCount = requisitions.filter(r =>
+            (r.status === RequisitionStatus.FUNDS_RELEASED || r.status === RequisitionStatus.LIQUIDATION_REJECTED) &&
+            (hasPermission('liquidation:file:all') || r.requesterId === currentUser.id)
+        ).length;
+
+        liquidationStat = {
+            label: 'To Liquidate',
+            value: toFileCount.toString(),
+            change: 'Action Required',
+            trend: toFileCount > 0 ? 'up' : 'neutral',
+            icon: AlertCircle,
+            color: 'text-cyan-400',
+            bg: 'bg-cyan-900/50',
+            route: '/liquidation'
+        };
+    }
+
     const stats = [
         {
             label: 'Pending Approvals',
@@ -112,7 +151,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             icon: Clock,
             color: 'text-orange-400',
             bg: 'bg-orange-900/50',
-            route: '/procurement-approvals' // Navigate to Procurement Approvals module
+            route: '/procurement-approvals'
         },
         {
             label: 'Active PRFs',
@@ -122,7 +161,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             icon: FileText,
             color: 'text-blue-400',
             bg: 'bg-blue-900/50',
-            route: '/prf' // Navigate to PRF view
+            route: '/prf'
         },
         {
             label: 'Total Spend (Est)',
@@ -132,18 +171,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             icon: DollarSign,
             color: 'text-emerald-400',
             bg: 'bg-emerald-900/50',
-            route: '/liquidation' // Navigate to liquidation view for spend tracking
+            route: '/liquidation'
         },
-        {
-            label: 'Critical Stock',
-            value: '0',
-            change: 'Stable',
-            trend: 'neutral',
-            icon: AlertCircle,
-            color: 'text-red-400',
-            bg: 'bg-red-900/50',
-            route: '/suppliers' // Navigate to suppliers view
-        }
+        liquidationStat
     ];
 
     return (

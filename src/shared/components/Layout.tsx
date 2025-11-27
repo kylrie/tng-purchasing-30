@@ -61,7 +61,7 @@ const Layout: React.FC<LayoutProps> = ({
         { path: '/procurement-approvals', label: 'Pending Approvals', icon: CheckSquare, canView: hasPermission('ui:view:approvals_page') },
         { path: '/approved', label: 'Approved', icon: CheckCircle, canView: true },
         { path: '/finance', label: 'Finance', icon: Scale, canView: hasPermission('finance:release_funds') },
-        { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('finance:audit_liquidation') },
+        { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('liquidation:audit') },
         { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('supplier:view') }
     ];
 
