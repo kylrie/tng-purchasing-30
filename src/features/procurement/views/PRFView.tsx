@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Printer, X, Save, Ban, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Plus, Printer, X, Save, Ban, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -29,6 +29,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     businesses: Business[];
     initialData?: Requisition;
 }) => {
+    // ... (same as before)
     const [newItems, setNewItems] = useState<RequisitionItem[]>(initialData?.items || []);
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', price: 0 });
     const [selectedSupplierId, setSelectedSupplierId] = useState<string>(
@@ -234,6 +235,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [isDirectOpen, setIsDirectOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const [activeTab, setActiveTab] = useState<'pending' | 'flowed'>('pending');
     const [preparePRFReq, setPreparePRFReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
     const [editingPrf, setEditingPrf] = useState<Requisition | null>(null);
@@ -285,13 +287,27 @@ export const PrfView: React.FC<PrfViewProps> = ({
             : <ArrowDown size={14} className="text-purple-400 ml-1" />;
     };
 
+    // Filter Logic
+    const pendingStatuses = [
+        RequisitionStatus.READY_FOR_PRF,
+        RequisitionStatus.PRF_PENDING_MANAGER,
+        RequisitionStatus.APPROVED_FOR_PAYMENT,
+        RequisitionStatus.REJECTED,
+        RequisitionStatus.CANCELLED
+    ];
+
+    const flowedStatuses = [
+        RequisitionStatus.FUNDS_RELEASED,
+        RequisitionStatus.LIQUIDATION_FILED,
+        RequisitionStatus.LIQUIDATION_REJECTED,
+        RequisitionStatus.AUDITED_CLEARED
+    ];
+
+    const targetStatuses = activeTab === 'pending' ? pendingStatuses : flowedStatuses;
+
     const filteredAndSortedReqs = visibleRequisitions
-        .filter(r =>
-            [RequisitionStatus.READY_FOR_PRF, RequisitionStatus.PRF_PENDING_MANAGER,
-            RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED,
-            RequisitionStatus.REJECTED, RequisitionStatus.CANCELLED].includes(r.status)
-        )
-        .filter(r => r.status !== RequisitionStatus.REJECTED || r.prfDetails)
+        .filter(r => targetStatuses.includes(r.status))
+        .filter(r => r.status !== RequisitionStatus.REJECTED || r.prfDetails) // Only show rejected PRFs, not rejected BURFs
         .filter(r => {
             if (selectedBusinessUnit !== 'all' && r.businessId !== selectedBusinessUnit) {
                 return false;
@@ -361,6 +377,27 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 </div>
             </div>
 
+            <div className="flex border-b border-slate-700 mb-4">
+                <button
+                    className={`py-2 px-4 text-sm font-medium ${activeTab === 'pending'
+                        ? 'border-b-2 border-purple-500 text-purple-400'
+                        : 'text-slate-400 hover:text-slate-300'
+                        }`}
+                    onClick={() => setActiveTab('pending')}
+                >
+                    Pending Approval
+                </button>
+                <button
+                    className={`py-2 px-4 text-sm font-medium ${activeTab === 'flowed'
+                        ? 'border-b-2 border-purple-500 text-purple-400'
+                        : 'text-slate-400 hover:text-slate-300'
+                        }`}
+                    onClick={() => setActiveTab('flowed')}
+                >
+                    Flowed Requests (Fund Released)
+                </button>
+            </div>
+
             <Card className="overflow-hidden !p-0">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
@@ -423,44 +460,66 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                     <td className="px-6 py-4 text-slate-400">{req.items.length} items</td>
                                     <td className="px-6 py-4 text-purple-400 text-xs">{new Date(req.dateCreated).toLocaleDateString()}</td>
                                     <td className="px-6 py-4">
-                                        {getStatusBadge(req.status)}
-                                        {req.status === RequisitionStatus.REJECTED && (
-                                            <div className="text-[10px] text-red-400 italic mt-1 truncate w-32" title={req.remarks}>
-                                                {req.remarks}
-                                            </div>
-                                        )}
+                                        <div className="flex flex-col gap-1">
+                                            {getStatusBadge(req.status)}
+                                            {req.status === RequisitionStatus.REJECTED && (
+                                                <div className="text-[10px] text-red-400 italic mt-1 truncate w-32" title={req.remarks}>
+                                                    {req.remarks}
+                                                </div>
+                                            )}
+                                            {/* Show Released status explicitly if status is beyond FUNDS_RELEASED */}
+                                            {req.fundReleaseDate && activeTab === 'flowed' && (
+                                                <span className="text-[10px] text-emerald-400">Funds Released: {new Date(req.fundReleaseDate).toLocaleDateString()}</span>
+                                            )}
+                                        </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right flex justify-end gap-2 items-center">
-                                        {/* Cancel Button for Admin/Super Admin */}
-                                        {hasPermission('requisition:cancel') &&
-                                            req.status !== RequisitionStatus.CANCELLED &&
-                                            req.status !== RequisitionStatus.REJECTED && (
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-2 items-center">
+                                            {/* Cancel Button for Admin/Super Admin */}
+                                            {hasPermission('requisition:cancel') &&
+                                                req.status !== RequisitionStatus.CANCELLED &&
+                                                req.status !== RequisitionStatus.REJECTED &&
+                                                !req.fundReleaseDate && (
+                                                    <button
+                                                        onClick={() => handleCancel(req.id)}
+                                                        className="text-slate-500 hover:text-red-400 p-1"
+                                                        title="Cancel PRF"
+                                                    >
+                                                        <Ban size={16} />
+                                                    </button>
+                                                )}
+
+                                            {canEdit && (
                                                 <button
-                                                    onClick={() => handleCancel(req.id)}
-                                                    className="text-slate-500 hover:text-red-400 p-1"
-                                                    title="Cancel PRF"
+                                                    onClick={() => setEditingPrf(req)}
+                                                    className="text-blue-400 hover:text-blue-300 p-1"
+                                                    title="Re-file / Edit"
                                                 >
-                                                    <Ban size={16} />
+                                                    <RefreshCw size={16} />
                                                 </button>
                                             )}
 
-                                        {canEdit && (
-                                            <button
-                                                onClick={() => setEditingPrf(req)}
-                                                className="text-blue-400 hover:text-blue-300 p-1"
-                                                title="Re-file / Edit"
-                                            >
-                                                <RefreshCw size={16} />
-                                            </button>
-                                        )}
+                                            {req.status === RequisitionStatus.READY_FOR_PRF && hasPermission('requisition:create:prf') && (
+                                                <button onClick={() => setPreparePRFReq(req)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium">Prepare PRF</button>
+                                            )}
 
-                                        {req.status === RequisitionStatus.READY_FOR_PRF && hasPermission('requisition:create:prf') && (
-                                            <button onClick={() => setPreparePRFReq(req)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium">Prepare PRF</button>
-                                        )}
-
-                                        {req.prfDetails && (
-                                            <button onClick={() => setPrintReq(req)} className="text-slate-400 p-1 hover:text-white"><Printer size={16} /></button>
-                                        )}
+                                            {req.prfDetails && (
+                                                <div className="flex items-center gap-2">
+                                                    {req.chequeImageUrl && (
+                                                        <a
+                                                            href={req.chequeImageUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-400 hover:text-blue-300 p-1"
+                                                            title="View Cheque"
+                                                        >
+                                                            <ExternalLink size={16} />
+                                                        </a>
+                                                    )}
+                                                    <button onClick={() => setPrintReq(req)} className="text-slate-400 p-1 hover:text-white" title="Print PRF"><Printer size={16} /></button>
+                                                </div>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             )

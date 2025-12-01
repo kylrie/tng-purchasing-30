@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
 import type { Requisition } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
+import { Upload } from 'lucide-react';
 
 interface ReleaseFundModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (chequeNumber: string) => void;
+  onConfirm: (chequeNumber: string, chequeImageUrl: string) => void;
   requisition: Requisition;
 }
 
 const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, onConfirm, requisition }) => {
   const [chequeNumber, setChequeNumber] = useState('');
+  const [chequeImageUrl, setChequeImageUrl] = useState('');
 
   if (!isOpen) return null;
 
   const handleConfirm = () => {
     if (chequeNumber.trim()) {
-      onConfirm(chequeNumber.trim());
+      onConfirm(chequeNumber.trim(), chequeImageUrl.trim());
     } else {
       alert('Please enter a cheque number.');
     }
@@ -42,6 +44,25 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
               className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500"
               placeholder="Enter cheque number"
             />
+          </div>
+          <div>
+            <label htmlFor="chequeImageUrl" className="block text-sm font-medium text-slate-300 mb-2">
+              Cheque Image Link (Google Drive/URL)
+            </label>
+            <div className="flex items-center gap-2">
+                <Upload size={18} className="text-slate-500" />
+                <input
+                  id="chequeImageUrl"
+                  type="text"
+                  value={chequeImageUrl}
+                  onChange={(e) => setChequeImageUrl(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500"
+                  placeholder="https://..."
+                />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+                Optional: Provide a link to the cheque image for reference.
+            </p>
           </div>
           <div className="flex justify-end gap-3 pt-4">
             <button onClick={onClose} className="px-6 py-2 text-slate-300 font-medium hover:bg-slate-700 rounded-lg">

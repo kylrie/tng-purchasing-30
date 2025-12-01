@@ -19,8 +19,15 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
     const supplier = req.prfDetails?.supplier;
     const totalAmount = req.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
 
-    const calculatedVat = totalAmount * 0.12;
+    // Calculate VAT based on supplier's vatable status
+    const isVatable = supplier?.isVatable !== false; // Default to true if undefined
+    const calculatedVat = isVatable ? (totalAmount / 1.12) * 0.12 : 0;
     const netOfVat = totalAmount - calculatedVat;
+    const withholdingTax = isVatable ? (netOfVat * 0.01) : 0; // 1% EWT if vatable
+    // If it's goods, typically 1%, services 2%. For now assuming 1% for goods.
+    // If user wants custom tax, we might need more logic, but this is standard.
+
+    const amountDue = totalAmount - withholdingTax;
 
     return (
         <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:block">
@@ -137,8 +144,8 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
                                             <td className="border border-slate-900 px-2 py-1">{item.name}</td>
                                             <td className="border border-slate-900 px-2 py-1 text-center">{item.quantity}</td>
                                             <td className="border border-slate-900 px-2 py-1 text-center">{item.uom}</td>
-                                            <td className="border border-slate-900 px-2 py-1 text-right">₱{item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
-                                            <td className="border border-slate-900 px-2 py-1 text-right font-bold">₱{(item.quantity * item.price).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                                            <td className="border border-slate-900 px-2 py-1 text-right">₱{item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td className="border border-slate-900 px-2 py-1 text-right font-bold">₱{(item.quantity * item.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                         </tr>
                                     ))}
                                     {/* Fill empty rows to make it look like a form (at least 10 rows total) */}
@@ -166,25 +173,50 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
                                     <li>Original Invoice and Delivery Receipt must be submitted upon delivery.</li>
                                     <li>No PO, No Payment.</li>
                                 </ul>
+                                {supplier?.bankDetails?.accountNumber && (
+                                    <div className="mt-4 border-t border-slate-300 pt-2">
+                                        <div className="font-bold underline mb-1 text-xs">BANK DETAILS:</div>
+                                        <div className="text-[10px]">
+                                            <span className="font-bold">Bank:</span> {supplier.bankDetails.bankName} <br />
+                                            <span className="font-bold">Account Name:</span> {supplier.bankDetails.accountName} <br />
+                                            <span className="font-bold">Account No.:</span> {supplier.bankDetails.accountNumber} <br />
+                                            {supplier.bankDetails.branch && <><span className="font-bold">Branch:</span> {supplier.bankDetails.branch}</>}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Totals */}
                             <div className="w-1/3 text-xs">
                                 <div className="grid grid-cols-[1fr_100px] border-b border-slate-900">
                                     <div className="p-2 font-bold text-right pr-4">Total Price</div>
-                                    <div className="p-2 text-right font-bold">₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                    <div className="p-2 text-right font-bold">₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                 </div>
-                                <div className="grid grid-cols-[1fr_100px] border-b border-slate-900">
-                                    <div className="p-2 font-bold text-right pr-4">Net of VAT</div>
-                                    <div className="p-2 text-right">{netOfVat.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                                </div>
-                                <div className="grid grid-cols-[1fr_100px] border-b border-slate-900">
-                                    <div className="p-2 font-bold text-right pr-4">VAT (12%)</div>
-                                    <div className="p-2 text-right">{calculatedVat.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                                </div>
+                                {isVatable && (
+                                    <>
+                                        <div className="grid grid-cols-[1fr_100px] border-b border-slate-900">
+                                            <div className="p-2 font-bold text-right pr-4">Net of VAT</div>
+                                            <div className="p-2 text-right">{netOfVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                        </div>
+                                        <div className="grid grid-cols-[1fr_100px] border-b border-slate-900">
+                                            <div className="p-2 font-bold text-right pr-4">Add: VAT (12%)</div>
+                                            <div className="p-2 text-right">{calculatedVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                        </div>
+                                        <div className="grid grid-cols-[1fr_100px] border-b border-slate-900 text-red-700">
+                                            <div className="p-2 font-bold text-right pr-4">Less: EWT (1%)</div>
+                                            <div className="p-2 text-right">({withholdingTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})</div>
+                                        </div>
+                                    </>
+                                )}
+                                {!isVatable && (
+                                     <div className="grid grid-cols-[1fr_100px] border-b border-slate-900">
+                                        <div className="p-2 font-bold text-right pr-4">Non-Vatable</div>
+                                        <div className="p-2 text-right text-slate-500 italic">0.00</div>
+                                    </div>
+                                )}
                                 <div className="grid grid-cols-[1fr_100px] bg-slate-100 print:bg-transparent">
                                     <div className="p-2 font-bold text-right pr-4 self-center">Amount Due</div>
-                                    <div className="p-2 text-right font-bold text-lg">₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                                    <div className="p-2 text-right font-bold text-lg">₱{amountDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                                 </div>
                             </div>
                         </div>

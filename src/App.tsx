@@ -83,7 +83,7 @@ function ProtectedApp() {
       [RequisitionStatus.BURF_PENDING_CIC]: 'For CIC Approval',
       [RequisitionStatus.READY_FOR_PRF]: 'Ready for PRF',
       [RequisitionStatus.PRF_PENDING_MANAGER]: 'Pending PRF Approval',
-      [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'Approved for Payment',
+      [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'For Fund Release', // Changed label
       [RequisitionStatus.FUNDS_RELEASED]: 'Funds Released',
       [RequisitionStatus.LIQUIDATION_FILED]: 'Liquidation Filed',
       [RequisitionStatus.LIQUIDATION_REJECTED]: 'Liquidation Rejected',
@@ -98,13 +98,14 @@ function ProtectedApp() {
     );
   };
 
-  const handleReleaseFunds = async (id: string, chequeNumber: string) => {
+  const handleReleaseFunds = async (id: string, chequeNumber: string, chequeImageUrl?: string) => {
     const requisition = requisitions.find(r => r.id === id);
     if (requisition) {
       await updateRequisition({
         ...requisition,
         status: RequisitionStatus.FUNDS_RELEASED,
         chequeNumber: chequeNumber,
+        chequeImageUrl: chequeImageUrl,
         fundReleaseDate: new Date().toISOString(),
       });
     }

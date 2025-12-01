@@ -44,23 +44,27 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     <Card className="!p-0">
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-left">
-          <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
+          <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-10">
             <tr>
-              <th className="px-6 py-4">Permission</th>
+              <th className="px-6 py-4 bg-slate-900/90 border-b border-slate-700">Permission</th>
               {Object.values(UserRole).map(role => (
-                <th key={role} className="px-6 py-4 text-center">{role.replace(/_/g, ' ')}</th>
+                <th key={role} className="px-6 py-4 text-center whitespace-nowrap bg-slate-900/90 border-b border-slate-700">
+                  {role.replace(/_/g, ' ')}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700">
             {ALL_PERMISSIONS.map(permission => (
               <tr key={permission} className="hover:bg-slate-800/60">
-                <td className="px-6 py-4 font-medium text-slate-200">{permission}</td>
+                <td className="px-6 py-4 font-medium text-slate-200 border-r border-slate-700/50">
+                  {permission}
+                </td>
                 {Object.values(UserRole).map(role => (
-                  <td key={`${role}-${permission}`} className="px-6 py-4 text-center">
+                  <td key={`${role}-${permission}`} className="px-6 py-4 text-center border-r border-slate-700/50 last:border-r-0">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded bg-slate-700 border-slate-600 text-purple-600 focus:ring-purple-500"
+                      className="h-4 w-4 rounded bg-slate-700 border-slate-600 text-purple-600 focus:ring-purple-500 cursor-pointer"
                       checked={permissions[role]?.includes(permission) || false}
                       onChange={() => handleCheckboxChange(role, permission)}
                     />
@@ -71,7 +75,7 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
           </tbody>
         </table>
       </div>
-      <div className="p-4 bg-slate-900/50 border-t border-slate-700 flex justify-end">
+      <div className="p-4 bg-slate-900/50 border-t border-slate-700 flex justify-end sticky bottom-0 z-10">
         <button
           onClick={handleSaveChanges}
           className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 font-medium"

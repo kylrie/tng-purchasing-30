@@ -23,7 +23,10 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
             receiptRef: item.receiptRef ?? ''
         }))
     );
-    const [attachmentLink, setAttachmentLink] = useState(requisition.attachments?.[0] || '');
+    // Use the stored attachment link from liquidationDetails if available, otherwise check attachments array
+    const [attachmentLink, setAttachmentLink] = useState(
+        requisition.liquidationDetails?.attachmentLink || requisition.attachments?.[0] || ''
+    );
     const [remarks, setRemarks] = useState(requisition.remarks || '');
 
     // Calculate totals
@@ -45,13 +48,16 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
             items,
             remarks,
             status: RequisitionStatus.LIQUIDATION_FILED,
+            // Save link to both attachments array (legacy) and liquidationDetails (new standard)
             attachments: attachmentLink ? [attachmentLink] : [],
             liquidationDetails: {
+                ...requisition.liquidationDetails, // Preserve existing details if any
                 dateFiled: new Date().toISOString(),
                 filedBy: currentUserId,
                 totalActualAmount,
                 refundAmount: isRefund ? difference : 0,
                 reimbursementAmount: isReimbursement ? Math.abs(difference) : 0,
+                attachmentLink: attachmentLink // Explicitly save the link here
             }
         };
         onSubmit(updatedRequisition);

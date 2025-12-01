@@ -12,6 +12,13 @@ export enum UserRole {
   BOARD_OF_DIRECTOR = 'BOARD_OF_DIRECTOR'
 }
 
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
+  REJECTED = 'REJECTED',
+  INACTIVE = 'INACTIVE'
+}
+
 // Helper function to determine if user has global access to all business units
 export const hasGlobalAccess = (role: UserRole): boolean => {
   return [
@@ -58,6 +65,15 @@ export interface User {
   department?: string;
   businessId: string; // Links user strictly to a Business Unit
   isPasswordSet?: boolean; // Track if Google users have set a password
+  isApprover?: boolean; // New field to designate if user is an eligible approver for PRFs
+  status: UserStatus;
+}
+
+export interface BankDetails {
+    bankName: string;
+    accountName: string;
+    accountNumber: string;
+    branch?: string;
 }
 
 export interface Supplier {
@@ -71,6 +87,8 @@ export interface Supplier {
   address?: string;
   paymentMode?: string;
   terms?: string;
+  bankDetails?: BankDetails;
+  isVatable?: boolean; // Vatable or Non-Vat
 }
 
 // Used for the PRF details
@@ -80,6 +98,8 @@ export interface SupplierDetails {
   address: string;
   paymentMode: string;
   terms?: string;
+  bankDetails?: BankDetails;
+  isVatable?: boolean;
 }
 
 export interface RequisitionItem {
@@ -108,6 +128,7 @@ export interface LiquidationDetails {
   auditDate?: string;
   rejectionReason?: string; // Reason for rejection
   status?: 'PENDING' | 'APPROVED' | 'REJECTED'; // Liquidation status
+  attachmentLink?: string; // Link to liquidation attachments
 }
 
 export interface RequisitionHistory {
@@ -137,6 +158,7 @@ export interface Requisition {
 
   fundReleaseDate?: string; // Date when funds were released by Finance
   chequeNumber?: string;
+  chequeImageUrl?: string; // Link to cheque image
 
   // PRF Specific Data
   prfDetails?: {
@@ -146,6 +168,7 @@ export interface Requisition {
     datePrepared: string;
     requisitionId?: string;
     timestamp: string;
+    designatedApproverId?: string; // New field for specific approver
   };
 
   // Liquidation Specific Data

@@ -11,6 +11,7 @@ export const ALL_PERMISSIONS = [
   'requisition:edit:draft',
   'requisition:refile:rejected',
   'requisition:cancel',
+  'requisition:print',
 
   // Approval Workflow
   'approval:manager:burf',
@@ -19,10 +20,12 @@ export const ALL_PERMISSIONS = [
 
   // Finance Workflow
   'finance:release_funds',
+  'finance:view_cheque',
   'liquidation:view',
   'liquidation:file:own',
   'liquidation:file:all',
   'liquidation:audit',
+  'liquidation:print',
 
   // Data Visibility
   'requisition:view:own',
@@ -67,9 +70,12 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
   // Can manage users and businesses, but not all requisitions
   [UserRole.ADMIN]: [
     'requisition:cancel',
+    'requisition:print',
     'requisition:view:all',
     'liquidation:view',
     'liquidation:file:all',
+    'liquidation:print',
+    'finance:view_cheque',
     'admin:manage:users',
     'admin:manage:businesses',
     'admin:view:user_approvals',
@@ -88,11 +94,14 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
   // High-level approver, global view
   [UserRole.GENERAL_MANAGER]: [
     'requisition:view:all',
+    'requisition:print',
     'approval:manager:burf',
     'approval:manager:prf',
     'ui:view:approvals_page',
     'liquidation:view',
     'liquidation:file:own',
+    'liquidation:print',
+    'finance:view_cheque',
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',
@@ -104,7 +113,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
   // View-only global role
   [UserRole.BOARD_OF_DIRECTOR]: [
     'requisition:view:all',
+    'requisition:print',
     'liquidation:view',
+    'liquidation:print',
+    'finance:view_cheque',
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',
@@ -117,10 +129,12 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'requisition:create:burf',
     'requisition:refile:rejected',
     'requisition:view:business_unit',
+    'requisition:print',
     'approval:manager:burf',
     'approval:manager:prf',
     'ui:view:approvals_page',
     'liquidation:file:own',
+    'liquidation:print',
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',
@@ -134,7 +148,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'requisition:create:burf',
     'requisition:refile:rejected',
     'requisition:view:own',
+    'requisition:print',
     'liquidation:file:own',
+    'liquidation:print',
     'module:view:dashboard',
     'module:view:burf',
     'module:view:liquidation',
@@ -143,9 +159,11 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
   // Specialist approver with global view
   [UserRole.CIC]: [
     'requisition:view:all',
+    'requisition:print',
     'approval:cic:burf',
     'ui:view:approvals_page',
     'liquidation:view',
+    'liquidation:print',
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',
@@ -158,12 +176,14 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
   [UserRole.PURCHASING_OFFICER]: [
     'requisition:create:prf',
     'requisition:view:all',
+    'requisition:print',
     'supplier:view',
     'supplier:create',
     'supplier:edit',
     'supplier:delete',
     'liquidation:view',
     'liquidation:file:own',
+    'liquidation:print',
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',
@@ -175,9 +195,12 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
   // Handles money, releases funds
   [UserRole.FINANCE]: [
     'requisition:view:all',
+    'requisition:print',
     'finance:release_funds',
+    'finance:view_cheque',
     'liquidation:view',
     'liquidation:file:all',
+    'liquidation:print',
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',
@@ -189,8 +212,11 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
   // Audits liquidations
   [UserRole.AUDITOR]: [
     'requisition:view:all',
+    'requisition:print',
     'liquidation:view',
     'liquidation:audit',
+    'liquidation:print',
+    'finance:view_cheque',
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',

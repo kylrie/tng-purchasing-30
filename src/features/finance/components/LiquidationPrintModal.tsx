@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Printer } from 'lucide-react';
+import { X, Printer, Link as LinkIcon } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
 
 interface LiquidationPrintModalProps {
@@ -87,6 +87,24 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                 </div>
                             </div>
                         </div>
+
+                        {/* Attachment Link */}
+                        {liquidation.attachmentLink && (
+                            <div className="mb-8 p-3 border border-slate-200 bg-slate-50 rounded text-sm print:border-slate-800 print:bg-transparent">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-slate-700">Supporting Documents:</span>
+                                    <a 
+                                        href={liquidation.attachmentLink} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-blue-600 underline flex items-center gap-1 print:text-black print:no-underline"
+                                    >
+                                        <LinkIcon size={14} className="print:hidden" />
+                                        {liquidation.attachmentLink}
+                                    </a>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Expense Breakdown Table */}
                         <div className="mb-8">

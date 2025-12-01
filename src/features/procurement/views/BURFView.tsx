@@ -6,7 +6,6 @@ import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import BURFPrintModal from '../components/BURFPrintModal';
-import RejectionModal from '../../../shared/components/RejectionModal';
 
 interface BurfViewProps {
     currentUser: User;
@@ -33,7 +32,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const [isCreating, setIsCreating] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
-    const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
@@ -84,6 +82,16 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
         let filtered = visibleRequisitions
             .filter(req => {
+                // Filter out specific statuses as requested
+                if ([
+                    RequisitionStatus.FUNDS_RELEASED,
+                    RequisitionStatus.LIQUIDATION_FILED,
+                    RequisitionStatus.LIQUIDATION_REJECTED,
+                    RequisitionStatus.AUDITED_CLEARED
+                ].includes(req.status)) {
+                    return false;
+                }
+
                 if (userHasGlobalAccess) {
                     if (selectedBusinessUnit !== 'all' && req.businessId !== selectedBusinessUnit) {
                         return false;
@@ -186,21 +194,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
             onCreateRequisition(baseReq);
         }
         resetForm();
-    };
-
-    const updateStatus = (req: Requisition, newStatus: RequisitionStatus) => {
-        onUpdateRequisition({ ...req, status: newStatus });
-    };
-
-    const handleRejectConfirm = (reason: string) => {
-        if (rejectingReq) {
-            const newRemarks = rejectingReq.remarks
-                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}`
-                : `[REJECTED]: ${reason}`;
-
-            onUpdateRequisition({ ...rejectingReq, status: RequisitionStatus.REJECTED, remarks: newRemarks });
-            setRejectingReq(null);
-        }
     };
 
     if (isCreating) {
@@ -450,17 +443,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                                         {req.status === RequisitionStatus.REJECTED ? <RefreshCw size={16} /> : <Edit size={16} />}
                                                     </button>
                                                 )}
-
-                                                {req.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('approval:manager:burf') && (
-                                                    <>
-                                                        <button onClick={() => setRejectingReq(req)} className="text-red-400 hover:text-red-300 text-xs font-medium px-2 py-1 border border-red-500/50 rounded">Reject</button>
-                                                        <button onClick={() => updateStatus(req, RequisitionStatus.BURF_PENDING_CIC)} className="text-green-400 hover:text-green-300 text-xs font-medium px-2 py-1 border border-green-500/50 rounded">Approve</button>
-                                                    </>
-                                                )}
-
-                                                {req.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('approval:cic:burf') && (
-                                                    <button onClick={() => updateStatus(req, RequisitionStatus.READY_FOR_PRF)} className="text-emerald-400 hover:text-emerald-300 text-xs font-medium px-2 py-1 border border-emerald-500/50 rounded">Verify & Proceed</button>
-                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -509,13 +491,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
             </Card>
 
             {printReq && <BURFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} />}
-
-            <RejectionModal
-                isOpen={!!rejectingReq}
-                onClose={() => setRejectingReq(null)}
-                onConfirm={handleRejectConfirm}
-                title="Reject BURF Requisition"
-            />
         </div>
     );
 };

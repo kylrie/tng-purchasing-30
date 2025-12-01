@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, ArrowLeft } from 'lucide-react';
-import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
+import type { Requisition, RequisitionItem, Supplier, SupplierDetails, User } from '../types';
 import { RequisitionStatus } from '../types';
 import { CounterService } from '../../../shared/services/counter.service';
 
@@ -10,6 +10,7 @@ interface PreparePRFModalProps {
     onClose: () => void;
     onSubmit: (prfReq: Requisition, updatedOrigin?: Requisition) => void;
     currentUserId: string;
+    users?: User[]; // Add users prop to access approver list
 }
 
 const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
@@ -17,7 +18,8 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     suppliers,
     onClose,
     onSubmit,
-    currentUserId
+    currentUserId,
+    users = [] // Default to empty array if not provided
 }) => {
     const [items, setItems] = useState<(RequisitionItem & { selected: boolean })[]>(
         requisition.items.map(item => ({ ...item, price: item.price ?? 0, selected: true }))
@@ -37,11 +39,17 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             tin: '',
             address: '',
             paymentMode: '',
-            terms: ''
+            terms: '',
+            isVatable: false,
+            bankDetails: { bankName: '', accountName: '', accountNumber: '', branch: '' }
         }
     );
 
     const [prfIdentifier, setPrfIdentifier] = useState(requisition.prfIdentifier || '');
+    const [designatedApproverId, setDesignatedApproverId] = useState(requisition.prfDetails?.designatedApproverId || '');
+
+    // Filter list of eligible approvers
+    const eligibleApprovers = users.filter(u => u.isApprover);
 
     const totalAmount = items
         .filter(item => item.selected)
@@ -50,23 +58,16 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     const isValid = () => {
         const selectedItems = items.filter(item => item.selected);
         const hasSelection = selectedItems.length > 0;
-        // Allow price to be 0 if that's what the user intends, or enforce > 0? 
-        // User said "Make 0 default price", implying 0 is a valid starting point.
-        // But typically PRF should have costs. 
-        // The previous check was: const allPricesFilled = selectedItems.every(item => item.price > 0);
-        // If 0 is default, then this validation might prevent submission until changed.
-        // I will keep item.price >= 0 to allow submission if free items exist? 
-        // Or keep > 0 to force user to enter value. Usually PRF requires value.
-        // I will keep > 0 check, so 0 is default but you must change it to submit (or maybe 0 is allowed?).
-        // Requisition flow usually implies spending money.
-        // Let's stick to > 0 for validity to ensure data entry, but display 0 initially.
         const allPricesFilled = selectedItems.every(item => item.price > 0);
 
         const supplierValid = createNewSupplier
             ? supplierDetails.name && supplierDetails.tin && supplierDetails.address && supplierDetails.paymentMode
             : selectedSupplierId !== '';
+        
+        // Approver is required if there are eligible approvers configured
+        const approverValid = eligibleApprovers.length > 0 ? !!designatedApproverId : true;
 
-        return hasSelection && allPricesFilled && supplierValid;
+        return hasSelection && allPricesFilled && supplierValid && approverValid;
     };
 
     const handleSupplierSelect = (supplierId: string) => {
@@ -78,7 +79,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                 tin: supplier.tin || '',
                 address: supplier.address || '',
                 paymentMode: supplier.paymentMode || '',
-                terms: supplier.terms || ''
+                terms: supplier.terms || '',
+                isVatable: supplier.isVatable,
+                bankDetails: supplier.bankDetails
             });
         }
     };
@@ -116,7 +119,8 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     preparedBy: currentUserId,
                     datePrepared: new Date().toISOString(),
                     requisitionId: requisition.id,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    designatedApproverId: designatedApproverId // Save designated approver
                 },
                 remarks: `${requisition.remarks || ''} (Split from ${requisition.id})`,
                 prfIdentifier
@@ -140,7 +144,8 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     preparedBy: currentUserId,
                     datePrepared: new Date().toISOString(),
                     requisitionId: requisition.prfDetails?.requisitionId || requisition.id,
-                    timestamp: new Date().toISOString()
+                    timestamp: new Date().toISOString(),
+                    designatedApproverId: designatedApproverId // Save designated approver
                 },
                 status: RequisitionStatus.PRF_PENDING_MANAGER,
                 prfIdentifier
@@ -172,26 +177,55 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                 </div>
 
                 <div className="p-6 space-y-6">
-                    {/* PRF Identifier Input */}
-                    {(isSplitting || requisition.prfDetails) && (
-                        <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30">
-                            <label className="block text-sm font-medium text-blue-300 mb-1">PRF Identifier</label>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-slate-300 whitespace-nowrap">{requisition.prfDetails?.requisitionId || requisition.id} - Batch</span>
-                                <input
-                                    type="number"
-                                    value={prfIdentifier}
-                                    onChange={(e) => setPrfIdentifier(e.target.value)}
-                                    placeholder="1"
-                                    min="1"
-                                    className="w-24 px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-                                />
+                    {/* General Info Row: PRF ID & Approver */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* PRF Identifier Input */}
+                        {(isSplitting || requisition.prfDetails) && (
+                            <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30">
+                                <label className="block text-sm font-medium text-blue-300 mb-1">PRF Identifier</label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-slate-300 whitespace-nowrap">{requisition.prfDetails?.requisitionId || requisition.id} - Batch</span>
+                                    <input
+                                        type="number"
+                                        value={prfIdentifier}
+                                        onChange={(e) => setPrfIdentifier(e.target.value)}
+                                        placeholder="1"
+                                        min="1"
+                                        className="w-24 px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                                    />
+                                </div>
+                                <p className="text-xs text-blue-400 mt-1">
+                                    {isSplitting ? 'Enter a batch number to identify this split PRF.' : 'Update the batch number for this PRF.'}
+                                </p>
                             </div>
-                            <p className="text-xs text-blue-400 mt-1">
-                                {isSplitting ? 'Enter a batch number to identify this split PRF.' : 'Update the batch number for this PRF.'}
+                        )}
+
+                        {/* Approver Selection */}
+                        <div className="bg-purple-900/20 p-4 rounded-lg border border-purple-500/30">
+                            <label className="block text-sm font-medium text-purple-300 mb-1">Select Approver</label>
+                            {eligibleApprovers.length > 0 ? (
+                                <select
+                                    value={designatedApproverId}
+                                    onChange={(e) => setDesignatedApproverId(e.target.value)}
+                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                                >
+                                    <option value="">-- Choose Approver --</option>
+                                    {eligibleApprovers.map(approver => (
+                                        <option key={approver.id} value={approver.id}>
+                                            {approver.name} ({approver.role.replace(/_/g, ' ')})
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="text-sm text-slate-400 italic py-2">
+                                    No designated approvers found. Please configure approvers in Settings.
+                                </div>
+                            )}
+                            <p className="text-xs text-purple-400 mt-1">
+                                Designate who will approve this PRF.
                             </p>
                         </div>
-                    )}
+                    </div>
 
                     {/* Item Specification & Costing */}
                     <div>
@@ -274,7 +308,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                         setCreateNewSupplier(!createNewSupplier);
                                         if (!createNewSupplier) {
                                             setSelectedSupplierId('');
-                                            setSupplierDetails({ name: '', tin: '', address: '', paymentMode: '', terms: '' });
+                                            setSupplierDetails({ name: '', tin: '', address: '', paymentMode: '', terms: '', isVatable: false, bankDetails: { bankName: '', accountName: '', accountNumber: '', branch: '' } });
                                         }
                                     }}
                                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${createNewSupplier ? 'bg-blue-600' : 'bg-slate-700'

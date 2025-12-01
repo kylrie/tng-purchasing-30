@@ -23,6 +23,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
             receiptImageUrl: item.receiptImageUrl || ''
         }))
     );
+    const [attachmentLink, setAttachmentLink] = useState('');
     const [loading, setLoading] = useState(false);
 
     const prfTotal = requisition.totalAmount;
@@ -51,9 +52,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
 
     const isValid = () => {
         return items.every(item =>
-            (item.actualCost !== undefined && item.actualCost >= 0) &&
-            item.receiptRef &&
-            item.receiptImageUrl
+            (item.actualCost !== undefined && item.actualCost >= 0)
         );
     };
 
@@ -68,7 +67,8 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                 totalActualAmount: actualTotal,
                 refundAmount,
                 reimbursementAmount,
-                status: 'PENDING'
+                status: 'PENDING',
+                attachmentLink: attachmentLink // Save the main attachment link
             };
 
             await onSubmit(liquidationData, items);
@@ -123,6 +123,26 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                         </div>
                     </div>
 
+                    {/* Main Attachment Link Input */}
+                    <div className="bg-slate-900/50 p-4 rounded-lg border border-slate-700">
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Google Drive Link (Receipts & Documents)
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <Upload className="text-slate-500" size={20} />
+                            <input
+                                type="url"
+                                value={attachmentLink}
+                                onChange={(e) => setAttachmentLink(e.target.value)}
+                                placeholder="Paste the Google Drive folder link containing all receipts here..."
+                                className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500"
+                            />
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2">
+                            Please upload all receipts to a Google Drive folder and share the link here. This allows auditors to review all documents in one place.
+                        </p>
+                    </div>
+
                     {/* Items Table */}
                     <div>
                         <h3 className="text-lg font-semibold text-white mb-4">Itemized Costs & Receipts</h3>
@@ -135,7 +155,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                                         <th className="px-4 py-3 text-left font-semibold text-slate-400">BUDGETED</th>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-400">ACTUAL COST</th>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-400">RECEIPT #</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">RECEIPT LINK</th>
+                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">RECEIPT LINK (Optional)</th>
                                         <th className="px-4 py-3 text-right font-semibold text-slate-400">TOTAL</th>
                                     </tr>
                                 </thead>
@@ -168,7 +188,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                                                     type="url"
                                                     value={item.receiptImageUrl || ''}
                                                     onChange={(e) => handleReceiptUrlChange(index, e.target.value)}
-                                                    placeholder="https://drive.google.com/..."
+                                                    placeholder="Specific Link (Opt)"
                                                     className="w-48 px-2 py-1 bg-slate-900/50 border border-slate-600 rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-white text-xs"
                                                 />
                                             </td>
@@ -201,7 +221,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                         <ul className="text-sm text-yellow-200 space-y-1 list-disc list-inside">
                             <li>Enter the actual cost paid for each item</li>
                             <li>Provide receipt/invoice numbers for verification</li>
-                            <li>Upload receipts to Google Drive and paste the shareable link</li>
+                            <li>Upload receipts to Google Drive and paste the shareable link above</li>
                             <li>Ensure all receipts are clear and readable</li>
                             <li>If actual cost is less than budgeted, you'll receive a refund</li>
                             <li>If actual cost exceeds budget, you'll be reimbursed the difference</li>

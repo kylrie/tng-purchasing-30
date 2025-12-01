@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, XCircle } from 'lucide-react';
+import { X, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import type { Requisition } from '../../procurement/types';
 
 interface LiquidationAuditModalProps {
@@ -26,6 +26,9 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
     const prfTotal = requisition.totalAmount;
     const actualTotal = liquidation.totalActualAmount;
     const difference = prfTotal - actualTotal;
+
+    // Determine the attachment link (check both liquidationDetails and legacy attachments array)
+    const attachmentLink = liquidation.attachmentLink || (requisition.attachments && requisition.attachments.length > 0 ? requisition.attachments[0] : null);
 
     const handleSubmit = async () => {
         if (!action) return;
@@ -82,6 +85,21 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                 <span className="text-slate-500">Date Filed:</span>
                                 <span className="ml-2 text-white">{new Date(liquidation.dateFiled).toLocaleDateString()}</span>
                             </div>
+                            {/* Added Attachment Link */}
+                            {attachmentLink && (
+                                <div className="col-span-2">
+                                    <span className="text-slate-500 block mb-1">Supporting Documents:</span>
+                                    <a 
+                                        href={attachmentLink} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 rounded-lg transition-colors"
+                                    >
+                                        <ExternalLink size={16} />
+                                        <span className="font-medium">Open Receipt Folder in Google Drive</span>
+                                    </a>
+                                </div>
+                            )}
                         </div>
                     </div>
 

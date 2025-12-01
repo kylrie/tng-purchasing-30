@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
-import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus } from 'lucide-react';
-import type { Business, User } from '../../../shared/types';
-import { UserRole, UserStatus } from '../../auth/types';
+import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders } from 'lucide-react';
+import type { Business } from '../../../shared/types';
+import type { User } from '../../procurement/types'; // Updated import to use the extended User type
+import { UserRole, UserStatus } from '../../procurement/types'; // Use centralized Enums from procurement/types if available or ensure consistency. 
+// However, UserStatus is defined in ../../auth/types usually.
+// Let's check where UserStatus is defined. It was previously imported from ../../auth/types.
+// The error says 'status' does not exist in type 'User' (from procurement/types).
+// I just added 'status' to User in procurement/types.
+// Now I need to make sure UserStatus is imported correctly.
+// I added UserStatus enum to procurement/types as well in previous step.
+
 import { usePermissions } from '../../../hooks/usePermissions';
 import { usePermissionsContext } from '../../../contexts/PermissionsContext';
 import PermissionsMatrix from '../components/PermissionsMatrix';
@@ -30,10 +38,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     loadingUserId
 }) => {
     const [newBiz, setNewBiz] = useState({ name: '', tin: '', address: '', currency: 'PHP' });
-    const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '' });
+    const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '', isApprover: false, status: UserStatus.ACTIVE });
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const { hasPermission } = usePermissions();
     const { updatePermissions } = usePermissionsContext();
+    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'business' | 'users' | 'approvers' | 'permissions'>('profile');
 
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
 
@@ -50,16 +59,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 role: newUser.role,
                 businessId: newUser.businessId,
                 status: newUser.status || UserStatus.ACTIVE,
+                isApprover: newUser.isApprover || false
             };
             if (editingUserId) {
                 updateUser(userToSave);
             } else {
                 // In a real scenario, this would call an API to create the user
-                // For now, we mock adding it to the list via the update function if it handles both
-                // Or we would need a separate addUser prop.
-                // Assuming setAllUsers handles updates/adds or just updates state for now
-                // But since setAllUsers prop is typed as (user: User) => void, it's likely just updating one user in a list or context.
-                // We will just alert for now as per original code logic if it wasn't fully implemented
                 console.log("Create user", userToSave);
             }
             alert(editingUserId ? "User Updated" : "Create User functionality not fully implemented in this view in demo");
@@ -73,8 +78,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
 
     const resetUserForm = () => {
-        setNewUser({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '' });
+        setNewUser({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '', isApprover: false, status: UserStatus.ACTIVE });
         setEditingUserId(null);
+    };
+
+    const toggleApproverStatus = (user: User) => {
+        updateUser({ ...user, isApprover: !user.isApprover });
     };
 
     const handleChangePassword = () => {
@@ -86,12 +95,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setPasswords({ current: '', new: '', confirm: '' });
     };
 
-    const cardClass = "bg-slate-800/50 backdrop-blur-xl p-6 rounded-xl shadow-lg border border-slate-700";
+    const cardClass = "bg-slate-800/50 backdrop-blur-xl p-6 rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200";
     const inputClass = "w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
     const labelClass = "block text-sm font-medium text-slate-300 mb-1";
 
     return (
-        <div className="space-y-8 max-w-7xl animate-in fade-in slide-in-from-bottom-4 pb-10 text-white">
+        <div className="space-y-6 max-w-7xl animate-in fade-in slide-in-from-bottom-4 pb-10 text-white">
+            {/* Header ... (same as before) */}
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-white">System Settings</h1>
@@ -104,274 +114,261 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 )}
             </div>
 
-            <div className={cardClass}>
-                <h3 className="font-bold text-lg flex items-center gap-2 text-white mb-6"><UserIcon size={20} className="text-purple-400" /> My Profile</h3>
-                <div className="flex items-start gap-6">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg border-2 border-slate-700">
-                        {currentUser.name.charAt(0)}
-                    </div>
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Full Name</label>
-                            <div className="text-white font-medium text-lg">{currentUser.name}</div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Role</label>
-                            <div className="flex items-center gap-2">
-                                <Briefcase size={16} className="text-slate-500" />
-                                <span className="text-slate-200 font-medium">{currentUser.role.replace(/_/g, ' ')}</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Email Address</label>
-                            <div className="flex items-center gap-2">
-                                <Mail size={16} className="text-slate-500" />
-                                <span className="text-slate-200 font-medium">{currentUser.email}</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Business Unit</label>
-                            <div className="flex items-center gap-2">
-                                <Building2 size={16} className="text-slate-500" />
-                                <span className="text-slate-200 font-medium">{businesses.find(b => b.id === currentUser.businessId)?.name || 'N/A'}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            {/* Navigation Tabs */}
+            <div className="flex border-b border-slate-700 space-x-4 overflow-x-auto">
+                <button onClick={() => setActiveTab('profile')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'profile' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>My Profile</button>
+                <button onClick={() => setActiveTab('security')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'security' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Security</button>
+                {hasPermission('admin:manage:businesses') && (
+                    <button onClick={() => setActiveTab('business')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'business' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Business Units</button>
+                )}
+                {hasPermission('admin:manage:users') && (
+                    <>
+                        <button onClick={() => setActiveTab('users')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>User Management</button>
+                        <button onClick={() => setActiveTab('approvers')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'approvers' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Approver Config</button>
+                        <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
+                    </>
+                )}
             </div>
 
-            <div className={cardClass}>
-                <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Lock size={20} className="text-purple-400" /> Security</h3>
-                <div className="max-w-md space-y-4">
-                    <div>
-                        <label className={labelClass}>Current Password</label>
-                        <input
-                            type="password"
-                            className={inputClass}
-                            value={passwords.current}
-                            onChange={e => setPasswords({ ...passwords, current: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label className={labelClass}>New Password</label>
-                        <input
-                            type="password"
-                            className={inputClass}
-                            value={passwords.new}
-                            onChange={e => setPasswords({ ...passwords, new: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label className={labelClass}>Confirm New Password</label>
-                        <input
-                            type="password"
-                            className={inputClass}
-                            value={passwords.confirm}
-                            onChange={e => setPasswords({ ...passwords, confirm: e.target.value })}
-                        />
-                    </div>
-                    <button
-                        onClick={handleChangePassword}
-                        disabled={!passwords.current || !passwords.new || !passwords.confirm}
-                        className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-                    >
-                        Update Password
-                    </button>
-                </div>
-            </div>
-
-            {hasPermission('admin:manage:businesses') && (
-                <div className={cardClass}>
-                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Building2 size={20} className="text-purple-400" /> Business Unit Management</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                        <input className={inputClass} placeholder="Business Name" value={newBiz.name} onChange={e => setNewBiz({ ...newBiz, name: e.target.value })} />
-                        <input className={inputClass} placeholder="TIN" value={newBiz.tin} onChange={e => setNewBiz({ ...newBiz, tin: e.target.value })} />
-                        <input className={inputClass} placeholder="Address" value={newBiz.address} onChange={e => setNewBiz({ ...newBiz, address: e.target.value })} />
-                        <button onClick={() => { handleAddBusiness(newBiz); setNewBiz({ name: '', tin: '', address: '', currency: 'PHP' }); }} className="bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors">Add Business</button>
-                    </div>
-                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                        {businesses.map(b => (
-                            <div key={b.id} className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 text-sm flex justify-between items-center hover:bg-slate-800/50 transition-colors">
-                                <span className="font-medium text-slate-200">{b.name}</span>
-                                <span className="text-slate-500 font-mono text-xs">{b.tin}</span>
+            {/* Content Area */}
+            <div className="min-h-[400px]">
+                {/* Profile, Security, Business, User Management Tabs ... (Existing code kept) */}
+                {activeTab === 'profile' && (
+                    <div className={cardClass}>
+                        <h3 className="font-bold text-lg flex items-center gap-2 text-white mb-6"><UserIcon size={20} className="text-purple-400" /> My Profile</h3>
+                        <div className="flex items-start gap-6">
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg border-2 border-slate-700">
+                                {currentUser.name.charAt(0)}
                             </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {hasPermission('admin:view:user_approvals') && (
-                <div className={cardClass}>
-                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white">
-                        <Shield size={20} className="text-orange-400" /> Pending User Approvals
-                        {pendingUsers.length > 0 && (
-                            <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">{pendingUsers.length}</span>
-                        )}
-                    </h3>
-
-                    {pendingUsers.length === 0 ? (
-                        <div className="text-center py-8 border border-slate-700 rounded-lg bg-slate-900/30">
-                            <p className="text-slate-400">No pending approvals at this time.</p>
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Full Name</label>
+                                    <div className="text-white font-medium text-lg">{currentUser.name}</div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Role</label>
+                                    <div className="flex items-center gap-2">
+                                        <Briefcase size={16} className="text-slate-500" />
+                                        <span className="text-slate-200 font-medium">{currentUser.role.replace(/_/g, ' ')}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Email Address</label>
+                                    <div className="flex items-center gap-2">
+                                        <Mail size={16} className="text-slate-500" />
+                                        <span className="text-slate-200 font-medium">{currentUser.email}</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Business Unit</label>
+                                    <div className="flex items-center gap-2">
+                                        <Building2 size={16} className="text-slate-500" />
+                                        <span className="text-slate-200 font-medium">{businesses.find(b => b.id === currentUser.businessId)?.name || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {pendingUsers.map((user) => (
-                                <div key={user.id} className="bg-slate-900/30 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-slate-300 border-2 border-slate-600">
-                                            {user.name.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-white">{user.name}</h3>
-                                            <p className="text-sm text-slate-400">{user.email}</p>
-                                            <p className="text-sm text-slate-500 mt-1">
-                                                Requested Role: <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400">{user.role}</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 self-end sm:self-center">
-                                        <button
-                                            onClick={() => onApproveUser(user.id)}
-                                            disabled={!!loadingUserId}
-                                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
-                                        >
-                                            <Check className="w-4 h-4" />
-                                            {loadingUserId === user.id ? '...' : 'Approve'}
-                                        </button>
-                                        <button
-                                            onClick={() => onRejectUser(user.id)}
-                                            disabled={!!loadingUserId}
-                                            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"
-                                        >
-                                            <X className="w-4 h-4" />
-                                            {loadingUserId === user.id ? '...' : 'Reject'}
-                                        </button>
-                                    </div>
+                    </div>
+                )}
+
+                {activeTab === 'security' && (
+                    <div className={cardClass}>
+                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Lock size={20} className="text-purple-400" /> Security</h3>
+                        <div className="max-w-md space-y-4">
+                            <div>
+                                <label className={labelClass}>Current Password</label>
+                                <input
+                                    type="password"
+                                    className={inputClass}
+                                    value={passwords.current}
+                                    onChange={e => setPasswords({ ...passwords, current: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className={labelClass}>New Password</label>
+                                <input
+                                    type="password"
+                                    className={inputClass}
+                                    value={passwords.new}
+                                    onChange={e => setPasswords({ ...passwords, new: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className={labelClass}>Confirm New Password</label>
+                                <input
+                                    type="password"
+                                    className={inputClass}
+                                    value={passwords.confirm}
+                                    onChange={e => setPasswords({ ...passwords, confirm: e.target.value })}
+                                />
+                            </div>
+                            <button
+                                onClick={handleChangePassword}
+                                disabled={!passwords.current || !passwords.new || !passwords.confirm}
+                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                            >
+                                Update Password
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'business' && hasPermission('admin:manage:businesses') && (
+                    <div className={cardClass}>
+                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Building2 size={20} className="text-purple-400" /> Business Unit Management</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <input className={inputClass} placeholder="Business Name" value={newBiz.name} onChange={e => setNewBiz({ ...newBiz, name: e.target.value })} />
+                            <input className={inputClass} placeholder="TIN" value={newBiz.tin} onChange={e => setNewBiz({ ...newBiz, tin: e.target.value })} />
+                            <input className={inputClass} placeholder="Address" value={newBiz.address} onChange={e => setNewBiz({ ...newBiz, address: e.target.value })} />
+                            <button onClick={() => { handleAddBusiness(newBiz); setNewBiz({ name: '', tin: '', address: '', currency: 'PHP' }); }} className="bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors">Add Business</button>
+                        </div>
+                        <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                            {businesses.map(b => (
+                                <div key={b.id} className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 text-sm flex justify-between items-center hover:bg-slate-800/50 transition-colors">
+                                    <span className="font-medium text-slate-200">{b.name}</span>
+                                    <span className="text-slate-500 font-mono text-xs">{b.tin}</span>
                                 </div>
                             ))}
                         </div>
-                    )}
-                </div>
-            )}
+                    </div>
+                )}
 
-            {hasPermission('admin:manage:users') && (
-                <div className={cardClass}>
-                    <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Shield size={20} className="text-red-400" /> User & Role Management</h3>
-                    <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700 mb-6">
-                        <h4 className="text-sm font-bold text-slate-300 mb-3">{editingUserId ? 'Edit User' : 'Create New User'}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                            <div>
-                                <label className={labelClass}>Full Name</label>
-                                <input
-                                    type="text"
-                                    className={inputClass}
-                                    value={newUser.name || ''}
-                                    onChange={e => setNewUser({ ...newUser, name: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Email Address</label>
-                                <input
-                                    type="email"
-                                    className={inputClass}
-                                    value={newUser.email || ''}
-                                    onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Role</label>
-                                <select
-                                    className={inputClass}
-                                    value={newUser.role || UserRole.EMPLOYEE}
-                                    onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRole })}
-                                >
-                                    {Object.values(UserRole).map(role => (
-                                        <option key={role} value={role}>{role.replace(/_/g, ' ')}</option>
+                {activeTab === 'users' && hasPermission('admin:manage:users') && (
+                    <div className="space-y-6">
+                        {/* Pending Users... */}
+                        {hasPermission('admin:view:user_approvals') && pendingUsers.length > 0 && (
+                            <div className={`${cardClass} border-orange-500/30`}>
+                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white">
+                                    <Shield size={20} className="text-orange-400" /> Pending User Approvals
+                                    <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">{pendingUsers.length}</span>
+                                </h3>
+                                {/* ... Pending users list */}
+                                <div className="space-y-4">
+                                    {pendingUsers.map((user) => (
+                                        <div key={user.id} className="bg-slate-900/30 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                            {/* ... User details */}
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-xl font-bold text-slate-300 border-2 border-slate-600">
+                                                    {user.name.charAt(0)}
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold text-white">{user.name}</h3>
+                                                    <p className="text-sm text-slate-400">{user.email}</p>
+                                                    <p className="text-sm text-slate-500 mt-1">
+                                                        Requested Role: <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-500/10 text-purple-400">{user.role}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2 self-end sm:self-center">
+                                                <button onClick={() => onApproveUser(user.id)} disabled={!!loadingUserId} className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"><Check className="w-4 h-4" /> {loadingUserId === user.id ? '...' : 'Approve'}</button>
+                                                <button onClick={() => onRejectUser(user.id)} disabled={!!loadingUserId} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors disabled:opacity-50"><X className="w-4 h-4" /> {loadingUserId === user.id ? '...' : 'Reject'}</button>
+                                            </div>
+                                        </div>
                                     ))}
-                                </select>
+                                </div>
                             </div>
-                            <div>
-                                <label className={labelClass}>Business Unit</label>
-                                <select
-                                    className={inputClass}
-                                    value={newUser.businessId || ''}
-                                    onChange={e => setNewUser({ ...newUser, businessId: e.target.value })}
-                                >
-                                    <option value="">Select Business Unit</option>
-                                    {businesses.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
+                        )}
+
+                        <div className={cardClass}>
+                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Shield size={20} className="text-red-400" /> User & Role Management</h3>
+                            <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700 mb-6">
+                                <h4 className="text-sm font-bold text-slate-300 mb-3">{editingUserId ? 'Edit User' : 'Create New User'}</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                                    <div><label className={labelClass}>Full Name</label><input type="text" className={inputClass} value={newUser.name || ''} onChange={e => setNewUser({ ...newUser, name: e.target.value })} /></div>
+                                    <div><label className={labelClass}>Email Address</label><input type="email" className={inputClass} value={newUser.email || ''} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
+                                    <div><label className={labelClass}>Role</label><select className={inputClass} value={newUser.role || UserRole.EMPLOYEE} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRole })}>{Object.values(UserRole).map(role => (<option key={role} value={role}>{role.replace(/_/g, ' ')}</option>))}</select></div>
+                                    <div><label className={labelClass}>Business Unit</label><select className={inputClass} value={newUser.businessId || ''} onChange={e => setNewUser({ ...newUser, businessId: e.target.value })}><option value="">Select Business Unit</option>{businesses.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
+                                    <div className="flex gap-2"><button onClick={handleCreateOrUpdateUser} disabled={!newUser.name || !newUser.email || !newUser.businessId} className="flex-1 bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">{editingUserId ? <><Check size={16} /> Update</> : <><Plus size={16} /> Create</>}</button>{editingUserId && (<button onClick={resetUserForm} className="bg-slate-700 text-white p-2 rounded-lg hover:bg-slate-600 transition-colors"><X size={16} /></button>)}</div>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={handleCreateOrUpdateUser}
-                                    disabled={!newUser.name || !newUser.email || !newUser.businessId}
-                                    className="flex-1 bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {editingUserId ? <><Check size={16} /> Update</> : <><Plus size={16} /> Create</>}
-                                </button>
-                                {editingUserId && (
-                                    <button
-                                        onClick={resetUserForm}
-                                        className="bg-slate-700 text-white p-2 rounded-lg hover:bg-slate-600 transition-colors"
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                )}
+                            <div className="overflow-x-auto border border-slate-700 rounded-lg">
+                                <table className="w-full text-left text-sm text-slate-300">
+                                    <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
+                                        <tr><th className="p-3">User</th><th className="p-3">Role</th><th className="p-3">Business Unit</th><th className="p-3 text-right">Actions</th></tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-700">
+                                        {allUsers.map(user => (
+                                            <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
+                                                <td className="p-3"><div className="font-medium text-white">{user.name}</div><div className="text-xs text-slate-500">{user.email}</div></td>
+                                                <td className="p-3"><span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{user.role.replace(/_/g, ' ')}</span></td>
+                                                <td className="p-3 text-slate-400">{businesses.find(b => b.id === user.businessId)?.name || 'N/A'}</td>
+                                                <td className="p-3 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => handleEditUserClick(user)} className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit User"><Edit2 size={16} /></button><button className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete User (Not Implemented)"><Trash2 size={16} /></button></div></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
-                    <div className="overflow-x-auto border border-slate-700 rounded-lg">
-                        <table className="w-full text-left text-sm text-slate-300">
-                            <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
-                                <tr>
-                                    <th className="p-3">User</th>
-                                    <th className="p-3">Role</th>
-                                    <th className="p-3">Business Unit</th>
-                                    <th className="p-3 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-700">
-                                {allUsers.map(user => (
-                                    <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
-                                        <td className="p-3">
-                                            <div className="font-medium text-white">{user.name}</div>
-                                            <div className="text-xs text-slate-500">{user.email}</div>
-                                        </td>
-                                        <td className="p-3">
-                                            <span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{user.role.replace(/_/g, ' ')}</span>
-                                        </td>
-                                        <td className="p-3 text-slate-400">
-                                            {businesses.find(b => b.id === user.businessId)?.name || 'N/A'}
-                                        </td>
-                                        <td className="p-3 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleEditUserClick(user)}
-                                                    className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                                                >
-                                                    <Edit2 size={16} />
-                                                </button>
-                                                <button
-                                                    className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                )}
 
-                    <div className="mt-8">
-                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white"><Shield size={20} className="text-purple-400" /> Permissions Matrix</h3>
+                {/* New Approvers Configuration Tab */}
+                {activeTab === 'approvers' && hasPermission('admin:manage:users') && (
+                    <div className={cardClass}>
+                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Sliders size={20} className="text-blue-400" /> Approver Configuration</h3>
+                        <p className="text-slate-400 text-sm mb-6">
+                            Designate users who are authorized to approve Direct PRFs. Only users selected here will appear in the approver dropdown when creating/editing a PRF.
+                        </p>
+                        
+                        <div className="overflow-x-auto border border-slate-700 rounded-lg max-h-[600px] overflow-y-auto">
+                            <table className="w-full text-left text-sm text-slate-300">
+                                <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs sticky top-0 z-10 backdrop-blur-md">
+                                    <tr>
+                                        <th className="p-3">User</th>
+                                        <th className="p-3">Role</th>
+                                        <th className="p-3">Business Unit</th>
+                                        <th className="p-3 text-center">Is Approver</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700">
+                                    {allUsers.map(user => (
+                                        <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
+                                            <td className="p-3">
+                                                <div className="font-medium text-white">{user.name}</div>
+                                                <div className="text-xs text-slate-500">{user.email}</div>
+                                            </td>
+                                            <td className="p-3">
+                                                <span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{user.role.replace(/_/g, ' ')}</span>
+                                            </td>
+                                            <td className="p-3 text-slate-400">
+                                                {businesses.find(b => b.id === user.businessId)?.name || 'N/A'}
+                                            </td>
+                                            <td className="p-3 text-center">
+                                                <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                                    <input
+                                                        type="checkbox"
+                                                        name={`toggle-${user.id}`}
+                                                        id={`toggle-${user.id}`}
+                                                        className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                                                        checked={!!user.isApprover}
+                                                        onChange={() => toggleApproverStatus(user)}
+                                                        style={{
+                                                            right: user.isApprover ? '0' : 'auto',
+                                                            left: user.isApprover ? 'auto' : '0',
+                                                            borderColor: user.isApprover ? '#9333ea' : '#4b5563'
+                                                        }}
+                                                    />
+                                                    <label
+                                                        htmlFor={`toggle-${user.id}`}
+                                                        className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${user.isApprover ? 'bg-purple-600' : 'bg-slate-600'}`}
+                                                    ></label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab === 'permissions' && hasPermission('admin:manage:permissions') && (
+                    <div className={cardClass}>
+                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Shield size={20} className="text-purple-400" /> Permissions Matrix</h3>
                         <PermissionsMatrix onSave={updatePermissions} />
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 };
