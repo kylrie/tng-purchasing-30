@@ -1,6 +1,6 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, doc, updateDoc, runTransaction } from "firebase/firestore";
+import { useState, useEffect } from 'react';
+import { collection, onSnapshot, doc, updateDoc, runTransaction } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { COLLECTIONS } from "../../../shared/types/firebase.types";
 import type { Requisition } from "../types";
@@ -12,31 +12,28 @@ export const useRequisitions = () => {
 
     const requisitionsCollection = collection(db, COLLECTIONS.REQUISITIONS);
 
-    const fetchRequisitions = useCallback(async () => {
+    useEffect(() => {
         setLoading(true);
-        setError(null);
-        try {
-            const querySnapshot = await getDocs(requisitionsCollection);
-            const requisitionsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Requisition));
+        // Set up real-time listener
+        const unsubscribe = onSnapshot(requisitionsCollection, (snapshot) => {
+            const requisitionsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Requisition));
             // Sort by ID descending (newest first)
             requisitionsData.sort((a, b) => {
-                // primitive sort for BURF-XXXX
                 if (a.id > b.id) return -1;
                 if (a.id < b.id) return 1;
                 return 0;
             });
             setRequisitions(requisitionsData);
-        } catch (err: any) {
-            console.error("Error fetching requisitions: ", err);
-            setError(err.message);
-        } finally {
             setLoading(false);
-        }
-    }, []);
+        }, (err) => {
+            console.error("Error listening to requisitions: ", err);
+            setError(err.message);
+            setLoading(false);
+        });
 
-    useEffect(() => {
-        fetchRequisitions();
-    }, [fetchRequisitions]);
+        // Cleanup subscription on unmount
+        return () => unsubscribe();
+    }, []); // Empty dependency array means this runs once on mount
 
     const createRequisition = async (requisitionData: Omit<Requisition, 'id'> | Requisition) => {
         try {
@@ -73,11 +70,7 @@ export const useRequisitions = () => {
                     transaction.set(newReqRef, { ...requisitionData, id: newId });
                 });
             }
-
-            // Update local state locally to avoid refetch
-            if (newId) {
-                setRequisitions(prev => [{ id: newId, ...requisitionData } as Requisition, ...prev]);
-            }
+            // No need to update local state manually, onSnapshot will handle it
 
         } catch (err: any) {
             console.error("Error creating requisition: ", err);
@@ -90,12 +83,12 @@ export const useRequisitions = () => {
         try {
             const requisitionDoc = doc(db, COLLECTIONS.REQUISITIONS, requisitionData.id);
             await updateDoc(requisitionDoc, { ...requisitionData });
-            setRequisitions(prev => prev.map(r => r.id === requisitionData.id ? requisitionData : r));
+            // No need to update local state manually, onSnapshot will handle it
         } catch (err: any) {
             console.error("Error updating requisition: ", err);
             setError(err.message);
         }
     };
 
-    return { requisitions, loading, error, createRequisition, updateRequisition, refreshRequisitions: fetchRequisitions };
+    return { requisitions, loading, error, createRequisition, updateRequisition };
 };
