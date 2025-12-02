@@ -18,6 +18,10 @@ service cloud.firestore {
     function isOwner(resource) {
       return isSignedIn() && resource.data.requesterId == request.auth.uid;
     }
+    
+    function isSuperAdminOrAdmin() {
+      return hasRole('SUPER_ADMIN') || hasRole('ADMIN');
+    }
 
     // --- REQUISITIONS COLLECTION (SECURE) ---
     match /requisitions/{docId} {
@@ -82,21 +86,60 @@ service cloud.firestore {
       );
     }
 
-    // --- OTHER COLLECTIONS (OPEN FOR NOW) ---
+    // --- USERS COLLECTION (SECURE) ---
     match /users/{userId} {
-      allow read, write: if true;
+      // Anyone signed in can read user data (needed for displaying names, etc.)
+      allow read: if isSignedIn();
+      
+      // Users can only update their own profile, or admins can update any
+      allow update: if isSignedIn() && (request.auth.uid == userId || isSuperAdminOrAdmin());
+      
+      // Only admins can create or delete users
+      allow create, delete: if isSuperAdminOrAdmin();
     }
     
+    // --- BUSINESSES COLLECTION (SECURE) ---
     match /businesses/{id} {
-      allow read, write: if true;
+      // Anyone signed in can read businesses (needed for dropdowns, etc.)
+      allow read: if isSignedIn();
+      
+      // Only admins can create, update, or delete businesses
+      allow create, update, delete: if isSuperAdminOrAdmin();
     }
     
+    // --- NOTIFICATIONS COLLECTION (SECURE) ---
     match /notifications/{id} {
-      allow read, write: if true;
+      // Users can only read their own notifications
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      // Users can create notifications for themselves
+      // System can create notifications (handled server-side)
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      
+      // Users can update/delete their own notifications
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
     
+    // --- SUPPLIERS COLLECTION (SECURE) ---
     match /suppliers/{id} {
-      allow read, write: if true;
+      // Any signed-in user can read suppliers (needed for dropdowns)
+      allow read: if isSignedIn();
+      
+      // Only purchasing officers and admins can modify suppliers
+      allow create, update, delete: if isSignedIn() && (
+        hasRole('PURCHASING_OFFICER') || 
+        hasRole('SUPER_ADMIN') ||
+        hasRole('ADMIN')
+      );
+    }
+    
+    // --- CONFIG COLLECTION (SECURE) ---
+    match /config/{document} {
+      // Anyone signed in can read config (permissions, etc.)
+      allow read: if isSignedIn();
+      
+      // Only super admins can update config
+      allow write: if hasRole('SUPER_ADMIN');
     }
   }
 }
