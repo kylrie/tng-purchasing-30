@@ -208,12 +208,7 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
                                         </div>
                                     </>
                                 )}
-                                {!isVatable && (
-                                     <div className="grid grid-cols-[1fr_100px] border-b border-slate-900">
-                                        <div className="p-2 font-bold text-right pr-4">Non-Vatable</div>
-                                        <div className="p-2 text-right text-slate-500 italic">0.00</div>
-                                    </div>
-                                )}
+                                {/* If not vatable, we just hide the breakdown as requested */}
                                 <div className="grid grid-cols-[1fr_100px] bg-slate-100 print:bg-transparent">
                                     <div className="p-2 font-bold text-right pr-4 self-center">Amount Due</div>
                                     <div className="p-2 text-right font-bold text-lg">₱{amountDue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>

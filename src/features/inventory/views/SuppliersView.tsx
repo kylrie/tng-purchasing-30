@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, Plus, Edit2, Trash2, X, Star } from 'lucide-react';
-import type { Supplier, BankDetails } from '../../procurement/types';
+import { Search, Plus, Edit2, Trash2, X, Star, Check, Building2 } from 'lucide-react';
+import type { Supplier, BankDetails, Business, User } from '../../procurement/types';
+import { UserRole } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
 
 // Props are updated to handle data persistence via functions
@@ -9,6 +10,8 @@ interface SuppliersViewProps {
     onCreateSupplier: (supplier: Omit<Supplier, 'id'>) => void;
     onUpdateSupplier: (supplier: Supplier) => void;
     onDeleteSupplier: (id: string) => void;
+    currentUser: User;
+    businesses: Business[];
 }
 
 interface SupplierModalProps {
@@ -16,10 +19,12 @@ interface SupplierModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (supplier: Supplier | Omit<Supplier, 'id'>) => void;
+    businesses: Business[];
+    currentUser: User;
 }
 
 // Refactored SupplierModal with dark theme
-const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose, onSave }) => {
+const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose, onSave, businesses, currentUser }) => {
     const [formData, setFormData] = useState<Partial<Supplier> & { hasBankDetails: boolean }>(
         () => {
             const initialData = supplier || {
@@ -32,6 +37,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                 paymentMode: '',
                 terms: '',
                 isVatable: false,
+                businessUnitIds: [], // Default to empty
                 bankDetails: {
                     bankName: '',
                     accountName: '',
@@ -41,6 +47,12 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
             };
             // Check if bank details are actually populated
             const hasBankDetails = !!(initialData.bankDetails?.bankName || initialData.bankDetails?.accountNumber);
+
+            // If creating new, default to current user's business unit if not super admin
+            if (!supplier && currentUser.role !== UserRole.SUPER_ADMIN && currentUser.businessId) {
+                initialData.businessUnitIds = [currentUser.businessId];
+            }
+
             return { ...initialData, hasBankDetails };
         }
     );
@@ -59,6 +71,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
             paymentMode: formData.paymentMode || '',
             terms: formData.terms || '',
             isVatable: formData.isVatable || false,
+            businessUnitIds: formData.businessUnitIds || [],
             // Only save bank details if the toggle is on
             bankDetails: formData.hasBankDetails ? {
                 bankName: formData.bankDetails?.bankName || '',
@@ -86,6 +99,15 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                 [field]: value
             }
         }));
+    };
+
+    const toggleBusinessUnit = (bizId: string) => {
+        const currentIds = formData.businessUnitIds || [];
+        if (currentIds.includes(bizId)) {
+            setFormData({ ...formData, businessUnitIds: currentIds.filter(id => id !== bizId) });
+        } else {
+            setFormData({ ...formData, businessUnitIds: [...currentIds, bizId] });
+        }
     };
 
     return (
@@ -184,6 +206,29 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                                 onChange={e => setFormData({ ...formData, contractEnd: e.target.value })}
                             />
                         </div>
+                    </div>
+
+                    {/* Business Unit Selection */}
+                    <div className="border-t border-slate-700 pt-4">
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Assigned Business Units</label>
+                        <div className="bg-slate-900/50 border border-slate-600 rounded-lg p-2 h-32 overflow-y-auto custom-scrollbar">
+                            {businesses.map(b => {
+                                const isSelected = (formData.businessUnitIds || []).includes(b.id);
+                                return (
+                                    <div
+                                        key={b.id}
+                                        onClick={() => toggleBusinessUnit(b.id)}
+                                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-purple-600/30 text-purple-200' : 'hover:bg-slate-800 text-slate-400'}`}
+                                    >
+                                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-slate-500'}`}>
+                                            {isSelected && <Check size={12} className="text-white" />}
+                                        </div>
+                                        <span className="text-sm">{b.name}</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">Select which Business Units can access this supplier.</p>
                     </div>
 
                     {/* New Section: Tax Information */}
@@ -302,12 +347,35 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
 };
 
 
-const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSupplier, onUpdateSupplier, onDeleteSupplier }) => {
+const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSupplier, onUpdateSupplier, onDeleteSupplier, currentUser, businesses }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSupplier, setEditingSupplier] = useState<Supplier | undefined>(undefined);
 
-    const filteredSuppliers = suppliers.filter(s =>
+    // Filter suppliers based on User's Business Unit Access
+    const visibleSuppliers = suppliers.filter(supplier => {
+        // Super Admin sees all
+        if (currentUser.role === UserRole.SUPER_ADMIN) return true;
+
+        // If supplier has no BU assigned, maybe show to all? Or none? 
+        // Let's assume strict: if no BU, only Super Admin sees it. 
+        // OR: if no BU, it's global? Let's go with strict for now, but maybe allow global if empty.
+        // User request: "strictly filter". So if empty, maybe it's not visible.
+        // BUT, for legacy data, it might be empty. Let's assume empty = visible to all for migration safety, OR strictly hide.
+        // Given "strictly filter", let's check overlap.
+
+        const supplierBUs = supplier.businessUnitIds || [];
+        if (supplierBUs.length === 0) return true; // Fallback: Global if not tagged
+
+        const userBUs = currentUser.businessUnitIds || [];
+        // Add primary businessId to the check list
+        const allUserBUs = [...userBUs, currentUser.businessId].filter(Boolean);
+
+        // Check for overlap
+        return supplierBUs.some(id => allUserBUs.includes(id));
+    });
+
+    const filteredSuppliers = visibleSuppliers.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.category.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -392,6 +460,17 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                                             Bank: {supplier.bankDetails.bankName} - {supplier.bankDetails.accountNumber}
                                         </div>
                                     )}
+                                    {/* Show assigned BUs for context */}
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                        {supplier.businessUnitIds?.map(id => {
+                                            const biz = businesses.find(b => b.id === id);
+                                            return biz ? (
+                                                <span key={id} className="text-[10px] bg-slate-800 border border-slate-700 px-1 rounded text-slate-500 flex items-center gap-1">
+                                                    <Building2 size={8} /> {biz.name}
+                                                </span>
+                                            ) : null;
+                                        })}
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-1 text-amber-400">
@@ -438,6 +517,8 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                 supplier={editingSupplier}
                 onClose={() => setIsModalOpen(false)}
                 onSave={handleSave}
+                businesses={businesses}
+                currentUser={currentUser}
             />
         </div>
     );

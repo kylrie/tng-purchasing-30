@@ -30,6 +30,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [printingReq, setPrintingReq] = useState<Requisition | null>(null);
+    const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
     const { hasPermission } = usePermissions();
 
     // Determine which statuses the current user is allowed to approve
@@ -49,15 +50,30 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         return statuses;
     }, [hasPermission]);
 
+    // Determine approved/history statuses
+    const approvedStatuses = [
+        RequisitionStatus.READY_FOR_PRF,
+        RequisitionStatus.APPROVED_FOR_PAYMENT,
+        RequisitionStatus.FUNDS_RELEASED,
+        RequisitionStatus.LIQUIDATION_FILED,
+        RequisitionStatus.AUDITED_CLEARED
+    ];
+
     const filteredRequisitions = useMemo(() => {
         return requisitions.filter(req => {
-            // 1. Filter by Status (Must be a pending status relevant to the user)
-            if (!userApprovalStatuses.includes(req.status)) return false;
+            // Filter based on active tab
+            if (activeTab === 'pending') {
+                // Pending tab: show only pending statuses relevant to user
+                if (!userApprovalStatuses.includes(req.status)) return false;
 
-            // 2. Filter by Selected Status Dropdown
-            if (statusFilter !== 'all' && req.status !== statusFilter) return false;
+                // Filter by Selected Status Dropdown (only for pending tab)
+                if (statusFilter !== 'all' && req.status !== statusFilter) return false;
+            } else {
+                // History tab: show only approved statuses
+                if (!approvedStatuses.includes(req.status)) return false;
+            }
 
-            // 3. Filter by Business Unit
+            // Filter by Business Unit
             const hasGlobal = hasPermission('requisition:view:all');
             if (hasGlobal) {
                 if (selectedBusinessUnit !== 'all' && req.businessId !== selectedBusinessUnit) return false;
@@ -65,7 +81,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 if (req.businessId !== currentUser.businessId) return false;
             }
 
-            // 4. Search Filter
+            // Search Filter
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
                 const requester = allUsers.find(u => u.id === req.requesterId)?.name.toLowerCase() || '';
@@ -80,8 +96,14 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             }
 
             return true;
+        }).sort((a, b) => {
+            // Sort history by date descending
+            if (activeTab === 'history') {
+                return new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime();
+            }
+            return 0;
         });
-    }, [requisitions, userApprovalStatuses, statusFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission]);
+    }, [requisitions, activeTab, userApprovalStatuses, approvedStatuses, statusFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission]);
 
     const handleApprove = (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -125,10 +147,34 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
     return (
         <div className="space-y-6 text-white animate-in fade-in slide-in-from-bottom-4">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold">Procurement Approvals</h1>
-                    <p className="text-slate-400 text-sm">Review and manage pending requests.</p>
+            <div className="flex flex-col gap-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold">Action Center</h1>
+                        <p className="text-slate-400 text-sm">Review pending requests and approval history.</p>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-2 bg-slate-800/50 p-1 rounded-lg border border-slate-700">
+                        <button
+                            onClick={() => setActiveTab('pending')}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'pending'
+                                ? 'bg-purple-600 text-white shadow-lg'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                }`}
+                        >
+                            Pending Approvals
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('history')}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'history'
+                                ? 'bg-purple-600 text-white shadow-lg'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                }`}
+                        >
+                            Approval History
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
@@ -149,20 +195,22 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                         </div>
                     )}
 
-                    {/* Status Filter */}
-                    <div className="relative">
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                            className="appearance-none pl-4 pr-10 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                        >
-                            <option value="all">All Pending Types</option>
-                            <option value={RequisitionStatus.BURF_PENDING_MANAGER}>Pending Manager (BURF)</option>
-                            <option value={RequisitionStatus.BURF_PENDING_CIC}>Pending CIC (BURF)</option>
-                            <option value={RequisitionStatus.PRF_PENDING_MANAGER}>Pending Manager (PRF)</option>
-                        </select>
-                        <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                    </div>
+                    {/* Status Filter - Only show for Pending tab */}
+                    {activeTab === 'pending' && (
+                        <div className="relative">
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value)}
+                                className="appearance-none pl-4 pr-10 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            >
+                                <option value="all">All Pending Types</option>
+                                <option value={RequisitionStatus.BURF_PENDING_MANAGER}>Pending Manager (BURF)</option>
+                                <option value={RequisitionStatus.BURF_PENDING_CIC}>Pending CIC (BURF)</option>
+                                <option value={RequisitionStatus.PRF_PENDING_MANAGER}>Pending Manager (PRF)</option>
+                            </select>
+                            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                        </div>
+                    )}
 
                     {/* Search */}
                     <div className="relative">
@@ -238,20 +286,24 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                             >
                                                 <Printer size={18} />
                                             </button>
-                                            <button
-                                                onClick={(e) => handleRejectClick(req, e)}
-                                                className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
-                                                title="Reject"
-                                            >
-                                                <XCircle size={18} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => handleApprove(req, e)}
-                                                className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
-                                                title="Approve"
-                                            >
-                                                <CheckCircle size={18} />
-                                            </button>
+                                            {activeTab === 'pending' && (
+                                                <>
+                                                    <button
+                                                        onClick={(e) => handleRejectClick(req, e)}
+                                                        className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+                                                        title="Reject"
+                                                    >
+                                                        <XCircle size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleApprove(req, e)}
+                                                        className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
+                                                        title="Approve"
+                                                    >
+                                                        <CheckCircle size={18} />
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -260,7 +312,9 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                         {filteredRequisitions.length === 0 && (
                             <tr>
                                 <td colSpan={9} className="px-6 py-12 text-center text-slate-500 italic">
-                                    No pending approvals found matching your filters.
+                                    {activeTab === 'pending'
+                                        ? 'No pending approvals found matching your filters.'
+                                        : 'No approved requisitions found matching your filters.'}
                                 </td>
                             </tr>
                         )}
@@ -275,23 +329,25 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 title={`Reject ${rejectingReq?.id}`}
             />
 
-            {printingReq && (
-                printingReq.id.startsWith('PRF') || printingReq.status.includes('PRF') ? (
-                    <PRFPrintModal
-                        onClose={() => setPrintingReq(null)}
-                        req={printingReq}
-                        business={businesses.find(b => b.id === printingReq.businessId)}
-                    />
-                ) : (
-                    <BURFPrintModal
-                        onClose={() => setPrintingReq(null)}
-                        req={printingReq}
-                        business={businesses.find(b => b.id === printingReq.businessId)}
-                        requester={allUsers.find(u => u.id === printingReq.requesterId)}
-                    />
+            {
+                printingReq && (
+                    printingReq.id.startsWith('PRF') || printingReq.status.includes('PRF') ? (
+                        <PRFPrintModal
+                            onClose={() => setPrintingReq(null)}
+                            req={printingReq}
+                            business={businesses.find(b => b.id === printingReq.businessId)}
+                        />
+                    ) : (
+                        <BURFPrintModal
+                            onClose={() => setPrintingReq(null)}
+                            req={printingReq}
+                            business={businesses.find(b => b.id === printingReq.businessId)}
+                            requester={allUsers.find(u => u.id === printingReq.requesterId)}
+                        />
+                    )
                 )
-            )}
-        </div>
+            }
+        </div >
     );
 };
 

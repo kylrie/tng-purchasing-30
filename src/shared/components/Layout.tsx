@@ -6,7 +6,6 @@ import {
     ShoppingCart,
     Scale,
     Users,
-
     Bell,
     Menu,
     Settings,
@@ -14,7 +13,11 @@ import {
     ChevronLeft,
     ChevronRight,
     CheckSquare,
-    CheckCircle
+    ChevronDown,
+    Briefcase,
+    GitBranch,
+    Wallet,
+    Database
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import type { NotificationItem } from '../types';
@@ -27,6 +30,14 @@ interface LayoutProps {
     onNotificationClick?: (id: string) => void;
     onLogout?: () => void;
     pendingApprovalsCount?: number;
+}
+
+interface NavItem {
+    path?: string;
+    label: string;
+    icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
+    canView: boolean;
+    subItems?: NavItem[];
 }
 
 const Layout: React.FC<LayoutProps> = ({
@@ -42,6 +53,7 @@ const Layout: React.FC<LayoutProps> = ({
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const notifRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -54,18 +66,58 @@ const Layout: React.FC<LayoutProps> = ({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const navItems = [
+    const navItems: NavItem[] = [
         { path: '/', label: 'Dashboard', icon: LayoutDashboard, canView: true },
-        { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: true },
-        { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('requisition:create:prf') },
-        { path: '/procurement-approvals', label: 'Pending Approvals', icon: CheckSquare, canView: hasPermission('ui:view:approvals_page') },
-        { path: '/approved', label: 'Approved', icon: CheckCircle, canView: true },
-        { path: '/finance', label: 'Finance', icon: Scale, canView: hasPermission('finance:release_funds') },
-        { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('liquidation:audit') },
-        { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('supplier:view') }
+        {
+            label: 'Procurement',
+            icon: Briefcase,
+            canView: true,
+            subItems: [
+                { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: true },
+                { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('requisition:create:prf') }
+            ]
+        },
+        {
+            label: 'Action Center',
+            icon: GitBranch,
+            canView: hasPermission('ui:view:approvals_page'),
+            subItems: [
+                { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('ui:view:approvals_page') }
+            ]
+        },
+        {
+            label: 'Finance',
+            icon: Wallet,
+            canView: hasPermission('finance:release_funds') || hasPermission('liquidation:audit'),
+            subItems: [
+                { path: '/finance', label: 'Finance Dashboard', icon: Scale, canView: hasPermission('finance:release_funds') },
+                { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('liquidation:audit') }
+            ]
+        },
+        {
+            label: 'Master Data',
+            icon: Database,
+            canView: hasPermission('supplier:view'),
+            subItems: [
+                { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('supplier:view') }
+            ]
+        }
     ];
 
     const currentPath = location.pathname;
+
+    const toggleMenu = (label: string) => {
+        setExpandedMenus(prev =>
+            prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+        );
+    };
+
+    const isMenuExpanded = (label: string) => expandedMenus.includes(label);
+
+    const isParentActive = (item: NavItem) => {
+        if (!item.subItems) return false;
+        return item.subItems.some(sub => sub.path && (currentPath === sub.path || (sub.path !== '/' && currentPath.startsWith(sub.path))));
+    };
 
     return (
         <div className="flex h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden font-sans text-white relative">
@@ -98,13 +150,81 @@ const Layout: React.FC<LayoutProps> = ({
 
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
                     {navItems.filter(item => item.canView).map((item) => {
-                        const isActive = currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path));
+                        // Check if this item has sub-items (parent menu)
+                        if (item.subItems && item.subItems.length > 0) {
+                            const visibleSubItems = item.subItems.filter(sub => sub.canView);
+                            if (visibleSubItems.length === 0) return null;
+
+                            const isExpanded = isMenuExpanded(item.label);
+                            const parentIsActive = isParentActive(item);
+
+                            return (
+                                <div key={item.label}>
+                                    <button
+                                        onClick={() => toggleMenu(item.label)}
+                                        className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-4'} gap-3 py-3 rounded-xl transition-all duration-200 group ${parentIsActive ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white font-semibold border border-purple-500/50' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'} relative`}
+                                        title={isCollapsed ? item.label : ''}
+                                    >
+                                        <div className={`flex items-center gap-3 ${isCollapsed ? 'lg:justify-center' : ''}`}>
+                                            <item.icon
+                                                size={20}
+                                                className={`transition-colors flex-shrink-0 ${parentIsActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                                                strokeWidth={parentIsActive ? 2.5 : 2}
+                                            />
+                                            <span className={`${isCollapsed ? 'lg:hidden' : 'block'} whitespace-nowrap transition-all duration-300`}>{item.label}</span>
+                                        </div>
+                                        <ChevronDown
+                                            size={16}
+                                            className={`${isCollapsed ? 'lg:hidden' : 'block'} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+
+                                    {/* Sub-items */}
+                                    <div
+                                        className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}
+                                    >
+                                        <div className="pl-4 mt-1 space-y-1">
+                                            {visibleSubItems.map((subItem) => {
+                                                const isActive = subItem.path && (currentPath === subItem.path || (subItem.path !== '/' && currentPath.startsWith(subItem.path)));
+                                                return (
+                                                    <button
+                                                        key={subItem.path}
+                                                        onClick={() => {
+                                                            if (subItem.path) {
+                                                                navigate(subItem.path);
+                                                                setIsSidebarOpen(false);
+                                                            }
+                                                        }}
+                                                        className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'px-4'} gap-3 py-2 rounded-lg transition-all duration-200 group ${isActive ? 'bg-purple-500/30 text-white font-semibold' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'}`}
+                                                        title={isCollapsed ? subItem.label : ''}
+                                                    >
+                                                        <div className={`flex items-center gap-3 ${isCollapsed ? 'lg:justify-center' : ''}`}>
+                                                            <subItem.icon
+                                                                size={18}
+                                                                className={`transition-colors flex-shrink-0 ${isActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                                                                strokeWidth={isActive ? 2.5 : 2}
+                                                            />
+                                                            <span className={`${isCollapsed ? 'lg:hidden' : 'block'} text-sm whitespace-nowrap transition-all duration-300`}>{subItem.label}</span>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        // Regular menu item (no sub-items)
+                        const isActive = item.path && (currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path)));
                         return (
                             <button
                                 key={item.path}
                                 onClick={() => {
-                                    navigate(item.path);
-                                    setIsSidebarOpen(false);
+                                    if (item.path) {
+                                        navigate(item.path);
+                                        setIsSidebarOpen(false);
+                                    }
                                 }}
                                 className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-4'} gap-3 py-3 rounded-xl transition-all duration-200 group ${isActive ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white font-semibold border border-purple-500/50' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'} relative`}
                                 title={isCollapsed ? item.label : ''}

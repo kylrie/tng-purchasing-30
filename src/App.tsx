@@ -210,6 +210,8 @@ function ProtectedApp() {
             onCreateSupplier={createSupplier}
             onUpdateSupplier={updateSupplier}
             onDeleteSupplier={deleteSupplier}
+            currentUser={currentUser}
+            businesses={businesses}
           />
         } />
 

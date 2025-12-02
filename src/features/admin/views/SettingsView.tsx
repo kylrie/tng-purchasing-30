@@ -34,19 +34,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
     // Hooks for Business Management
     const { updateBusiness, deleteBusiness } = useBusinesses();
-    const { updatePermissions } = usePermissionsContext();
+    const { updatePermissions, updateRoles } = usePermissionsContext();
 
     const [newBiz, setNewBiz] = useState<Partial<Business>>({ name: '', tin: '', address: '', currency: 'PHP' });
     const [editingBizId, setEditingBizId] = useState<string | null>(null);
 
-    const [newUser, setNewUser] = useState<Partial<User>>({ 
-        name: '', 
-        email: '', 
-        role: UserRole.EMPLOYEE, 
-        businessId: businesses[0]?.id || '', 
+    const [newUser, setNewUser] = useState<Partial<User>>({
+        name: '',
+        email: '',
+        role: UserRole.EMPLOYEE,
+        businessId: businesses[0]?.id || '',
         businessUnitIds: [], // Initialize multi-select array
-        isApprover: false, 
-        status: UserStatus.ACTIVE 
+        isApprover: false,
+        status: UserStatus.ACTIVE
     });
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'business' | 'users' | 'approvers' | 'permissions'>('profile');
@@ -117,14 +117,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
 
     const resetUserForm = () => {
-        setNewUser({ 
-            name: '', 
-            email: '', 
-            role: UserRole.EMPLOYEE, 
-            businessId: businesses[0]?.id || '', 
+        setNewUser({
+            name: '',
+            email: '',
+            role: UserRole.EMPLOYEE,
+            businessId: businesses[0]?.id || '',
             businessUnitIds: [],
-            isApprover: false, 
-            status: UserStatus.ACTIVE 
+            isApprover: false,
+            status: UserStatus.ACTIVE
         });
         setEditingUserId(null);
     };
@@ -141,7 +141,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         alert("Password change functionality not implemented in demo.");
         setPasswords({ current: '', new: '', confirm: '' });
     };
-    
+
     // Helper to toggle a business ID in the multi-select array
     const toggleBusinessUnit = (bizId: string) => {
         const currentIds = newUser.businessUnitIds || [];
@@ -152,8 +152,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         }
     };
 
-    const handlePermissionsSave = ({ permissions }: { permissions: Record<UserRole, Permission[]>, roles: UserRole[] }) => {
+    const handlePermissionsSave = ({ permissions, roles }: { permissions: Record<UserRole, Permission[]>, roles: UserRole[] }) => {
         updatePermissions(permissions);
+        updateRoles(roles);
     };
 
     const cardClass = "bg-slate-800/50 backdrop-blur-xl p-6 rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200";
@@ -171,8 +172,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         if (permission === 'admin:manage:users') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
         if (permission === 'admin:manage:permissions') return currentUser.role === UserRole.SUPER_ADMIN;
         if (permission === 'admin:view:user_approvals') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
-        
-        return true; 
+
+        return true;
     };
 
     return (
@@ -295,17 +296,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <input className={inputClass} placeholder="Business Name" value={newBiz.name} onChange={e => setNewBiz({ ...newBiz, name: e.target.value })} />
                             <input className={inputClass} placeholder="TIN" value={newBiz.tin} onChange={e => setNewBiz({ ...newBiz, tin: e.target.value })} />
                             <input className={inputClass} placeholder="Address" value={newBiz.address} onChange={e => setNewBiz({ ...newBiz, address: e.target.value })} />
-                            <button 
-                                onClick={handleSaveBusiness} 
+                            <button
+                                onClick={handleSaveBusiness}
                                 className={`py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2
                                     ${editingBizId ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'}
                                 `}
                             >
-                                {editingBizId ? <><Check size={16}/> Update</> : <><Plus size={16}/> Add Business</>}
+                                {editingBizId ? <><Check size={16} /> Update</> : <><Plus size={16} /> Add Business</>}
                             </button>
                             {editingBizId && (
                                 <button onClick={handleCancelEditBusiness} className="bg-slate-700 text-white py-2 rounded-lg hover:bg-slate-600 font-medium transition-colors flex items-center justify-center">
-                                    <X size={16}/> Cancel
+                                    <X size={16} /> Cancel
                                 </button>
                             )}
                         </div>
@@ -317,14 +318,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         <div className="text-slate-500 font-mono text-xs">{b.tin}</div>
                                     </div>
                                     <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
+                                        <button
                                             onClick={() => handleEditBusinessClick(b)}
                                             className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
                                             title="Edit Business"
                                         >
                                             <Edit2 size={16} />
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleDeleteBusiness(b.id)}
                                             className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
                                             title="Delete Business"
@@ -385,7 +386,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         <div><label className={labelClass}>Role</label><select className={inputClass} value={newUser.role || UserRole.EMPLOYEE} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRole })}>{Object.values(UserRole).map(role => (<option key={role} value={role}>{role.replace(/_/g, ' ')}</option>))}</select></div>
                                         <div><label className={labelClass}>Primary Business Unit</label><select className={inputClass} value={newUser.businessId || ''} onChange={e => setNewUser({ ...newUser, businessId: e.target.value })}><option value="">Select Primary BU</option>{businesses.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
                                     </div>
-                                    
+
                                     {/* Multi-select Business Units */}
                                     <div className="space-y-2">
                                         <label className={labelClass}>Accessible Business Units (Multi-select)</label>
@@ -393,8 +394,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                             {businesses.map(b => {
                                                 const isSelected = (newUser.businessUnitIds || []).includes(b.id);
                                                 return (
-                                                    <div 
-                                                        key={b.id} 
+                                                    <div
+                                                        key={b.id}
                                                         onClick={() => toggleBusinessUnit(b.id)}
                                                         className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-purple-600/30 text-purple-200' : 'hover:bg-slate-800 text-slate-400'}`}
                                                     >
@@ -408,14 +409,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         </div>
                                         <p className="text-xs text-slate-500">Select additional business units this user can access.</p>
                                     </div>
-                                    
+
                                     <div className="lg:col-span-2 flex gap-2 justify-end mt-2">
                                         <button onClick={handleCreateOrUpdateUser} disabled={!newUser.name || !newUser.email || !newUser.businessId} className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">{editingUserId ? <><Check size={16} /> Update User</> : <><Plus size={16} /> Create User</>}</button>
                                         {editingUserId && (<button onClick={resetUserForm} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition-colors flex items-center gap-2"><X size={16} /> Cancel</button>)}
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <div className="overflow-x-auto border border-slate-700 rounded-lg">
                                 <table className="w-full text-left text-sm text-slate-300">
                                     <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
@@ -426,7 +427,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                             const primaryBiz = businesses.find(b => b.id === user.businessId)?.name || 'N/A';
                                             const otherBizCount = (user.businessUnitIds?.length || 0);
                                             const otherBizText = otherBizCount > 0 ? ` + ${otherBizCount} others` : '';
-                                            
+
                                             return (
                                                 <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
                                                     <td className="p-3"><div className="font-medium text-white">{user.name}</div><div className="text-xs text-slate-500">{user.email}</div></td>
@@ -452,7 +453,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <p className="text-slate-400 text-sm mb-6">
                             Designate users who are authorized to approve Direct PRFs. Only users selected here will appear in the approver dropdown when creating/editing a PRF.
                         </p>
-                        
+
                         <div className="overflow-x-auto border border-slate-700 rounded-lg max-h-[600px] overflow-y-auto">
                             <table className="w-full text-left text-sm text-slate-300">
                                 <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs sticky top-0 z-10 backdrop-blur-md">

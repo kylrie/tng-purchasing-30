@@ -64,10 +64,10 @@ export interface User {
 }
 
 export interface BankDetails {
-    bankName: string;
-    accountName: string;
-    accountNumber: string;
-    branch?: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  branch?: string;
 }
 
 export interface Supplier {
@@ -83,6 +83,7 @@ export interface Supplier {
   terms?: string;
   bankDetails?: BankDetails;
   isVatable?: boolean; // Vatable or Non-Vat
+  businessUnitIds?: string[]; // Multi-tenancy: List of Business Units this supplier belongs to
 }
 
 // Used for the PRF details
