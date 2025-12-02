@@ -7,7 +7,7 @@ import type { Permission } from '../../../config/permissions';
 import { UserRole, UserStatus } from '../../procurement/types';
 
 // Import Layout Components
-import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders } from 'lucide-react';
+import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search } from 'lucide-react';
 
 interface SettingsViewProps {
     currentUser: User;
@@ -52,6 +52,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'business' | 'users' | 'approvers' | 'permissions'>('profile');
 
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+    const [searchQuery, setSearchQuery] = useState('');
 
     const isStaging = import.meta.env.MODE === 'staging';
 
@@ -417,13 +418,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 </div>
                             </div>
 
+                            <div className="mb-4 relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <Search size={18} className="text-slate-500" />
+                                </div>
+                                <input
+                                    type="text"
+                                    className={`${inputClass} pl-10`}
+                                    placeholder="Search users by name or email..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+
                             <div className="overflow-x-auto border border-slate-700 rounded-lg">
                                 <table className="w-full text-left text-sm text-slate-300">
                                     <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
                                         <tr><th className="p-3">User</th><th className="p-3">Role</th><th className="p-3">Business Units</th><th className="p-3 text-right">Actions</th></tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-700">
-                                        {allUsers.map(user => {
+                                        {allUsers.filter(user =>
+                                            user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                            user.email.toLowerCase().includes(searchQuery.toLowerCase())
+                                        ).map(user => {
                                             const primaryBiz = businesses.find(b => b.id === user.businessId)?.name || 'N/A';
                                             const otherBizCount = (user.businessUnitIds?.length || 0);
                                             const otherBizText = otherBizCount > 0 ? ` + ${otherBizCount} others` : '';

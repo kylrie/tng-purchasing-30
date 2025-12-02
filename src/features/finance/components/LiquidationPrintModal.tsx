@@ -93,9 +93,9 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             <div className="mb-8 p-3 border border-slate-200 bg-slate-50 rounded text-sm print:border-slate-800 print:bg-transparent">
                                 <div className="flex items-center gap-2">
                                     <span className="font-semibold text-slate-700">Supporting Documents:</span>
-                                    <a 
-                                        href={liquidation.attachmentLink} 
-                                        target="_blank" 
+                                    <a
+                                        href={liquidation.attachmentLink}
+                                        target="_blank"
                                         rel="noopener noreferrer"
                                         className="text-blue-600 underline flex items-center gap-1 print:text-black print:no-underline"
                                     >
@@ -187,7 +187,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
 
                         {/* Footer */}
                         <div className="mt-12 pt-4 border-t border-slate-200 flex justify-between text-[10px] text-slate-400">
-                            <span>Generated via ProcureFlow System</span>
+                            <span>Generated via TES (TNG ERP System)</span>
                             <span>Printed: {new Date()?.toLocaleString()}</span>
                         </div>
 

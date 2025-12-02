@@ -143,8 +143,8 @@ const Layout: React.FC<LayoutProps> = ({
                         <ShoppingCart className="w-6 h-6 text-white" />
                     </div>
                     <div className={`${isCollapsed ? 'lg:hidden' : 'block'} overflow-hidden transition-all duration-300`}>
-                        <h1 className="font-bold text-xl tracking-tight text-white whitespace-nowrap">ProcureFlow</h1>
-                        <p className="text-xs text-slate-400 font-medium whitespace-nowrap">Enterprise System</p>
+                        <h1 className="font-bold text-xl tracking-tight text-white whitespace-nowrap">TES</h1>
+                        <p className="text-xs text-slate-400 font-medium whitespace-nowrap">TNG ERP System</p>
                     </div>
                 </div>
 
