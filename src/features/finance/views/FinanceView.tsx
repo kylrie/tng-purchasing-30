@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Requisition } from '../../procurement/types';
-import { RequisitionStatus } from '../../procurement/types';
+import { RequisitionStatus, UserRole } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
 import Card from '../../../shared/components/Card';
 import ReleaseFundModal from '../components/ReleaseFundModal';
@@ -28,7 +28,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const [selectedReq, setSelectedReq] = useState<Requisition | null>(null);
     const [activeTab, setActiveTab] = useState<'pending' | 'released'>('pending');
 
-    const canView = hasGlobalAccess(currentUser.role);
+    // Allow Super Admin AND Finance role (or anyone with finance:release_funds implicitly via role check)
+    // In types.ts, hasGlobalAccess is strict to Super Admin.
+    const canView = hasGlobalAccess(currentUser.role) || currentUser.role === UserRole.FINANCE;
 
     if (!canView) {
         return (

@@ -25,44 +25,44 @@ service cloud.firestore {
       allow create: if isSignedIn();
       
       allow update: if isSignedIn() && (
-        // 1. DRAFT Edits: Owner can edit anything if Draft
-        (resource.data.status == 'DRAFT' && isOwner(resource)) ||
+        // 1. DRAFT Edits: Owner (or Super Admin) can edit anything if Draft
+        (resource.data.status == 'DRAFT' && (isOwner(resource) || hasRole('SUPER_ADMIN'))) ||
 
-        // 2. CANCEL: Owner or Admin
+        // 2. CANCEL: Owner, Admin, or Super Admin
         (
           request.resource.data.status == 'CANCELLED' && 
           (isOwner(resource) || hasRole('SUPER_ADMIN') || hasRole('ADMIN'))
         ) ||
         
-        // 3. REFILE: Owner only, from REJECTED to PENDING
+        // 3. REFILE: Owner (or Super Admin), from REJECTED to PENDING
         (
           resource.data.status == 'REJECTED' &&
           (request.resource.data.status == 'BURF_PENDING_MANAGER' || request.resource.data.status == 'PRF_PENDING_MANAGER') &&
-          isOwner(resource)
+          (isOwner(resource) || hasRole('SUPER_ADMIN'))
         ) ||
 
-        // 4. APPROVE: Manager/GM for BURF
+        // 4. APPROVE: Manager/GM (or Super Admin) for BURF
         (
           resource.data.status == 'BURF_PENDING_MANAGER' &&
           (request.resource.data.status == 'BURF_PENDING_CIC' || request.resource.data.status == 'READY_FOR_PRF') &&
           (hasRole('MANAGER') || hasRole('GENERAL_MANAGER') || hasRole('SUPER_ADMIN'))
         ) ||
 
-        // 5. APPROVE: CIC for BURF
+        // 5. APPROVE: CIC (or Super Admin) for BURF
         (
           resource.data.status == 'BURF_PENDING_CIC' &&
           request.resource.data.status == 'READY_FOR_PRF' &&
           (hasRole('CIC') || hasRole('SUPER_ADMIN'))
         ) ||
         
-        // 6. APPROVE: Manager for PRF
+        // 6. APPROVE: Manager (or Super Admin) for PRF
         (
           resource.data.status == 'PRF_PENDING_MANAGER' &&
           request.resource.data.status == 'APPROVED_FOR_PAYMENT' &&
           (hasRole('MANAGER') || hasRole('GENERAL_MANAGER') || hasRole('SUPER_ADMIN'))
         ) ||
 
-        // 7. REJECT: Any Approver
+        // 7. REJECT: Any Approver (or Super Admin)
         (
           request.resource.data.status == 'REJECTED' &&
           (
@@ -74,7 +74,7 @@ service cloud.firestore {
           )
         ) ||
         
-        // 8. Finance Actions (Funds Release)
+        // 8. Finance Actions (Funds Release) (or Super Admin)
         (
            request.resource.data.status == 'FUNDS_RELEASED' &&
            (hasRole('FINANCE') || hasRole('SUPER_ADMIN'))

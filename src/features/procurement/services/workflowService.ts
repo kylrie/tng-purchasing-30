@@ -1,6 +1,7 @@
 import { db } from '../../../config/firebase';
-import { doc, updateDoc, arrayUnion, getDoc, serverTimestamp } from 'firebase/firestore';
-import { RequisitionStatus, RequisitionHistory } from '../../procurement/types';
+import { doc, updateDoc, arrayUnion, getDoc } from 'firebase/firestore';
+import { RequisitionStatus } from '../../procurement/types';
+import type { RequisitionHistory } from '../../procurement/types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 
 export type WorkflowAction = 'APPROVE' | 'REJECT' | 'CANCEL' | 'REFILE';

@@ -105,7 +105,11 @@ export class RequisitionService {
   /**
    * Create a new requisition
    */
-  static async createRequisition(requisition: Omit<Requisition, 'id'>): Promise<string> {
+  static async createRequisition(requisition: Omit<Requisition, 'id'> | Requisition): Promise<string> {
+    if ('id' in requisition && requisition.id) {
+        await FirestoreService.setDocument(REQUISITIONS_COLLECTION, requisition.id, requisition);
+        return requisition.id;
+    }
     return FirestoreService.createDocument(REQUISITIONS_COLLECTION, requisition);
   }
 
