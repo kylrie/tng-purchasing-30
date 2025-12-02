@@ -7,7 +7,9 @@ import { UserRole } from '../features/procurement/types';
 
 interface PermissionsContextType {
     permissions: Record<UserRole, Permission[]>;
+    roles: UserRole[];
     updatePermissions: (newPermissions: Record<UserRole, Permission[]>) => Promise<void>;
+    updateRoles: (newRoles: UserRole[]) => Promise<void>;
     loading: boolean;
     error: string | null;
 }
@@ -24,6 +26,7 @@ export const usePermissionsContext = () => {
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [permissions, setPermissions] = useState<Record<UserRole, Permission[]>>(ROLES_TO_PERMISSIONS);
+    const [roles, setRoles] = useState<UserRole[]>(Object.values(UserRole));
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -35,13 +38,20 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    if (data.roles) {
-                        // Merge with default permissions to ensure all roles exist
-                        setPermissions({ ...ROLES_TO_PERMISSIONS, ...data.roles });
+                    if (data.permissions) {
+                        setPermissions({ ...ROLES_TO_PERMISSIONS, ...data.permissions });
+                    }
+                    if (data.roles && Array.isArray(data.roles)) {
+                        // Ensure we have unique roles merging defaults + custom
+                        const uniqueRoles = Array.from(new Set([...Object.values(UserRole), ...data.roles]));
+                        setRoles(uniqueRoles as UserRole[]);
                     }
                 } else {
-                    // If no config exists, save the defaults
-                    await setDoc(docRef, { roles: ROLES_TO_PERMISSIONS });
+                    // Initialize with defaults
+                    await setDoc(docRef, { 
+                        permissions: ROLES_TO_PERMISSIONS, 
+                        roles: Object.values(UserRole) 
+                    });
                 }
             } catch (err: any) {
                 console.error('Error fetching permissions:', err);
@@ -57,7 +67,8 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const updatePermissions = async (newPermissions: Record<UserRole, Permission[]>) => {
         try {
             const docRef = doc(db, 'config', 'permissions');
-            await setDoc(docRef, { roles: newPermissions }, { merge: true });
+            // We only update the 'permissions' field
+            await setDoc(docRef, { permissions: newPermissions }, { merge: true });
             setPermissions(newPermissions);
         } catch (err: any) {
             console.error('Error saving permissions:', err);
@@ -65,8 +76,20 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
     };
 
+    const updateRoles = async (newRoles: UserRole[]) => {
+        try {
+            const docRef = doc(db, 'config', 'permissions');
+            // We only update the 'roles' field
+            await setDoc(docRef, { roles: newRoles }, { merge: true });
+            setRoles(newRoles);
+        } catch (err: any) {
+            console.error('Error saving roles:', err);
+            throw err;
+        }
+    };
+
     return (
-        <PermissionsContext.Provider value={{ permissions, updatePermissions, loading, error }}>
+        <PermissionsContext.Provider value={{ permissions, roles, updatePermissions, updateRoles, loading, error }}>
             {children}
         </PermissionsContext.Provider>
     );

@@ -7,7 +7,7 @@ import {
     where
 } from "firebase/firestore";
 import { db } from "../../../config/firebase";
-import type { User } from "../types";
+import type { User } from "../../procurement/types";
 
 const USERS_COLLECTION = "users";
 

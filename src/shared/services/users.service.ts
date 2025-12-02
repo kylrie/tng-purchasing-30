@@ -1,7 +1,7 @@
 import { FirestoreService, where } from './firestore.service';
 import { COLLECTIONS, UserStatus } from '../types/firebase.types';
 import type { FirestoreUser } from '../types/firebase.types';
-import type { UserRole } from '../../features/auth/types';
+import type { UserRole } from '../../features/procurement/types';
 
 /**
  * User Management Service

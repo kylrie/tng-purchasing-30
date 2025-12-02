@@ -107,18 +107,18 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
                             <div className="text-sm text-blue-300 mb-1">PRF Amount</div>
-                            <div className="text-2xl font-bold text-blue-400">₱{prfTotal.toLocaleString()}</div>
+                            <div className="text-2xl font-bold text-blue-400">₱{prfTotal?.toLocaleString()}</div>
                         </div>
                         <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-4">
                             <div className="text-sm text-purple-300 mb-1">Actual Amount</div>
-                            <div className="text-2xl font-bold text-purple-400">₱{actualTotal.toLocaleString()}</div>
+                            <div className="text-2xl font-bold text-purple-400">₱{actualTotal?.toLocaleString()}</div>
                         </div>
                         <div className={`${difference >= 0 ? 'bg-green-900/20 border-green-500/30' : 'bg-orange-900/20 border-orange-500/30'} border rounded-lg p-4`}>
                             <div className={`text-sm ${difference >= 0 ? 'text-green-300' : 'text-orange-300'} mb-1`}>
                                 {difference >= 0 ? 'Refund' : 'Reimbursement'}
                             </div>
                             <div className={`text-2xl font-bold ${difference >= 0 ? 'text-green-400' : 'text-orange-400'}`}>
-                                ₱{Math.abs(difference).toLocaleString()}
+                                ₱{Math.abs(difference)?.toLocaleString()}
                             </div>
                         </div>
                     </div>
@@ -164,7 +164,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                                         <tr key={index} className="hover:bg-slate-700/30">
                                             <td className="px-4 py-3 font-medium text-slate-200">{item.name}</td>
                                             <td className="px-4 py-3 text-slate-400">{item.quantity} {item.uom}</td>
-                                            <td className="px-4 py-3 text-slate-400">₱{item.price.toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-slate-400">₱{item.price?.toLocaleString()}</td>
                                             <td className="px-4 py-3">
                                                 <input
                                                     type="number"
@@ -193,7 +193,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                                                 />
                                             </td>
                                             <td className="px-4 py-3 text-right font-semibold text-slate-200">
-                                                ₱{((item.actualCost || 0) * item.quantity).toLocaleString()}
+                                                ₱{((item.actualCost || 0) * item.quantity)?.toLocaleString()}
                                             </td>
                                         </tr>
                                     ))}
@@ -204,7 +204,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                                             Total Actual Amount
                                         </td>
                                         <td className="px-4 py-3 text-right font-bold text-green-400 text-lg">
-                                            ₱{actualTotal.toLocaleString()}
+                                            ₱{actualTotal?.toLocaleString()}
                                         </td>
                                     </tr>
                                 </tfoot>

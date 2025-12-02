@@ -3,6 +3,7 @@ import { Check, ArrowLeft } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails, User } from '../types';
 import { RequisitionStatus } from '../types';
 import { CounterService } from '../../../shared/services/counter.service';
+import SearchableDropdown from '../../../shared/components/SearchableDropdown';
 
 interface PreparePRFModalProps {
     requisition: Requisition;
@@ -277,7 +278,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                                 />
                                             </td>
                                             <td className="px-4 py-3 text-right font-semibold text-slate-200">
-                                                ₱{(item.price * item.quantity).toLocaleString()}
+                                                ₱{(item.price * item.quantity)?.toLocaleString()}
                                             </td>
                                         </tr>
                                     ))}
@@ -288,7 +289,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                             Total Amount (Selected)
                                         </td>
                                         <td className="px-4 py-3 text-right font-bold text-blue-400 text-lg">
-                                            ₱{totalAmount.toLocaleString()}
+                                            ₱{totalAmount?.toLocaleString()}
                                         </td>
                                     </tr>
                                 </tfoot>
@@ -334,16 +335,12 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                             className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
                                         />
                                     ) : (
-                                        <select
+                                        <SearchableDropdown
+                                            options={suppliers.map(s => ({ value: s.id, label: s.name }))}
                                             value={selectedSupplierId}
-                                            onChange={(e) => handleSupplierSelect(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
-                                        >
-                                            <option value="">-- Choose Supplier --</option>
-                                            {suppliers.map(supplier => (
-                                                <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                                            ))}
-                                        </select>
+                                            onChange={handleSupplierSelect}
+                                            placeholder="-- Choose Supplier --"
+                                        />
                                     )}
                                 </div>
 

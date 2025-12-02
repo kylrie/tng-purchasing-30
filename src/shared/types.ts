@@ -1,6 +1,5 @@
-// Re-export types from other features for convenience
-import { UserRole } from '../features/auth/types';
-export type { User } from '../features/auth/types';
+import { UserRole } from '../features/procurement/types';
+export type { User } from '../features/procurement/types';
 export type { Requisition } from '../features/procurement/types';
 
 export interface Business {

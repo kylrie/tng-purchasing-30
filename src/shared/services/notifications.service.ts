@@ -1,7 +1,7 @@
 import { FirestoreService, where, orderBy, Timestamp } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
 import type { FirestoreNotification } from '../types/firebase.types';
-import type { UserRole } from '../../features/auth/types';
+import type { UserRole } from '../../features/procurement/types';
 import type { Unsubscribe } from 'firebase/firestore';
 
 /**

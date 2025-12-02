@@ -124,16 +124,16 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                         <tr key={index}>
                                             <td className="border border-slate-300 px-3 py-2 font-medium text-slate-900">{item.name}</td>
                                             <td className="border border-slate-300 px-3 py-2 text-center text-slate-900">{item.quantity || 0}</td>
-                                            <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{(item.price ?? 0).toLocaleString()}</td>
-                                            <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{(item.actualCost ?? 0).toLocaleString()}</td>
-                                            <td className="border border-slate-300 px-3 py-2 text-right font-medium text-slate-900">₱{((item.actualCost ?? 0) * (item.quantity || 0)).toLocaleString()}</td>
+                                            <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{(item.price ?? 0)?.toLocaleString()}</td>
+                                            <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{(item.actualCost ?? 0)?.toLocaleString()}</td>
+                                            <td className="border border-slate-300 px-3 py-2 text-right font-medium text-slate-900">₱{((item.actualCost ?? 0) * (item.quantity || 0))?.toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                                 <tfoot className="bg-slate-50 font-bold">
                                     <tr>
                                         <td colSpan={4} className="border border-slate-300 px-3 py-2 text-right text-slate-900">Total Actual Expenses</td>
-                                        <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{totalActual.toLocaleString()}</td>
+                                        <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{totalActual?.toLocaleString()}</td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -145,18 +145,18 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                 <tbody>
                                     <tr>
                                         <td className="border border-slate-300 px-3 py-2 font-semibold bg-slate-50 text-slate-900">Total Cash Advance</td>
-                                        <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{cashAdvance.toLocaleString()}</td>
+                                        <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{cashAdvance?.toLocaleString()}</td>
                                     </tr>
                                     <tr>
                                         <td className="border border-slate-300 px-3 py-2 font-semibold bg-slate-50 text-slate-900">Total Actual Expenses</td>
-                                        <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{totalActual.toLocaleString()}</td>
+                                        <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{totalActual?.toLocaleString()}</td>
                                     </tr>
                                     <tr className={isRefund ? 'text-green-700' : 'text-red-700'}>
                                         <td className="border border-slate-300 px-3 py-2 font-bold bg-slate-50 text-inherit">
                                             {isRefund ? 'Amount to Return (Refund)' : 'Amount to Reimburse'}
                                         </td>
                                         <td className="border border-slate-300 px-3 py-2 text-right font-bold text-inherit">
-                                            ₱{Math.abs(difference).toLocaleString()}
+                                            ₱{Math.abs(difference)?.toLocaleString()}
                                         </td>
                                     </tr>
                                 </tbody>
@@ -188,7 +188,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                         {/* Footer */}
                         <div className="mt-12 pt-4 border-t border-slate-200 flex justify-between text-[10px] text-slate-400">
                             <span>Generated via ProcureFlow System</span>
-                            <span>Printed: {new Date().toLocaleString()}</span>
+                            <span>Printed: {new Date()?.toLocaleString()}</span>
                         </div>
 
                     </div>

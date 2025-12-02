@@ -155,7 +155,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                   <td className="px-6 py-4 text-slate-300">
                     {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
                   </td>
-                  <td className="px-6 py-4">₱{req.totalAmount.toLocaleString()}</td>
+                  <td className="px-6 py-4">₱{req.totalAmount?.toLocaleString()}</td>
                   <td className="px-6 py-4 text-purple-400 font-medium">{req.chequeNumber || '-'}</td>
                   <td className="px-6 py-4">{getStatusBadge(req.status)}</td>
                   <td className="px-6 py-4 text-right">

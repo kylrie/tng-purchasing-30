@@ -107,18 +107,18 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                     <div className="grid grid-cols-3 gap-4">
                         <div className="bg-blue-900/20 rounded-lg p-4 border border-blue-700/30">
                             <div className="text-sm text-blue-300 mb-1">PRF Amount</div>
-                            <div className="text-2xl font-bold text-blue-400">₱{prfTotal.toLocaleString()}</div>
+                            <div className="text-2xl font-bold text-blue-400">₱{prfTotal?.toLocaleString()}</div>
                         </div>
                         <div className="bg-purple-900/20 rounded-lg p-4 border border-purple-700/30">
                             <div className="text-sm text-purple-300 mb-1">Actual Amount</div>
-                            <div className="text-2xl font-bold text-purple-400">₱{actualTotal.toLocaleString()}</div>
+                            <div className="text-2xl font-bold text-purple-400">₱{actualTotal?.toLocaleString()}</div>
                         </div>
                         <div className={`rounded-lg p-4 border ${difference >= 0 ? 'bg-green-900/20 border-green-700/30' : 'bg-red-900/20 border-red-700/30'}`}>
                             <div className={`text-sm mb-1 ${difference >= 0 ? 'text-green-300' : 'text-red-300'}`}>
                                 {difference >= 0 ? 'Refund' : 'Reimbursement'}
                             </div>
                             <div className={`text-2xl font-bold ${difference >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                ₱{Math.abs(difference).toLocaleString()}
+                                ₱{Math.abs(difference)?.toLocaleString()}
                             </div>
                         </div>
                     </div>
@@ -148,10 +148,10 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                             <tr key={index} className="hover:bg-slate-700/30">
                                                 <td className="px-4 py-3 font-medium text-slate-200">{item.name}</td>
                                                 <td className="px-4 py-3 text-right text-slate-400">{item.quantity} {item.uom}</td>
-                                                <td className="px-4 py-3 text-right text-slate-300">₱{budgeted.toLocaleString()}</td>
-                                                <td className="px-4 py-3 text-right text-slate-300">₱{actual.toLocaleString()}</td>
+                                                <td className="px-4 py-3 text-right text-slate-300">₱{budgeted?.toLocaleString()}</td>
+                                                <td className="px-4 py-3 text-right text-slate-300">₱{actual?.toLocaleString()}</td>
                                                 <td className={`px-4 py-3 text-right font-semibold ${variance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {variance >= 0 ? '+' : ''}₱{variance.toLocaleString()}
+                                                    {variance >= 0 ? '+' : ''}₱{variance?.toLocaleString()}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {item.receiptImageUrl ? (

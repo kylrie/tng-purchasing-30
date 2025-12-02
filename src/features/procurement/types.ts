@@ -20,16 +20,9 @@ export enum UserStatus {
 }
 
 // Helper function to determine if user has global access to all business units
+// Refactored to only return true for Super Admin, forcing others to use granular businessUnitIds
 export const hasGlobalAccess = (role: UserRole): boolean => {
-  return [
-    UserRole.SUPER_ADMIN,
-    UserRole.CIC,
-    UserRole.PURCHASING_OFFICER,
-    UserRole.FINANCE,
-    UserRole.AUDITOR,
-    UserRole.GENERAL_MANAGER,
-    UserRole.BOARD_OF_DIRECTOR
-  ].includes(role);
+  return role === UserRole.SUPER_ADMIN;
 };
 
 export enum RequisitionStatus {
@@ -63,7 +56,8 @@ export interface User {
   avatar: string;
   email: string;
   department?: string;
-  businessId: string; // Links user strictly to a Business Unit
+  businessId: string; // Primary Business Unit (Legacy support)
+  businessUnitIds?: string[]; // New: List of accessible Business Units. If empty/null, falls back to businessId.
   isPasswordSet?: boolean; // Track if Google users have set a password
   isApprover?: boolean; // New field to designate if user is an eligible approver for PRFs
   status: UserStatus;

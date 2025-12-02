@@ -11,14 +11,40 @@ const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
 export class RequisitionService {
 
   /**
-   * Get requisitions based on user role and business ID
+   * Get requisitions based on user role and business ID(s)
    */
-  static async getRequisitions(userRole: UserRole, businessId: string): Promise<Requisition[]> {
-    const constraints = hasGlobalAccess(userRole)
-      ? []
-      : [where('businessId', '==', businessId)];
+  static async getRequisitions(
+    userRole: UserRole, 
+    businessId: string, 
+    additionalBusinessIds: string[] = []
+  ): Promise<Requisition[]> {
+    
+    // 1. Super Admin: Fetch All
+    if (hasGlobalAccess(userRole)) {
+        return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, []);
+    }
 
-    return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, constraints);
+    // 2. Normal User: Fetch based on assigned Business Units
+    // Combine primary businessId with additionalIds
+    const allAccessibleIds = Array.from(new Set([businessId, ...additionalBusinessIds]));
+
+    if (allAccessibleIds.length === 0) {
+        return [];
+    }
+
+    // Firestore 'in' query supports up to 10 items.
+    // If a user has > 10 BUs, we might need multiple queries or client-side filtering.
+    // For now, assuming < 10 BUs per user for simplicity.
+    if (allAccessibleIds.length <= 10) {
+        const constraints = [where('businessId', 'in', allAccessibleIds)];
+        return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, constraints);
+    } 
+    
+    // Fallback for > 10 BUs: Fetch all and filter client-side (or optimize later)
+    // fetching all might be heavy, but it's a safe fallback for "Power Users" who aren't Super Admins
+    // Ideally, we'd batch the queries.
+    const allDocs = await FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, []);
+    return allDocs.filter(doc => allAccessibleIds.includes(doc.businessId));
   }
 
   /**
@@ -34,16 +60,45 @@ export class RequisitionService {
   static subscribeToRequisitions(
     userRole: UserRole,
     businessId: string,
+    additionalBusinessIds: string[] = [],
     callback: (requisitions: Requisition[]) => void
   ): () => void {
-    const constraints = hasGlobalAccess(userRole)
-      ? []
-      : [where('businessId', '==', businessId)];
+    
+    // 1. Super Admin
+    if (hasGlobalAccess(userRole)) {
+        return FirestoreService.subscribeToCollection<Requisition>(
+            REQUISITIONS_COLLECTION,
+            callback,
+            []
+        );
+    }
 
+    // 2. Normal User
+    const allAccessibleIds = Array.from(new Set([businessId, ...additionalBusinessIds]));
+    
+    if (allAccessibleIds.length === 0) {
+        callback([]);
+        return () => {};
+    }
+
+    if (allAccessibleIds.length <= 10) {
+        const constraints = [where('businessId', 'in', allAccessibleIds)];
+        return FirestoreService.subscribeToCollection<Requisition>(
+            REQUISITIONS_COLLECTION,
+            callback,
+            constraints
+        );
+    }
+
+    // Fallback for > 10: Subscribe to all and filter in callback
+    // Note: This downloads everything, which isn't ideal for bandwidth but ensures correctness
     return FirestoreService.subscribeToCollection<Requisition>(
-      REQUISITIONS_COLLECTION,
-      callback,
-      constraints
+        REQUISITIONS_COLLECTION,
+        (allDocs) => {
+            const filtered = allDocs.filter(doc => allAccessibleIds.includes(doc.businessId));
+            callback(filtered);
+        },
+        []
     );
   }
 

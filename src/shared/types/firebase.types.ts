@@ -1,6 +1,6 @@
 import { Timestamp } from 'firebase/firestore';
-import { UserRole, UserStatus } from '../../features/auth/types';
-import type { RequisitionStatus } from '../../features/procurement/types';
+import type { RequisitionStatus, User as ProcurementUser } from '../../features/procurement/types';
+import { UserRole, UserStatus } from '../../features/procurement/types';
 
 // Base Firestore document with timestamps
 export interface FirestoreDocument {
@@ -14,21 +14,13 @@ export interface FirestoreUser extends FirestoreDocument {
   name: string;
   role: UserRole;
   businessId: string;
+  businessUnitIds?: string[];
   status: UserStatus;
   avatar?: string;
 }
 
-// Main User type for the application
-export interface User {
-    id: string;
-    name: string;
-    role: UserRole;
-    status: UserStatus;
-    avatar: string;
-    email: string;
-    businessId: string;
-    isPasswordSet?: boolean;
-}
+// Main User type for the application - Re-export from single source of truth
+export type User = ProcurementUser;
 
 // Business document in Firestore
 export interface FirestoreBusiness extends FirestoreDocument {

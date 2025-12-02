@@ -101,7 +101,7 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
                                 </div>
                                 <div className="grid grid-cols-[80px_1fr] gap-2 items-end">
                                     <span className="font-bold text-right pr-2">Date:</span>
-                                    <span className="border-b border-slate-900">{req.prfDetails?.datePrepared ? new Date(req.prfDetails.datePrepared).toLocaleString() : new Date(req.dateCreated).toLocaleString()}</span>
+                                    <span className="border-b border-slate-900">{req.prfDetails?.datePrepared ? new Date(req.prfDetails.datePrepared)?.toLocaleString() : new Date(req.dateCreated)?.toLocaleString()}</span>
                                 </div>
                                 <div className="grid grid-cols-[80px_1fr] gap-2 items-end">
                                     <span className="font-bold text-right pr-2">TIN:</span>

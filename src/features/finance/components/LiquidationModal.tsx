@@ -81,7 +81,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                     <div className="bg-blue-900/20 p-4 rounded-lg border border-blue-500/30 flex justify-between items-center">
                         <div>
                             <p className="text-sm text-blue-300 font-medium">Cash Advance Released</p>
-                            <p className="text-2xl font-bold text-blue-100">₱{cashAdvance.toLocaleString()}</p>
+                            <p className="text-2xl font-bold text-blue-100">₱{cashAdvance?.toLocaleString()}</p>
                         </div>
                         <div className="text-right">
                             <p className="text-sm text-blue-300 font-medium">Requester</p>
@@ -119,7 +119,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                                     <span className="text-xs text-slate-500">{item.uom}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-right text-slate-400">₱{item.price.toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-right text-slate-400">₱{item.price?.toLocaleString()}</td>
                                             <td className="px-4 py-3">
                                                 <input
                                                     type="number"
@@ -138,7 +138,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                                 />
                                             </td>
                                             <td className="px-4 py-3 text-right font-medium text-white">
-                                                ₱{((item.actualCost || 0) * item.quantity).toLocaleString()}
+                                                ₱{((item.actualCost || 0) * item.quantity)?.toLocaleString()}
                                             </td>
                                         </tr>
                                     ))}
@@ -178,22 +178,22 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                             <h4 className="font-semibold text-white">Summary</h4>
                             <div className="flex justify-between text-sm">
                                 <span className="text-slate-400">Total Cash Advance:</span>
-                                <span className="font-medium text-slate-200">₱{cashAdvance.toLocaleString()}</span>
+                                <span className="font-medium text-slate-200">₱{cashAdvance?.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between text-sm">
                                 <span className="text-slate-400">Total Actual Expenses:</span>
-                                <span className="font-bold text-white">₱{totalActualAmount.toLocaleString()}</span>
+                                <span className="font-bold text-white">₱{totalActualAmount?.toLocaleString()}</span>
                             </div>
                             <div className="border-t border-slate-600 my-2"></div>
                             {isRefund ? (
                                 <div className="flex justify-between text-sm text-green-400 bg-green-900/30 p-2 rounded border border-green-500/30">
                                     <span className="font-medium">Amount to Return (Refund):</span>
-                                    <span className="font-bold">₱{Math.abs(difference).toLocaleString()}</span>
+                                    <span className="font-bold">₱{Math.abs(difference)?.toLocaleString()}</span>
                                 </div>
                             ) : (
                                 <div className="flex justify-between text-sm text-orange-400 bg-orange-900/30 p-2 rounded border border-orange-500/30">
                                     <span className="font-medium">Amount to Reimburse:</span>
-                                    <span className="font-bold">₱{Math.abs(difference).toLocaleString()}</span>
+                                    <span className="font-bold">₱{Math.abs(difference)?.toLocaleString()}</span>
                                 </div>
                             )}
                         </div>

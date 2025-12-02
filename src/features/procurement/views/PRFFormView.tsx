@@ -167,7 +167,7 @@ export const PRFFormView: React.FC<PRFFormViewProps> = ({ requisitionId, onCance
                                                 />
                                             </td>
                                             <td className="px-4 py-3 text-right font-medium">
-                                                ₱{(item.quantity * item.price).toLocaleString()}
+                                                ₱{(item.quantity * item.price)?.toLocaleString()}
                                             </td>
                                         </tr>
                                     ))}
@@ -175,7 +175,7 @@ export const PRFFormView: React.FC<PRFFormViewProps> = ({ requisitionId, onCance
                                 <tfoot className="bg-slate-50 font-bold">
                                     <tr>
                                         <td colSpan={5} className="px-4 py-3 text-right">Total Amount (Selected)</td>
-                                        <td className="px-4 py-3 text-right">₱{totalAmount.toLocaleString()}</td>
+                                        <td className="px-4 py-3 text-right">₱{totalAmount?.toLocaleString()}</td>
                                     </tr>
                                 </tfoot>
                             </table>

@@ -1,18 +1,13 @@
 import React, { useState } from 'react';
-import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders } from 'lucide-react';
-import type { Business } from '../../../shared/types';
-import type { User } from '../../procurement/types'; // Updated import to use the extended User type
-import { UserRole, UserStatus } from '../../procurement/types'; // Use centralized Enums from procurement/types if available or ensure consistency. 
-// However, UserStatus is defined in ../../auth/types usually.
-// Let's check where UserStatus is defined. It was previously imported from ../../auth/types.
-// The error says 'status' does not exist in type 'User' (from procurement/types).
-// I just added 'status' to User in procurement/types.
-// Now I need to make sure UserStatus is imported correctly.
-// I added UserStatus enum to procurement/types as well in previous step.
-
-import { usePermissions } from '../../../hooks/usePermissions';
+import { useBusinesses } from '../hooks/useBusinesses';
 import { usePermissionsContext } from '../../../contexts/PermissionsContext';
 import PermissionsMatrix from '../components/PermissionsMatrix';
+import type { User, Business } from '../../../shared/types';
+import type { Permission } from '../../../config/permissions';
+import { UserRole, UserStatus } from '../../procurement/types';
+
+// Import Layout Components
+import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders } from 'lucide-react';
 
 interface SettingsViewProps {
     currentUser: User;
@@ -37,17 +32,60 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onRejectUser,
     loadingUserId
 }) => {
-    const [newBiz, setNewBiz] = useState({ name: '', tin: '', address: '', currency: 'PHP' });
-    const [newUser, setNewUser] = useState<Partial<User>>({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '', isApprover: false, status: UserStatus.ACTIVE });
-    const [editingUserId, setEditingUserId] = useState<string | null>(null);
-    const { hasPermission } = usePermissions();
+    // Hooks for Business Management
+    const { updateBusiness, deleteBusiness } = useBusinesses();
     const { updatePermissions } = usePermissionsContext();
+
+    const [newBiz, setNewBiz] = useState<Partial<Business>>({ name: '', tin: '', address: '', currency: 'PHP' });
+    const [editingBizId, setEditingBizId] = useState<string | null>(null);
+
+    const [newUser, setNewUser] = useState<Partial<User>>({ 
+        name: '', 
+        email: '', 
+        role: UserRole.EMPLOYEE, 
+        businessId: businesses[0]?.id || '', 
+        businessUnitIds: [], // Initialize multi-select array
+        isApprover: false, 
+        status: UserStatus.ACTIVE 
+    });
+    const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'business' | 'users' | 'approvers' | 'permissions'>('profile');
 
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
 
     const isStaging = import.meta.env.MODE === 'staging';
 
+    // Business Handlers
+    const handleEditBusinessClick = (biz: Business) => {
+        setNewBiz(biz);
+        setEditingBizId(biz.id);
+    };
+
+    const handleCancelEditBusiness = () => {
+        setNewBiz({ name: '', tin: '', address: '', currency: 'PHP' });
+        setEditingBizId(null);
+    };
+
+    const handleSaveBusiness = async () => {
+        if (!newBiz.name || !newBiz.tin) return;
+
+        if (editingBizId) {
+            await updateBusiness(editingBizId, newBiz);
+            alert("Business Updated Successfully");
+        } else {
+            handleAddBusiness(newBiz as Omit<Business, 'id'>);
+            alert("Business Created Successfully");
+        }
+        handleCancelEditBusiness();
+    };
+
+    const handleDeleteBusiness = async (id: string) => {
+        if (confirm("Are you sure you want to delete this Business Unit? This action cannot be undone.")) {
+            await deleteBusiness(id);
+        }
+    };
+
+    // User Handlers
     const handleCreateOrUpdateUser = () => {
         if (newUser.name && newUser.email && newUser.role && newUser.businessId) {
             const userToSave: User = {
@@ -58,6 +96,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 email: newUser.email,
                 role: newUser.role,
                 businessId: newUser.businessId,
+                businessUnitIds: newUser.businessUnitIds || [], // Save the multi-selected BUs
                 status: newUser.status || UserStatus.ACTIVE,
                 isApprover: newUser.isApprover || false
             };
@@ -78,7 +117,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
 
     const resetUserForm = () => {
-        setNewUser({ name: '', email: '', role: UserRole.EMPLOYEE, businessId: businesses[0]?.id || '', isApprover: false, status: UserStatus.ACTIVE });
+        setNewUser({ 
+            name: '', 
+            email: '', 
+            role: UserRole.EMPLOYEE, 
+            businessId: businesses[0]?.id || '', 
+            businessUnitIds: [],
+            isApprover: false, 
+            status: UserStatus.ACTIVE 
+        });
         setEditingUserId(null);
     };
 
@@ -94,10 +141,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         alert("Password change functionality not implemented in demo.");
         setPasswords({ current: '', new: '', confirm: '' });
     };
+    
+    // Helper to toggle a business ID in the multi-select array
+    const toggleBusinessUnit = (bizId: string) => {
+        const currentIds = newUser.businessUnitIds || [];
+        if (currentIds.includes(bizId)) {
+            setNewUser({ ...newUser, businessUnitIds: currentIds.filter(id => id !== bizId) });
+        } else {
+            setNewUser({ ...newUser, businessUnitIds: [...currentIds, bizId] });
+        }
+    };
+
+    const handlePermissionsSave = ({ permissions }: { permissions: Record<UserRole, Permission[]>, roles: UserRole[] }) => {
+        updatePermissions(permissions);
+    };
 
     const cardClass = "bg-slate-800/50 backdrop-blur-xl p-6 rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200";
     const inputClass = "w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
     const labelClass = "block text-sm font-medium text-slate-300 mb-1";
+
+    // Permission Checking Helper (Local)
+    // We assume currentUser role allows access if they are here, but we can double check
+    const hasPermission = (permission: string) => {
+        // Implement simplified check or rely on Parent routing protection
+        if (!permission) return true;
+        // In a real implementation, we would check permissions here.
+        // For settings view tabs, we might want to check roles.
+        if (permission === 'admin:manage:businesses') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
+        if (permission === 'admin:manage:users') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
+        if (permission === 'admin:manage:permissions') return currentUser.role === UserRole.SUPER_ADMIN;
+        if (permission === 'admin:view:user_approvals') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
+        
+        return true; 
+    };
 
     return (
         <div className="space-y-6 max-w-7xl animate-in fade-in slide-in-from-bottom-4 pb-10 text-white">
@@ -118,11 +194,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div className="flex border-b border-slate-700 space-x-4 overflow-x-auto">
                 <button onClick={() => setActiveTab('profile')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'profile' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>My Profile</button>
                 <button onClick={() => setActiveTab('security')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'security' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Security</button>
-                {hasPermission('admin:manage:businesses') && (
-                    <button onClick={() => setActiveTab('business')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'business' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Business Units</button>
-                )}
-                {hasPermission('admin:manage:users') && (
+                {/* Admin Tabs */}
+                {(currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN) && (
                     <>
+                        <button onClick={() => setActiveTab('business')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'business' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Business Units</button>
                         <button onClick={() => setActiveTab('users')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>User Management</button>
                         <button onClick={() => setActiveTab('approvers')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'approvers' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Approver Config</button>
                         <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
@@ -220,13 +295,43 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <input className={inputClass} placeholder="Business Name" value={newBiz.name} onChange={e => setNewBiz({ ...newBiz, name: e.target.value })} />
                             <input className={inputClass} placeholder="TIN" value={newBiz.tin} onChange={e => setNewBiz({ ...newBiz, tin: e.target.value })} />
                             <input className={inputClass} placeholder="Address" value={newBiz.address} onChange={e => setNewBiz({ ...newBiz, address: e.target.value })} />
-                            <button onClick={() => { handleAddBusiness(newBiz); setNewBiz({ name: '', tin: '', address: '', currency: 'PHP' }); }} className="bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors">Add Business</button>
+                            <button 
+                                onClick={handleSaveBusiness} 
+                                className={`py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2
+                                    ${editingBizId ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'}
+                                `}
+                            >
+                                {editingBizId ? <><Check size={16}/> Update</> : <><Plus size={16}/> Add Business</>}
+                            </button>
+                            {editingBizId && (
+                                <button onClick={handleCancelEditBusiness} className="bg-slate-700 text-white py-2 rounded-lg hover:bg-slate-600 font-medium transition-colors flex items-center justify-center">
+                                    <X size={16}/> Cancel
+                                </button>
+                            )}
                         </div>
                         <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                             {businesses.map(b => (
-                                <div key={b.id} className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 text-sm flex justify-between items-center hover:bg-slate-800/50 transition-colors">
-                                    <span className="font-medium text-slate-200">{b.name}</span>
-                                    <span className="text-slate-500 font-mono text-xs">{b.tin}</span>
+                                <div key={b.id} className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 text-sm flex justify-between items-center hover:bg-slate-800/50 transition-colors group">
+                                    <div>
+                                        <div className="font-medium text-slate-200">{b.name}</div>
+                                        <div className="text-slate-500 font-mono text-xs">{b.tin}</div>
+                                    </div>
+                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                            onClick={() => handleEditBusinessClick(b)}
+                                            className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                            title="Edit Business"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button 
+                                            onClick={() => handleDeleteBusiness(b.id)}
+                                            className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                            title="Delete Business"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -273,28 +378,66 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Shield size={20} className="text-red-400" /> User & Role Management</h3>
                             <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700 mb-6">
                                 <h4 className="text-sm font-bold text-slate-300 mb-3">{editingUserId ? 'Edit User' : 'Create New User'}</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                                    <div><label className={labelClass}>Full Name</label><input type="text" className={inputClass} value={newUser.name || ''} onChange={e => setNewUser({ ...newUser, name: e.target.value })} /></div>
-                                    <div><label className={labelClass}>Email Address</label><input type="email" className={inputClass} value={newUser.email || ''} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
-                                    <div><label className={labelClass}>Role</label><select className={inputClass} value={newUser.role || UserRole.EMPLOYEE} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRole })}>{Object.values(UserRole).map(role => (<option key={role} value={role}>{role.replace(/_/g, ' ')}</option>))}</select></div>
-                                    <div><label className={labelClass}>Business Unit</label><select className={inputClass} value={newUser.businessId || ''} onChange={e => setNewUser({ ...newUser, businessId: e.target.value })}><option value="">Select Business Unit</option>{businesses.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
-                                    <div className="flex gap-2"><button onClick={handleCreateOrUpdateUser} disabled={!newUser.name || !newUser.email || !newUser.businessId} className="flex-1 bg-purple-600 text-white py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">{editingUserId ? <><Check size={16} /> Update</> : <><Plus size={16} /> Create</>}</button>{editingUserId && (<button onClick={resetUserForm} className="bg-slate-700 text-white p-2 rounded-lg hover:bg-slate-600 transition-colors"><X size={16} /></button>)}</div>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div><label className={labelClass}>Full Name</label><input type="text" className={inputClass} value={newUser.name || ''} onChange={e => setNewUser({ ...newUser, name: e.target.value })} /></div>
+                                        <div><label className={labelClass}>Email Address</label><input type="email" className={inputClass} value={newUser.email || ''} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
+                                        <div><label className={labelClass}>Role</label><select className={inputClass} value={newUser.role || UserRole.EMPLOYEE} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRole })}>{Object.values(UserRole).map(role => (<option key={role} value={role}>{role.replace(/_/g, ' ')}</option>))}</select></div>
+                                        <div><label className={labelClass}>Primary Business Unit</label><select className={inputClass} value={newUser.businessId || ''} onChange={e => setNewUser({ ...newUser, businessId: e.target.value })}><option value="">Select Primary BU</option>{businesses.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
+                                    </div>
+                                    
+                                    {/* Multi-select Business Units */}
+                                    <div className="space-y-2">
+                                        <label className={labelClass}>Accessible Business Units (Multi-select)</label>
+                                        <div className="bg-slate-900/50 border border-slate-600 rounded-lg p-2 h-32 overflow-y-auto custom-scrollbar">
+                                            {businesses.map(b => {
+                                                const isSelected = (newUser.businessUnitIds || []).includes(b.id);
+                                                return (
+                                                    <div 
+                                                        key={b.id} 
+                                                        onClick={() => toggleBusinessUnit(b.id)}
+                                                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-purple-600/30 text-purple-200' : 'hover:bg-slate-800 text-slate-400'}`}
+                                                    >
+                                                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-slate-500'}`}>
+                                                            {isSelected && <Check size={12} className="text-white" />}
+                                                        </div>
+                                                        <span className="text-sm">{b.name}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <p className="text-xs text-slate-500">Select additional business units this user can access.</p>
+                                    </div>
+                                    
+                                    <div className="lg:col-span-2 flex gap-2 justify-end mt-2">
+                                        <button onClick={handleCreateOrUpdateUser} disabled={!newUser.name || !newUser.email || !newUser.businessId} className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">{editingUserId ? <><Check size={16} /> Update User</> : <><Plus size={16} /> Create User</>}</button>
+                                        {editingUserId && (<button onClick={resetUserForm} className="bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 transition-colors flex items-center gap-2"><X size={16} /> Cancel</button>)}
+                                    </div>
                                 </div>
                             </div>
+                            
                             <div className="overflow-x-auto border border-slate-700 rounded-lg">
                                 <table className="w-full text-left text-sm text-slate-300">
                                     <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
-                                        <tr><th className="p-3">User</th><th className="p-3">Role</th><th className="p-3">Business Unit</th><th className="p-3 text-right">Actions</th></tr>
+                                        <tr><th className="p-3">User</th><th className="p-3">Role</th><th className="p-3">Business Units</th><th className="p-3 text-right">Actions</th></tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-700">
-                                        {allUsers.map(user => (
-                                            <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
-                                                <td className="p-3"><div className="font-medium text-white">{user.name}</div><div className="text-xs text-slate-500">{user.email}</div></td>
-                                                <td className="p-3"><span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{user.role.replace(/_/g, ' ')}</span></td>
-                                                <td className="p-3 text-slate-400">{businesses.find(b => b.id === user.businessId)?.name || 'N/A'}</td>
-                                                <td className="p-3 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => handleEditUserClick(user)} className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit User"><Edit2 size={16} /></button><button className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete User (Not Implemented)"><Trash2 size={16} /></button></div></td>
-                                            </tr>
-                                        ))}
+                                        {allUsers.map(user => {
+                                            const primaryBiz = businesses.find(b => b.id === user.businessId)?.name || 'N/A';
+                                            const otherBizCount = (user.businessUnitIds?.length || 0);
+                                            const otherBizText = otherBizCount > 0 ? ` + ${otherBizCount} others` : '';
+                                            
+                                            return (
+                                                <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
+                                                    <td className="p-3"><div className="font-medium text-white">{user.name}</div><div className="text-xs text-slate-500">{user.email}</div></td>
+                                                    <td className="p-3"><span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{user.role.replace(/_/g, ' ')}</span></td>
+                                                    <td className="p-3 text-slate-400" title={user.businessUnitIds?.map(id => businesses.find(b => b.id === id)?.name).join(', ')}>
+                                                        {primaryBiz} <span className="text-xs text-slate-500">{otherBizText}</span>
+                                                    </td>
+                                                    <td className="p-3 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => handleEditUserClick(user)} className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit User"><Edit2 size={16} /></button><button className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete User (Not Implemented)"><Trash2 size={16} /></button></div></td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -363,9 +506,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 )}
 
                 {activeTab === 'permissions' && hasPermission('admin:manage:permissions') && (
-                    <div className={cardClass}>
-                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Shield size={20} className="text-purple-400" /> Permissions Matrix</h3>
-                        <PermissionsMatrix onSave={updatePermissions} />
+                    <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                        {/* We don't add padding here to let the matrix control its scroll area */}
+                        <PermissionsMatrix onSave={handlePermissionsSave} />
                     </div>
                 )}
             </div>

@@ -8,6 +8,7 @@ import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
 import Card from '../../../shared/components/Card';
 import { CounterService } from '../../../shared/services/counter.service';
+import SearchableDropdown from '../../../shared/components/SearchableDropdown';
 
 interface PrfViewProps {
     currentUser: User;
@@ -150,10 +151,13 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                         </div>
                         <div>
                             <label className="block text-sm text-slate-400 mb-1">Supplier</label>
-                            <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={selectedSupplierId} onChange={e => setSelectedSupplierId(e.target.value)}>
-                                <option value="">Select Supplier</option>
-                                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                            </select>
+                            <SearchableDropdown
+                                options={suppliers.map(s => ({ value: s.id, label: s.name }))}
+                                value={selectedSupplierId}
+                                onChange={setSelectedSupplierId}
+                                placeholder="Select Supplier"
+                                className="z-20"
+                            />
                         </div>
                         <div>
                             <label className="block text-sm text-slate-400 mb-1">Attachments (Link)</label>
@@ -195,8 +199,8 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                         <tr key={idx}>
                                             <td className="px-4 py-2">{item.name}</td>
                                             <td className="px-4 py-2">{item.quantity} {item.uom}</td>
-                                            <td className="px-4 py-2">₱{item.price.toLocaleString()}</td>
-                                            <td className="px-4 py-2">₱{(item.quantity * item.price).toLocaleString()}</td>
+                                            <td className="px-4 py-2">₱{item.price?.toLocaleString()}</td>
+                                            <td className="px-4 py-2">₱{(item.quantity * item.price)?.toLocaleString()}</td>
                                             <td className="px-4 py-2 text-right">
                                                 <button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300"><X size={14} /></button>
                                             </td>
@@ -531,7 +535,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 </table>
             </Card>
 
-            {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} />}
+            {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} users={allUsers} />}
             {printReq && <PRFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)} />}
         </div>
     );

@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, CheckCircle, XCircle, ChevronDown } from 'lucide-react';
+import { Search, Filter, CheckCircle, XCircle, Printer, ChevronDown } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
 import { RequisitionStatus } from '../types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import RejectionModal from '../../../shared/components/RejectionModal';
+import BURFPrintModal from '../components/BURFPrintModal';
+import PRFPrintModal from '../components/PRFPrintModal';
 
 interface ProcurementApprovalsViewProps {
     currentUser: User;
@@ -27,6 +29,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
+    const [printingReq, setPrintingReq] = useState<Requisition | null>(null);
     const { hasPermission } = usePermissions();
 
     // Determine which statuses the current user is allowed to approve
@@ -80,7 +83,8 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         });
     }, [requisitions, userApprovalStatuses, statusFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission]);
 
-    const handleApprove = (req: Requisition) => {
+    const handleApprove = (req: Requisition, e: React.MouseEvent) => {
+        e.stopPropagation();
         let nextStatus: RequisitionStatus | null = null;
 
         if (req.status === RequisitionStatus.BURF_PENDING_MANAGER) {
@@ -98,6 +102,11 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         }
     };
 
+    const handleRejectClick = (req: Requisition, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setRejectingReq(req);
+    };
+
     const handleRejectConfirm = (reason: string) => {
         if (rejectingReq) {
             const newRemarks = rejectingReq.remarks
@@ -107,6 +116,11 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             onUpdateRequisition({ ...rejectingReq, status: RequisitionStatus.REJECTED, remarks: newRemarks });
             setRejectingReq(null);
         }
+    };
+
+    const handlePrintClick = (req: Requisition, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setPrintingReq(req);
     };
 
     return (
@@ -171,6 +185,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                             <th className="px-6 py-4">ID</th>
                             <th className="px-6 py-4">Type</th>
                             <th className="px-6 py-4">Description</th>
+                            <th className="px-6 py-4">Amount</th>
                             <th className="px-6 py-4">Business Unit</th>
                             <th className="px-6 py-4">Requester</th>
                             <th className="px-6 py-4">Date</th>
@@ -194,7 +209,10 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                     </td>
                                     <td className="px-6 py-4 text-slate-300">
                                         <div className="truncate max-w-[200px]" title={req.description}>{req.description}</div>
-                                        {req.priority === 'URGENT' && <span className="text-[10px] text-orange-400 font-bold">URGENT</span>}
+                                        {req.priority === 'URGENT' && <span className="text-[10px] text-orange-400 font-bold block mt-1">URGENT</span>}
+                                    </td>
+                                    <td className="px-6 py-4 font-medium text-emerald-400">
+                                        {business?.currency} {req.totalAmount?.toLocaleString()}
                                     </td>
                                     <td className="px-6 py-4 text-slate-400 text-xs">{business?.name || 'N/A'}</td>
                                     <td className="px-6 py-4">
@@ -202,7 +220,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                             <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
                                                 {(requester?.name || '?').charAt(0)}
                                             </div>
-                                            <span className="text-slate-300">{requester?.name || 'Unknown'}</span>
+                                            <span className="text-slate-300 text-xs">{requester?.name || 'Unknown'}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-slate-400 text-xs">
@@ -214,14 +232,21 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
                                             <button
-                                                onClick={() => setRejectingReq(req)}
+                                                onClick={(e) => handlePrintClick(req, e)}
+                                                className="p-2 text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                title="View Details / Print"
+                                            >
+                                                <Printer size={18} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleRejectClick(req, e)}
                                                 className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
                                                 title="Reject"
                                             >
                                                 <XCircle size={18} />
                                             </button>
                                             <button
-                                                onClick={() => handleApprove(req)}
+                                                onClick={(e) => handleApprove(req, e)}
                                                 className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
                                                 title="Approve"
                                             >
@@ -234,7 +259,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                         })}
                         {filteredRequisitions.length === 0 && (
                             <tr>
-                                <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
+                                <td colSpan={9} className="px-6 py-12 text-center text-slate-500 italic">
                                     No pending approvals found matching your filters.
                                 </td>
                             </tr>
@@ -249,6 +274,23 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 onConfirm={handleRejectConfirm}
                 title={`Reject ${rejectingReq?.id}`}
             />
+
+            {printingReq && (
+                printingReq.id.startsWith('PRF') || printingReq.status.includes('PRF') ? (
+                    <PRFPrintModal
+                        onClose={() => setPrintingReq(null)}
+                        req={printingReq}
+                        business={businesses.find(b => b.id === printingReq.businessId)}
+                    />
+                ) : (
+                    <BURFPrintModal
+                        onClose={() => setPrintingReq(null)}
+                        req={printingReq}
+                        business={businesses.find(b => b.id === printingReq.businessId)}
+                        requester={allUsers.find(u => u.id === printingReq.requesterId)}
+                    />
+                )
+            )}
         </div>
     );
 };

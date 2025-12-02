@@ -1,24 +1,57 @@
-import { useState } from 'react';
-import { collection, addDoc } from "firebase/firestore";
+import { useState, useEffect } from 'react';
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { COLLECTIONS } from "../../../shared/types/firebase.types";
 import type { Business } from "../../../shared/types";
-import { initialBusinesses } from '../../../config/mockData';
 
 export const useBusinesses = () => {
-    const [businesses, setBusinesses] = useState<Business[]>(initialBusinesses);
-    const loading = false;
+    const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [loading, setLoading] = useState(true);
 
     const businessesCollection = collection(db, COLLECTIONS.BUSINESSES);
 
+    useEffect(() => {
+        setLoading(true);
+        const unsubscribe = onSnapshot(businessesCollection, (snapshot) => {
+            const bizData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
+            setBusinesses(bizData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching businesses: ", error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
+    }, []);
+
     const addBusiness = async (businessData: Omit<Business, 'id'>) => {
         try {
-            const docRef = await addDoc(businessesCollection, businessData);
-            setBusinesses(prev => [...prev, { id: docRef.id, ...businessData }]);
+            await addDoc(businessesCollection, businessData);
         } catch (error) {
             console.error("Error adding business: ", error);
+            throw new Error("Failed to add business unit.");
         }
     };
 
-    return { businesses, loading, addBusiness };
+    const updateBusiness = async (id: string, updates: Partial<Business>) => {
+        try {
+            const bizRef = doc(db, COLLECTIONS.BUSINESSES, id);
+            await updateDoc(bizRef, updates);
+        } catch (error) {
+            console.error("Error updating business: ", error);
+            throw new Error("Failed to update business unit.");
+        }
+    };
+
+    const deleteBusiness = async (id: string) => {
+        try {
+            const bizRef = doc(db, COLLECTIONS.BUSINESSES, id);
+            await deleteDoc(bizRef);
+        } catch (error) {
+            console.error("Error deleting business: ", error);
+            throw new Error("Failed to delete business unit.");
+        }
+    };
+
+    return { businesses, loading, addBusiness, updateBusiness, deleteBusiness };
 };

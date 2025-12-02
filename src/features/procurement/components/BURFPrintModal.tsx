@@ -146,7 +146,7 @@ const BURFPrintModal: React.FC<BURFPrintModalProps> = ({ req, onClose, business,
                         {/* Footer */}
                         <div className="mt-12 pt-4 border-t border-slate-200 flex justify-between text-[10px] text-slate-400">
                             <span>Generated via ProcureFlow System</span>
-                            <span>Printed: {new Date().toLocaleString()}</span>
+                            <span>Printed: {new Date()?.toLocaleString()}</span>
                         </div>
 
                     </div>

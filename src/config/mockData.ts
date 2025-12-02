@@ -1,5 +1,5 @@
-import { UserRole, UserStatus } from '../features/auth/types';
-import type { User } from '../features/auth/types';
+import { UserRole, UserStatus } from '../features/procurement/types';
+import type { User } from '../features/procurement/types';
 import type { Business } from '../shared/types';
 import type { Requisition, Supplier } from '../features/procurement/types';
 

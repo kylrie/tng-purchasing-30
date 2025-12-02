@@ -12,7 +12,7 @@ import { auth, googleProvider } from '../../config/firebase';
 import { FirestoreService, Timestamp } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
 import type { FirestoreUser } from '../types/firebase.types';
-import type { UserRole, UserStatus } from '../../features/auth/types';
+import type { UserRole, UserStatus } from '../../features/procurement/types';
 
 /**
  * Authentication Service

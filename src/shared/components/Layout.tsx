@@ -16,7 +16,7 @@ import {
     CheckSquare,
     CheckCircle
 } from 'lucide-react';
-import type { User } from '../../features/auth/types';
+import type { User } from '../../features/procurement/types';
 import type { NotificationItem } from '../types';
 import { usePermissions } from '../../hooks/usePermissions';
 

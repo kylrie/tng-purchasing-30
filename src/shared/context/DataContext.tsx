@@ -125,9 +125,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
                 setLoadingRequisitions(false);
             };
             
+            // Pass the additional multi-BU list
             unsubscribe = RequisitionService.subscribeToRequisitions(
                 currentUser.role,
                 currentUser.businessId,
+                currentUser.businessUnitIds || [], // Fix: Pass 4th argument
                 processReqs as any
             );
 

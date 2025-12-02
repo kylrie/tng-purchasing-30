@@ -19,8 +19,6 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   completeNewUserRegistration: (role: UserRole, businessId: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
-  mockLogin: () => Promise<void>;
-  simulateRole: (role: UserRole, businessId?: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,9 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           setIsNewUser(true);
         }
       } else {
-        if (!currentUser?.id.startsWith('mock-')) {
-          setCurrentUser(null);
-        }
+        setCurrentUser(null);
       }
       setLoading(false);
     });
@@ -149,11 +145,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     setLoading(true);
     try {
-      if (currentUser?.id.startsWith('mock-')) {
-        setCurrentUser(null);
-        navigate('/login');
-        return;
-      }
       await signOut(auth);
       setCurrentUser(null);
       setIsNewUser(false);
@@ -166,48 +157,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const mockLogin = async () => {
-    setLoading(true);
-    const mockUser: User = {
-      id: 'mock-super-admin',
-      name: 'Mock Super Admin',
-      email: 'super@mock.com',
-      role: UserRole.SUPER_ADMIN,
-      businessId: 'b1',
-      status: UserStatus.ACTIVE,
-      avatar: '',
-    };
-    setCurrentUser(mockUser);
-    setLoading(false);
-    navigate('/');
-  };
-
-  const simulateRole = (role: UserRole, businessId: string = 'b1') => {
-    if (!currentUser) return;
-
-    const roleNames: Record<UserRole, string> = {
-      [UserRole.SUPER_ADMIN]: 'Super Admin',
-      [UserRole.ADMIN]: 'Admin',
-      [UserRole.GENERAL_MANAGER]: 'General Manager',
-      [UserRole.BOARD_OF_DIRECTOR]: 'Board of Director',
-      [UserRole.MANAGER]: 'Manager',
-      [UserRole.EMPLOYEE]: 'Employee',
-      [UserRole.CIC]: 'Inventory Checker',
-      [UserRole.PURCHASING_OFFICER]: 'Purchasing Officer',
-      [UserRole.FINANCE]: 'Finance',
-      [UserRole.AUDITOR]: 'Auditor',
-    };
-
-    const simulatedUser: User = {
-      ...currentUser,
-      role: role,
-      businessId: businessId,
-      name: `[SIM] ${roleNames[role]}`,
-    };
-
-    setCurrentUser(simulatedUser);
-  };
-
   const value = {
     currentUser,
     loading,
@@ -218,8 +167,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loginWithGoogle,
     completeNewUserRegistration,
     logout,
-    mockLogin,
-    simulateRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

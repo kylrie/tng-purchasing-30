@@ -63,13 +63,11 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ onRegister, loadi
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">Select your Role</label>
             <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500">
-                <option value={UserRole.EMPLOYEE}>Employee</option>
-                <option value={UserRole.MANAGER}>Manager</option>
-                <option value={UserRole.PURCHASING_OFFICER}>Purchasing Officer</option>
-                <option value={UserRole.FINANCE}>Finance</option>
-                <option value={UserRole.CIC}>Inventory Checker</option>
-                <option value={UserRole.GENERAL_MANAGER}>General Manager</option>
-                <option value={UserRole.BOARD_OF_DIRECTOR}>Board of Director</option>
+                {Object.values(UserRole).map((roleValue) => (
+                    <option key={roleValue} value={roleValue}>
+                        {roleValue.replace(/_/g, ' ')}
+                    </option>
+                ))}
             </select>
           </div>
 

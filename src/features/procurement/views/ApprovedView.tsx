@@ -162,7 +162,7 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-emerald-400 font-semibold">
-                                        ₱{req.totalAmount.toLocaleString()}
+                                        ₱{req.totalAmount?.toLocaleString()}
                                     </td>
                                     <td className="px-6 py-4 text-slate-400 text-xs">
                                         {new Date(req.dateCreated).toLocaleDateString()}

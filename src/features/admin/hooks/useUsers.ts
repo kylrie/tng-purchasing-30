@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { COLLECTIONS } from "../../../shared/types/firebase.types";
 import type { User } from "../../../shared/types";
@@ -33,8 +33,20 @@ export const useUsers = () => {
             setUsers(prev => prev.map(u => u.id === userData.id ? userData : u));
         } catch (error) {
             console.error("Error updating user: ", error);
+            throw error;
         }
     };
 
-    return { users, setUsers, loading, updateUser };
+    const deleteUser = async (userId: string) => {
+        try {
+            const userDoc = doc(db, COLLECTIONS.USERS, userId);
+            await deleteDoc(userDoc);
+            setUsers(prev => prev.filter(u => u.id !== userId));
+        } catch (error) {
+            console.error("Error deleting user: ", error);
+            throw error;
+        }
+    };
+
+    return { users, setUsers, loading, updateUser, deleteUser };
 };
