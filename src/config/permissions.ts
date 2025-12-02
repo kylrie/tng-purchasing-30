@@ -45,6 +45,9 @@ export const ALL_PERMISSIONS = [
   'admin:manage:permissions',
   'admin:view:user_approvals',
 
+  // Inventory Management
+  'inventory:manage:uom',
+
   // Module View Permissions
   'module:view:dashboard',
   'module:view:burf',
@@ -80,6 +83,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'admin:manage:users',
     'admin:manage:businesses',
     'admin:view:user_approvals',
+    'inventory:manage:uom',
     'approval:view:history',
     'ui:view:settings_page',
     'module:view:dashboard',
@@ -196,6 +200,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approved',
     'module:view:liquidation',
     'module:view:suppliers',
+    'inventory:manage:uom',
   ],
 
   // Handles money, releases funds

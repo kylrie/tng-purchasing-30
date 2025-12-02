@@ -1,5 +1,6 @@
 {
   "firestore": {
+    "database": "tng-systems",
     "rules": "firestore.rules"
   },
   "hosting": {

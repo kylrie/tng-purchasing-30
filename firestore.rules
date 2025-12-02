@@ -162,8 +162,8 @@ service cloud.firestore {
       // Any signed-in user can read UOMs
       allow read: if isSignedIn();
       
-      // Only admins can create, update, or delete UOMs
-      allow create, update, delete: if isSuperAdminOrAdmin();
+      // Only admins and purchasing officers can create, update, or delete UOMs
+      allow create, update, delete: if isSuperAdminOrAdmin() || hasRole('PURCHASING_OFFICER');
     }
   }
 }

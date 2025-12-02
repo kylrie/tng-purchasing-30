@@ -238,6 +238,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         if (permission === 'admin:manage:users') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
         if (permission === 'admin:manage:permissions') return currentUser.role === UserRole.SUPER_ADMIN;
         if (permission === 'admin:view:user_approvals') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
+        if (permission === 'inventory:manage:uom') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PURCHASING_OFFICER;
 
         return true;
     };
@@ -269,8 +270,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <button onClick={() => setActiveTab('users')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>User Management</button>
                             <button onClick={() => setActiveTab('approvers')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'approvers' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Approver Config</button>
                             <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
-                            <button onClick={() => setActiveTab('inventory')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'inventory' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Inventory</button>
                         </>
+                    )
+                }
+                {
+                    (currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PURCHASING_OFFICER) && (
+                        <button onClick={() => setActiveTab('inventory')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'inventory' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Inventory</button>
                     )
                 }
             </div >
@@ -630,7 +635,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }
 
                 {
-                    activeTab === 'inventory' && hasPermission('admin:manage:businesses') && (
+                    activeTab === 'inventory' && hasPermission('inventory:manage:uom') && (
                         <div className={cardClass}>
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white">
                                 <Sliders size={20} className="text-green-400" /> Inventory Settings
