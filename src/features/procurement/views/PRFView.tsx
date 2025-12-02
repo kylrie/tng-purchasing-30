@@ -69,7 +69,35 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     const hasMultipleBusinessUnits = userBusinessUnits.length > 1;
     const canSelectBusiness = hasPermission('requisition:view:all') || hasMultipleBusinessUnits;
 
-    const [selectedBusinessId, setSelectedBusinessId] = useState<string>(initialData?.businessId || currentUser.businessId);
+    // Validate and set default business ID
+    const getValidBusinessId = () => {
+        const defaultId = initialData?.businessId || currentUser.businessId;
+        console.log('[DirectPrfModal] Getting valid business ID...');
+        console.log('  - Default ID:', defaultId);
+        console.log('  - Available businesses:', businesses);
+        console.log('  - User business units:', userBusinessUnits);
+        console.log('  - Current user businessId:', currentUser.businessId);
+
+        // Check if the default ID exists in the businesses array
+        if (defaultId && businesses.some(b => b.id === defaultId)) {
+            console.log('  ✓ Using default ID:', defaultId);
+            return defaultId;
+        }
+        // Fallback to first available business unit for the user
+        if (userBusinessUnits.length > 0) {
+            const firstValidBusiness = businesses.find(b => userBusinessUnits.includes(b.id));
+            if (firstValidBusiness) {
+                console.log('  ✓ Using first valid business from user units:', firstValidBusiness.id);
+                return firstValidBusiness.id;
+            }
+        }
+        // Last resort: use first business in the list
+        const fallbackId = businesses.length > 0 ? businesses[0].id : '';
+        console.log('  ✓ Using fallback (first in list):', fallbackId);
+        return fallbackId;
+    };
+
+    const [selectedBusinessId, setSelectedBusinessId] = useState<string>(getValidBusinessId());
 
     // Filter list of eligible approvers by business unit
     const eligibleApprovers = users.filter(u => {
@@ -182,7 +210,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                 </select>
                             ) : (
                                 <div className="w-full p-2 bg-slate-800/50 border border-slate-600 rounded text-slate-300 cursor-not-allowed">
-                                    {businesses.find(b => b.id === selectedBusinessId)?.name || 'Unknown Business Unit'}
+                                    {businesses.find(b => b.id === selectedBusinessId)?.name || `Unknown Business Unit${import.meta.env.DEV ? ` (ID: ${selectedBusinessId})` : ''}`}
                                 </div>
                             )}
                         </div>

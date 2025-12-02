@@ -29,7 +29,7 @@ function ProtectedApp() {
   const { currentUser, logout, loading } = useAuth();
   const { requisitions, createRequisition, updateRequisition } = useRequisitions();
   const { users, setUsers, updateUser } = useUsers();
-  const { businesses, addBusiness } = useBusinesses();
+  const { businesses, addBusiness, updateBusiness, deleteBusiness } = useBusinesses();
   const { suppliers, createSupplier, updateSupplier, deleteSupplier } = useSuppliers();
 
   const [notifications] = useState<NotificationItem[]>([]);
@@ -224,6 +224,8 @@ function ProtectedApp() {
             currentUser={currentUser}
             businesses={businesses}
             handleAddBusiness={addBusiness}
+            onUpdateBusiness={updateBusiness}
+            onDeleteBusiness={deleteBusiness}
             allUsers={users}
             setAllUsers={updateUser}
             pendingUsers={pendingUsers}

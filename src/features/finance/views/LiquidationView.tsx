@@ -7,7 +7,7 @@ import Card from '../../../shared/components/Card';
 import LiquidationPrintModal from '../components/LiquidationPrintModal';
 import LiquidationModal from '../components/LiquidationModal';
 import LiquidationAuditModal from '../components/LiquidationAuditModal';
-import { Printer, Edit, FileText, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Printer, Edit, FileText, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface LiquidationViewProps {
   currentUser: User;

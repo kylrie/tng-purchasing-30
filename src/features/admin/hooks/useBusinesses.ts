@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { COLLECTIONS } from "../../../shared/types/firebase.types";
 import type { Business } from "../../../shared/types";
@@ -14,6 +14,9 @@ export const useBusinesses = () => {
         setLoading(true);
         const unsubscribe = onSnapshot(businessesCollection, (snapshot) => {
             const bizData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
+            console.log('[useBusinesses] Loaded businesses from Firestore:', bizData);
+            console.log('[useBusinesses] Number of businesses:', bizData.length);
+            bizData.forEach(b => console.log(`  - ${b.id}: ${b.name}`));
             setBusinesses(bizData);
             setLoading(false);
         }, (error) => {
@@ -24,9 +27,16 @@ export const useBusinesses = () => {
         return () => unsubscribe();
     }, []);
 
-    const addBusiness = async (businessData: Omit<Business, 'id'>) => {
+    const addBusiness = async (businessData: Omit<Business, 'id'>, customId?: string) => {
         try {
-            await addDoc(businessesCollection, businessData);
+            if (customId) {
+                // Use custom ID (like 'b1', 'b2', etc.)
+                const bizRef = doc(db, COLLECTIONS.BUSINESSES, customId);
+                await setDoc(bizRef, businessData);
+            } else {
+                // Auto-generate ID
+                await addDoc(businessesCollection, businessData);
+            }
         } catch (error) {
             console.error("Error adding business: ", error);
             throw new Error("Failed to add business unit.");
