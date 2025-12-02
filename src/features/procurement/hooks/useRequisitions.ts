@@ -1,8 +1,8 @@
-
 import { useState, useEffect } from 'react';
 import { RequisitionService } from '../services/requisitions.service';
 import { useAuth } from '../../../contexts/AuthContext';
 import type { Requisition } from "../types";
+import { removeUndefinedFields } from '../../../shared/utils/firestore.utils';
 
 export const useRequisitions = () => {
     const [requisitions, setRequisitions] = useState<Requisition[]>([]);
@@ -33,7 +33,7 @@ export const useRequisitions = () => {
                     }
                     return a.id.localeCompare(b.id) * -1; // Descending ID
                 });
-                
+
                 setRequisitions(sorted);
                 setLoading(false);
             }
@@ -44,33 +44,10 @@ export const useRequisitions = () => {
 
     const createRequisition = async (requisitionData: Omit<Requisition, 'id'> | Requisition) => {
         try {
-            // RequisitionService.createRequisition expects Omit<Requisition, 'id'>
-            // If ID is provided, it might need special handling if we want to force that ID.
-            // However, the service uses `FirestoreService.createDocument` which usually auto-generates IDs
-            // UNLESS we change the service to accept custom IDs or use setDocument.
-            
-            // For now, let's assume the previous logic for ID generation (BURF-XXXX) 
-            // is handled inside the Service or we need to port it there.
-            // The previous useRequisitions hook had ID generation logic.
-            // Ideally, that logic belongs in the Service layer, not the hook.
-            
-            // NOTE: I am calling the service here. If the service is simple, we might lose the BURF ID generation.
-            // Let's check RequisitionService.createRequisition implementation in previous step...
-            // It calls FirestoreService.createDocument.
-            
-            // To maintain the BURF ID generation logic, we should probably keep using the old logic 
-            // OR move that logic to the Service. 
-            // Since I cannot edit the Service in this same turn easily without context switching,
-            // I will use the service but acknowledge that ID generation might need to be verified.
-            
-            // Actually, for this specific refactor (RBAC/Multi-BU), I should focus on the READ path.
-            // WRITE path usually doesn't change based on "view" permissions.
-            
-            // Let's use the service for standard creation.
-            // If specific ID logic is needed, it should be in the service.
-            
-             await RequisitionService.createRequisition(requisitionData);
-            
+            // Remove undefined fields to prevent Firestore errors
+            const sanitized = removeUndefinedFields(requisitionData);
+            console.log('Creating requisition with sanitized data:', sanitized);
+            await RequisitionService.createRequisition(sanitized);
         } catch (err: any) {
             console.error("Error creating requisition: ", err);
             setError(err.message);
@@ -80,7 +57,10 @@ export const useRequisitions = () => {
 
     const updateRequisition = async (requisitionData: Requisition) => {
         try {
-            await RequisitionService.updateRequisition(requisitionData.id, requisitionData);
+            // Remove undefined fields to prevent Firestore errors
+            const sanitized = removeUndefinedFields(requisitionData);
+            console.log('Updating requisition with sanitized data:', sanitized);
+            await RequisitionService.updateRequisition(requisitionData.id, sanitized);
         } catch (err: any) {
             console.error("Error updating requisition: ", err);
             setError(err.message);

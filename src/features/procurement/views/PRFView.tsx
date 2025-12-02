@@ -8,6 +8,7 @@ import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
 import Card from '../../../shared/components/Card';
 import { CounterService } from '../../../shared/services/counter.service';
+import { RequisitionService } from '../services/requisitions.service';
 import SearchableDropdown from '../../../shared/components/SearchableDropdown';
 
 interface PrfViewProps {
@@ -259,11 +260,27 @@ export const PrfView: React.FC<PrfViewProps> = ({
         if (exists) {
             onUpdateRequisition({ ...prfReq, status: RequisitionStatus.PRF_PENDING_MANAGER });
         } else {
-            const { id, ...newPrfData } = prfReq;
-            onCreateRequisition(newPrfData as Omit<Requisition, 'id'>);
+            // Pass the full object including the ID
+            onCreateRequisition(prfReq);
         }
 
         setPreparePRFReq(null);
+    };
+
+    const handleRefileSubmit = async (prfReq: Requisition) => {
+        try {
+            // Use the refile service method
+            await RequisitionService.reFileRequisition(
+                prfReq.id,
+                currentUser.id,
+                currentUser.name,
+                prfReq
+            );
+            setEditingPrf(null);
+        } catch (error: any) {
+            console.error('Error refiling PRF:', error);
+            alert(`Failed to refile PRF: ${error.message || 'Unknown error'}`);
+        }
     };
 
     const handleCancel = (id: string) => {
@@ -536,6 +553,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
             </Card>
 
             {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} users={allUsers} />}
+            {editingPrf && <PreparePRFModal requisition={editingPrf} suppliers={suppliers} onClose={() => setEditingPrf(null)} onSubmit={handleRefileSubmit} currentUserId={currentUser.id} users={allUsers} />}
             {printReq && <PRFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)} />}
         </div>
     );

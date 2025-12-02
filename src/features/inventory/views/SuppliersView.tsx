@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, X, Star, Check, Building2 } from 'lucide-react';
 import type { Supplier, BankDetails, Business, User } from '../../procurement/types';
 import { UserRole } from '../../procurement/types';
@@ -37,6 +37,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                 paymentMode: '',
                 terms: '',
                 isVatable: false,
+                ewtRate: 0,
                 businessUnitIds: [], // Default to empty
                 bankDetails: {
                     bankName: '',
@@ -57,6 +58,40 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
         }
     );
 
+    // Update form data when modal opens or supplier changes
+    useEffect(() => {
+        if (isOpen) {
+            const initialData = supplier || {
+                name: '',
+                category: '',
+                rating: 5,
+                contractEnd: '',
+                tin: '',
+                address: '',
+                paymentMode: '',
+                terms: '',
+                isVatable: false,
+                ewtRate: 0,
+                businessUnitIds: [],
+                bankDetails: {
+                    bankName: '',
+                    accountName: '',
+                    accountNumber: '',
+                    branch: ''
+                }
+            };
+
+            const hasBankDetails = !!(initialData.bankDetails?.bankName || initialData.bankDetails?.accountNumber);
+
+            // If creating new, default to current user's business unit if not super admin
+            if (!supplier && currentUser.role !== UserRole.SUPER_ADMIN && currentUser.businessId) {
+                initialData.businessUnitIds = [currentUser.businessId];
+            }
+
+            setFormData({ ...initialData, hasBankDetails });
+        }
+    }, [supplier, isOpen, currentUser]);
+
     if (!isOpen) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -71,14 +106,17 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
             paymentMode: formData.paymentMode || '',
             terms: formData.terms || '',
             isVatable: formData.isVatable || false,
+            ewtRate: formData.ewtRate || 0,
             businessUnitIds: formData.businessUnitIds || [],
             // Only save bank details if the toggle is on
-            bankDetails: formData.hasBankDetails ? {
-                bankName: formData.bankDetails?.bankName || '',
-                accountName: formData.bankDetails?.accountName || '',
-                accountNumber: formData.bankDetails?.accountNumber || '',
-                branch: formData.bankDetails?.branch || ''
-            } : undefined // Or empty object depending on preference, undefined cleans it up
+            ...(formData.hasBankDetails && {
+                bankDetails: {
+                    bankName: formData.bankDetails?.bankName || '',
+                    accountName: formData.bankDetails?.accountName || '',
+                    accountNumber: formData.bankDetails?.accountNumber || '',
+                    branch: formData.bankDetails?.branch || ''
+                }
+            })
         };
 
         if (supplier?.id) {
@@ -257,6 +295,33 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                             <label htmlFor="isVatable" className="text-sm text-slate-300 cursor-pointer">
                                 Is Supplier Vatable?
                             </label>
+                        </div>
+
+                        {/* EWT Rate Input */}
+                        <div className="mt-4">
+                            <label htmlFor="ewtRate" className="block text-sm font-medium text-slate-300 mb-1">
+                                EWT Rate (%)
+                            </label>
+                            <input
+                                type="number"
+                                id="ewtRate"
+                                name="ewtRate"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                className="w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500"
+                                value={formData.ewtRate || ''}
+                                onChange={e => {
+                                    const value = parseFloat(e.target.value);
+                                    if (!isNaN(value) && value >= 0 && value <= 100) {
+                                        setFormData({ ...formData, ewtRate: value });
+                                    } else if (e.target.value === '') {
+                                        setFormData({ ...formData, ewtRate: 0 });
+                                    }
+                                }}
+                                placeholder="e.g., 2.0"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">Specify the withholding tax rate for this supplier (0-100%).</p>
                         </div>
                     </div>
 

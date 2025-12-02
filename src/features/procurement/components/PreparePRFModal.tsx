@@ -64,7 +64,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         const supplierValid = createNewSupplier
             ? supplierDetails.name && supplierDetails.tin && supplierDetails.address && supplierDetails.paymentMode
             : selectedSupplierId !== '';
-        
+
         // Approver is required if there are eligible approvers configured
         const approverValid = eligibleApprovers.length > 0 ? !!designatedApproverId : true;
 
@@ -105,53 +105,60 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     }
 
     const handleSubmit = async () => {
-        const selectedItems = items.filter(item => item.selected).map(({ selected, ...item }) => item);
-        const unselectedItems = items.filter(item => !item.selected).map(({ selected, ...item }) => item);
+        try {
+            const selectedItems = items.filter(item => item.selected).map(({ selected, ...item }) => item);
+            const unselectedItems = items.filter(item => !item.selected).map(({ selected, ...item }) => item);
 
-        if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length > 0) {
-            const newPrf: Requisition = {
-                ...requisition,
-                id: await CounterService.generatePRFId(),
-                items: selectedItems,
-                totalAmount,
-                status: RequisitionStatus.PRF_PENDING_MANAGER,
-                prfDetails: {
-                    supplier: supplierDetails,
-                    preparedBy: currentUserId,
-                    datePrepared: new Date().toISOString(),
-                    requisitionId: requisition.id,
-                    timestamp: new Date().toISOString(),
-                    designatedApproverId: designatedApproverId // Save designated approver
-                },
-                remarks: `${requisition.remarks || ''} (Split from ${requisition.id})`,
-                prfIdentifier
-            };
+            if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length > 0) {
+                const newPrf: Requisition = {
+                    ...requisition,
+                    id: await CounterService.generatePRFId(),
+                    items: selectedItems,
+                    totalAmount,
+                    status: RequisitionStatus.PRF_PENDING_MANAGER,
+                    prfDetails: {
+                        supplier: supplierDetails,
+                        preparedBy: currentUserId,
+                        datePrepared: new Date().toISOString(),
+                        requisitionId: requisition.id,
+                        timestamp: new Date().toISOString(),
+                        designatedApproverId: designatedApproverId // Save designated approver
+                    },
+                    remarks: `${requisition.remarks || ''} (Split from ${requisition.id})`,
+                    prfIdentifier
+                };
 
-            const updatedBurf: Requisition = {
-                ...requisition,
-                items: unselectedItems,
-                totalAmount: unselectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                status: RequisitionStatus.READY_FOR_PRF
-            };
+                const updatedBurf: Requisition = {
+                    ...requisition,
+                    items: unselectedItems,
+                    totalAmount: unselectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+                    status: RequisitionStatus.READY_FOR_PRF
+                };
 
-            onSubmit(newPrf, updatedBurf);
-        } else {
-            const updatedRequisition: Requisition = {
-                ...requisition,
-                items: selectedItems,
-                totalAmount,
-                prfDetails: {
-                    supplier: supplierDetails,
-                    preparedBy: currentUserId,
-                    datePrepared: new Date().toISOString(),
-                    requisitionId: requisition.prfDetails?.requisitionId || requisition.id,
-                    timestamp: new Date().toISOString(),
-                    designatedApproverId: designatedApproverId // Save designated approver
-                },
-                status: RequisitionStatus.PRF_PENDING_MANAGER,
-                prfIdentifier
-            };
-            onSubmit(updatedRequisition);
+                console.log('Submitting split PRF:', { newPrf, updatedBurf });
+                onSubmit(newPrf, updatedBurf);
+            } else {
+                const updatedRequisition: Requisition = {
+                    ...requisition,
+                    items: selectedItems,
+                    totalAmount,
+                    prfDetails: {
+                        supplier: supplierDetails,
+                        preparedBy: currentUserId,
+                        datePrepared: new Date().toISOString(),
+                        requisitionId: requisition.prfDetails?.requisitionId || requisition.id,
+                        timestamp: new Date().toISOString(),
+                        designatedApproverId: designatedApproverId // Save designated approver
+                    },
+                    status: RequisitionStatus.PRF_PENDING_MANAGER,
+                    prfIdentifier
+                };
+                console.log('Submitting updated PRF:', updatedRequisition);
+                onSubmit(updatedRequisition);
+            }
+        } catch (error) {
+            console.error("Error submitting PRF:", error);
+            alert("Failed to submit PRF. Please try again.");
         }
     };
 

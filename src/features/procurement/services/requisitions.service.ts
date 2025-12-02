@@ -14,14 +14,14 @@ export class RequisitionService {
    * Get requisitions based on user role and business ID(s)
    */
   static async getRequisitions(
-    userRole: UserRole, 
-    businessId: string, 
+    userRole: UserRole,
+    businessId: string,
     additionalBusinessIds: string[] = []
   ): Promise<Requisition[]> {
-    
+
     // 1. Super Admin: Fetch All
     if (hasGlobalAccess(userRole)) {
-        return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, []);
+      return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, []);
     }
 
     // 2. Normal User: Fetch based on assigned Business Units
@@ -29,17 +29,17 @@ export class RequisitionService {
     const allAccessibleIds = Array.from(new Set([businessId, ...additionalBusinessIds]));
 
     if (allAccessibleIds.length === 0) {
-        return [];
+      return [];
     }
 
     // Firestore 'in' query supports up to 10 items.
     // If a user has > 10 BUs, we might need multiple queries or client-side filtering.
     // For now, assuming < 10 BUs per user for simplicity.
     if (allAccessibleIds.length <= 10) {
-        const constraints = [where('businessId', 'in', allAccessibleIds)];
-        return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, constraints);
-    } 
-    
+      const constraints = [where('businessId', 'in', allAccessibleIds)];
+      return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, constraints);
+    }
+
     // Fallback for > 10 BUs: Fetch all and filter client-side (or optimize later)
     // fetching all might be heavy, but it's a safe fallback for "Power Users" who aren't Super Admins
     // Ideally, we'd batch the queries.
@@ -63,42 +63,42 @@ export class RequisitionService {
     additionalBusinessIds: string[] = [],
     callback: (requisitions: Requisition[]) => void
   ): () => void {
-    
+
     // 1. Super Admin
     if (hasGlobalAccess(userRole)) {
-        return FirestoreService.subscribeToCollection<Requisition>(
-            REQUISITIONS_COLLECTION,
-            callback,
-            []
-        );
+      return FirestoreService.subscribeToCollection<Requisition>(
+        REQUISITIONS_COLLECTION,
+        callback,
+        []
+      );
     }
 
     // 2. Normal User
     const allAccessibleIds = Array.from(new Set([businessId, ...additionalBusinessIds]));
-    
+
     if (allAccessibleIds.length === 0) {
-        callback([]);
-        return () => {};
+      callback([]);
+      return () => { };
     }
 
     if (allAccessibleIds.length <= 10) {
-        const constraints = [where('businessId', 'in', allAccessibleIds)];
-        return FirestoreService.subscribeToCollection<Requisition>(
-            REQUISITIONS_COLLECTION,
-            callback,
-            constraints
-        );
+      const constraints = [where('businessId', 'in', allAccessibleIds)];
+      return FirestoreService.subscribeToCollection<Requisition>(
+        REQUISITIONS_COLLECTION,
+        callback,
+        constraints
+      );
     }
 
     // Fallback for > 10: Subscribe to all and filter in callback
     // Note: This downloads everything, which isn't ideal for bandwidth but ensures correctness
     return FirestoreService.subscribeToCollection<Requisition>(
-        REQUISITIONS_COLLECTION,
-        (allDocs) => {
-            const filtered = allDocs.filter(doc => allAccessibleIds.includes(doc.businessId));
-            callback(filtered);
-        },
-        []
+      REQUISITIONS_COLLECTION,
+      (allDocs) => {
+        const filtered = allDocs.filter(doc => allAccessibleIds.includes(doc.businessId));
+        callback(filtered);
+      },
+      []
     );
   }
 
@@ -107,8 +107,8 @@ export class RequisitionService {
    */
   static async createRequisition(requisition: Omit<Requisition, 'id'> | Requisition): Promise<string> {
     if ('id' in requisition && requisition.id) {
-        await FirestoreService.setDocument(REQUISITIONS_COLLECTION, requisition.id, requisition);
-        return requisition.id;
+      await FirestoreService.setDocument(REQUISITIONS_COLLECTION, requisition.id, requisition);
+      return requisition.id;
     }
     return FirestoreService.createDocument(REQUISITIONS_COLLECTION, requisition);
   }
@@ -150,7 +150,7 @@ export class RequisitionService {
       actorName,
       action,
       stage,
-      comments,
+      ...(comments !== undefined && { comments }),
     };
 
     const updatedHistory = [newHistoryEntry, ...(currentRequisition.history || [])];
@@ -228,7 +228,9 @@ export class RequisitionService {
     userName: string,
     updates: Partial<Requisition>
   ): Promise<void> {
-    const nextStatus = updates.prfIdentifier
+    // If the requisition has prfDetails, it's a PRF and should return to PRF_PENDING_MANAGER
+    // Otherwise, it's a BURF and should return to BURF_PENDING_MANAGER
+    const nextStatus = updates.prfDetails
       ? RequisitionStatus.PRF_PENDING_MANAGER
       : RequisitionStatus.BURF_PENDING_MANAGER;
 

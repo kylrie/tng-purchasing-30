@@ -6,6 +6,7 @@ import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import BURFPrintModal from '../components/BURFPrintModal';
+import { CounterService } from '../../../shared/services/counter.service';
 
 interface BurfViewProps {
     currentUser: User;
@@ -169,31 +170,43 @@ export const BurfView: React.FC<BurfViewProps> = ({
         setNewItems(newItems.filter((_, i) => i !== idx));
     };
 
-    const saveRequisition = (isFinalSubmission: boolean) => {
-        const status = isFinalSubmission ? RequisitionStatus.BURF_PENDING_MANAGER : RequisitionStatus.DRAFT;
-        const attachments = attachmentLink ? [attachmentLink] : [];
-        const baseReq: any = {
-            requesterId: currentUser.id,
-            businessId: currentUser.businessId,
-            items: newItems,
-            totalAmount: 0,
-            status: status,
-            dateCreated: new Date().toISOString().split('T')[0],
-            description,
-            remarks,
-            dateNeeded,
-            priority: isUrgent ? 'URGENT' : 'NORMAL',
-            attachments,
-            timestamp: new Date().toISOString()
-        };
+    const saveRequisition = async (isFinalSubmission: boolean) => {
+        try {
+            const status = isFinalSubmission ? RequisitionStatus.BURF_PENDING_MANAGER : RequisitionStatus.DRAFT;
+            const attachments = attachmentLink ? [attachmentLink] : [];
 
-        if (editingId) {
-            const original = visibleRequisitions.find(r => r.id === editingId);
-            onUpdateRequisition({ ...original, ...baseReq, id: editingId });
-        } else {
-            onCreateRequisition(baseReq);
+            let reqId = editingId;
+            if (!reqId) {
+                reqId = await CounterService.generateBURFId();
+            }
+
+            const baseReq: any = {
+                id: reqId,
+                requesterId: currentUser.id,
+                businessId: currentUser.businessId,
+                items: newItems,
+                totalAmount: 0,
+                status: status,
+                dateCreated: new Date().toISOString().split('T')[0],
+                description,
+                remarks,
+                dateNeeded,
+                priority: isUrgent ? 'URGENT' : 'NORMAL',
+                attachments,
+                timestamp: new Date().toISOString()
+            };
+
+            if (editingId) {
+                const original = visibleRequisitions.find(r => r.id === editingId);
+                onUpdateRequisition({ ...original, ...baseReq, id: editingId });
+            } else {
+                onCreateRequisition(baseReq);
+            }
+            resetForm();
+        } catch (error) {
+            console.error("Error saving requisition:", error);
+            alert("Failed to save requisition. Please try again.");
         }
-        resetForm();
     };
 
     if (isCreating) {

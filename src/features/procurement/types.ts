@@ -83,6 +83,7 @@ export interface Supplier {
   terms?: string;
   bankDetails?: BankDetails;
   isVatable?: boolean; // Vatable or Non-Vat
+  ewtRate?: number; // Expanded Withholding Tax rate (e.g., 1, 2, 5, 10)
   businessUnitIds?: string[]; // Multi-tenancy: List of Business Units this supplier belongs to
 }
 

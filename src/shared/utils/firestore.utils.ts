@@ -63,3 +63,23 @@ export const formatDate = (date: Date): string => {
 export const getCurrentDateString = (): string => {
     return formatDate(new Date());
 };
+
+/**
+ * Utility to remove undefined values from an object
+ * Firestore doesn't allow undefined values in documents
+ */
+export function removeUndefinedFields<T extends Record<string, any>>(obj: T): T {
+    const cleaned: any = {};
+
+    for (const key in obj) {
+        if (obj[key] !== undefined) {
+            if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+                cleaned[key] = removeUndefinedFields(obj[key]);
+            } else {
+                cleaned[key] = obj[key];
+            }
+        }
+    }
+
+    return cleaned as T;
+}

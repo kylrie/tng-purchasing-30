@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Search, Filter, CheckCircle, XCircle, Printer, ChevronDown } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
 import { RequisitionStatus, UserRole } from '../types';
+import { RequisitionService } from '../services/requisitions.service';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import RejectionModal from '../../../shared/components/RejectionModal';
@@ -73,7 +74,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 if (req.prfDetails?.designatedApproverId) {
                     const isDesignated = req.prfDetails.designatedApproverId === currentUser.id;
                     const isSuperAdmin = currentUser.role === UserRole.SUPER_ADMIN;
-                    
+
                     if (!isDesignated && !isSuperAdmin) {
                         return false;
                     }
@@ -115,21 +116,19 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         });
     }, [requisitions, activeTab, userApprovalStatuses, approvedStatuses, statusFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission]);
 
-    const handleApprove = (req: Requisition, e: React.MouseEvent) => {
+    const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
-        let nextStatus: RequisitionStatus | null = null;
 
-        if (req.status === RequisitionStatus.BURF_PENDING_MANAGER) {
-            nextStatus = RequisitionStatus.BURF_PENDING_CIC;
-        } else if (req.status === RequisitionStatus.BURF_PENDING_CIC) {
-            nextStatus = RequisitionStatus.READY_FOR_PRF;
-        } else if (req.status === RequisitionStatus.PRF_PENDING_MANAGER) {
-            nextStatus = RequisitionStatus.APPROVED_FOR_PAYMENT;
-        }
-
-        if (nextStatus) {
-            if (confirm(`Are you sure you want to approve ${req.id}?`)) {
-                onUpdateRequisition({ ...req, status: nextStatus });
+        if (confirm(`Are you sure you want to approve ${req.id}?`)) {
+            try {
+                await RequisitionService.approveRequisition(
+                    req.id,
+                    currentUser.id,
+                    currentUser.name
+                );
+            } catch (error: any) {
+                console.error("Error approving requisition:", error);
+                alert(`Failed to approve requisition: ${error.message || 'Unknown error'}`);
             }
         }
     };
