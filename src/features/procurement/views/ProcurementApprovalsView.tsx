@@ -174,15 +174,17 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                         >
                             Pending Approvals
                         </button>
-                        <button
-                            onClick={() => setActiveTab('history')}
-                            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'history'
-                                ? 'bg-purple-600 text-white shadow-lg'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                                }`}
-                        >
-                            Approval History
-                        </button>
+                        {hasPermission('approval:view:history') && (
+                            <button
+                                onClick={() => setActiveTab('history')}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'history'
+                                    ? 'bg-purple-600 text-white shadow-lg'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                    }`}
+                            >
+                                History
+                            </button>
+                        )}
                     </div>
                 </div>
 

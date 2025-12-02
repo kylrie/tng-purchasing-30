@@ -29,59 +29,61 @@ service cloud.firestore {
       allow create: if isSignedIn();
       
       allow update: if isSignedIn() && (
-        // 1. DRAFT Edits: Owner (or Super Admin) can edit anything if Draft
-        (resource.data.status == 'DRAFT' && (isOwner(resource) || hasRole('SUPER_ADMIN'))) ||
+        // SUPER ADMIN: Can do anything
+        hasRole('SUPER_ADMIN') ||
+        
+        // 1. DRAFT Edits: Owner can edit anything if Draft
+        (resource.data.status == 'DRAFT' && isOwner(resource)) ||
 
-        // 2. CANCEL: Owner, Admin, or Super Admin
+        // 2. CANCEL: Owner or Admin
         (
           request.resource.data.status == 'CANCELLED' && 
-          (isOwner(resource) || hasRole('SUPER_ADMIN') || hasRole('ADMIN'))
+          (isOwner(resource) || hasRole('ADMIN'))
         ) ||
         
-        // 3. REFILE: Owner (or Super Admin), from REJECTED to PENDING
+        // 3. REFILE: Owner, from REJECTED to PENDING
         (
           resource.data.status == 'REJECTED' &&
           (request.resource.data.status == 'BURF_PENDING_MANAGER' || request.resource.data.status == 'PRF_PENDING_MANAGER') &&
-          (isOwner(resource) || hasRole('SUPER_ADMIN'))
+          isOwner(resource)
         ) ||
 
-        // 4. APPROVE: Manager/GM (or Super Admin) for BURF
+        // 4. APPROVE: Manager/GM for BURF
         (
           resource.data.status == 'BURF_PENDING_MANAGER' &&
           (request.resource.data.status == 'BURF_PENDING_CIC' || request.resource.data.status == 'READY_FOR_PRF') &&
-          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER') || hasRole('SUPER_ADMIN'))
+          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER'))
         ) ||
 
-        // 5. APPROVE: CIC (or Super Admin) for BURF
+        // 5. APPROVE: CIC for BURF
         (
           resource.data.status == 'BURF_PENDING_CIC' &&
           request.resource.data.status == 'READY_FOR_PRF' &&
-          (hasRole('CIC') || hasRole('SUPER_ADMIN'))
+          hasRole('CIC')
         ) ||
         
-        // 6. APPROVE: Manager (or Super Admin) for PRF
+        // 6. APPROVE: Manager for PRF
         (
           resource.data.status == 'PRF_PENDING_MANAGER' &&
           request.resource.data.status == 'APPROVED_FOR_PAYMENT' &&
-          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER') || hasRole('SUPER_ADMIN'))
+          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER'))
         ) ||
 
-        // 7. REJECT: Any Approver (or Super Admin)
+        // 7. REJECT: Any Approver
         (
           request.resource.data.status == 'REJECTED' &&
           (
              hasRole('MANAGER') || 
              hasRole('GENERAL_MANAGER') || 
              hasRole('CIC') || 
-             hasRole('PURCHASING_OFFICER') ||
-             hasRole('SUPER_ADMIN')
+             hasRole('PURCHASING_OFFICER')
           )
         ) ||
         
-        // 8. Finance Actions (Funds Release) (or Super Admin)
+        // 8. Finance Actions (Funds Release)
         (
            request.resource.data.status == 'FUNDS_RELEASED' &&
-           (hasRole('FINANCE') || hasRole('SUPER_ADMIN'))
+           hasRole('FINANCE')
         )
       );
     }
@@ -140,6 +142,28 @@ service cloud.firestore {
       
       // Only super admins can update config
       allow write: if hasRole('SUPER_ADMIN');
+    }
+    
+    // --- COUNTERS COLLECTION (SECURE) ---
+    match /counters/{counterId} {
+      // Any signed-in user can read counters
+      allow read: if isSignedIn();
+      
+      // Any signed-in user can update counters (for ID generation)
+      // The CounterService uses transactions to ensure atomicity
+      allow create, update: if isSignedIn();
+      
+      // Prevent deletion of counters
+      allow delete: if false;
+    }
+    
+    // --- UOM COLLECTION (SECURE) ---
+    match /uom/{uomId} {
+      // Any signed-in user can read UOMs
+      allow read: if isSignedIn();
+      
+      // Only admins can create, update, or delete UOMs
+      allow create, update, delete: if isSuperAdminOrAdmin();
     }
   }
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Plus, Printer, X, Save, Ban, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react';
+import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -20,9 +20,10 @@ interface PrfViewProps {
     onCreateRequisition: (req: Omit<Requisition, 'id'>) => void;
     onUpdateRequisition: (req: Requisition) => void;
     suppliers: Supplier[];
+    uomOptions: string[];
 }
 
-const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, suppliers, businesses, initialData }: {
+const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, suppliers, businesses, initialData, uomOptions, users = [] }: {
     onCancel: () => void;
     currentUser: User;
     onCreateRequisition?: (req: Omit<Requisition, 'id'>) => void;
@@ -30,24 +31,72 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     suppliers: Supplier[];
     businesses: Business[];
     initialData?: Requisition;
+    uomOptions: string[];
+    users?: User[];
 }) => {
-    // ... (same as before)
     const [newItems, setNewItems] = useState<RequisitionItem[]>(initialData?.items || []);
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', price: 0 });
-    const [selectedSupplierId, setSelectedSupplierId] = useState<string>(
-        initialData?.prfDetails?.supplier
-            ? suppliers.find(s => s.name === initialData.prfDetails?.supplier.name)?.id || ''
-            : ''
+
+    const existingSupplier = initialData?.prfDetails?.supplier;
+    const knownSupplierId = existingSupplier
+        ? suppliers.find(s => s.name === existingSupplier.name)?.id || ''
+        : '';
+
+    const [createNewSupplier, setCreateNewSupplier] = useState(!!existingSupplier && !knownSupplierId);
+    const [selectedSupplierId, setSelectedSupplierId] = useState<string>(knownSupplierId);
+
+    const [supplierDetails, setSupplierDetails] = useState<SupplierDetails>(
+        existingSupplier || {
+            name: '',
+            tin: '',
+            address: '',
+            paymentMode: '',
+            terms: '',
+            isVatable: false,
+            bankDetails: { bankName: '', accountName: '', accountNumber: '', branch: '' }
+        }
     );
+
+    const [designatedApproverId, setDesignatedApproverId] = useState(initialData?.prfDetails?.designatedApproverId || '');
     const [description, setDescription] = useState(initialData?.description || '');
     const [remarks] = useState(initialData?.remarks || '');
     const [attachmentLink, setAttachmentLink] = useState(initialData?.attachments?.[0] || '');
     const [customId, setCustomId] = useState('');
     const { hasPermission } = usePermissions();
 
-    const canSelectBusiness = hasPermission('requisition:view:all');
+    // Allow business unit selection if user has global access OR multiple business units
+    const userBusinessUnits = currentUser.businessUnitIds || [];
+    const hasMultipleBusinessUnits = userBusinessUnits.length > 1;
+    const canSelectBusiness = hasPermission('requisition:view:all') || hasMultipleBusinessUnits;
 
     const [selectedBusinessId, setSelectedBusinessId] = useState<string>(initialData?.businessId || currentUser.businessId);
+
+    // Filter list of eligible approvers by business unit
+    const eligibleApprovers = users.filter(u => {
+        // Must be an approver
+        if (!u.isApprover) return false;
+
+        // Check if approver has access to this requisition's business unit
+        const approverBUs = u.businessUnitIds || [];
+        // Use selectedBusinessId for the check
+        return approverBUs.includes(selectedBusinessId) || approverBUs.length === 0;
+    });
+
+    const handleSupplierSelect = (supplierId: string) => {
+        setSelectedSupplierId(supplierId);
+        const supplier = suppliers.find(s => s.id === supplierId);
+        if (supplier) {
+            setSupplierDetails({
+                name: supplier.name,
+                tin: supplier.tin || '',
+                address: supplier.address || '',
+                paymentMode: supplier.paymentMode || '',
+                terms: supplier.terms || '',
+                isVatable: supplier.isVatable,
+                bankDetails: supplier.bankDetails
+            });
+        }
+    };
 
     const addItem = () => {
         if (tempItem.name && tempItem.quantity && tempItem.price !== undefined) {
@@ -61,20 +110,20 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     };
 
     const handleSubmit = async () => {
-        if (!selectedSupplierId) {
-            alert("Please select a supplier.");
-            return;
-        }
-        const sup = suppliers.find(s => s.id === selectedSupplierId);
-        if (!sup) {
-            alert("Please select a supplier.");
+        const supplierValid = createNewSupplier
+            ? supplierDetails.name && supplierDetails.paymentMode
+            : selectedSupplierId !== '';
+
+        if (!supplierValid) {
+            alert("Please provide valid supplier details.");
             return;
         }
 
-        const supplierDetails: SupplierDetails = {
-            name: sup.name, tin: sup.tin || '', address: sup.address || '',
-            paymentMode: sup.paymentMode || '', terms: sup.terms || ''
-        };
+        // Validate approver if there are eligible approvers
+        if (eligibleApprovers.length > 0 && !designatedApproverId) {
+            alert("Please select a designated approver.");
+            return;
+        }
 
         const prfId = customId || await CounterService.generatePRFId();
 
@@ -94,6 +143,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                 preparedBy: currentUser.id,
                 datePrepared: new Date().toISOString(),
                 timestamp: new Date().toISOString(),
+                designatedApproverId: designatedApproverId // Save designated approver
             },
             timestamp: new Date().toISOString(),
         };
@@ -126,7 +176,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                     value={selectedBusinessId}
                                     onChange={(e) => setSelectedBusinessId(e.target.value)}
                                 >
-                                    {businesses.map(b => (
+                                    {(hasPermission('requisition:view:all') ? businesses : businesses.filter(b => userBusinessUnits.includes(b.id))).map(b => (
                                         <option key={b.id} value={b.id}>{b.name}</option>
                                     ))}
                                 </select>
@@ -150,15 +200,116 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                             <label className="block text-sm text-slate-400 mb-1">Description</label>
                             <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Purchase of materials" />
                         </div>
-                        <div>
-                            <label className="block text-sm text-slate-400 mb-1">Supplier</label>
-                            <SearchableDropdown
-                                options={suppliers.map(s => ({ value: s.id, label: s.name }))}
-                                value={selectedSupplierId}
-                                onChange={setSelectedSupplierId}
-                                placeholder="Select Supplier"
-                                className="z-20"
-                            />
+                        <div className="col-span-2">
+                            <div className="bg-purple-900/20 p-4 rounded-lg border border-purple-500/30 mb-4">
+                                <label className="block text-sm font-medium text-purple-300 mb-1">Select Approver</label>
+                                {eligibleApprovers.length > 0 ? (
+                                    <select
+                                        value={designatedApproverId}
+                                        onChange={(e) => setDesignatedApproverId(e.target.value)}
+                                        className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                                    >
+                                        <option value="">-- Choose Approver --</option>
+                                        {eligibleApprovers.map(approver => (
+                                            <option key={approver.id} value={approver.id}>
+                                                {approver.name} ({approver.role.replace(/_/g, ' ')})
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="text-sm text-slate-400 italic py-2">
+                                        No designated approvers found for this Business Unit.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="col-span-2 space-y-4 border-t border-slate-700 pt-4 mt-2">
+                            <h4 className="text-sm font-bold text-slate-300">Supplier Information</h4>
+
+                            {/* Toggle for new supplier */}
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm text-slate-300">Create new supplier?</span>
+                                <button
+                                    onClick={() => {
+                                        setCreateNewSupplier(!createNewSupplier);
+                                        if (!createNewSupplier) {
+                                            setSelectedSupplierId('');
+                                            setSupplierDetails({ name: '', tin: '', address: '', paymentMode: '', terms: '', isVatable: false, bankDetails: { bankName: '', accountName: '', accountNumber: '', branch: '' } });
+                                        }
+                                    }}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${createNewSupplier ? 'bg-blue-600' : 'bg-slate-700'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${createNewSupplier ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-1">Supplier Name</label>
+                                    {createNewSupplier ? (
+                                        <input
+                                            type="text"
+                                            value={supplierDetails.name}
+                                            onChange={(e) => setSupplierDetails({ ...supplierDetails, name: e.target.value })}
+                                            placeholder="Enter supplier name"
+                                            className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                        />
+                                    ) : (
+                                        <SearchableDropdown
+                                            options={suppliers.map(s => ({ value: s.id, label: s.name }))}
+                                            value={selectedSupplierId}
+                                            onChange={handleSupplierSelect}
+                                            placeholder="Select Supplier"
+                                            className="z-20"
+                                        />
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-1">Payment Mode</label>
+                                    <select
+                                        value={supplierDetails.paymentMode}
+                                        onChange={(e) => setSupplierDetails({ ...supplierDetails, paymentMode: e.target.value })}
+                                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                    >
+                                        <option value="">Select Mode</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="Check">Check</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Credit Card">Credit Card</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-1">TIN</label>
+                                    <input
+                                        type="text"
+                                        value={supplierDetails.tin}
+                                        onChange={(e) => setSupplierDetails({ ...supplierDetails, tin: e.target.value })}
+                                        placeholder="000-000-000"
+                                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-slate-400 mb-1">Terms</label>
+                                    <input
+                                        type="text"
+                                        value={supplierDetails.terms || ''}
+                                        onChange={(e) => setSupplierDetails({ ...supplierDetails, terms: e.target.value })}
+                                        placeholder="e.g. 30 Days"
+                                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                    />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="block text-sm text-slate-400 mb-1">Address</label>
+                                    <input
+                                        type="text"
+                                        value={supplierDetails.address}
+                                        onChange={(e) => setSupplierDetails({ ...supplierDetails, address: e.target.value })}
+                                        placeholder="Registered Address"
+                                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                    />
+                                </div>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm text-slate-400 mb-1">Attachments (Link)</label>
@@ -180,6 +331,12 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                             <div className="w-24">
                                 <label className="block text-xs text-slate-400 mb-1">Price</label>
                                 <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Price" type="number" value={tempItem.price} onChange={e => setTempItem({ ...tempItem, price: parseFloat(e.target.value) })} />
+                            </div>
+                            <div className="w-24">
+                                <label className="block text-xs text-slate-400 mb-1">UOM</label>
+                                <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" value={tempItem.uom} onChange={e => setTempItem({ ...tempItem, uom: e.target.value })}>
+                                    {uomOptions.map((u: string) => <option key={u} value={u}>{u}</option>)}
+                                </select>
                             </div>
                             <button onClick={addItem} className="bg-purple-600 text-white p-2 rounded hover:bg-purple-700 mb-[1px]"><Plus size={16} /></button>
                         </div>
@@ -235,7 +392,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
     allUsers,
     onCreateRequisition,
     onUpdateRequisition,
-    suppliers
+    suppliers,
+    uomOptions
 }) => {
     const [isDirectOpen, setIsDirectOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -359,42 +517,52 @@ export const PrfView: React.FC<PrfViewProps> = ({
 
     return (
         <div className="space-y-6 text-white">
-            {isDirectOpen && <DirectPrfModal onCancel={() => setIsDirectOpen(false)} currentUser={currentUser} onCreateRequisition={onCreateRequisition} suppliers={suppliers} businesses={businesses} />}
+            {isDirectOpen && <DirectPrfModal onCancel={() => setIsDirectOpen(false)} currentUser={currentUser} onCreateRequisition={onCreateRequisition} suppliers={suppliers} businesses={businesses} uomOptions={uomOptions} users={allUsers} />}
+            {editingPrf && <DirectPrfModal onCancel={() => setEditingPrf(null)} currentUser={currentUser} onUpdate={onUpdateRequisition} suppliers={suppliers} businesses={businesses} initialData={editingPrf} uomOptions={uomOptions} users={allUsers} />}
 
-            {editingPrf && <DirectPrfModal onCancel={() => setEditingPrf(null)} currentUser={currentUser} onUpdate={onUpdateRequisition} suppliers={suppliers} businesses={businesses} initialData={editingPrf} />}
 
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl font-bold">PRF Management</h1>
-                    <p className="text-slate-300">Prepare, approve, and manage Purchase Requisition Forms.</p>
-                </div>
-                <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                            className="pl-10 p-2 border border-slate-700 rounded-lg text-sm w-64 bg-slate-800 focus:ring-purple-500"
-                            placeholder="Search PRF..."
-                            value={searchTerm}
-                            onChange={e => setSearchTerm(e.target.value)}
-                        />
+
+            <div className="space-y-6">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold">PRF Management</h1>
+                        <p className="text-slate-300">Prepare, approve, and manage Purchase Requisition Forms.</p>
                     </div>
-                    {hasPermission('requisition:view:all') && (
-                        <select
-                            value={selectedBusinessUnit}
-                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
-                        >
-                            <option value="all">All Business Units</option>
-                            {businesses.map(business => (
-                                <option key={business.id} value={business.id}>{business.name}</option>
-                            ))}
-                        </select>
-                    )}
-                    {hasPermission('requisition:create:prf') && (
-                        <button onClick={() => setIsDirectOpen(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-purple-700 font-medium">
-                            <Plus size={16} /> Create PRF
-                        </button>
-                    )}
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
+                        <div className="relative flex-1 md:flex-none">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                className="pl-10 p-2 border border-slate-700 rounded-lg text-sm w-full md:w-64 bg-slate-800 focus:ring-purple-500"
+                                placeholder="Search PRF..."
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        {(hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
+                            <select
+                                value={selectedBusinessUnit}
+                                onChange={(e) => setSelectedBusinessUnit(e.target.value)}
+                                className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
+                            >
+                                <option value="all">{hasPermission('requisition:view:all') ? 'All Business Units' : 'All My Business Units'}</option>
+                                {hasPermission('requisition:view:all') ? (
+                                    businesses.map(business => (
+                                        <option key={business.id} value={business.id}>{business.name}</option>
+                                    ))
+                                ) : (
+                                    currentUser.businessUnitIds?.map(buId => {
+                                        const bu = businesses.find(b => b.id === buId);
+                                        return bu ? <option key={bu.id} value={bu.id}>{bu.name}</option> : null;
+                                    })
+                                )}
+                            </select>
+                        )}
+                        {hasPermission('requisition:create:prf') && (
+                            <button onClick={() => setIsDirectOpen(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 font-medium">
+                                <Plus size={16} /> Create PRF
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -420,142 +588,151 @@ export const PrfView: React.FC<PrfViewProps> = ({
             </div>
 
             <Card className="overflow-hidden !p-0">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
-                        <tr>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('id')}
-                            >
-                                <div className="flex items-center">
-                                    ID {renderSortIcon('id')}
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('businessId')}
-                            >
-                                <div className="flex items-center">
-                                    Business Unit {renderSortIcon('businessId')}
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('description')}
-                            >
-                                <div className="flex items-center">
-                                    Description {renderSortIcon('description')}
-                                </div>
-                            </th>
-                            <th className="px-6 py-4">Items</th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('dateCreated')}
-                            >
-                                <div className="flex items-center">
-                                    Date & Time {renderSortIcon('dateCreated')}
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('status')}
-                            >
-                                <div className="flex items-center">
-                                    Status {renderSortIcon('status')}
-                                </div>
-                            </th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                        {filteredAndSortedReqs.map(req => {
-                            const business = businesses.find(b => b.id === req.businessId);
-                            const isOwner = req.prfDetails?.preparedBy === currentUser.id || hasPermission('requisition:view:all');
-                            const canEdit = req.status === RequisitionStatus.REJECTED && isOwner;
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
+                            <tr>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('id')}
+                                >
+                                    <div className="flex items-center">
+                                        ID {renderSortIcon('id')}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('businessId')}
+                                >
+                                    <div className="flex items-center">
+                                        Business Unit {renderSortIcon('businessId')}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('description')}
+                                >
+                                    <div className="flex items-center">
+                                        Description {renderSortIcon('description')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-4">Items</th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('dateCreated')}
+                                >
+                                    <div className="flex items-center">
+                                        Date & Time {renderSortIcon('dateCreated')}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('status')}
+                                >
+                                    <div className="flex items-center">
+                                        Status {renderSortIcon('status')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-4">Rejection Reason</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700">
+                            {filteredAndSortedReqs.map(req => {
+                                const business = businesses.find(b => b.id === req.businessId);
+                                const isOwner = req.prfDetails?.preparedBy === currentUser.id || hasPermission('requisition:view:all');
+                                const canEdit = req.status === RequisitionStatus.REJECTED && isOwner;
 
-                            return (
-                                <tr key={req.id} className="hover:bg-slate-800/60">
-                                    <td className="px-6 py-4 font-medium text-slate-200">{req.id}</td>
-                                    <td className="px-6 py-4 text-slate-300 text-xs">{business?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4 text-slate-200">{req.description}</td>
-                                    <td className="px-6 py-4 text-slate-400">{req.items.length} items</td>
-                                    <td className="px-6 py-4 text-purple-400 text-xs">{new Date(req.dateCreated).toLocaleDateString()}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-1">
-                                            {getStatusBadge(req.status)}
-                                            {req.status === RequisitionStatus.REJECTED && (
-                                                <div className="text-[10px] text-red-400 italic mt-1 truncate w-32" title={req.remarks}>
-                                                    {req.remarks}
-                                                </div>
+                                return (
+                                    <tr key={req.id} className="hover:bg-slate-800/60">
+                                        <td className="px-6 py-4 font-medium text-slate-200">{req.id}</td>
+                                        <td className="px-6 py-4 text-slate-300 text-xs">{business?.name || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-slate-200">{req.description}</td>
+                                        <td className="px-6 py-4 text-slate-400">{req.items.length} items</td>
+                                        <td className="px-6 py-4 text-purple-400 text-xs">{new Date(req.dateCreated).toLocaleDateString()}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-1">
+                                                {getStatusBadge(req.status)}
+
+                                                {/* Show Released status explicitly if status is beyond FUNDS_RELEASED */}
+                                                {req.fundReleaseDate && activeTab === 'flowed' && (
+                                                    <span className="text-[10px] text-emerald-400">Funds Released: {new Date(req.fundReleaseDate).toLocaleDateString()}</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-red-400">
+                                            {req.status === RequisitionStatus.REJECTED && req.remarks ? (
+                                                <span className="flex items-center gap-1">
+                                                    <AlertTriangle size={14} />
+                                                    {req.remarks.split('[REJECTED]:').pop()?.trim() || 'No reason provided'}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-600">-</span>
                                             )}
-                                            {/* Show Released status explicitly if status is beyond FUNDS_RELEASED */}
-                                            {req.fundReleaseDate && activeTab === 'flowed' && (
-                                                <span className="text-[10px] text-emerald-400">Funds Released: {new Date(req.fundReleaseDate).toLocaleDateString()}</span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex justify-end gap-2 items-center">
-                                            {/* Cancel Button for Admin/Super Admin */}
-                                            {hasPermission('requisition:cancel') &&
-                                                req.status !== RequisitionStatus.CANCELLED &&
-                                                req.status !== RequisitionStatus.REJECTED &&
-                                                !req.fundReleaseDate && (
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-2 items-center">
+                                                {/* Cancel Button for Admin/Super Admin */}
+                                                {hasPermission('requisition:cancel') &&
+                                                    req.status !== RequisitionStatus.CANCELLED &&
+                                                    req.status !== RequisitionStatus.REJECTED &&
+                                                    !req.fundReleaseDate && (
+                                                        <button
+                                                            onClick={() => handleCancel(req.id)}
+                                                            className="text-slate-500 hover:text-red-400 p-1"
+                                                            title="Cancel PRF"
+                                                        >
+                                                            <Ban size={16} />
+                                                        </button>
+                                                    )}
+
+                                                {canEdit && (
                                                     <button
-                                                        onClick={() => handleCancel(req.id)}
-                                                        className="text-slate-500 hover:text-red-400 p-1"
-                                                        title="Cancel PRF"
+                                                        onClick={() => setEditingPrf(req)}
+                                                        className="text-blue-400 hover:text-blue-300 p-1"
+                                                        title="Re-file / Edit"
                                                     >
-                                                        <Ban size={16} />
+                                                        <RefreshCw size={16} />
                                                     </button>
                                                 )}
 
-                                            {canEdit && (
-                                                <button
-                                                    onClick={() => setEditingPrf(req)}
-                                                    className="text-blue-400 hover:text-blue-300 p-1"
-                                                    title="Re-file / Edit"
-                                                >
-                                                    <RefreshCw size={16} />
-                                                </button>
-                                            )}
+                                                {req.status === RequisitionStatus.READY_FOR_PRF && hasPermission('requisition:create:prf') && (
+                                                    <button onClick={() => setPreparePRFReq(req)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium">Prepare PRF</button>
+                                                )}
 
-                                            {req.status === RequisitionStatus.READY_FOR_PRF && hasPermission('requisition:create:prf') && (
-                                                <button onClick={() => setPreparePRFReq(req)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium">Prepare PRF</button>
-                                            )}
-
-                                            {req.prfDetails && (
-                                                <div className="flex items-center gap-2">
-                                                    {req.chequeImageUrl && (
-                                                        <a
-                                                            href={req.chequeImageUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="text-blue-400 hover:text-blue-300 p-1"
-                                                            title="View Cheque"
-                                                        >
-                                                            <ExternalLink size={16} />
-                                                        </a>
-                                                    )}
-                                                    <button onClick={() => setPrintReq(req)} className="text-slate-400 p-1 hover:text-white" title="Print PRF"><Printer size={16} /></button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                        {filteredAndSortedReqs.length === 0 && (
-                            <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500 italic">No PRF found.</td></tr>
-                        )}
-                    </tbody>
-                </table>
-            </Card>
+                                                {req.prfDetails && (
+                                                    <div className="flex items-center gap-2">
+                                                        {req.chequeImageUrl && (
+                                                            <a
+                                                                href={req.chequeImageUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-blue-400 hover:text-blue-300 p-1"
+                                                                title="View Cheque"
+                                                            >
+                                                                <ExternalLink size={16} />
+                                                            </a>
+                                                        )}
+                                                        <button onClick={() => setPrintReq(req)} className="text-slate-400 p-1 hover:text-white" title="Print PRF"><Printer size={16} /></button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {filteredAndSortedReqs.length === 0 && (
+                                <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500 italic">No PRF found.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </Card >
 
             {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} users={allUsers} />}
             {editingPrf && <PreparePRFModal requisition={editingPrf} suppliers={suppliers} onClose={() => setEditingPrf(null)} onSubmit={handleRefileSubmit} currentUserId={currentUser.id} users={allUsers} />}
             {printReq && <PRFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)} />}
-        </div>
+        </div >
     );
 };
 

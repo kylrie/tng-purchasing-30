@@ -16,6 +16,7 @@ interface BurfViewProps {
     onCreateRequisition: (req: Omit<Requisition, 'id'>) => void;
     onUpdateRequisition: (req: Requisition) => void;
     businesses: Business[];
+    uomOptions: string[];
 }
 
 type SortField = 'id' | 'description' | 'businessId' | 'requesterId' | 'dateNeeded' | 'status';
@@ -28,7 +29,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
     getStatusBadge,
     onCreateRequisition,
     onUpdateRequisition,
-    businesses
+    businesses,
+    uomOptions
 }) => {
     const [isCreating, setIsCreating] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -50,8 +52,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', remarks: '' });
 
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-
-    const UOM_OPTIONS = ['pcs', 'box', 'pack', 'kg', 'g', 'l', 'm', 'set', 'roll', 'pad', 'ream'];
 
     const isUrgent = useMemo(() => {
         if (!dateNeeded) return false;
@@ -267,7 +267,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             <div className="col-span-3">
                                 <label className="block text-xs font-medium text-slate-400 mb-1">UOM</label>
                                 <select className="w-full p-2 border border-slate-600 bg-slate-800 rounded-md text-sm" value={tempItem.uom} onChange={e => setTempItem({ ...tempItem, uom: e.target.value })}>
-                                    {UOM_OPTIONS.map(u => <option key={u} value={u}>{u}</option>)}
+                                    {uomOptions.map((u: string) => <option key={u} value={u}>{u}</option>)}
                                 </select>
                             </div>
                             <div className="col-span-12 mt-2">
@@ -276,26 +276,28 @@ export const BurfView: React.FC<BurfViewProps> = ({
                         </Card>
 
                         {newItems.length > 0 && (
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-slate-900/50 text-xs text-slate-400">
-                                    <tr>
-                                        <th className="px-4 py-2">Item</th>
-                                        <th className="px-4 py-2">Qty</th>
-                                        <th className="px-4 py-2">Remarks</th>
-                                        <th className="px-4 py-2 w-10"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-700">
-                                    {newItems.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td className="px-4 py-2 font-medium text-slate-200">{item.name}</td>
-                                            <td className="px-4 py-2 text-slate-300">{item.quantity} {item.uom}</td>
-                                            <td className="px-4 py-2 text-slate-400">{item.remarks}</td>
-                                            <td className="px-4 py-2"><button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button></td>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="bg-slate-900/50 text-xs text-slate-400">
+                                        <tr>
+                                            <th className="px-4 py-2">Item</th>
+                                            <th className="px-4 py-2">Qty</th>
+                                            <th className="px-4 py-2">Remarks</th>
+                                            <th className="px-4 py-2 w-10"></th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-700">
+                                        {newItems.map((item, idx) => (
+                                            <tr key={idx}>
+                                                <td className="px-4 py-2 font-medium text-slate-200">{item.name}</td>
+                                                <td className="px-4 py-2 text-slate-300">{item.quantity} {item.uom}</td>
+                                                <td className="px-4 py-2 text-slate-400">{item.remarks}</td>
+                                                <td className="px-4 py-2"><button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button></td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         )}
                     </div>
 
@@ -331,16 +333,23 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    {hasPermission('requisition:view:all') && (
+                    {(hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
                         <select
                             value={selectedBusinessUnit}
                             onChange={(e) => setSelectedBusinessUnit(e.target.value)}
                             className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
                         >
-                            <option value="all">All Business Units</option>
-                            {businesses.map(business => (
-                                <option key={business.id} value={business.id}>{business.name}</option>
-                            ))}
+                            <option value="all">{hasPermission('requisition:view:all') ? 'All Business Units' : 'All My Business Units'}</option>
+                            {hasPermission('requisition:view:all') ? (
+                                businesses.map(business => (
+                                    <option key={business.id} value={business.id}>{business.name}</option>
+                                ))
+                            ) : (
+                                currentUser.businessUnitIds?.map(buId => {
+                                    const bu = businesses.find(b => b.id === buId);
+                                    return bu ? <option key={bu.id} value={bu.id}>{bu.name}</option> : null;
+                                })
+                            )}
                         </select>
                     )}
                     <button onClick={() => setIsCreating(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-purple-700 font-medium flex items-center gap-2">
@@ -402,6 +411,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     Status {renderSortIcon('status')}
                                 </div>
                             </th>
+                            <th className="px-6 py-4">Rejection Reason</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
@@ -440,6 +450,16 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                         </td>
                                         <td className="px-6 py-4 cursor-pointer hover:opacity-80" onClick={(e) => { e.stopPropagation(); /* setTrackingReq(req) */ }}>
                                             {getStatusBadge(req.status)}
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-red-400">
+                                            {req.status === RequisitionStatus.REJECTED && req.remarks ? (
+                                                <span className="flex items-center gap-1">
+                                                    <AlertTriangle size={14} />
+                                                    {req.remarks.split('[REJECTED]:').pop()?.trim() || 'No reason provided'}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-600">-</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                                             <div className="flex justify-end gap-2 items-center">

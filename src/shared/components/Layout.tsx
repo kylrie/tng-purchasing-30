@@ -73,33 +73,41 @@ const Layout: React.FC<LayoutProps> = ({
             icon: Briefcase,
             canView: true,
             subItems: [
-                { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: true },
-                { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('requisition:create:prf') }
+                { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: hasPermission('module:view:burf') },
+                { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('module:view:prf') }
             ]
         },
         {
             label: 'Action Center',
             icon: GitBranch,
-            canView: hasPermission('ui:view:approvals_page'),
+            canView: hasPermission('module:view:approvals'),
             subItems: [
-                { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('ui:view:approvals_page') }
+                { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('module:view:approvals') }
             ]
         },
         {
             label: 'Finance',
             icon: Wallet,
-            canView: hasPermission('finance:release_funds') || hasPermission('liquidation:audit'),
+            canView: hasPermission('module:view:finance') || hasPermission('module:view:liquidation'),
             subItems: [
-                { path: '/finance', label: 'Finance Dashboard', icon: Scale, canView: hasPermission('finance:release_funds') },
-                { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('liquidation:audit') }
+                { path: '/finance', label: 'Finance Dashboard', icon: Scale, canView: hasPermission('module:view:finance') },
+                { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('module:view:liquidation') }
             ]
         },
         {
             label: 'Master Data',
             icon: Database,
-            canView: hasPermission('supplier:view'),
+            canView: hasPermission('module:view:suppliers'),
             subItems: [
-                { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('supplier:view') }
+                { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('module:view:suppliers') }
+            ]
+        },
+        {
+            label: 'Settings',
+            icon: Settings,
+            canView: hasPermission('module:view:settings'),
+            subItems: [
+                { path: '/settings', label: 'System Settings', icon: Settings, canView: hasPermission('module:view:settings') }
             ]
         }
     ];
@@ -276,7 +284,7 @@ const Layout: React.FC<LayoutProps> = ({
                         </button>
                     </div>
                 </div>
-            </aside>
+            </aside >
 
             <main className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
                 <div className="absolute top-4 left-4 z-30 lg:hidden">

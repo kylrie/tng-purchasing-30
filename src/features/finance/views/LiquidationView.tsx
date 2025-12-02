@@ -7,7 +7,7 @@ import Card from '../../../shared/components/Card';
 import LiquidationPrintModal from '../components/LiquidationPrintModal';
 import LiquidationModal from '../components/LiquidationModal';
 import LiquidationAuditModal from '../components/LiquidationAuditModal';
-import { Printer, Edit, FileText, RefreshCw, CheckCircle } from 'lucide-react';
+import { Printer, Edit, FileText, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface LiquidationViewProps {
   currentUser: User;
@@ -109,9 +109,9 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           <p className="text-slate-400 text-sm">File and audit liquidation reports for released funds.</p>
         </div>
 
-        <div className="flex border-b border-slate-700 mb-4">
+        <div className="flex border-b border-slate-700 mb-4 overflow-x-auto">
           <button
-            className={`py-2 px-4 text-sm font-medium ${activeTab === 'liquidations'
+            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'liquidations'
               ? 'border-b-2 border-cyan-500 text-cyan-400'
               : 'text-slate-400 hover:text-slate-300'
               }`}
@@ -121,7 +121,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           </button>
           {hasPermission('liquidation:audit') && (
             <button
-              className={`py-2 px-4 text-sm font-medium ${activeTab === 'for_audit'
+              className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'for_audit'
                 ? 'border-b-2 border-cyan-500 text-cyan-400'
                 : 'text-slate-400 hover:text-slate-300'
                 }`}
@@ -133,87 +133,100 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
         </div>
 
         <Card className="!p-0">
-          <table className="w-full text-left text-sm text-white">
-            <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
-              <tr>
-                <th className="px-6 py-4">PRF ID</th>
-                <th className="px-6 py-4">Business Unit</th>
-                <th className="px-6 py-4">Requester</th>
-                <th className="px-6 py-4">Amount</th>
-                <th className="px-6 py-4">Cheque No.</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-700">
-              {displayedReqs.map(req => (
-                <tr key={req.id} className="hover:bg-slate-800/60">
-                  <td className="px-6 py-4 font-medium">{req.id}</td>
-                  <td className="px-6 py-4 text-slate-300">
-                    {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-slate-300">
-                    {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
-                  </td>
-                  <td className="px-6 py-4">₱{req.totalAmount?.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-purple-400 font-medium">{req.chequeNumber || '-'}</td>
-                  <td className="px-6 py-4">{getStatusBadge(req.status)}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-2">
-                      {/* File/Edit Liquidation */}
-                      {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) && activeTab === 'liquidations' && (
-                        <button
-                          onClick={() => setEditingLiquidationReq(req)}
-                          className="text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-700 bg-cyan-900/50 hover:bg-cyan-800/50"
-                        >
-                          {req.status === RequisitionStatus.FUNDS_RELEASED ? (
-                            <><FileText size={14} /> File Liquidation</>
-                          ) : (
-                            <><Edit size={14} /> Edit Liquidation</>
-                          )}
-                        </button>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-white">
+              <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
+                <tr>
+                  <th className="px-6 py-4">PRF ID</th>
+                  <th className="px-6 py-4">Business Unit</th>
+                  <th className="px-6 py-4">Requester</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4">Cheque No.</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Rejection Reason</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700">
+                {displayedReqs.map(req => (
+                  <tr key={req.id} className="hover:bg-slate-800/60">
+                    <td className="px-6 py-4 font-medium">{req.id}</td>
+                    <td className="px-6 py-4 text-slate-300">
+                      {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 text-slate-300">
+                      {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
+                    </td>
+                    <td className="px-6 py-4">₱{req.totalAmount?.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-purple-400 font-medium">{req.chequeNumber || '-'}</td>
+                    <td className="px-6 py-4">{getStatusBadge(req.status)}</td>
+                    <td className="px-6 py-4 text-sm text-red-400">
+                      {(req.status === RequisitionStatus.LIQUIDATION_REJECTED || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)) ? (
+                        <span className="flex items-center gap-1">
+                          {/* Import AlertTriangle if not already imported, or use existing icon */}
+                          {req.liquidationDetails?.rejectionReason || req.liquidationDetails?.auditNotes || 'No reason provided'}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">-</span>
                       )}
-
-                      {/* Audit (Auditor/SuperAdmin) */}
-                      {req.status === RequisitionStatus.LIQUIDATION_FILED &&
-                        hasPermission('liquidation:audit') && activeTab === 'for_audit' && (
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-2">
+                        {/* File/Edit Liquidation */}
+                        {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) && activeTab === 'liquidations' && (
                           <button
-                            onClick={() => setAuditReq(req)}
-                            className="bg-teal-600 text-white px-3 py-1 rounded text-xs hover:bg-teal-700 font-medium flex items-center gap-1 border border-teal-500/50 shadow-sm"
+                            onClick={() => setEditingLiquidationReq(req)}
+                            className="text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-700 bg-cyan-900/50 hover:bg-cyan-800/50"
                           >
-                            <CheckCircle size={14} /> Audit
+                            {req.status === RequisitionStatus.FUNDS_RELEASED ? (
+                              <><FileText size={14} /> File Liquidation</>
+                            ) : (
+                              <><Edit size={14} /> Edit Liquidation</>
+                            )}
                           </button>
                         )}
 
-                      {/* Re-file (Rejected) */}
-                      {(req.status === RequisitionStatus.LIQUIDATION_REJECTED || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)) && (
-                        <button
-                          onClick={() => setEditingLiquidationReq(req)}
-                          className="text-orange-400 hover:text-orange-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-orange-700 bg-orange-900/50 hover:bg-orange-800/50"
-                        >
-                          <RefreshCw size={14} /> Re-file Liquidation
-                        </button>
-                      )}
+                        {/* Audit (Auditor/SuperAdmin) */}
+                        {req.status === RequisitionStatus.LIQUIDATION_FILED &&
+                          hasPermission('liquidation:audit') && activeTab === 'for_audit' && (
+                            <button
+                              onClick={() => setAuditReq(req)}
+                              className="bg-teal-600 text-white px-3 py-1 rounded text-xs hover:bg-teal-700 font-medium flex items-center gap-1 border border-teal-500/50 shadow-sm"
+                            >
+                              <CheckCircle size={14} /> Audit
+                            </button>
+                          )}
 
-                      {/* Print Button */}
-                      {req.liquidationDetails && (
-                        <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-white p-1" title="Print Liquidation">
-                          <Printer size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {displayedReqs.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500 italic">
-                    No liquidations to display.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                        {/* Re-file (Rejected) */}
+                        {(req.status === RequisitionStatus.LIQUIDATION_REJECTED || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)) && (
+                          <button
+                            onClick={() => setEditingLiquidationReq(req)}
+                            className="text-orange-400 hover:text-orange-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-orange-700 bg-orange-900/50 hover:bg-orange-800/50"
+                          >
+                            <RefreshCw size={14} /> Re-file Liquidation
+                          </button>
+                        )}
+
+                        {/* Print Button */}
+                        {req.liquidationDetails && (
+                          <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-white p-1" title="Print Liquidation">
+                            <Printer size={16} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {displayedReqs.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500 italic">
+                      No liquidations to display.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </Card>
       </div>
       {printReq && (

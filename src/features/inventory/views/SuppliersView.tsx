@@ -414,6 +414,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
 
 const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSupplier, onUpdateSupplier, onDeleteSupplier, currentUser, businesses }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSupplier, setEditingSupplier] = useState<Supplier | undefined>(undefined);
 
@@ -440,10 +441,17 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
         return supplierBUs.some(id => allUserBUs.includes(id));
     });
 
-    const filteredSuppliers = visibleSuppliers.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.category.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredSuppliers = visibleSuppliers.filter(s => {
+        // Business Unit Filter
+        if (selectedBusinessUnit !== 'all') {
+            const supplierBUs = s.businessUnitIds || [];
+            if (!supplierBUs.includes(selectedBusinessUnit)) return false;
+        }
+
+        // Search Filter
+        return s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            s.category.toLowerCase().includes(searchTerm.toLowerCase());
+    });
 
     const handleAdd = () => {
         setEditingSupplier(undefined);
@@ -472,24 +480,43 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
 
     return (
         <div className="space-y-6 text-white">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Suppliers</h1>
                     <p className="text-slate-300">Manage vendor relationships</p>
                 </div>
-                <div className="flex gap-4">
-                    <div className="relative">
+                <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto items-stretch md:items-center">
+                    <div className="relative flex-1 md:flex-none">
                         <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
-                            className="pl-10 p-2 bg-slate-800 border border-slate-700 rounded-lg text-sm w-64 focus:ring-2 focus:ring-purple-500"
+                            className="pl-10 p-2 bg-slate-800 border border-slate-700 rounded-lg text-sm w-full md:w-64 focus:ring-2 focus:ring-purple-500"
                             placeholder="Search suppliers..."
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
+                    {(currentUser.role === UserRole.SUPER_ADMIN || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
+                        <select
+                            value={selectedBusinessUnit}
+                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
+                            className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
+                        >
+                            <option value="all">{currentUser.role === UserRole.SUPER_ADMIN ? 'All Business Units' : 'All My Business Units'}</option>
+                            {currentUser.role === UserRole.SUPER_ADMIN ? (
+                                businesses.map(business => (
+                                    <option key={business.id} value={business.id}>{business.name}</option>
+                                ))
+                            ) : (
+                                currentUser.businessUnitIds?.map(buId => {
+                                    const bu = businesses.find(b => b.id === buId);
+                                    return bu ? <option key={bu.id} value={bu.id}>{bu.name}</option> : null;
+                                })
+                            )}
+                        </select>
+                    )}
                     <button
                         onClick={handleAdd}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2"
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2"
                     >
                         <Plus size={18} /> Add Supplier
                     </button>
@@ -497,84 +524,92 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
             </div>
 
             <Card className="overflow-hidden !p-0">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
-                        <tr>
-                            <th className="px-6 py-4">Name</th>
-                            <th className="px-6 py-4">Category</th>
-                            <th className="px-6 py-4">Details</th>
-                            <th className="px-6 py-4">Rating</th>
-                            <th className="px-6 py-4">VAT</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                        {filteredSuppliers.map(supplier => (
-                            <tr key={supplier.id} className="hover:bg-slate-800/60">
-                                <td className="px-6 py-4 font-medium text-slate-200">{supplier.name}</td>
-                                <td className="px-6 py-4">
-                                    <span className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs font-medium">
-                                        {supplier.category}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-xs text-slate-400">
-                                    {supplier.tin && <div>TIN: {supplier.tin}</div>}
-                                    {supplier.address && <div className="truncate max-w-[150px]">{supplier.address}</div>}
-                                    {supplier.bankDetails?.bankName && (
-                                        <div className="text-slate-500 mt-1">
-                                            Bank: {supplier.bankDetails.bankName} - {supplier.bankDetails.accountNumber}
-                                        </div>
-                                    )}
-                                    {/* Show assigned BUs for context */}
-                                    <div className="flex flex-wrap gap-1 mt-1">
-                                        {supplier.businessUnitIds?.map(id => {
-                                            const biz = businesses.find(b => b.id === id);
-                                            return biz ? (
-                                                <span key={id} className="text-[10px] bg-slate-800 border border-slate-700 px-1 rounded text-slate-500 flex items-center gap-1">
-                                                    <Building2 size={8} /> {biz.name}
-                                                </span>
-                                            ) : null;
-                                        })}
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-1 text-amber-400">
-                                        <Star size={14} fill="currentColor" />
-                                        <span className="text-slate-300 font-medium">{supplier.rating}</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${supplier.isVatable ? 'bg-green-900/50 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
-                                        {supplier.isVatable ? 'Vatable' : 'Non-Vat'}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <button
-                                            onClick={() => handleEdit(supplier)}
-                                            className="text-cyan-400 hover:text-cyan-300 p-1 hover:bg-slate-700 rounded"
-                                        >
-                                            <Edit2 size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(supplier.id)}
-                                            className="text-red-400 hover:text-red-300 p-1 hover:bg-slate-700 rounded"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                        {filteredSuppliers.length === 0 && (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
                             <tr>
-                                <td colSpan={6} className="px-6 py-8 text-center text-slate-500 italic">
-                                    No suppliers found.
-                                </td>
+                                <th className="px-6 py-4">Name</th>
+                                <th className="px-6 py-4">Category</th>
+                                <th className="px-6 py-4">Business Units</th>
+                                <th className="px-6 py-4">Details</th>
+                                <th className="px-6 py-4">Rating</th>
+                                <th className="px-6 py-4">VAT</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
-                        )}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700">
+                            {filteredSuppliers.map(supplier => (
+                                <tr key={supplier.id} className="hover:bg-slate-800/60">
+                                    <td className="px-6 py-4 font-medium text-slate-200">{supplier.name}</td>
+                                    <td className="px-6 py-4">
+                                        <span className="bg-slate-700 text-slate-300 px-2 py-1 rounded text-xs font-medium">
+                                            {supplier.category}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-wrap gap-1">
+                                            {supplier.businessUnitIds && supplier.businessUnitIds.length > 0 ? (
+                                                supplier.businessUnitIds.map(id => {
+                                                    const biz = businesses.find(b => b.id === id);
+                                                    return biz ? (
+                                                        <span key={id} className="text-xs bg-purple-900/30 border border-purple-700/50 px-2 py-1 rounded text-purple-300 flex items-center gap-1">
+                                                            <Building2 size={12} /> {biz.name}
+                                                        </span>
+                                                    ) : null;
+                                                })
+                                            ) : (
+                                                <span className="text-xs text-slate-500 italic">All Units</span>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-xs text-slate-400">
+                                        {supplier.tin && <div>TIN: {supplier.tin}</div>}
+                                        {supplier.address && <div className="truncate max-w-[150px]">{supplier.address}</div>}
+                                        {supplier.bankDetails?.bankName && (
+                                            <div className="text-slate-500 mt-1">
+                                                Bank: {supplier.bankDetails.bankName} - {supplier.bankDetails.accountNumber}
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-1 text-amber-400">
+                                            <Star size={14} fill="currentColor" />
+                                            <span className="text-slate-300 font-medium">{supplier.rating}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 rounded text-xs font-medium ${supplier.isVatable ? 'bg-green-900/50 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
+                                            {supplier.isVatable ? 'Vatable' : 'Non-Vat'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => handleEdit(supplier)}
+                                                className="text-cyan-400 hover:text-cyan-300 p-1 hover:bg-slate-700 rounded"
+                                            >
+                                                <Edit2 size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(supplier.id)}
+                                                className="text-red-400 hover:text-red-300 p-1 hover:bg-slate-700 rounded"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                            {filteredSuppliers.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-8 text-center text-slate-500 italic">
+                                        No suppliers found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </Card>
 
             <SupplierModal

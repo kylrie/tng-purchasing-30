@@ -19,6 +19,8 @@ interface SettingsViewProps {
     onApproveUser: (userId: string) => void;
     onRejectUser: (userId: string) => void;
     loadingUserId: string | null;
+    uomOptions: string[];
+    setUomOptions: (uoms: string[]) => Promise<void>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -30,7 +32,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     pendingUsers,
     onApproveUser,
     onRejectUser,
-    loadingUserId
+    loadingUserId,
+    uomOptions,
+    setUomOptions
 }) => {
     // Hooks for Business Management
     const { updateBusiness, deleteBusiness } = useBusinesses();
@@ -49,10 +53,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         status: UserStatus.ACTIVE
     });
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'business' | 'users' | 'approvers' | 'permissions'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'business' | 'users' | 'approvers' | 'permissions' | 'inventory'>('profile');
 
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
     const [searchQuery, setSearchQuery] = useState('');
+
+    // UOM Management State
+    const [newUOM, setNewUOM] = useState('');
+    const [editingUOMIndex, setEditingUOMIndex] = useState<number | null>(null);
 
     const isStaging = import.meta.env.MODE === 'staging';
 
@@ -158,6 +166,54 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         updateRoles(roles);
     };
 
+    // UOM Handlers
+    const handleAddOrUpdateUOM = async () => {
+        if (!newUOM.trim()) return;
+
+        const trimmedUOM = newUOM.trim().toLowerCase();
+
+        if (editingUOMIndex !== null) {
+            // Update existing UOM
+            const updatedList = [...uomOptions];
+            updatedList[editingUOMIndex] = trimmedUOM;
+            await setUomOptions(updatedList);
+            alert('UOM Updated Successfully');
+        } else {
+            // Add new UOM
+            if (uomOptions.includes(trimmedUOM)) {
+                alert('This UOM already exists!');
+                return;
+            }
+            await setUomOptions([...uomOptions, trimmedUOM]);
+            alert('UOM Added Successfully');
+        }
+
+        setNewUOM('');
+        setEditingUOMIndex(null);
+    };
+
+    const handleEditUOM = (index: number) => {
+        setNewUOM(uomOptions[index]);
+        setEditingUOMIndex(index);
+    };
+
+    const handleDeleteUOM = async (index: number) => {
+        if (confirm(`Are you sure you want to delete "${uomOptions[index]}"?`)) {
+            try {
+                await setUomOptions(uomOptions.filter((_: string, i: number) => i !== index));
+                alert('UOM Deleted Successfully');
+            } catch (error) {
+                console.error('Error deleting UOM:', error);
+                alert('Failed to delete UOM. Please try again.');
+            }
+        }
+    };
+
+    const handleCancelEditUOM = () => {
+        setNewUOM('');
+        setEditingUOMIndex(null);
+    };
+
     const cardClass = "bg-slate-800/50 backdrop-blur-xl p-6 rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200";
     const inputClass = "w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
     const labelClass = "block text-sm font-medium text-slate-300 mb-1";
@@ -180,13 +236,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     return (
         <div className="space-y-6 max-w-7xl animate-in fade-in slide-in-from-bottom-4 pb-10 text-white">
             {/* Header ... (same as before) */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-white">System Settings</h1>
                     <p className="text-slate-400 text-sm">Manage your account and system preferences.</p>
                 </div>
                 {isStaging && (
-                    <div className="px-3 py-1 bg-yellow-900/30 text-yellow-200 rounded-full text-xs font-bold border border-yellow-500/30 flex items-center gap-1">
+                    <div className="px-3 py-1 bg-yellow-900/30 text-yellow-200 rounded-full text-xs font-bold border border-yellow-500/30 flex items-center gap-1 self-start md:self-auto">
                         <Database size={12} /> STAGING DATABASE
                     </div>
                 )}
@@ -203,6 +259,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <button onClick={() => setActiveTab('users')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>User Management</button>
                         <button onClick={() => setActiveTab('approvers')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'approvers' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Approver Config</button>
                         <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
+                        <button onClick={() => setActiveTab('inventory')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'inventory' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Inventory</button>
                     </>
                 )}
             </div>
@@ -240,7 +297,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Business Unit</label>
                                     <div className="flex items-center gap-2">
                                         <Building2 size={16} className="text-slate-500" />
-                                        <span className="text-slate-200 font-medium">{businesses.find(b => b.id === currentUser.businessId)?.name || 'N/A'}</span>
+                                        <div className="flex flex-col gap-1">
+                                            {currentUser.businessUnitIds && currentUser.businessUnitIds.length > 0 ? (
+                                                currentUser.businessUnitIds.map(buId => (
+                                                    <span key={buId} className="text-slate-200 font-medium">
+                                                        {businesses.find(b => b.id === buId)?.name || 'Unknown Business Unit'}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="text-slate-200 font-medium">
+                                                    {businesses.find(b => b.id === currentUser.businessId)?.name || 'N/A'}
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -527,6 +596,97 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
                         {/* We don't add padding here to let the matrix control its scroll area */}
                         <PermissionsMatrix onSave={handlePermissionsSave} />
+                    </div>
+                )}
+
+                {activeTab === 'inventory' && hasPermission('admin:manage:businesses') && (
+                    <div className={cardClass}>
+                        <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white">
+                            <Sliders size={20} className="text-green-400" /> Inventory Settings
+                        </h3>
+                        <p className="text-slate-400 text-sm mb-6">
+                            Manage Units of Measurement (UOM) used throughout the procurement system.
+                        </p>
+
+                        {/* Add/Edit UOM Form */}
+                        <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700 mb-6">
+                            <h4 className="text-sm font-bold text-slate-300 mb-3">
+                                {editingUOMIndex !== null ? 'Edit UOM' : 'Add New UOM'}
+                            </h4>
+                            <div className="flex flex-col md:flex-row gap-3">
+                                <input
+                                    type="text"
+                                    className={inputClass}
+                                    placeholder="e.g., dozen, liter, meter"
+                                    value={newUOM}
+                                    onChange={(e) => setNewUOM(e.target.value)}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleAddOrUpdateUOM()}
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handleAddOrUpdateUOM}
+                                        disabled={!newUOM.trim()}
+                                        className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap
+                                            ${editingUOMIndex !== null ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'}
+                                            disabled:opacity-50 disabled:cursor-not-allowed
+                                        `}
+                                    >
+                                        {editingUOMIndex !== null ? (
+                                            <><Check size={16} /> Update</>
+                                        ) : (
+                                            <><Plus size={16} /> Add UOM</>
+                                        )}
+                                    </button>
+                                    {editingUOMIndex !== null && (
+                                        <button
+                                            onClick={handleCancelEditUOM}
+                                            className="flex-1 md:flex-none bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 font-medium transition-colors flex items-center justify-center gap-2"
+                                        >
+                                            <X size={16} /> Cancel
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* UOM List */}
+                        <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                            <h4 className="text-sm font-bold text-slate-400 uppercase mb-3">
+                                Available Units ({uomOptions.length})
+                            </h4>
+                            {uomOptions.length === 0 ? (
+                                <div className="text-center py-8 text-slate-500">
+                                    No UOMs available. Add one above.
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                    {uomOptions.map((uom, index) => (
+                                        <div
+                                            key={index}
+                                            className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 text-sm flex justify-between items-center hover:bg-slate-800/50 transition-colors group"
+                                        >
+                                            <div className="font-medium text-slate-200 font-mono">{uom}</div>
+                                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handleEditUOM(index)}
+                                                    className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                    title="Edit UOM"
+                                                >
+                                                    <Edit2 size={14} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteUOM(index)}
+                                                    className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    title="Delete UOM"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

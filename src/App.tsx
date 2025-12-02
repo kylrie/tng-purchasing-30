@@ -23,6 +23,7 @@ import { useBusinesses } from './features/admin/hooks/useBusinesses';
 import { useSuppliers } from './features/inventory/hooks/useSuppliers';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from './config/firebase';
+import { useUOM } from './shared/hooks/useUOM';
 
 function ProtectedApp() {
   const { currentUser, logout, loading } = useAuth();
@@ -33,6 +34,7 @@ function ProtectedApp() {
 
   const [notifications] = useState<NotificationItem[]>([]);
   const [approvalLoadingId, setApprovalLoadingId] = useState<string | null>(null);
+  const { uomOptions, updateUOMs } = useUOM();
 
   const handleApproveUser = async (userId: string) => {
     setApprovalLoadingId(userId);
@@ -133,7 +135,7 @@ function ProtectedApp() {
   return (
     <Layout {...layoutProps}>
       <Routes>
-        <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} />} />
+        <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
 
         <Route path="/burf" element={
           <BurfView
@@ -144,6 +146,7 @@ function ProtectedApp() {
             getStatusBadge={getStatusBadge}
             onCreateRequisition={createRequisition}
             onUpdateRequisition={updateRequisition}
+            uomOptions={uomOptions}
           />
         } />
 
@@ -157,6 +160,7 @@ function ProtectedApp() {
             onCreateRequisition={createRequisition}
             onUpdateRequisition={updateRequisition}
             suppliers={suppliers}
+            uomOptions={uomOptions}
           />
         } />
 
@@ -226,6 +230,8 @@ function ProtectedApp() {
             onApproveUser={handleApproveUser}
             onRejectUser={handleRejectUser}
             loadingUserId={approvalLoadingId}
+            uomOptions={uomOptions}
+            setUomOptions={updateUOMs}
           />
         } />
 

@@ -18,7 +18,8 @@ export const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize services
-export const db = getFirestore(app, "tng-systems");
+const dbId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
+export const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
