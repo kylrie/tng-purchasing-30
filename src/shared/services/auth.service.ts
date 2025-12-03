@@ -7,8 +7,10 @@ import {
     type User as FirebaseUser,
     type NextOrObserver,
     type UserCredential,
+    getAuth,
 } from 'firebase/auth';
-import { auth, googleProvider } from '../../config/firebase';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { auth, googleProvider, firebaseConfig } from '../../config/firebase';
 import { FirestoreService, Timestamp } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
 import type { FirestoreUser } from '../types/firebase.types';
@@ -88,9 +90,14 @@ export class AuthService {
             avatar?: string;
         }
     ): Promise<UserCredential> {
+        let secondaryApp;
         try {
-            // Create Firebase Auth user
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            // Initialize a secondary app to avoid signing out the current user
+            secondaryApp = initializeApp(firebaseConfig, "Secondary");
+            const secondaryAuth = getAuth(secondaryApp);
+
+            // Create Firebase Auth user using the secondary app
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
 
             const newDoc = {
                 email,
@@ -103,17 +110,24 @@ export class AuthService {
                 updatedAt: Timestamp.now(),
             };
 
-            // Create Firestore user document
+            // Create Firestore user document using the MAIN app (authenticated as Admin)
             await FirestoreService.setDocument<FirestoreUser>(
                 COLLECTIONS.USERS,
                 userCredential.user.uid,
                 newDoc as FirestoreUser
             );
 
+            // Sign out the new user from the secondary app to clean up
+            await firebaseSignOut(secondaryAuth);
+
             return userCredential;
         } catch (error) {
             console.error('Error creating user:', error);
             throw error;
+        } finally {
+            if (secondaryApp) {
+                await deleteApp(secondaryApp);
+            }
         }
     }
 
