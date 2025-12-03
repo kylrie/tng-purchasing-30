@@ -13,7 +13,7 @@ import { AuthService } from '../../../shared/services/auth.service';
 interface SettingsViewProps {
     currentUser: User;
     businesses: Business[];
-    handleAddBusiness: (business: Omit<Business, 'id'>, customId?: string) => void;
+    handleAddBusiness: (business: Omit<Business, 'id'>) => void;
     onUpdateBusiness: (id: string, updates: Partial<Business>) => Promise<void>;
     onDeleteBusiness: (id: string) => Promise<void>;
     allUsers: User[];
@@ -61,7 +61,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
     // Business State
     const [newBiz, setNewBiz] = useState<Partial<Business>>({ name: '', tin: '', address: '', currency: 'PHP' });
-    const [customBizId, setCustomBizId] = useState('');
     const [editingBizId, setEditingBizId] = useState<string | null>(null);
 
     // User Search
@@ -148,7 +147,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             await onUpdateBusiness(editingBizId, newBiz);
             alert("Business Updated Successfully");
         } else {
-            handleAddBusiness(newBiz as Omit<Business, 'id'>, customBizId || undefined);
+            handleAddBusiness(newBiz as Omit<Business, 'id'>);
             alert("Business Created Successfully");
         }
         handleCancelEditBusiness();
@@ -156,14 +155,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
     const handleCancelEditBusiness = () => {
         setNewBiz({ name: '', tin: '', address: '', currency: 'PHP' });
-        setCustomBizId('');
         setEditingBizId(null);
     };
 
     const handleEditBusinessClick = (b: Business) => {
         setNewBiz(b);
         setEditingBizId(b.id);
-        setCustomBizId(b.id);
     };
 
     const handleDeleteBusiness = async (id: string) => {
@@ -410,13 +407,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <div className={cardClass}>
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Building2 size={20} className="text-purple-400" /> Business Unit Management</h3>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                                <input
-                                    className={inputClass}
-                                    placeholder="Custom ID (Optional, e.g. b1)"
-                                    value={customBizId}
-                                    onChange={e => setCustomBizId(e.target.value)}
-                                    disabled={!!editingBizId} // Disable when editing existing business
-                                />
                                 <input className={inputClass} placeholder="Business Name" value={newBiz.name} onChange={e => setNewBiz({ ...newBiz, name: e.target.value })} />
                                 <input className={inputClass} placeholder="TIN" value={newBiz.tin} onChange={e => setNewBiz({ ...newBiz, tin: e.target.value })} />
                                 <input className={inputClass} placeholder="Address" value={newBiz.address} onChange={e => setNewBiz({ ...newBiz, address: e.target.value })} />

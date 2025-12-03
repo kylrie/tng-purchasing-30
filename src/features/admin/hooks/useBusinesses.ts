@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, setDoc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { COLLECTIONS } from "../../../shared/types/firebase.types";
 import type { Business } from "../../../shared/types";
@@ -27,16 +27,9 @@ export const useBusinesses = () => {
         return () => unsubscribe();
     }, []);
 
-    const addBusiness = async (businessData: Omit<Business, 'id'>, customId?: string) => {
+    const addBusiness = async (businessData: Omit<Business, 'id'>) => {
         try {
-            if (customId) {
-                // Use custom ID (like 'b1', 'b2', etc.)
-                const bizRef = doc(db, COLLECTIONS.BUSINESSES, customId);
-                await setDoc(bizRef, businessData);
-            } else {
-                // Auto-generate ID
-                await addDoc(businessesCollection, businessData);
-            }
+            await addDoc(businessesCollection, businessData);
         } catch (error) {
             console.error("Error adding business: ", error);
             throw new Error("Failed to add business unit.");
