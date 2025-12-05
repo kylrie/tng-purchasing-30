@@ -187,13 +187,26 @@ service cloud.firestore {
       allow delete: if false;
     }
     
-    // --- UOM COLLECTION (SECURE) ---
+    // --- UOM COLLECTION (FLEXIBLE PERMISSION-BASED) ---
     match /uom/{uomId} {
-      // Any signed-in user can read UOMs
+      // Any signed-in user can read UOMs (needed for dropdowns)
       allow read: if isSignedIn();
       
-      // Only admins and purchasing officers can create, update, or delete UOMs
-      allow create, update, delete: if isSuperAdminOrAdmin() || hasRole('PURCHASING_OFFICER');
+      // Check if user's role has 'inventory:manage:uom' permission
+      // This reads from the config/permissions document where role permissions are stored
+      function hasUOMPermission() {
+        let userData = getUserData();
+        let userRole = userData.role;
+        // Super Admin always has access
+        if (userRole == 'SUPER_ADMIN') return true;
+        // Check if role has inventory:manage:uom permission in config
+        let permissionsDoc = get(/databases/$(database)/documents/config/permissions).data;
+        let rolePermissions = permissionsDoc.roles[userRole];
+        return rolePermissions != null && 'inventory:manage:uom' in rolePermissions;
+      }
+      
+      // Create, update, delete requires inventory:manage:uom permission
+      allow create, update, delete: if isSignedIn() && hasUOMPermission();
     }
   }
 }
