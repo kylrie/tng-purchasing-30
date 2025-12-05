@@ -44,16 +44,12 @@ service cloud.firestore {
     }
     
     function hasPermission(permission) {
-      // Super Admin always has all permissions
-      if (isSuperAdmin()) return true;
-      
-      let userRole = getUserRole();
-      let permissionsDoc = getPermissionsDoc();
-      
-      // Check if role exists and has the permission
-      return permissionsDoc.roles != null && 
-             permissionsDoc.roles[userRole] != null && 
-             permission in permissionsDoc.roles[userRole];
+      // Super Admin always has all permissions, otherwise check permissions doc
+      return isSuperAdmin() || (
+        getPermissionsDoc().roles != null && 
+        getPermissionsDoc().roles[getUserRole()] != null && 
+        permission in getPermissionsDoc().roles[getUserRole()]
+      );
     }
     
     // =====================================================
