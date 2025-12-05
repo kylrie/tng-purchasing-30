@@ -72,6 +72,43 @@ service cloud.firestore {
         resource.data.requesterId == request.auth.uid ||
         belongsToSameBU(resource);
     }
+    
+    // =====================================================
+    // DATA VALIDATION FUNCTIONS (Issue #5)
+    // =====================================================
+    
+    // Valid requisition statuses
+    function isValidStatus(status) {
+      return status in [
+        'DRAFT',
+        'BURF_PENDING_MANAGER',
+        'BURF_PENDING_CIC',
+        'READY_FOR_PRF',
+        'PRF_PENDING_MANAGER',
+        'APPROVED_FOR_PAYMENT',
+        'FUNDS_RELEASED',
+        'LIQUIDATION_FILED',
+        'LIQUIDATION_REJECTED',
+        'AUDITED_CLEARED',
+        'REJECTED',
+        'CANCELLED'
+      ];
+    }
+    
+    // Validate required fields for requisition creation
+    function hasRequiredRequisitionFields(data) {
+      return data.keys().hasAll(['requesterId', 'businessId', 'items', 'status', 'dateCreated']) &&
+        data.requesterId is string &&
+        data.businessId is string &&
+        data.items is list &&
+        data.status is string &&
+        isValidStatus(data.status);
+    }
+    
+    // Validate items array has required structure
+    function hasValidItems(items) {
+      return items.size() > 0;
+    }
 
     // =====================================================
     // REQUISITIONS COLLECTION
@@ -80,9 +117,13 @@ service cloud.firestore {
       // Read: BU-based access
       allow read: if isSignedIn() && canReadRequisition(resource);
       
-      // Create: Must be authenticated user
+      // Create: Must be authenticated user with valid data (Issue #5)
       allow create: if isSignedIn() && 
-        request.resource.data.requesterId == request.auth.uid;
+        request.resource.data.requesterId == request.auth.uid &&
+        hasRequiredRequisitionFields(request.resource.data) &&
+        hasValidItems(request.resource.data.items) &&
+        // New requisitions must start as DRAFT or BURF_PENDING_MANAGER
+        (request.resource.data.status == 'DRAFT' || request.resource.data.status == 'BURF_PENDING_MANAGER');
       
       allow update: if isSignedIn() && (
         // SUPER ADMIN: Can do anything
@@ -218,11 +259,26 @@ service cloud.firestore {
     }
     
     // =====================================================
-    // COUNTERS COLLECTION
+    // COUNTERS COLLECTION (Issue #6 - Secured)
     // =====================================================
     match /counters/{counterId} {
       allow read: if isSignedIn();
-      allow create, update: if isSignedIn();
+      
+      // Only allow updates that increment the counter value
+      // Prevent arbitrary value manipulation
+      allow create: if isSignedIn() && 
+        request.resource.data.keys().hasAll(['value', 'prefix']) &&
+        request.resource.data.value is int &&
+        request.resource.data.value >= 0;
+        
+      allow update: if isSignedIn() && 
+        // Only allow incrementing the value (new value must be greater than old)
+        request.resource.data.value is int &&
+        request.resource.data.value > resource.data.value &&
+        // Prevent changing the prefix
+        (resource.data.prefix == null || request.resource.data.prefix == resource.data.prefix);
+      
+      // Prevent deletion
       allow delete: if false;
     }
     
