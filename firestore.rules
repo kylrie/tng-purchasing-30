@@ -22,11 +22,26 @@ service cloud.firestore {
     function isSuperAdminOrAdmin() {
       return hasRole('SUPER_ADMIN') || hasRole('ADMIN');
     }
+    
+    // Check if user belongs to same business unit as the requisition
+    // Supports users with multiple BUs via businessUnitIds array
+    function belongsToSameBU(resource) {
+      let userData = getUserData();
+      // Check if user has global access (Super Admin/Admin)
+      return isSuperAdminOrAdmin() ||
+        // Check primary businessId
+        userData.businessId == resource.data.businessId ||
+        // Check businessUnitIds array (for multi-BU users)
+        (userData.businessUnitIds != null && resource.data.businessId in userData.businessUnitIds);
+    }
 
     // --- REQUISITIONS COLLECTION (SECURE) ---
     match /requisitions/{docId} {
       allow read: if isSignedIn(); // Allow any signed-in user to read
-      allow create: if isSignedIn();
+      
+      // FIX #1: Creator must be the authenticated user (prevent impersonation)
+      allow create: if isSignedIn() && 
+        request.resource.data.requesterId == request.auth.uid;
       
       allow update: if isSignedIn() && (
         // SUPER ADMIN: Can do anything
@@ -48,28 +63,31 @@ service cloud.firestore {
           isOwner(resource)
         ) ||
 
-        // 4. APPROVE: Manager/GM for BURF
+        // 4. APPROVE: Manager/GM for BURF (FIX #2: Must belong to same BU)
         (
           resource.data.status == 'BURF_PENDING_MANAGER' &&
           (request.resource.data.status == 'BURF_PENDING_CIC' || request.resource.data.status == 'READY_FOR_PRF') &&
-          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER'))
+          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER')) &&
+          belongsToSameBU(resource)
         ) ||
 
-        // 5. APPROVE: CIC for BURF
+        // 5. APPROVE: CIC for BURF (FIX #2: Must belong to same BU)
         (
           resource.data.status == 'BURF_PENDING_CIC' &&
           request.resource.data.status == 'READY_FOR_PRF' &&
-          hasRole('CIC')
+          hasRole('CIC') &&
+          belongsToSameBU(resource)
         ) ||
         
-        // 6. APPROVE: Manager for PRF
+        // 6. APPROVE: Manager for PRF (FIX #2: Must belong to same BU)
         (
           resource.data.status == 'PRF_PENDING_MANAGER' &&
           request.resource.data.status == 'APPROVED_FOR_PAYMENT' &&
-          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER'))
+          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER')) &&
+          belongsToSameBU(resource)
         ) ||
 
-        // 7. REJECT: Any Approver
+        // 7. REJECT: Any Approver (FIX #2: Must belong to same BU)
         (
           request.resource.data.status == 'REJECTED' &&
           (
@@ -77,7 +95,8 @@ service cloud.firestore {
              hasRole('GENERAL_MANAGER') || 
              hasRole('CIC') || 
              hasRole('PURCHASING_OFFICER')
-          )
+          ) &&
+          belongsToSameBU(resource)
         ) ||
         
         // 8. Finance Actions (Funds Release)
