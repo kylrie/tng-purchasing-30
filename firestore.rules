@@ -2,7 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
+    // =====================================================
+    // HELPER FUNCTIONS
+    // =====================================================
+    
     function isSignedIn() {
       return request.auth != null;
     }
@@ -11,202 +14,226 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
     
-    function hasRole(role) {
-      return isSignedIn() && getUserData().role == role;
+    function getUserRole() {
+      return getUserData().role;
     }
     
-    function isOwner(resource) {
-      return isSignedIn() && resource.data.requesterId == request.auth.uid;
+    function hasRole(role) {
+      return isSignedIn() && getUserRole() == role;
+    }
+    
+    function isSuperAdmin() {
+      return hasRole('SUPER_ADMIN');
     }
     
     function isSuperAdminOrAdmin() {
       return hasRole('SUPER_ADMIN') || hasRole('ADMIN');
     }
     
-    // Check if user belongs to same business unit as the requisition
-    // Supports users with multiple BUs via businessUnitIds array
+    function isOwner(resource) {
+      return isSignedIn() && resource.data.requesterId == request.auth.uid;
+    }
+    
+    // =====================================================
+    // PERMISSION-BASED ACCESS CONTROL
+    // Reads permissions from config/permissions document
+    // =====================================================
+    
+    function getPermissionsDoc() {
+      return get(/databases/$(database)/documents/config/permissions).data;
+    }
+    
+    function hasPermission(permission) {
+      // Super Admin always has all permissions
+      if (isSuperAdmin()) return true;
+      
+      let userRole = getUserRole();
+      let permissionsDoc = getPermissionsDoc();
+      
+      // Check if role exists and has the permission
+      return permissionsDoc.roles != null && 
+             permissionsDoc.roles[userRole] != null && 
+             permission in permissionsDoc.roles[userRole];
+    }
+    
+    // =====================================================
+    // BUSINESS UNIT FUNCTIONS
+    // =====================================================
+    
     function belongsToSameBU(resource) {
       let userData = getUserData();
-      // Check if user has global access (Super Admin/Admin)
       return isSuperAdminOrAdmin() ||
-        // Check primary businessId
         userData.businessId == resource.data.businessId ||
-        // Check businessUnitIds array (for multi-BU users)
         (userData.businessUnitIds != null && resource.data.businessId in userData.businessUnitIds);
     }
     
-    // FIX #3: Multi-BU aware read access for requisitions
-    // Users can only read requisitions from their assigned BUs
     function canReadRequisition(resource) {
       return isSuperAdminOrAdmin() ||
-        // Owner can always read their own requisitions
         resource.data.requesterId == request.auth.uid ||
-        // User belongs to same BU (supports multi-BU users)
         belongsToSameBU(resource);
     }
 
-    // --- REQUISITIONS COLLECTION (SECURE) ---
+    // =====================================================
+    // REQUISITIONS COLLECTION
+    // =====================================================
     match /requisitions/{docId} {
-      // FIX #3: Restrict read to own BU(s) or own requisitions
+      // Read: BU-based access
       allow read: if isSignedIn() && canReadRequisition(resource);
       
-      // FIX #1: Creator must be the authenticated user (prevent impersonation)
+      // Create: Must be authenticated user
       allow create: if isSignedIn() && 
         request.resource.data.requesterId == request.auth.uid;
       
       allow update: if isSignedIn() && (
         // SUPER ADMIN: Can do anything
-        hasRole('SUPER_ADMIN') ||
+        isSuperAdmin() ||
         
-        // 1. DRAFT Edits: Owner can edit anything if Draft
+        // DRAFT Edits: Owner can edit if Draft
         (resource.data.status == 'DRAFT' && isOwner(resource)) ||
 
-        // 2. CANCEL: Owner or Admin
+        // CANCEL: Owner or anyone with requisition:cancel permission
         (
           request.resource.data.status == 'CANCELLED' && 
-          (isOwner(resource) || hasRole('ADMIN'))
+          (isOwner(resource) || hasPermission('requisition:cancel'))
         ) ||
         
-        // 3. REFILE: Owner, from REJECTED to PENDING
+        // REFILE: Owner, from REJECTED to PENDING
         (
           resource.data.status == 'REJECTED' &&
           (request.resource.data.status == 'BURF_PENDING_MANAGER' || request.resource.data.status == 'PRF_PENDING_MANAGER') &&
           isOwner(resource)
         ) ||
 
-        // 4. APPROVE: Manager/GM for BURF (FIX #2: Must belong to same BU)
+        // APPROVE BURF (Manager stage): Permission-based + same BU
         (
           resource.data.status == 'BURF_PENDING_MANAGER' &&
           (request.resource.data.status == 'BURF_PENDING_CIC' || request.resource.data.status == 'READY_FOR_PRF') &&
-          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER')) &&
+          hasPermission('approval:manager:burf') &&
           belongsToSameBU(resource)
         ) ||
 
-        // 5. APPROVE: CIC for BURF (FIX #2: Must belong to same BU)
+        // APPROVE BURF (CIC stage): Permission-based + same BU
         (
           resource.data.status == 'BURF_PENDING_CIC' &&
           request.resource.data.status == 'READY_FOR_PRF' &&
-          hasRole('CIC') &&
+          hasPermission('approval:cic:burf') &&
           belongsToSameBU(resource)
         ) ||
         
-        // 6. APPROVE: Manager for PRF (FIX #2: Must belong to same BU)
+        // APPROVE PRF: Permission-based + same BU
         (
           resource.data.status == 'PRF_PENDING_MANAGER' &&
           request.resource.data.status == 'APPROVED_FOR_PAYMENT' &&
-          (hasRole('MANAGER') || hasRole('GENERAL_MANAGER')) &&
+          hasPermission('approval:manager:prf') &&
           belongsToSameBU(resource)
         ) ||
 
-        // 7. REJECT: Any Approver (FIX #2: Must belong to same BU)
+        // REJECT: Any approver permission + same BU
         (
           request.resource.data.status == 'REJECTED' &&
           (
-             hasRole('MANAGER') || 
-             hasRole('GENERAL_MANAGER') || 
-             hasRole('CIC') || 
-             hasRole('PURCHASING_OFFICER')
+            hasPermission('approval:manager:burf') || 
+            hasPermission('approval:cic:burf') || 
+            hasPermission('approval:manager:prf')
           ) &&
           belongsToSameBU(resource)
         ) ||
         
-        // 8. Finance Actions (Funds Release)
+        // Finance: Release Funds - Permission-based
         (
-           request.resource.data.status == 'FUNDS_RELEASED' &&
-           hasRole('FINANCE')
+          request.resource.data.status == 'FUNDS_RELEASED' &&
+          hasPermission('finance:release_funds')
+        ) ||
+        
+        // Liquidation: File - Permission-based
+        (
+          resource.data.status == 'FUNDS_RELEASED' &&
+          request.resource.data.status == 'LIQUIDATION_FILED' &&
+          (hasPermission('liquidation:file:all') || 
+           (hasPermission('liquidation:file:own') && isOwner(resource)))
+        ) ||
+        
+        // Liquidation: Audit - Permission-based
+        (
+          resource.data.status == 'LIQUIDATION_FILED' &&
+          (request.resource.data.status == 'AUDITED_CLEARED' || request.resource.data.status == 'LIQUIDATION_REJECTED') &&
+          hasPermission('liquidation:audit')
         )
       );
     }
 
-    // --- USERS COLLECTION (SECURE) ---
+    // =====================================================
+    // USERS COLLECTION
+    // =====================================================
     match /users/{userId} {
-      // Anyone signed in can read user data (needed for displaying names, etc.)
       allow read: if isSignedIn();
       
-      // Users can only update their own profile, or admins can update any
-      allow update: if isSignedIn() && (request.auth.uid == userId || isSuperAdminOrAdmin());
+      // Self-update or admin:manage:users permission
+      allow update: if isSignedIn() && 
+        (request.auth.uid == userId || hasPermission('admin:manage:users'));
       
-      // Only admins can create or delete users
-      allow create, delete: if isSuperAdminOrAdmin();
+      // Create/Delete requires admin:manage:users permission
+      allow create, delete: if isSignedIn() && hasPermission('admin:manage:users');
     }
     
-    // --- BUSINESSES COLLECTION (SECURE) ---
+    // =====================================================
+    // BUSINESSES COLLECTION
+    // =====================================================
     match /businesses/{id} {
-      // Anyone signed in can read businesses (needed for dropdowns, etc.)
       allow read: if isSignedIn();
       
-      // Only admins can create, update, or delete businesses
-      allow create, update, delete: if isSuperAdminOrAdmin();
+      // Permission-based business management
+      allow create, update, delete: if isSignedIn() && hasPermission('admin:manage:businesses');
     }
     
-    // --- NOTIFICATIONS COLLECTION (SECURE) ---
+    // =====================================================
+    // NOTIFICATIONS COLLECTION
+    // =====================================================
     match /notifications/{id} {
-      // Users can only read their own notifications
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      
-      // Users can create notifications for themselves
-      // System can create notifications (handled server-side)
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      
-      // Users can update/delete their own notifications
       allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
     
-    // --- SUPPLIERS COLLECTION (SECURE) ---
+    // =====================================================
+    // SUPPLIERS COLLECTION
+    // =====================================================
     match /suppliers/{id} {
-      // Any signed-in user can read suppliers (needed for dropdowns)
       allow read: if isSignedIn();
       
-      // Only purchasing officers and admins can modify suppliers
-      allow create, update, delete: if isSignedIn() && (
-        hasRole('PURCHASING_OFFICER') || 
-        hasRole('SUPER_ADMIN') ||
-        hasRole('ADMIN')
-      );
+      // Permission-based supplier management
+      allow create: if isSignedIn() && hasPermission('supplier:create');
+      allow update: if isSignedIn() && hasPermission('supplier:edit');
+      allow delete: if isSignedIn() && hasPermission('supplier:delete');
     }
     
-    // --- CONFIG COLLECTION (SECURE) ---
+    // =====================================================
+    // CONFIG COLLECTION
+    // =====================================================
     match /config/{document} {
-      // Anyone signed in can read config (permissions, etc.)
       allow read: if isSignedIn();
       
-      // Only super admins can update config
-      allow write: if hasRole('SUPER_ADMIN');
+      // Only permission management requires admin:manage:permissions
+      allow write: if isSignedIn() && hasPermission('admin:manage:permissions');
     }
     
-    // --- COUNTERS COLLECTION (SECURE) ---
+    // =====================================================
+    // COUNTERS COLLECTION
+    // =====================================================
     match /counters/{counterId} {
-      // Any signed-in user can read counters
       allow read: if isSignedIn();
-      
-      // Any signed-in user can update counters (for ID generation)
-      // The CounterService uses transactions to ensure atomicity
       allow create, update: if isSignedIn();
-      
-      // Prevent deletion of counters
       allow delete: if false;
     }
     
-    // --- UOM COLLECTION (FLEXIBLE PERMISSION-BASED) ---
+    // =====================================================
+    // UOM COLLECTION
+    // =====================================================
     match /uom/{uomId} {
-      // Any signed-in user can read UOMs (needed for dropdowns)
       allow read: if isSignedIn();
       
-      // Check if user's role has 'inventory:manage:uom' permission
-      // This reads from the config/permissions document where role permissions are stored
-      function hasUOMPermission() {
-        let userData = getUserData();
-        let userRole = userData.role;
-        // Super Admin always has access
-        if (userRole == 'SUPER_ADMIN') return true;
-        // Check if role has inventory:manage:uom permission in config
-        let permissionsDoc = get(/databases/$(database)/documents/config/permissions).data;
-        let rolePermissions = permissionsDoc.roles[userRole];
-        return rolePermissions != null && 'inventory:manage:uom' in rolePermissions;
-      }
-      
-      // Create, update, delete requires inventory:manage:uom permission
-      allow create, update, delete: if isSignedIn() && hasUOMPermission();
+      // Permission-based UOM management
+      allow create, update, delete: if isSignedIn() && hasPermission('inventory:manage:uom');
     }
   }
 }
