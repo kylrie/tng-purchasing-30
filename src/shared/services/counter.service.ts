@@ -12,9 +12,11 @@ export enum CounterType {
 
 /**
  * Counter document structure in Firestore
+ * Updated to match firestore.rules requirements (Issue #6)
  */
 interface CounterDocument {
     value: number;
+    prefix: string; // Required by firestore.rules
     lastUpdated: string;
 }
 
@@ -25,6 +27,13 @@ interface CounterDocument {
 export class CounterService {
     private static readonly COLLECTION_NAME = 'counters';
 
+    // Prefix mappings for each counter type
+    private static readonly PREFIXES: Record<CounterType, string> = {
+        [CounterType.PRF]: 'PRF',
+        [CounterType.BURF]: 'BURF',
+        [CounterType.LIQUIDATION]: 'LIQ',
+    };
+
     /**
      * Get the next counter value and increment it atomically
      * @param counterType - Type of counter to increment
@@ -32,6 +41,7 @@ export class CounterService {
      */
     static async getNextValue(counterType: CounterType): Promise<number> {
         const counterRef = doc(db, this.COLLECTION_NAME, counterType);
+        const prefix = this.PREFIXES[counterType];
 
         try {
             const nextValue = await runTransaction(db, async (transaction) => {
@@ -45,9 +55,10 @@ export class CounterService {
 
                 const nextValue = currentValue + 1;
 
-                // Update or create the counter document
+                // Update or create the counter document with prefix (Issue #6 fix)
                 transaction.set(counterRef, {
                     value: nextValue,
+                    prefix: prefix,
                     lastUpdated: new Date().toISOString(),
                 });
 
@@ -147,11 +158,13 @@ export class CounterService {
      */
     static async resetCounter(counterType: CounterType, value: number = 0): Promise<void> {
         const counterRef = doc(db, this.COLLECTION_NAME, counterType);
+        const prefix = this.PREFIXES[counterType];
 
         try {
             await runTransaction(db, async (transaction) => {
                 transaction.set(counterRef, {
                     value,
+                    prefix: prefix,
                     lastUpdated: new Date().toISOString(),
                 });
             });
