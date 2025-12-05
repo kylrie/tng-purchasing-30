@@ -72,29 +72,20 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     // Validate and set default business ID
     const getValidBusinessId = () => {
         const defaultId = initialData?.businessId || currentUser.businessId;
-        console.log('[DirectPrfModal] Getting valid business ID...');
-        console.log('  - Default ID:', defaultId);
-        console.log('  - Available businesses:', businesses);
-        console.log('  - User business units:', userBusinessUnits);
-        console.log('  - Current user businessId:', currentUser.businessId);
 
         // Check if the default ID exists in the businesses array
         if (defaultId && businesses.some(b => b.id === defaultId)) {
-            console.log('  ✓ Using default ID:', defaultId);
             return defaultId;
         }
         // Fallback to first available business unit for the user
         if (userBusinessUnits.length > 0) {
             const firstValidBusiness = businesses.find(b => userBusinessUnits.includes(b.id));
             if (firstValidBusiness) {
-                console.log('  ✓ Using first valid business from user units:', firstValidBusiness.id);
                 return firstValidBusiness.id;
             }
         }
         // Last resort: use first business in the list
-        const fallbackId = businesses.length > 0 ? businesses[0].id : '';
-        console.log('  ✓ Using fallback (first in list):', fallbackId);
-        return fallbackId;
+        return businesses.length > 0 ? businesses[0].id : '';
     };
 
     const [selectedBusinessId, setSelectedBusinessId] = useState<string>(getValidBusinessId());

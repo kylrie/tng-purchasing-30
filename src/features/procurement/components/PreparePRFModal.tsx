@@ -135,7 +135,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     status: RequisitionStatus.READY_FOR_PRF
                 };
 
-                console.log('Submitting split PRF:', { newPrf, updatedBurf });
+                onSubmit(newPrf, updatedBurf);
                 onSubmit(newPrf, updatedBurf);
             } else {
                 const updatedRequisition: Requisition = {
@@ -153,7 +153,6 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     status: RequisitionStatus.PRF_PENDING_MANAGER,
                     prfIdentifier
                 };
-                console.log('Submitting updated PRF:', updatedRequisition);
                 onSubmit(updatedRequisition);
             }
         } catch (error) {

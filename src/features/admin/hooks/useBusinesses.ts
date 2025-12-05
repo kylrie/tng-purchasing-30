@@ -14,9 +14,6 @@ export const useBusinesses = () => {
         setLoading(true);
         const unsubscribe = onSnapshot(businessesCollection, (snapshot) => {
             const bizData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
-            console.log('[useBusinesses] Loaded businesses from Firestore:', bizData);
-            console.log('[useBusinesses] Number of businesses:', bizData.length);
-            bizData.forEach(b => console.log(`  - ${b.id}: ${b.name}`));
             setBusinesses(bizData);
             setLoading(false);
         }, (error) => {

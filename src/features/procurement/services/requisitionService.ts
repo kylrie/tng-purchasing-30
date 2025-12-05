@@ -39,7 +39,6 @@ export const fetchRequisitions = async (businessId?: string): Promise<Requisitio
 export const createRequisition = async (requisition: Requisition) => {
     try {
         await setDoc(doc(db, REQUISITIONS_COLLECTION, requisition.id), requisition);
-        console.log("Document written with ID: ", requisition.id);
         return true;
     } catch (e) {
         console.error("Error adding document: ", e);

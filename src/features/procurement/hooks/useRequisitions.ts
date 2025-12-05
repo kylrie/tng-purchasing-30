@@ -46,7 +46,6 @@ export const useRequisitions = () => {
         try {
             // Remove undefined fields to prevent Firestore errors
             const sanitized = removeUndefinedFields(requisitionData);
-            console.log('Creating requisition with sanitized data:', sanitized);
             await RequisitionService.createRequisition(sanitized);
         } catch (err: any) {
             console.error("Error creating requisition: ", err);
@@ -59,7 +58,6 @@ export const useRequisitions = () => {
         try {
             // Remove undefined fields to prevent Firestore errors
             const sanitized = removeUndefinedFields(requisitionData);
-            console.log('Updating requisition with sanitized data:', sanitized);
             await RequisitionService.updateRequisition(requisitionData.id, sanitized);
         } catch (err: any) {
             console.error("Error updating requisition: ", err);
