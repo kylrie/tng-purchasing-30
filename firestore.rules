@@ -34,10 +34,21 @@ service cloud.firestore {
         // Check businessUnitIds array (for multi-BU users)
         (userData.businessUnitIds != null && resource.data.businessId in userData.businessUnitIds);
     }
+    
+    // FIX #3: Multi-BU aware read access for requisitions
+    // Users can only read requisitions from their assigned BUs
+    function canReadRequisition(resource) {
+      return isSuperAdminOrAdmin() ||
+        // Owner can always read their own requisitions
+        resource.data.requesterId == request.auth.uid ||
+        // User belongs to same BU (supports multi-BU users)
+        belongsToSameBU(resource);
+    }
 
     // --- REQUISITIONS COLLECTION (SECURE) ---
     match /requisitions/{docId} {
-      allow read: if isSignedIn(); // Allow any signed-in user to read
+      // FIX #3: Restrict read to own BU(s) or own requisitions
+      allow read: if isSignedIn() && canReadRequisition(resource);
       
       // FIX #1: Creator must be the authenticated user (prevent impersonation)
       allow create: if isSignedIn() && 
