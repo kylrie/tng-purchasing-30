@@ -1,5 +1,19 @@
 import { GoogleGenAI } from "@google/genai";
 
+/**
+ * SECURITY WARNING (Issue C1):
+ * The Gemini API key is exposed in client-side code. While this works, it's a security risk.
+ * API keys can be extracted from browser DevTools, leading to unauthorized usage.
+ * 
+ * RECOMMENDED: Move these AI calls to a Firebase Cloud Function or backend proxy.
+ * Example Cloud Function endpoint: /api/gemini/insight
+ * 
+ * For now, ensure your API key has appropriate restrictions:
+ * 1. Set HTTP referrer restrictions in Google Cloud Console
+ * 2. Use API quota limits
+ * 3. Monitor usage for anomalies
+ */
+
 export const generateProcurementInsight = async (
     promptContext: string
 ): Promise<string> => {

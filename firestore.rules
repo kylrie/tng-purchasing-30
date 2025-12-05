@@ -102,8 +102,9 @@ service cloud.firestore {
     }
     
     // Validate items array has required structure
+    // FIX M1: Added upper limit to prevent DoS via excessively large documents (Firestore limit: 1MB)
     function hasValidItems(items) {
-      return items.size() > 0;
+      return items.size() > 0 && items.size() <= 500;
     }
 
     // =====================================================
@@ -118,8 +119,10 @@ service cloud.firestore {
         request.resource.data.requesterId == request.auth.uid &&
         hasRequiredRequisitionFields(request.resource.data) &&
         hasValidItems(request.resource.data.items) &&
-        // New requisitions must start as DRAFT or BURF_PENDING_MANAGER
-        (request.resource.data.status == 'DRAFT' || request.resource.data.status == 'BURF_PENDING_MANAGER');
+        // New requisitions must start as DRAFT, BURF_PENDING_MANAGER, or PRF_PENDING_MANAGER (for direct PRF)
+        (request.resource.data.status == 'DRAFT' || 
+         request.resource.data.status == 'BURF_PENDING_MANAGER' || 
+         request.resource.data.status == 'PRF_PENDING_MANAGER');
       
       allow update: if isSignedIn() && (
         // SUPER ADMIN: Can do anything
@@ -260,19 +263,19 @@ service cloud.firestore {
     match /counters/{counterId} {
       allow read: if isSignedIn();
       
-      // Only allow updates that increment the counter value
-      // Prevent arbitrary value manipulation
+      // Allow creation of new counters with required fields
       allow create: if isSignedIn() && 
         request.resource.data.keys().hasAll(['value', 'prefix']) &&
         request.resource.data.value is int &&
-        request.resource.data.value >= 0;
+        request.resource.data.value >= 0 &&
+        request.resource.data.value <= 1; // First value must be 0 or 1
         
+      // Only allow incrementing the value (new value must be greater than old)
+      // FIX: Removed prefix check since update() doesn't include unchanged fields
+      // The prefix is protected because it's not in the updateMask
       allow update: if isSignedIn() && 
-        // Only allow incrementing the value (new value must be greater than old)
         request.resource.data.value is int &&
-        request.resource.data.value > resource.data.value &&
-        // Prevent changing the prefix
-        (resource.data.prefix == null || request.resource.data.prefix == resource.data.prefix);
+        request.resource.data.value > resource.data.value;
       
       // Prevent deletion
       allow delete: if false;

@@ -97,7 +97,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setTempFirebaseUser(firebaseUser);
         setIsNewUser(true);
       } else {
-        navigate('/');
+        // FIX C3: Check user status before allowing access (was bypassing status check)
+        const userData = userDoc.data() as User;
+        if (userData.status === UserStatus.ACTIVE) {
+          navigate('/');
+        } else if (userData.status === UserStatus.PENDING_APPROVAL) {
+          setError('Your account is awaiting approval from an administrator.');
+          await signOut(auth);
+        } else {
+          // Handles REJECTED, INACTIVE, or unknown status
+          setError('Your account is not active. Please contact an administrator.');
+          await signOut(auth);
+        }
       }
     } catch (err: any) {
       setError(err.message);

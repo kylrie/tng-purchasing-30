@@ -52,6 +52,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', remarks: '' });
 
     const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+    // FIX L2: Added error state to replace browser alert() with inline messages
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     const isUrgent = useMemo(() => {
         if (!dateNeeded) return false;
@@ -205,7 +207,10 @@ export const BurfView: React.FC<BurfViewProps> = ({
             resetForm();
         } catch (error) {
             console.error("Error saving requisition:", error);
-            alert("Failed to save requisition. Please try again.");
+            // FIX L2: Replaced browser alert() with error state for better UX
+            setSaveError("Failed to save requisition. Please try again.");
+            // Clear error after 5 seconds
+            setTimeout(() => setSaveError(null), 5000);
         }
     };
 
@@ -300,6 +305,14 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             </div>
                         )}
                     </div>
+
+                    {/* FIX L2: Inline error display replacing browser alert() */}
+                    {saveError && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm flex items-center gap-2">
+                            <AlertTriangle size={16} />
+                            {saveError}
+                        </div>
+                    )}
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
                         <button onClick={resetForm} className="px-6 py-2 text-slate-300 font-medium hover:bg-slate-700 rounded-lg">Cancel</button>

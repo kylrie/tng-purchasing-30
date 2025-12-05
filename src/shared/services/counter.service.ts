@@ -55,12 +55,20 @@ export class CounterService {
 
                 const nextValue = currentValue + 1;
 
-                // Update or create the counter document with prefix (Issue #6 fix)
-                transaction.set(counterRef, {
-                    value: nextValue,
-                    prefix: prefix,
-                    lastUpdated: new Date().toISOString(),
-                });
+                // FIX: Use update() for existing docs, set() only for new docs
+                // This matches Firestore rules which have separate create/update permissions
+                if (counterDoc.exists()) {
+                    transaction.update(counterRef, {
+                        value: nextValue,
+                        lastUpdated: new Date().toISOString(),
+                    });
+                } else {
+                    transaction.set(counterRef, {
+                        value: nextValue,
+                        prefix: prefix,
+                        lastUpdated: new Date().toISOString(),
+                    });
+                }
 
                 return nextValue;
             });
@@ -152,16 +160,35 @@ export class CounterService {
     }
 
     /**
-     * Reset a counter to a specific value (use with caution!)
+     * Reset a counter to a specific value
+     * @deprecated SECURITY FIX C2: This function is disabled in production to prevent ID collisions.
+     * Counter resets should only be performed via Firebase Admin SDK by authorized personnel.
      * @param counterType - Type of counter to reset
      * @param value - New counter value
      */
     static async resetCounter(counterType: CounterType, value: number = 0): Promise<void> {
+        // FIX C2: Block counter reset in production - could cause duplicate IDs
+        if (import.meta.env.PROD) {
+            throw new Error('Counter reset is disabled in production for security reasons. Use Firebase Admin SDK.');
+        }
+
+        // Development only - log warning
+        console.warn(`⚠️ SECURITY WARNING: Resetting counter ${counterType} to ${value}. This should NOT be used in production.`);
+
         const counterRef = doc(db, this.COLLECTION_NAME, counterType);
         const prefix = this.PREFIXES[counterType];
 
         try {
             await runTransaction(db, async (transaction) => {
+                // FIX C2: Validate that new value is greater than current to prevent ID reuse
+                const currentDoc = await transaction.get(counterRef);
+                if (currentDoc.exists()) {
+                    const currentValue = currentDoc.data().value || 0;
+                    if (value <= currentValue) {
+                        throw new Error(`Cannot reset counter to ${value}. Current value is ${currentValue}. Resetting to lower values would cause ID collisions.`);
+                    }
+                }
+
                 transaction.set(counterRef, {
                     value,
                     prefix: prefix,
@@ -170,7 +197,7 @@ export class CounterService {
             });
         } catch (error) {
             console.error(`Error resetting counter ${counterType}:`, error);
-            throw new Error(`Failed to reset ${counterType} counter`);
+            throw error instanceof Error ? error : new Error(`Failed to reset ${counterType} counter`);
         }
     }
 }

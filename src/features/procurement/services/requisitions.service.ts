@@ -1,4 +1,6 @@
 import { FirestoreService, where } from '../../../shared/services/firestore.service';
+import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
 import type { Requisition, RequisitionHistory } from '../types';
 import { RequisitionStatus, UserRole, hasGlobalAccess } from '../types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
@@ -160,6 +162,7 @@ export class RequisitionService {
 
   /**
    * Approve a requisition (Manager, CIC, etc.)
+   * FIX H2: Now uses transaction to prevent race conditions when multiple approvers click simultaneously
    */
   static async approveRequisition(
     requisitionId: string,
@@ -167,36 +170,53 @@ export class RequisitionService {
     userName: string,
     comments?: string
   ): Promise<void> {
-    const requisition = await this.getRequisitionById(requisitionId);
-    if (!requisition) throw new Error('Requisition not found');
+    const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
 
-    let nextStatus: RequisitionStatus | undefined;
-    const approvalAction = 'Approved';
+    // FIX H2: Use transaction for atomic read-modify-write (was separate read/write causing race conditions)
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) throw new Error('Requisition not found');
 
-    switch (requisition.status) {
-      case RequisitionStatus.BURF_PENDING_MANAGER:
-        nextStatus = RequisitionStatus.BURF_PENDING_CIC;
-        break;
-      case RequisitionStatus.BURF_PENDING_CIC:
-        nextStatus = RequisitionStatus.READY_FOR_PRF;
-        break;
-      case RequisitionStatus.PRF_PENDING_MANAGER:
-        nextStatus = RequisitionStatus.APPROVED_FOR_PAYMENT;
-        break;
-      // Add other approval steps here
-    }
+      const requisition = { id: snap.id, ...snap.data() } as Requisition;
+      let nextStatus: RequisitionStatus | undefined;
+      const approvalAction = 'Approved';
 
-    if (nextStatus) {
-      await this.updateRequisition(requisitionId, { status: nextStatus });
-      await this.addHistoryEntry(
-        requisitionId,
-        userId,
-        userName,
-        approvalAction,
-        nextStatus,
-        comments
-      );
-    }
+      // Determine next status based on current status
+      switch (requisition.status) {
+        case RequisitionStatus.BURF_PENDING_MANAGER:
+          nextStatus = RequisitionStatus.BURF_PENDING_CIC;
+          break;
+        case RequisitionStatus.BURF_PENDING_CIC:
+          nextStatus = RequisitionStatus.READY_FOR_PRF;
+          break;
+        case RequisitionStatus.PRF_PENDING_MANAGER:
+          nextStatus = RequisitionStatus.APPROVED_FOR_PAYMENT;
+          break;
+        default:
+          throw new Error(`Cannot approve requisition in status: ${requisition.status}`);
+      }
+
+      if (nextStatus) {
+        // Create history entry inline (can't call async methods in transaction)
+        const historyEntry: RequisitionHistory = {
+          date: new Date().toISOString(),
+          actorId: userId,
+          actorName: userName,
+          action: approvalAction,
+          stage: nextStatus,
+          ...(comments !== undefined && { comments }),
+        };
+
+        const updatedHistory = [historyEntry, ...(requisition.history || [])];
+
+        // Atomic update within transaction
+        transaction.update(docRef, {
+          status: nextStatus,
+          history: updatedHistory,
+          updatedAt: serverTimestamp(),
+        });
+      }
+    });
   }
 
   /**
