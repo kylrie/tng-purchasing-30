@@ -13,6 +13,7 @@ const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
  */
 interface CreateBatchPrfParams {
   sourceBurfId: string;
+  sourceBusinessId?: string; // Business ID for query permissions
   selectedItems: RequisitionItem[];
   prfDetails: {
     supplier: SupplierDetails;
