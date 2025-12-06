@@ -1,5 +1,5 @@
 import { FirestoreService, where } from '../../../shared/services/firestore.service';
-import { doc, runTransaction, serverTimestamp, collection, query, where as firestoreWhere, getDocs } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import type { Requisition, RequisitionHistory, RequisitionItem, SupplierDetails } from '../types';
 import { RequisitionStatus, UserRole, hasGlobalAccess } from '../types';
@@ -13,7 +13,6 @@ const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
  */
 interface CreateBatchPrfParams {
   sourceBurfId: string;
-  sourceBusinessId: string; // Required for query permissions
   selectedItems: RequisitionItem[];
   prfDetails: {
     supplier: SupplierDetails;
@@ -47,57 +46,57 @@ export class RequisitionService {
    * @returns Result containing new PRF ID and updated BURF status
    */
   static async createBatchPrfFromBurf(params: CreateBatchPrfParams): Promise<CreateBatchPrfResult> {
-    const { sourceBurfId, sourceBusinessId, selectedItems, prfDetails, userId, userName } = params;
+    const { sourceBurfId, selectedItems, prfDetails, userId, userName } = params;
 
     console.log(`[createBatchPrfFromBurf] Starting for BURF: ${sourceBurfId}`);
+    console.log(`[createBatchPrfFromBurf] Selected items count: ${selectedItems.length}`);
+
     console.log(`[createBatchPrfFromBurf] Selected items count: ${selectedItems.length}`);
 
     try {
       const sourceBurfRef = doc(db, REQUISITIONS_COLLECTION, sourceBurfId);
 
-      // Step 1: Query for existing batches to determine next batch number
-      // This is done BEFORE the transaction to avoid contention
-      console.log('[createBatchPrfFromBurf] Step 1: Querying existing batches...');
-      const requisitionsRef = collection(db, REQUISITIONS_COLLECTION);
-      // Add businessId to the query to satisfy Firestore read rules (belongsToSameBU)
-      const batchQuery = query(
-        requisitionsRef,
-        firestoreWhere('parentBurfId', '==', sourceBurfId),
-        firestoreWhere('businessId', '==', sourceBusinessId)
-      );
-      const existingBatches = await getDocs(batchQuery);
-      const nextBatchNumber = existingBatches.size + 1;
-      const paddedBatch = nextBatchNumber.toString().padStart(2, '0');
-      const newPrfId = `${sourceBurfId}-Batch${paddedBatch}`;
-      console.log(`[createBatchPrfFromBurf] Step 1 complete. Existing batches: ${existingBatches.size}, New ID: ${newPrfId}`);
-
-      // Step 2: Run transaction for atomic create + update
+      // Step 1: Run transaction for atomic create + update + ID generation
       let sourceBurfNewStatus: RequisitionStatus = RequisitionStatus.READY_FOR_PRF;
       let remainingItemsCount = 0;
+      let newPrfId = '';
 
-      console.log('[createBatchPrfFromBurf] Step 2: Starting transaction...');
+      console.log('[createBatchPrfFromBurf] Starting transaction...');
       await runTransaction(db, async (transaction) => {
         // Step A: Read the current state of the source BURF
-        console.log('[createBatchPrfFromBurf] Step A: Reading source BURF...');
         const sourceBurfSnap = await transaction.get(sourceBurfRef);
         if (!sourceBurfSnap.exists()) {
           throw new Error(`Source BURF ${sourceBurfId} not found`);
         }
 
         const sourceBurf = { id: sourceBurfSnap.id, ...sourceBurfSnap.data() } as Requisition;
-        console.log(`[createBatchPrfFromBurf] Step A complete. BURF status: ${sourceBurf.status}, items: ${sourceBurf.items.length}`);
 
         // Validate source BURF is in the correct status
         if (sourceBurf.status !== RequisitionStatus.READY_FOR_PRF) {
           throw new Error(`Cannot create PRF from BURF in status: ${sourceBurf.status}. Expected READY_FOR_PRF.`);
         }
 
+        // FIX: Atomic Batch ID Generation
+        // Get current batch counter or default to 0
+        const currentBatchCount = (sourceBurf as any).batchCounter || 0;
+        const nextBatchCount = currentBatchCount + 1;
+        const paddedBatch = nextBatchCount.toString().padStart(2, '0');
+        newPrfId = `${sourceBurfId}-Batch${paddedBatch}`;
+
+        // FIX: Double Spend Prevention (Item Verification)
+        // Verify that ALL selected items still exist in the source BURF
+        const sourceItemMap = new Map(sourceBurf.items.map(i => [i.itemId, i]));
+        const missingItems = selectedItems.filter(item => !sourceItemMap.has(item.itemId));
+
+        if (missingItems.length > 0) {
+          const missingNames = missingItems.map(i => i.name).join(', ');
+          throw new Error(`Critical Error: Some items have already been processed or removed: ${missingNames}. Please refresh and try again.`);
+        }
+
         // Step B: Split items
-        console.log('[createBatchPrfFromBurf] Step B: Splitting items...');
         const selectedItemIds = new Set(selectedItems.map(item => item.itemId));
         const remainingItems = sourceBurf.items.filter(item => !selectedItemIds.has(item.itemId));
         remainingItemsCount = remainingItems.length;
-        console.log(`[createBatchPrfFromBurf] Step B complete. Selected: ${selectedItems.length}, Remaining: ${remainingItemsCount}`);
 
         // Determine new status for source BURF
         sourceBurfNewStatus = remainingItems.length === 0
@@ -105,7 +104,6 @@ export class RequisitionService {
           : RequisitionStatus.READY_FOR_PRF;
 
         // Step C: Create new PRF document
-        console.log('[createBatchPrfFromBurf] Step C: Creating PRF document...');
         const newPrf: Requisition = {
           id: newPrfId,
           requesterId: sourceBurf.requesterId,
@@ -117,7 +115,7 @@ export class RequisitionService {
           status: RequisitionStatus.PRF_PENDING_MANAGER,
           dateCreated: new Date().toISOString(),
           description: sourceBurf.description || '',
-          projectName: sourceBurf.projectName || '', // Fallback to prevent undefined
+          projectName: sourceBurf.projectName || '',
           remarks: `Batch ${paddedBatch} from ${sourceBurfId}`,
           dateNeeded: sourceBurf.dateNeeded || '',
           priority: sourceBurf.priority || 'NORMAL',
@@ -144,7 +142,6 @@ export class RequisitionService {
         };
 
         // Step D: Create history entry for source BURF update
-        console.log('[createBatchPrfFromBurf] Step D: Creating history entries...');
         const burfHistoryEntry: RequisitionHistory = {
           date: new Date().toISOString(),
           actorId: userId,
@@ -155,22 +152,22 @@ export class RequisitionService {
         };
         const updatedBurfHistory = [burfHistoryEntry, ...(sourceBurf.history || [])];
 
-        // Step E: Write operations (atomic within transaction)
-        console.log('[createBatchPrfFromBurf] Step E: Writing to Firestore...');
+        // Step E: Write operations
         const newPrfRef = doc(db, REQUISITIONS_COLLECTION, newPrfId);
-        // Sanitize the PRF object to remove any undefined values before writing
         const sanitizedPrf = removeUndefinedFields(newPrf);
-        transaction.set(newPrfRef, sanitizedPrf);
-        console.log('[createBatchPrfFromBurf] Step E1: PRF document set');
 
+        // 1. Create new PRF
+        transaction.set(newPrfRef, sanitizedPrf);
+
+        // 2. Update Source BURF (Items, Status, History, AND BatchCounter)
         transaction.update(sourceBurfRef, {
           items: remainingItems,
           totalAmount: remainingItems.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0),
           status: sourceBurfNewStatus,
           history: updatedBurfHistory,
           updatedAt: serverTimestamp(),
+          batchCounter: nextBatchCount // Increment atomic counter
         });
-        console.log('[createBatchPrfFromBurf] Step E2: BURF document updated');
       });
 
       console.log(`[createBatchPrfFromBurf] SUCCESS: Created ${newPrfId} from ${sourceBurfId}. Remaining items: ${remainingItemsCount}`);
@@ -505,5 +502,78 @@ export class RequisitionService {
       nextStatus,
       'Requisition has been updated and re-filed for approval.'
     );
+  }
+
+  /**
+   * Submit liquidation for a requisition
+   * @param requisitionId - The PRF ID
+   * @param userId - Current user ID
+   * @param userName - Current user name
+   * @param payload - Liquidation data including item actuals and summary
+   */
+  static async submitLiquidation(
+    requisitionId: string,
+    userId: string,
+    userName: string,
+    payload: {
+      items: Array<{
+        itemId: string;
+        name: string;
+        quantity: number;
+        estimatedCost: number;
+        actualCost: number;
+        receiptRef: string;
+      }>;
+      totalBudget: number;
+      totalActual: number;
+      variance: number; // positive = surplus (to return), negative = deficit (to reimburse)
+      receiptsLink?: string;
+      remarks?: string;
+    }
+  ): Promise<void> {
+    const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
+
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) throw new Error('Requisition not found');
+
+      const requisition = { id: snap.id, ...snap.data() } as Requisition;
+
+      // Verify status allows liquidation
+      if (requisition.status !== RequisitionStatus.FUNDS_RELEASED) {
+        throw new Error(`Cannot submit liquidation for requisition in status: ${requisition.status}. Expected FUNDS_RELEASED.`);
+      }
+
+      // Create history entry
+      const historyEntry: RequisitionHistory = {
+        date: new Date().toISOString(),
+        actorId: userId,
+        actorName: userName,
+        action: 'Liquidation Filed',
+        stage: RequisitionStatus.LIQUIDATION_FILED,
+        comments: payload.remarks || 'Liquidation documents submitted',
+      };
+
+      const updatedHistory = [historyEntry, ...(requisition.history || [])];
+
+      // Update requisition with liquidation details
+      transaction.update(docRef, {
+        status: RequisitionStatus.LIQUIDATION_FILED,
+        history: updatedHistory,
+        liquidationDetails: {
+          submittedBy: userId,
+          submittedByName: userName,
+          submittedAt: new Date().toISOString(),
+          items: payload.items,
+          totalBudget: payload.totalBudget,
+          totalActual: payload.totalActual,
+          variance: payload.variance,
+          receiptsLink: payload.receiptsLink || '',
+          remarks: payload.remarks || '',
+          status: 'PENDING' as const, // Pending audit
+        },
+        updatedAt: serverTimestamp(),
+      });
+    });
   }
 }

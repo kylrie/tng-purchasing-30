@@ -71,38 +71,43 @@ function ProtectedApp() {
 
 
   const getStatusBadge = (status: RequisitionStatus) => {
+    // Modern pill styling with distinct colors
     const styles = {
-      [RequisitionStatus.DRAFT]: 'bg-slate-700 text-slate-300',
-      [RequisitionStatus.BURF_PENDING_MANAGER]: 'bg-orange-900/50 text-orange-400 border border-orange-700/50',
-      [RequisitionStatus.BURF_PENDING_CIC]: 'bg-blue-900/50 text-blue-400 border border-blue-700/50',
-      [RequisitionStatus.READY_FOR_PRF]: 'bg-emerald-900/50 text-emerald-400 border border-emerald-700/50',
-      [RequisitionStatus.BURF_COMPLETED]: 'bg-teal-900/50 text-teal-400 border border-teal-700/50',
-      [RequisitionStatus.PRF_PENDING_MANAGER]: 'bg-purple-900/50 text-purple-400 border border-purple-700/50',
-      [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'bg-cyan-900/50 text-cyan-400 border border-cyan-700/50',
-      [RequisitionStatus.FUNDS_RELEASED]: 'bg-green-900/50 text-green-400 border border-green-700/50',
-      [RequisitionStatus.LIQUIDATION_FILED]: 'bg-indigo-900/50 text-indigo-400 border border-indigo-700/50',
-      [RequisitionStatus.LIQUIDATION_REJECTED]: 'bg-red-900/50 text-red-400 border border-red-700/50',
-      [RequisitionStatus.AUDITED_CLEARED]: 'bg-teal-900/50 text-teal-400 border border-teal-700/50',
-      [RequisitionStatus.REJECTED]: 'bg-red-900/50 text-red-400 border border-red-700/50',
-      [RequisitionStatus.CANCELLED]: 'bg-gray-800 text-gray-400 border border-gray-600',
+      [RequisitionStatus.DRAFT]: 'bg-slate-600/50 text-slate-300',
+      // PENDING statuses - Orange tones
+      [RequisitionStatus.BURF_PENDING_MANAGER]: 'bg-orange-500/20 text-orange-400',
+      [RequisitionStatus.BURF_PENDING_CIC]: 'bg-amber-500/20 text-amber-400',
+      [RequisitionStatus.PRF_PENDING_MANAGER]: 'bg-orange-500/20 text-orange-400',
+      // APPROVED/READY statuses - Blue tones
+      [RequisitionStatus.READY_FOR_PRF]: 'bg-blue-500/20 text-blue-400',
+      [RequisitionStatus.BURF_COMPLETED]: 'bg-sky-500/20 text-sky-400',
+      [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'bg-cyan-500/20 text-cyan-400',
+      // RELEASED/SUCCESS statuses - Green tones  
+      [RequisitionStatus.FUNDS_RELEASED]: 'bg-emerald-500/20 text-emerald-400',
+      [RequisitionStatus.LIQUIDATION_FILED]: 'bg-teal-500/20 text-teal-400',
+      [RequisitionStatus.AUDITED_CLEARED]: 'bg-green-500/20 text-green-400',
+      // REJECTED statuses - Red tones
+      [RequisitionStatus.LIQUIDATION_REJECTED]: 'bg-red-500/20 text-red-400',
+      [RequisitionStatus.REJECTED]: 'bg-red-500/20 text-red-400',
+      [RequisitionStatus.CANCELLED]: 'bg-gray-600/50 text-gray-400',
     };
     const labels = {
       [RequisitionStatus.DRAFT]: 'Draft',
-      [RequisitionStatus.BURF_PENDING_MANAGER]: 'For BUM Approval',
-      [RequisitionStatus.BURF_PENDING_CIC]: 'For CIC Approval',
+      [RequisitionStatus.BURF_PENDING_MANAGER]: 'Pending BUM',
+      [RequisitionStatus.BURF_PENDING_CIC]: 'Pending CIC',
       [RequisitionStatus.READY_FOR_PRF]: 'Ready for PRF',
-      [RequisitionStatus.BURF_COMPLETED]: 'BURF Completed',
-      [RequisitionStatus.PRF_PENDING_MANAGER]: 'Pending PRF Approval',
-      [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'For Fund Release', // Changed label
-      [RequisitionStatus.FUNDS_RELEASED]: 'Funds Released',
-      [RequisitionStatus.LIQUIDATION_FILED]: 'Liquidation Filed',
-      [RequisitionStatus.LIQUIDATION_REJECTED]: 'Liquidation Rejected',
-      [RequisitionStatus.AUDITED_CLEARED]: 'Audited & Cleared',
+      [RequisitionStatus.BURF_COMPLETED]: 'BURF Complete',
+      [RequisitionStatus.PRF_PENDING_MANAGER]: 'Pending Review',
+      [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'For Release',
+      [RequisitionStatus.FUNDS_RELEASED]: 'Released',
+      [RequisitionStatus.LIQUIDATION_FILED]: 'Liquidated',
+      [RequisitionStatus.LIQUIDATION_REJECTED]: 'Liq. Rejected',
+      [RequisitionStatus.AUDITED_CLEARED]: 'Cleared',
       [RequisitionStatus.REJECTED]: 'Rejected',
       [RequisitionStatus.CANCELLED]: 'Cancelled',
     };
     return (
-      <span className={`px-2 py-1 rounded text-xs font-semibold ${styles[status] || 'bg-slate-700 text-slate-300'}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[status] || 'bg-slate-600/50 text-slate-300'}`}>
         {labels[status] || status}
       </span>
     );

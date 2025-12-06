@@ -159,6 +159,7 @@ export interface Supplier {
   isVatable?: boolean; // Vatable or Non-Vat
   ewtRate?: number; // Expanded Withholding Tax rate (e.g., 1, 2, 5, 10)
   businessUnitIds?: string[]; // Multi-tenancy: List of Business Units this supplier belongs to
+  status?: 'ACTIVE' | 'ARCHIVED';
 }
 
 // Used for the PRF details
@@ -188,17 +189,41 @@ export interface RequisitionItem {
 }
 
 export interface LiquidationDetails {
+  // Submission info
+  submittedBy?: string;
+  submittedByName?: string;
+  submittedAt?: string;
   dateFiled: string;
   filedBy: string;
+
+  // Items with actual costs
+  items?: Array<{
+    itemId: string;
+    name: string;
+    quantity: number;
+    estimatedCost: number;
+    actualCost: number;
+    receiptRef: string;
+  }>;
+
+  // Totals
+  totalBudget?: number; // Original budget (advance)
   totalActualAmount: number;
+  variance?: number; // positive = surplus (to return), negative = deficit (to reimburse)
   refundAmount: number; // (PRF Total - Actual) if positive
   reimbursementAmount: number; // (Actual - PRF Total) if positive
+
+  // Links and notes
+  receiptsLink?: string; // Google Drive link or receipts URL
+  remarks?: string;
+  attachmentLink?: string; // Link to liquidation attachments
+
+  // Audit
   auditNotes?: string;
   auditedBy?: string;
   auditDate?: string;
   rejectionReason?: string; // Reason for rejection
   status?: 'PENDING' | 'APPROVED' | 'REJECTED'; // Liquidation status
-  attachmentLink?: string; // Link to liquidation attachments
 }
 
 export interface RequisitionHistory {

@@ -4,11 +4,24 @@ import type { Supplier, BankDetails, Business, User } from '../../procurement/ty
 import { UserRole } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
 
+// Task 3: TIN Validation Helper
+const isValidTIN = (tin: string): boolean => {
+    // Allows formats like:
+    // 000-000-000
+    // 000-000-000-000
+    // 000-000-000-00000
+    // Strictly numeric or with hyphens? User asked for strict format or length.
+    // Let's go with a regex that enforces groups of digits separated by hyphens.
+    // Regex: ^\d{3}-\d{3}-\d{3}(-\d{3,5})?$
+    const tinRegex = /^\d{3}-\d{3}-\d{3}(-\d{3,5})?$/;
+    return tinRegex.test(tin);
+};
+
 // Props are updated to handle data persistence via functions
 interface SuppliersViewProps {
     suppliers: Supplier[];
-    onCreateSupplier: (supplier: Omit<Supplier, 'id'>) => void;
-    onUpdateSupplier: (supplier: Supplier) => void;
+    onCreateSupplier: (supplier: Omit<Supplier, 'id'>) => Promise<void> | void;
+    onUpdateSupplier: (supplier: Supplier) => Promise<void> | void;
     onDeleteSupplier: (id: string) => void;
     currentUser: User;
     businesses: Business[];
@@ -18,7 +31,7 @@ interface SupplierModalProps {
     supplier?: Supplier;
     isOpen: boolean;
     onClose: () => void;
-    onSave: (supplier: Supplier | Omit<Supplier, 'id'>) => void;
+    onSave: (supplier: Supplier | Omit<Supplier, 'id'>) => Promise<void>; // Updated to Promise for error handling
     businesses: Business[];
     currentUser: User;
 }
@@ -92,10 +105,23 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
         }
     }, [supplier, isOpen, currentUser]);
 
+    // Validation State
+    const isTinValid = !formData.tin || isValidTIN(formData.tin);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
     if (!isOpen) return null;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorMessage(null);
+
+        if (!isTinValid && formData.tin) {
+            setErrorMessage("Invalid TIN Format. Use 000-000-000 or 000-000-000-000");
+            return;
+        }
+
+        setIsSubmitting(true);
         const dataToSave = {
             name: formData.name || '',
             category: formData.category || '',
@@ -119,10 +145,16 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
             })
         };
 
-        if (supplier?.id) {
-            onSave({ ...dataToSave, id: supplier.id });
-        } else {
-            onSave(dataToSave);
+        try {
+            if (supplier?.id) {
+                await onSave({ ...dataToSave, id: supplier.id });
+            } else {
+                await onSave(dataToSave);
+            }
+        } catch (error: any) {
+            setErrorMessage(error.message || "Failed to save supplier.");
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -161,6 +193,11 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                    {errorMessage && (
+                        <div className="p-3 bg-red-900/50 border border-red-500 rounded text-red-200 text-sm">
+                            {errorMessage}
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-1">Supplier Name</label>
@@ -187,11 +224,17 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-1">TIN</label>
                             <input
-                                className="w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500"
+                                className={`w-full p-2 bg-slate-900/50 border rounded-lg text-white focus:ring-2 focus:outline-none placeholder-slate-500 ${!isTinValid && formData.tin ? 'border-red-500 focus:ring-red-500' : 'border-slate-600 focus:ring-purple-500'}`}
                                 value={formData.tin}
-                                onChange={e => setFormData({ ...formData, tin: e.target.value })}
+                                onChange={e => {
+                                    setFormData({ ...formData, tin: e.target.value });
+                                    setErrorMessage(null); // Clear error on change
+                                }}
                                 placeholder="000-000-000"
                             />
+                            {!isTinValid && formData.tin && (
+                                <p className="text-xs text-red-400 mt-1">Format: 000-000-000 or 000-000-000-000</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-1">Terms</label>
@@ -401,8 +444,8 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                         <button type="button" onClick={onClose} className="px-4 py-2 text-slate-300 hover:bg-slate-700 hover:text-white rounded-lg font-medium transition-colors">
                             Cancel
                         </button>
-                        <button type="submit" className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg font-medium transition-colors">
-                            {supplier ? 'Save Changes' : 'Add Supplier'}
+                        <button type="submit" disabled={isSubmitting || !isTinValid} className="px-4 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isSubmitting ? 'Saving...' : (supplier ? 'Save Changes' : 'Add Supplier')}
                         </button>
                     </div>
                 </form>
@@ -418,40 +461,44 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSupplier, setEditingSupplier] = useState<Supplier | undefined>(undefined);
 
-    // Filter suppliers based on User's Business Unit Access
-    const visibleSuppliers = suppliers.filter(supplier => {
-        // Super Admin sees all
-        if (currentUser.role === UserRole.SUPER_ADMIN) return true;
+    // Show all suppliers - the filter dropdown will handle BU-specific filtering
+    const visibleSuppliers = suppliers;
 
-        // If supplier has no BU assigned, maybe show to all? Or none? 
-        // Let's assume strict: if no BU, only Super Admin sees it. 
-        // OR: if no BU, it's global? Let's go with strict for now, but maybe allow global if empty.
-        // User request: "strictly filter". So if empty, maybe it's not visible.
-        // BUT, for legacy data, it might be empty. Let's assume empty = visible to all for migration safety, OR strictly hide.
-        // Given "strictly filter", let's check overlap.
+    // Memoized filtering with strict "Empty = Global" rule
+    const filteredSuppliers = React.useMemo(() => {
+        return visibleSuppliers.filter(supplier => {
+            // 1. If filter is ALL, show everything
+            if (selectedBusinessUnit === 'all') {
+                // Still apply search filter
+                if (searchTerm) {
+                    const term = searchTerm.toLowerCase();
+                    return supplier.name.toLowerCase().includes(term) ||
+                        supplier.category.toLowerCase().includes(term);
+                }
+                return true;
+            }
 
-        const supplierBUs = supplier.businessUnitIds || [];
-        if (supplierBUs.length === 0) return true; // Fallback: Global if not tagged
+            const tags = supplier.businessUnitIds || [];
 
-        const userBUs = currentUser.businessUnitIds || [];
-        // Add primary businessId to the check list
-        const allUserBUs = [...userBUs, currentUser.businessId].filter(Boolean);
+            // 2. Logic: Show if Tagged Match OR Tagged Global OR No Tags (Empty)
+            const isTaggedForBu = tags.includes(selectedBusinessUnit);
+            const isGlobal = tags.includes('GLOBAL');
+            const hasNoTags = tags.length === 0;
 
-        // Check for overlap
-        return supplierBUs.some(id => allUserBUs.includes(id));
-    });
+            const passesBusinessUnitFilter = isTaggedForBu || isGlobal || hasNoTags;
 
-    const filteredSuppliers = visibleSuppliers.filter(s => {
-        // Business Unit Filter
-        if (selectedBusinessUnit !== 'all') {
-            const supplierBUs = s.businessUnitIds || [];
-            if (!supplierBUs.includes(selectedBusinessUnit)) return false;
-        }
+            if (!passesBusinessUnitFilter) return false;
 
-        // Search Filter
-        return s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            s.category.toLowerCase().includes(searchTerm.toLowerCase());
-    });
+            // Apply search filter
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                return supplier.name.toLowerCase().includes(term) ||
+                    supplier.category.toLowerCase().includes(term);
+            }
+
+            return true;
+        });
+    }, [visibleSuppliers, selectedBusinessUnit, searchTerm]);
 
     const handleAdd = () => {
         setEditingSupplier(undefined);
@@ -469,13 +516,18 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
         }
     };
 
-    const handleSave = (data: Supplier | Omit<Supplier, 'id'>) => {
-        if ('id' in data) {
-            onUpdateSupplier(data as Supplier); // Use onUpdateSupplier prop
-        } else {
-            onCreateSupplier(data as Omit<Supplier, 'id'>); // Use onCreateSupplier prop
+    const handleSave = async (data: Supplier | Omit<Supplier, 'id'>) => {
+        try {
+            if ('id' in data) {
+                await onUpdateSupplier(data as Supplier);
+            } else {
+                await onCreateSupplier(data as Omit<Supplier, 'id'>);
+            }
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error(error);
+            throw error; // Re-throw so modal can catch it
         }
-        setIsModalOpen(false);
     };
 
     return (
@@ -495,25 +547,17 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    {(currentUser.role === UserRole.SUPER_ADMIN || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
-                        <select
-                            value={selectedBusinessUnit}
-                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
-                        >
-                            <option value="all">{currentUser.role === UserRole.SUPER_ADMIN ? 'All Business Units' : 'All My Business Units'}</option>
-                            {currentUser.role === UserRole.SUPER_ADMIN ? (
-                                businesses.map(business => (
-                                    <option key={business.id} value={business.id}>{business.name}</option>
-                                ))
-                            ) : (
-                                currentUser.businessUnitIds?.map(buId => {
-                                    const bu = businesses.find(b => b.id === buId);
-                                    return bu ? <option key={bu.id} value={bu.id}>{bu.name}</option> : null;
-                                })
-                            )}
-                        </select>
-                    )}
+                    {/* Business Unit Filter - always visible */}
+                    <select
+                        value={selectedBusinessUnit}
+                        onChange={(e) => setSelectedBusinessUnit(e.target.value)}
+                        className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
+                    >
+                        <option value="all">All Business Units</option>
+                        {businesses.map(business => (
+                            <option key={business.id} value={business.id}>{business.name}</option>
+                        ))}
+                    </select>
                     <button
                         onClick={handleAdd}
                         className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2"

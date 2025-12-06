@@ -4,6 +4,7 @@ import { RequisitionStatus } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
+import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import LiquidationPrintModal from '../components/LiquidationPrintModal';
 import LiquidationModal from '../components/LiquidationModal';
 import LiquidationAuditModal from '../components/LiquidationAuditModal';
@@ -30,6 +31,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const [printReq, setPrintReq] = useState<Requisition | null>(null);
   const [editingLiquidationReq, setEditingLiquidationReq] = useState<Requisition | null>(null);
   const [auditReq, setAuditReq] = useState<Requisition | null>(null);
+  const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
   const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit'>('liquidations');
   const { hasPermission } = usePermissions();
 
@@ -149,7 +151,15 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-700">
                 {displayedReqs.map(req => (
-                  <tr key={req.id} className="hover:bg-slate-800/60">
+                  <tr
+                    key={req.id}
+                    className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                    onClick={(e) => {
+                      // Don't open drawer if clicking action buttons
+                      if ((e.target as HTMLElement).closest('button, a')) return;
+                      setDrawerReq(req);
+                    }}
+                  >
                     <td className="px-6 py-4 font-medium">{req.id}</td>
                     <td className="px-6 py-4 text-slate-300">
                       {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
@@ -253,6 +263,15 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           onReject={handleAuditReject}
         />
       )}
+
+      {/* Quick Peek Drawer */}
+      <RequisitionDrawer
+        requisition={drawerReq}
+        isOpen={!!drawerReq}
+        onClose={() => setDrawerReq(null)}
+        variant="FINANCE"
+        getStatusBadge={getStatusBadge}
+      />
     </>
   );
 };

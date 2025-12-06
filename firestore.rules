@@ -306,7 +306,11 @@ service cloud.firestore {
         (
           resource.data.status == 'READY_FOR_PRF' &&
           (request.resource.data.status == 'READY_FOR_PRF' || request.resource.data.status == 'BURF_COMPLETED') &&
-          belongsToSameBU(resource)
+          belongsToSameBU(resource) &&
+           // FIX C1: Restrict updates to only allow system logic changes (items, status, etc.)
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(
+            ['items', 'totalAmount', 'status', 'history', 'updatedAt', 'batchCounter']
+          )
         ) ||
         
         // APPROVE PRF: Role-based OR Permission-based + same BU + field restriction

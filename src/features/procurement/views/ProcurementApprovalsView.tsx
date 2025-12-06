@@ -5,6 +5,7 @@ import { RequisitionStatus, UserRole } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
+import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import RejectionModal from '../../../shared/components/RejectionModal';
 import BURFPrintModal from '../components/BURFPrintModal';
 import PRFPrintModal from '../components/PRFPrintModal';
@@ -31,6 +32,8 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [printingReq, setPrintingReq] = useState<Requisition | null>(null);
+    const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
+    const [drawerLoading, setDrawerLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
     const { hasPermission } = usePermissions();
 
@@ -154,6 +157,47 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         setPrintingReq(req);
     };
 
+    // Drawer approve/reject handlers
+    const handleDrawerApprove = async () => {
+        if (!drawerReq) return;
+        setDrawerLoading(true);
+        try {
+            await RequisitionService.approveRequisition(
+                drawerReq.id,
+                currentUser.id,
+                currentUser.name
+            );
+            setDrawerReq(null);
+        } catch (error: any) {
+            console.error("Error approving requisition:", error);
+            alert(`Failed to approve requisition: ${error.message || 'Unknown error'}`);
+        } finally {
+            setDrawerLoading(false);
+        }
+    };
+
+    const handleDrawerReject = async () => {
+        if (!drawerReq) return;
+        const reason = prompt('Please enter a reason for rejection:');
+        if (!reason) return;
+
+        setDrawerLoading(true);
+        try {
+            await RequisitionService.rejectRequisition(
+                drawerReq.id,
+                currentUser.id,
+                currentUser.name,
+                reason
+            );
+            setDrawerReq(null);
+        } catch (error: any) {
+            console.error("Error rejecting requisition:", error);
+            alert(`Failed to reject requisition: ${error.message || 'Unknown error'}`);
+        } finally {
+            setDrawerLoading(false);
+        }
+    };
+
     return (
         <div className="space-y-6 text-white animate-in fade-in slide-in-from-bottom-4">
             <div className="flex flex-col gap-4">
@@ -259,7 +303,15 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                             const isPrf = req.id.startsWith('PRF') || req.status === RequisitionStatus.PRF_PENDING_MANAGER;
 
                             return (
-                                <tr key={req.id} className="hover:bg-slate-800/60 transition-colors">
+                                <tr
+                                    key={req.id}
+                                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                                    onClick={(e) => {
+                                        // Don't open drawer if clicking action buttons
+                                        if ((e.target as HTMLElement).closest('button, a')) return;
+                                        setDrawerReq(req);
+                                    }}
+                                >
                                     <td className="px-6 py-4 font-medium text-white">{req.id}</td>
                                     <td className="px-6 py-4">
                                         <span className={`px-2 py-1 rounded text-[10px] font-bold ${isPrf ? 'bg-purple-500/20 text-purple-300' : 'bg-orange-500/20 text-orange-300'}`}>
@@ -358,6 +410,20 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                     )
                 )
             }
+
+            {/* Quick Peek Drawer */}
+            <RequisitionDrawer
+                requisition={drawerReq}
+                isOpen={!!drawerReq}
+                onClose={() => setDrawerReq(null)}
+                variant={drawerReq?.id.startsWith('PRF') || drawerReq?.status?.includes('PRF') ? 'PRF' : 'BURF'}
+                getStatusBadge={getStatusBadge}
+                onApprove={handleDrawerApprove}
+                onReject={handleDrawerReject}
+                canApprove={activeTab === 'pending' && !!drawerReq && userApprovalStatuses.includes(drawerReq.status)}
+                canReject={activeTab === 'pending' && !!drawerReq && userApprovalStatuses.includes(drawerReq.status)}
+                isLoading={drawerLoading}
+            />
         </div >
     );
 };

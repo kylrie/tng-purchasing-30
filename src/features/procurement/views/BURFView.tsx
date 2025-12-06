@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronRight, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip } from 'lucide-react';
+import { Plus, Trash2, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import BURFPrintModal from '../components/BURFPrintModal';
+import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import { CounterService } from '../../../shared/services/counter.service';
 // FIX C6: Import sanitization utility to prevent XSS/injection
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
@@ -53,7 +54,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const [newItems, setNewItems] = useState<RequisitionItem[]>([]);
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', remarks: '' });
 
-    const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+    const [selectedBurf, setSelectedBurf] = useState<Requisition | null>(null);
     // FIX L2: Added error state to replace browser alert() with inline messages
     const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -145,8 +146,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
         });
     }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit, sortField, sortDirection, hasPermission]);
 
-    const toggleRow = (id: string) => {
-        setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+    const openDrawer = (req: Requisition) => {
+        setSelectedBurf(req);
     };
 
     const resetForm = () => {
@@ -389,7 +390,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
                         <tr>
-                            <th className="px-6 py-4 w-10"></th>
                             <th
                                 className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
                                 onClick={() => handleSort('id')}
@@ -452,124 +452,102 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             const canEdit = (isOwner && (req.status === RequisitionStatus.DRAFT || req.status === RequisitionStatus.REJECTED));
 
                             return (
-                                <React.Fragment key={req.id}>
-                                    <tr className="hover:bg-slate-800/60 cursor-pointer" onClick={() => toggleRow(req.id)}>
-                                        <td className="px-6 py-4 text-slate-500">
-                                            {expandedRows[req.id] ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                                        </td>
-                                        <td className="px-6 py-4 font-medium text-slate-200">{req.id}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="font-medium text-slate-200">{req.description}</div>
-                                            <div className="text-xs text-slate-400">{req.items.length} items</div>
-                                            {req.priority === 'URGENT' && (
-                                                <span className="text-[10px] text-orange-400 font-bold border border-orange-400 px-1 rounded">URGENT</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-300 font-medium text-xs">{business?.name || 'N/A'}</td>
-                                        {/* FIXED: Use denormalized requesterName directly */}
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                                                    {requesterName.charAt(0).toUpperCase()}
-                                                </div>
-                                                <span className="text-slate-200">{requesterName}</span>
+                                <tr
+                                    key={req.id}
+                                    className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                    onClick={(e) => {
+                                        // Don't open drawer if clicking action buttons
+                                        if ((e.target as HTMLElement).closest('button, a')) return;
+                                        openDrawer(req);
+                                    }}
+                                >
+                                    <td className="px-6 py-4 font-medium text-slate-200">{req.id}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="font-medium text-slate-200">{req.description}</div>
+                                        <div className="text-xs text-slate-400">{req.items.length} items</div>
+                                        {req.priority === 'URGENT' && (
+                                            <span className="text-[10px] text-orange-400 font-bold border border-orange-400 px-1 rounded">URGENT</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-slate-300 font-medium text-xs">{business?.name || 'N/A'}</td>
+                                    {/* FIXED: Use denormalized requesterName directly */}
+                                    <td className="px-6 py-4">
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                                {requesterName.charAt(0).toUpperCase()}
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-300 text-xs">
-                                            {req.dateNeeded ? new Date(req.dateNeeded).toLocaleDateString() : '-'}
-                                        </td>
-                                        <td className="px-6 py-4 cursor-pointer hover:opacity-80" onClick={(e) => { e.stopPropagation(); /* setTrackingReq(req) */ }}>
-                                            {getStatusBadge(req.status)}
-                                        </td>
-                                        {/* External Link - paperclip icon that opens externalLink or first attachment */}
-                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                                            {(req.externalLink || req.attachments?.[0]) ? (
-                                                <a
-                                                    href={req.externalLink || req.attachments?.[0]}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-blue-400 hover:text-blue-300 p-1"
-                                                    title="Open Reference Link"
-                                                >
-                                                    <Paperclip size={16} />
-                                                </a>
-                                            ) : (
-                                                <span className="text-slate-600">-</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-red-400">
-                                            {req.status === RequisitionStatus.REJECTED && req.remarks ? (
-                                                <span className="flex items-center gap-1">
-                                                    <AlertTriangle size={14} />
-                                                    {req.remarks.split('[REJECTED]:').pop()?.trim() || 'No reason provided'}
-                                                </span>
-                                            ) : (
-                                                <span className="text-slate-600">-</span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
-                                            <div className="flex justify-end gap-2 items-center">
-                                                <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-white p-1" title="Print BURF">
-                                                    <Printer size={16} />
-                                                </button>
+                                            <span className="text-slate-200">{requesterName}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-slate-300 text-xs">
+                                        {req.dateNeeded ? new Date(req.dateNeeded).toLocaleDateString() : '-'}
+                                    </td>
+                                    <td className="px-6 py-4 cursor-pointer hover:opacity-80" onClick={(e) => { e.stopPropagation(); /* setTrackingReq(req) */ }}>
+                                        {getStatusBadge(req.status)}
+                                    </td>
+                                    {/* External Link - paperclip icon that opens externalLink or first attachment */}
+                                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                        {(req.externalLink || req.attachments?.[0]) ? (
+                                            <a
+                                                href={req.externalLink || req.attachments?.[0]}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-400 hover:text-blue-300 p-1"
+                                                title="Open Reference Link"
+                                            >
+                                                <Paperclip size={16} />
+                                            </a>
+                                        ) : (
+                                            <span className="text-slate-600">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-red-400">
+                                        {req.status === RequisitionStatus.REJECTED && req.remarks ? (
+                                            <span className="flex items-center gap-1">
+                                                <AlertTriangle size={14} />
+                                                {req.remarks.split('[REJECTED]:').pop()?.trim() || 'No reason provided'}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-600">-</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                                        <div className="flex justify-end gap-2 items-center">
+                                            <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-white p-1" title="Print BURF">
+                                                <Printer size={16} />
+                                            </button>
 
-                                                {canEdit && (
-                                                    <button
-                                                        onClick={() => editRequisition(req)}
-                                                        className="text-blue-400 hover:text-blue-300 p-1"
-                                                        title={req.status === RequisitionStatus.REJECTED ? "Re-file" : "Edit"}
-                                                    >
-                                                        {req.status === RequisitionStatus.REJECTED ? <RefreshCw size={16} /> : <Edit size={16} />}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {expandedRows[req.id] && (
-                                        <tr className="bg-slate-900/50">
-                                            <td colSpan={8} className="p-4">
-                                                <div className="p-4 bg-slate-800 rounded-lg">
-                                                    <h4 className="text-sm font-bold text-white mb-2">Item Details</h4>
-                                                    <table className="w-full text-xs text-left">
-                                                        <thead className="text-slate-500 border-b border-slate-700">
-                                                            <tr>
-                                                                <th className="pb-2">Item</th>
-                                                                <th className="pb-2">Qty</th>
-                                                                <th className="pb-2">UOM</th>
-                                                                <th className="pb-2">Remarks</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody className="divide-y divide-slate-700/50">
-                                                            {req.items.map((item, idx) => (
-                                                                <tr key={idx}>
-                                                                    <td className="py-2 text-slate-300">{item.name}</td>
-                                                                    <td className="py-2 text-slate-400">{item.quantity}</td>
-                                                                    <td className="py-2 text-slate-400">{item.uom}</td>
-                                                                    <td className="py-2 text-slate-500">{item.remarks || '-'}</td>
-                                                                </tr>
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-                                                    {req.remarks && (
-                                                        <div className="mt-4 text-xs text-slate-400">
-                                                            <span className="font-bold text-slate-300">Remarks:</span> {req.remarks}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </React.Fragment>
-                            )
+                                            {canEdit && (
+                                                <button
+                                                    onClick={() => editRequisition(req)}
+                                                    className="text-blue-400 hover:text-blue-300 p-1"
+                                                    title={req.status === RequisitionStatus.REJECTED ? "Re-file" : "Edit"}
+                                                >
+                                                    {req.status === RequisitionStatus.REJECTED ? <RefreshCw size={16} /> : <Edit size={16} />}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
                         })}
                         {filteredRequisitions.length === 0 && (
-                            <tr><td colSpan={9} className="px-6 py-8 text-center text-slate-400 italic">No requisitions found.</td></tr>
+                            <tr><td colSpan={8} className="px-6 py-8 text-center text-slate-400 italic">No requisitions found.</td></tr>
                         )}
                     </tbody>
                 </table>
             </Card>
 
             {printReq && <BURFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} />}
+
+            {/* Quick Peek Drawer */}
+            <RequisitionDrawer
+                requisition={selectedBurf}
+                isOpen={!!selectedBurf}
+                onClose={() => setSelectedBurf(null)}
+                variant="BURF"
+                getStatusBadge={getStatusBadge}
+            />
         </div>
     );
 };

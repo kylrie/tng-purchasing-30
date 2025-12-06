@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
@@ -7,9 +7,11 @@ import { usePermissions } from '../../../hooks/usePermissions';
 import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
 import EditableItemTable from '../components/EditableItemTable';
+import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import Card from '../../../shared/components/Card';
 import { CounterService } from '../../../shared/services/counter.service';
 import SearchableDropdown from '../../../shared/components/SearchableDropdown';
+import { RequisitionService } from '../services/requisitions.service';
 // FIX C6: Import sanitization utility to prevent XSS/injection attacks
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
 
@@ -464,11 +466,91 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [isDirectOpen, setIsDirectOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
-    const [activeTab, setActiveTab] = useState<'pending' | 'flowed'>('pending');
+    const [activeTab, setActiveTab] = useState<'processing' | 'pending' | 'liquidation' | 'history'>('processing');
     const [preparePRFReq, setPreparePRFReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
     const [editingPrf, setEditingPrf] = useState<Requisition | null>(null);
+    const [selectedReq, setSelectedReq] = useState<Requisition | null>(null); // Quick Peek drawer state
+    const [drawerLoading, setDrawerLoading] = useState(false);
     const { hasPermission } = usePermissions();
+
+    // PRF Drawer Approval Handlers
+    const handleDrawerApprove = async () => {
+        if (!selectedReq) return;
+        setDrawerLoading(true);
+        try {
+            await RequisitionService.approveRequisition(
+                selectedReq.id,
+                currentUser.id,
+                currentUser.name,
+                'Approved via Quick Peek'
+            );
+            setSelectedReq(null);
+            // Note: Real-time listener will update the list
+        } catch (error: any) {
+            console.error('Error approving:', error);
+            alert(`Failed to approve: ${error.message}`);
+        } finally {
+            setDrawerLoading(false);
+        }
+    };
+
+    const handleDrawerReject = async () => {
+        if (!selectedReq) return;
+        const reason = prompt('Please provide a reason for rejection:');
+        if (!reason?.trim()) {
+            alert('Rejection reason is required.');
+            return;
+        }
+        setDrawerLoading(true);
+        try {
+            await RequisitionService.rejectRequisition(
+                selectedReq.id,
+                currentUser.id,
+                currentUser.name,
+                reason.trim()
+            );
+            setSelectedReq(null);
+        } catch (error: any) {
+            console.error('Error rejecting:', error);
+            alert(`Failed to reject: ${error.message}`);
+        } finally {
+            setDrawerLoading(false);
+        }
+    };
+
+    // Check if current user can approve selected PRF
+    const canApproveSelectedPrf = selectedReq && (
+        selectedReq.status === RequisitionStatus.PRF_PENDING_MANAGER &&
+        hasPermission('approval:manager:prf')
+    );
+
+    // Check if current user can submit liquidation
+    const canSubmitLiquidation = selectedReq && (
+        selectedReq.status === RequisitionStatus.FUNDS_RELEASED &&
+        (selectedReq.requesterId === currentUser.id || hasPermission('requisition:view:all'))
+    );
+
+    // Handle liquidation submission from drawer
+    const handleDrawerSubmitLiquidation = async (payload: any) => {
+        if (!selectedReq) return;
+        setDrawerLoading(true);
+        try {
+            await RequisitionService.submitLiquidation(
+                selectedReq.id,
+                currentUser.id,
+                currentUser.name,
+                payload
+            );
+            alert('Liquidation submitted successfully!');
+            setSelectedReq(null);
+        } catch (error: any) {
+            console.error('Error submitting liquidation:', error);
+            alert(`Failed to submit liquidation: ${error.message}`);
+        } finally {
+            setDrawerLoading(false);
+        }
+    };
 
     // Sorting state
     const [sortField, setSortField] = useState<SortField>('dateCreated');
@@ -518,28 +600,66 @@ export const PrfView: React.FC<PrfViewProps> = ({
             : <ArrowDown size={14} className="text-purple-400 ml-1" />;
     };
 
-    // Filter Logic
-    const pendingStatuses = [
-        RequisitionStatus.DRAFT, // Drafts appear in pending tab
-        RequisitionStatus.READY_FOR_PRF,
+    // ============================================================================
+    // FILTER LOGIC: 4 Workflow Tab Buckets
+    // ============================================================================
+
+    // Tab 1: "For Processing" - Parent BURFs waiting to become PRFs
+    const processingReqs = useMemo(() => {
+        return visibleRequisitions.filter(r =>
+            r.status === RequisitionStatus.READY_FOR_PRF &&
+            !r.id.includes('-Batch') // Exclude child batches
+        );
+    }, [visibleRequisitions]);
+
+    // Tab 2: "Pending Approval" - PRFs in approval/payment chain
+    const pendingApprovalStatuses = [
+        RequisitionStatus.DRAFT,
         RequisitionStatus.PRF_PENDING_MANAGER,
         RequisitionStatus.APPROVED_FOR_PAYMENT,
-        RequisitionStatus.REJECTED,
-        RequisitionStatus.CANCELLED
     ];
+    const pendingReqs = useMemo(() => {
+        return visibleRequisitions.filter(r =>
+            pendingApprovalStatuses.includes(r.status) &&
+            r.prfDetails // Only PRFs, not BURFs
+        );
+    }, [visibleRequisitions]);
 
-    const flowedStatuses = [
-        RequisitionStatus.FUNDS_RELEASED,
+    // Tab 3: "For Liquidation" - Funds released, awaiting liquidation docs
+    const liquidationReqs = useMemo(() => {
+        return visibleRequisitions.filter(r =>
+            r.status === RequisitionStatus.FUNDS_RELEASED &&
+            r.prfDetails // Only PRFs
+        );
+    }, [visibleRequisitions]);
+
+    // Tab 4: "History" - Completed/Rejected/Liquidated items
+    const historyStatuses = [
         RequisitionStatus.LIQUIDATION_FILED,
+        RequisitionStatus.AUDITED_CLEARED,
         RequisitionStatus.LIQUIDATION_REJECTED,
-        RequisitionStatus.AUDITED_CLEARED
+        RequisitionStatus.REJECTED,
+        RequisitionStatus.CANCELLED,
     ];
+    const historyReqs = useMemo(() => {
+        return visibleRequisitions.filter(r =>
+            historyStatuses.includes(r.status) &&
+            (r.prfDetails || r.status === RequisitionStatus.REJECTED) // PRFs or rejected items
+        );
+    }, [visibleRequisitions]);
 
-    const targetStatuses = activeTab === 'pending' ? pendingStatuses : flowedStatuses;
+    // Get current tab's data
+    const getTabData = () => {
+        switch (activeTab) {
+            case 'processing': return processingReqs;
+            case 'pending': return pendingReqs;
+            case 'liquidation': return liquidationReqs;
+            case 'history': return historyReqs;
+            default: return [];
+        }
+    };
 
-    const filteredAndSortedReqs = visibleRequisitions
-        .filter(r => targetStatuses.includes(r.status))
-        .filter(r => r.status !== RequisitionStatus.REJECTED || r.prfDetails) // Only show rejected PRFs, not rejected BURFs
+    const filteredAndSortedReqs = getTabData()
         .filter(r => {
             if (selectedBusinessUnit !== 'all' && r.businessId !== selectedBusinessUnit) {
                 return false;
@@ -619,24 +739,47 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 </div>
             </div>
 
-            <div className="flex border-b border-slate-700 mb-4">
+            {/* 4-Tab Workflow Navigation */}
+            <div className="flex border-b border-slate-700 mb-4 overflow-x-auto">
                 <button
-                    className={`py-2 px-4 text-sm font-medium ${activeTab === 'pending'
+                    className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'processing'
+                        ? 'border-b-2 border-purple-500 text-purple-400'
+                        : 'text-slate-400 hover:text-slate-300'
+                        }`}
+                    onClick={() => setActiveTab('processing')}
+                >
+                    For Processing
+                    <span className="px-2 py-0.5 bg-slate-700 rounded-full text-xs">{processingReqs.length}</span>
+                </button>
+                <button
+                    className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'pending'
                         ? 'border-b-2 border-purple-500 text-purple-400'
                         : 'text-slate-400 hover:text-slate-300'
                         }`}
                     onClick={() => setActiveTab('pending')}
                 >
                     Pending Approval
+                    <span className="px-2 py-0.5 bg-slate-700 rounded-full text-xs">{pendingReqs.length}</span>
                 </button>
                 <button
-                    className={`py-2 px-4 text-sm font-medium ${activeTab === 'flowed'
-                        ? 'border-b-2 border-purple-500 text-purple-400'
+                    className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'liquidation'
+                        ? 'border-b-2 border-emerald-500 text-emerald-400'
                         : 'text-slate-400 hover:text-slate-300'
                         }`}
-                    onClick={() => setActiveTab('flowed')}
+                    onClick={() => setActiveTab('liquidation')}
                 >
-                    Flowed Requests (Fund Released)
+                    For Liquidation
+                    <span className="px-2 py-0.5 bg-emerald-900/50 text-emerald-300 rounded-full text-xs">{liquidationReqs.length}</span>
+                </button>
+                <button
+                    className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'history'
+                        ? 'border-b-2 border-slate-500 text-slate-300'
+                        : 'text-slate-400 hover:text-slate-300'
+                        }`}
+                    onClick={() => setActiveTab('history')}
+                >
+                    History
+                    <span className="px-2 py-0.5 bg-slate-700 rounded-full text-xs">{historyReqs.length}</span>
                 </button>
             </div>
 
@@ -711,15 +854,23 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                     if (!dateValue) return '-';
                                     // Firestore Timestamp object
                                     if (dateValue?.toDate && typeof dateValue.toDate === 'function') {
-                                        return dateValue.toDate().toLocaleDateString();
+                                        return dateValue.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
                                     }
                                     // ISO string or Date
                                     const parsed = new Date(dateValue);
-                                    return isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString();
+                                    return isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
                                 };
 
                                 return (
-                                    <tr key={req.id} className="hover:bg-slate-800/60">
+                                    <tr
+                                        key={req.id}
+                                        className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                        onClick={(e) => {
+                                            // Don't open drawer if clicking action buttons
+                                            if ((e.target as HTMLElement).closest('button, a')) return;
+                                            setSelectedReq(req);
+                                        }}
+                                    >
                                         <td className="px-6 py-4 font-medium text-slate-200 whitespace-nowrap">{req.id}</td>
                                         <td className="px-6 py-4 text-slate-300 text-xs">{business?.name || 'N/A'}</td>
                                         {/* Requested By - using denormalized name, fallback to lookup for legacy data */}
@@ -744,7 +895,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                 <span className="text-slate-600">-</span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 text-slate-200">{req.description}</td>
+                                        <td className="px-6 py-4 text-slate-200 max-w-[200px] truncate\" title={req.description}>{req.description || '-'}</td>
                                         <td className="px-6 py-4 text-slate-400">{req.items.length} items</td>
                                         {/* Date Needed - safe formatting handles Timestamps and ISO strings */}
                                         <td className="px-6 py-4 text-purple-400 text-xs">
@@ -756,8 +907,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                             <div className="flex flex-col gap-1">
                                                 {getStatusBadge(req.status)}
 
-                                                {/* Show Released status explicitly if status is beyond FUNDS_RELEASED */}
-                                                {req.fundReleaseDate && activeTab === 'flowed' && (
+                                                {/* Show Released status explicitly for liquidation/history tabs */}
+                                                {req.fundReleaseDate && (activeTab === 'liquidation' || activeTab === 'history') && (
                                                     <span className="text-[10px] text-emerald-400">Funds Released: {new Date(req.fundReleaseDate).toLocaleDateString()}</span>
                                                 )}
                                             </div>
@@ -851,6 +1002,22 @@ export const PrfView: React.FC<PrfViewProps> = ({
             {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} users={allUsers} />}
             {/* FIX #3: Removed duplicate modal - editingPrf is already handled by DirectPrfModal at line 558 */}
             {printReq && <PRFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)} />}
+
+            {/* Quick Peek Drawer */}
+            <RequisitionDrawer
+                requisition={selectedReq}
+                isOpen={!!selectedReq}
+                onClose={() => setSelectedReq(null)}
+                variant="PRF"
+                getStatusBadge={getStatusBadge}
+                onApprove={handleDrawerApprove}
+                onReject={handleDrawerReject}
+                onSubmitLiquidation={handleDrawerSubmitLiquidation}
+                canApprove={!!canApproveSelectedPrf}
+                canReject={!!canApproveSelectedPrf}
+                canSubmitLiquidation={!!canSubmitLiquidation}
+                isLoading={drawerLoading}
+            />
         </div>
     );
 };
