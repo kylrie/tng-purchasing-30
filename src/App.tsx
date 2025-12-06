@@ -21,7 +21,7 @@ import { useRequisitions } from './features/procurement/hooks/useRequisitions';
 import { useUsers } from './features/admin/hooks/useUsers';
 import { useBusinesses } from './features/admin/hooks/useBusinesses';
 import { useSuppliers } from './features/inventory/hooks/useSuppliers';
-import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from './config/firebase';
 import { useUOM } from './shared/hooks/useUOM';
 
@@ -49,12 +49,18 @@ function ProtectedApp() {
     }
   };
 
+  // FIX BUG 10: Soft Delete - Update status instead of deleting
+  // Preserves audit trail of rejected registration attempts
   const handleRejectUser = async (userId: string) => {
     setApprovalLoadingId(userId);
     try {
       const userRef = doc(db, COLLECTIONS.USERS, userId);
-      await deleteDoc(userRef);
-      setUsers(users.filter(u => u.id !== userId));
+      await updateDoc(userRef, {
+        status: UserStatus.REJECTED,
+        rejectedAt: new Date().toISOString()
+      });
+      // Update local state to reflect rejection (filter from pending view)
+      setUsers(users.map(u => u.id === userId ? { ...u, status: UserStatus.REJECTED } : u));
     } catch (error) {
       console.error("Error rejecting user: ", error);
     } finally {
@@ -70,6 +76,7 @@ function ProtectedApp() {
       [RequisitionStatus.BURF_PENDING_MANAGER]: 'bg-orange-900/50 text-orange-400 border border-orange-700/50',
       [RequisitionStatus.BURF_PENDING_CIC]: 'bg-blue-900/50 text-blue-400 border border-blue-700/50',
       [RequisitionStatus.READY_FOR_PRF]: 'bg-emerald-900/50 text-emerald-400 border border-emerald-700/50',
+      [RequisitionStatus.BURF_COMPLETED]: 'bg-teal-900/50 text-teal-400 border border-teal-700/50',
       [RequisitionStatus.PRF_PENDING_MANAGER]: 'bg-purple-900/50 text-purple-400 border border-purple-700/50',
       [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'bg-cyan-900/50 text-cyan-400 border border-cyan-700/50',
       [RequisitionStatus.FUNDS_RELEASED]: 'bg-green-900/50 text-green-400 border border-green-700/50',
@@ -84,6 +91,7 @@ function ProtectedApp() {
       [RequisitionStatus.BURF_PENDING_MANAGER]: 'For BUM Approval',
       [RequisitionStatus.BURF_PENDING_CIC]: 'For CIC Approval',
       [RequisitionStatus.READY_FOR_PRF]: 'Ready for PRF',
+      [RequisitionStatus.BURF_COMPLETED]: 'BURF Completed',
       [RequisitionStatus.PRF_PENDING_MANAGER]: 'Pending PRF Approval',
       [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'For Fund Release', // Changed label
       [RequisitionStatus.FUNDS_RELEASED]: 'Funds Released',

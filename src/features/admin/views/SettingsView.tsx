@@ -4,7 +4,8 @@ import { usePermissionsContext } from '../../../contexts/PermissionsContext';
 import PermissionsMatrix from '../components/PermissionsMatrix';
 import type { User, Business } from '../../../shared/types';
 import type { Permission } from '../../../config/permissions';
-import { UserRole, UserStatus } from '../../procurement/types';
+import { UserRole, UserStatus, SystemRole } from '../../procurement/types';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // Import Layout Components
 import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search, Loader2 } from 'lucide-react';
@@ -42,6 +43,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setUomOptions,
 }) => {
     const { updatePermissions, updateRoles } = usePermissionsContext();
+    const { hasPermission } = usePermissions();
 
     // State Definitions
     const [activeTab, setActiveTab] = useState('profile');
@@ -250,21 +252,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const inputClass = "w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
     const labelClass = "block text-sm font-medium text-slate-300 mb-1";
 
-    // Permission Checking Helper (Local)
-    // We assume currentUser role allows access if they are here, but we can double check
-    const hasPermission = (permission: string) => {
-        // Implement simplified check or rely on Parent routing protection
-        if (!permission) return true;
-        // In a real implementation, we would check permissions here.
-        // For settings view tabs, we might want to check roles.
-        if (permission === 'admin:manage:businesses') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
-        if (permission === 'admin:manage:users') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
-        if (permission === 'admin:manage:permissions') return currentUser.role === UserRole.SUPER_ADMIN;
-        if (permission === 'admin:view:user_approvals') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN;
-        if (permission === 'inventory:manage:uom') return currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PURCHASING_OFFICER;
-
-        return true;
-    };
+    // Admin role check helper - only SUPER_ADMIN and ADMIN remain as hardcoded checks
+    // These are SystemRoles, kept for type-safe admin tab visibility
+    const isAdmin = currentUser.role === SystemRole.SUPER_ADMIN || currentUser.role === SystemRole.ADMIN;
 
     return (
         <div className="space-y-6 max-w-7xl animate-in fade-in slide-in-from-bottom-4 pb-10 text-white" >
@@ -285,22 +275,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             < div className="flex border-b border-slate-700 space-x-4 overflow-x-auto" >
                 <button onClick={() => setActiveTab('profile')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'profile' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>My Profile</button>
                 <button onClick={() => setActiveTab('security')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'security' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Security</button>
-                {/* Admin Tabs */}
-                {
-                    (currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN) && (
-                        <>
-                            <button onClick={() => setActiveTab('business')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'business' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Business Units</button>
-                            <button onClick={() => setActiveTab('users')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>User Management</button>
-                            <button onClick={() => setActiveTab('approvers')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'approvers' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Approver Config</button>
-                            <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
-                        </>
-                    )
-                }
-                {
-                    (currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.PURCHASING_OFFICER) && (
-                        <button onClick={() => setActiveTab('inventory')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'inventory' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Inventory</button>
-                    )
-                }
+                {/* Admin Tabs - Uses SystemRole checks (hardcoded for type safety) */}
+                {isAdmin && (
+                    <>
+                        <button onClick={() => setActiveTab('business')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'business' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Business Units</button>
+                        <button onClick={() => setActiveTab('users')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>User Management</button>
+                        <button onClick={() => setActiveTab('approvers')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'approvers' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Approver Config</button>
+                        <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
+                    </>
+                )}
+                {/* Inventory Tab - Uses permission check (supports dynamic roles) */}
+                {hasPermission('inventory:manage:uom') && (
+                    <button onClick={() => setActiveTab('inventory')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'inventory' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Inventory</button>
+                )}
             </div >
 
             {/* Content Area */}
@@ -589,7 +576,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                                         <td className="p-3 text-slate-400" title={user.businessUnitIds?.map(id => businesses.find(b => b.id === id)?.name).join(', ')}>
                                                             {primaryBiz} <span className="text-xs text-slate-500">{otherBizText}</span>
                                                         </td>
-                                                        <td className="p-3 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => handleEditUserClick(user)} className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit User"><Edit2 size={16} /></button><button className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" title="Delete User (Not Implemented)"><Trash2 size={16} /></button></div></td>
+                                                        <td className="p-3 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => handleEditUserClick(user)} className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit User"><Edit2 size={16} /></button>{/* Delete button removed - user deletion handled via Firebase Console */}</div></td>
                                                     </tr>
                                                 );
                                             })}

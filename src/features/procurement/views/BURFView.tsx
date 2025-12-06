@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronRight, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -7,6 +7,8 @@ import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import BURFPrintModal from '../components/BURFPrintModal';
 import { CounterService } from '../../../shared/services/counter.service';
+// FIX C6: Import sanitization utility to prevent XSS/injection
+import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
 
 interface BurfViewProps {
     currentUser: User;
@@ -85,6 +87,13 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
         let filtered = visibleRequisitions
             .filter(req => {
+                // FIX: Only show root BURF records in BURF view
+                // - ID must start with "BURF-" (excludes PRF-xxxx, etc.)
+                // - ID must NOT contain "-Batch" (excludes child batch records like BURF-0019-Batch01)
+                if (!req.id.startsWith('BURF-') || req.id.includes('-Batch')) {
+                    return false;
+                }
+
                 // Filter out specific statuses as requested
                 if ([
                     RequisitionStatus.FUNDS_RELEASED,
@@ -182,16 +191,21 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 reqId = await CounterService.generateBURFId();
             }
 
+            // FIX C6: Sanitize all user-generated content before saving to Firestore
             const baseReq: any = {
                 id: reqId,
                 requesterId: currentUser.id,
+                // Denormalized user info - stored directly for fast reading without lookups
+                requesterName: currentUser.name,
+                requesterPhotoUrl: currentUser.avatar || '',
                 businessId: currentUser.businessId,
-                items: newItems,
+                externalLink: attachmentLink || undefined, // Store as dedicated field
+                items: sanitizeItems(newItems), // Sanitize item names and remarks
                 totalAmount: 0,
                 status: status,
                 dateCreated: new Date().toISOString().split('T')[0],
-                description,
-                remarks,
+                description: sanitizeText(description), // Sanitize user input
+                remarks: sanitizeText(remarks), // Sanitize user input
                 dateNeeded,
                 priority: isUrgent ? 'URGENT' : 'NORMAL',
                 attachments,
@@ -424,13 +438,15 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     Status {renderSortIcon('status')}
                                 </div>
                             </th>
+                            <th className="px-6 py-4">Link</th>
                             <th className="px-6 py-4">Rejection Reason</th>
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700">
                         {filteredRequisitions.map(req => {
-                            const requester = allUsers.find(u => u.id === req.requesterId);
+                            // Use denormalized requesterName, fallback to lookup for legacy data
+                            const requesterName = req.requesterName || allUsers.find(u => u.id === req.requesterId)?.name || 'Unknown';
                             const business = businesses.find(b => b.id === req.businessId);
                             const isOwner = req.requesterId === currentUser.id;
                             const canEdit = (isOwner && (req.status === RequisitionStatus.DRAFT || req.status === RequisitionStatus.REJECTED));
@@ -450,12 +466,13 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                             )}
                                         </td>
                                         <td className="px-6 py-4 text-slate-300 font-medium text-xs">{business?.name || 'N/A'}</td>
+                                        {/* FIXED: Use denormalized requesterName directly */}
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                                                    {(requester?.name || '?').charAt(0)}
+                                                    {requesterName.charAt(0).toUpperCase()}
                                                 </div>
-                                                <span className="text-slate-200">{requester?.name || 'Unknown'}</span>
+                                                <span className="text-slate-200">{requesterName}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-slate-300 text-xs">
@@ -463,6 +480,22 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                         </td>
                                         <td className="px-6 py-4 cursor-pointer hover:opacity-80" onClick={(e) => { e.stopPropagation(); /* setTrackingReq(req) */ }}>
                                             {getStatusBadge(req.status)}
+                                        </td>
+                                        {/* External Link - paperclip icon that opens externalLink or first attachment */}
+                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                            {(req.externalLink || req.attachments?.[0]) ? (
+                                                <a
+                                                    href={req.externalLink || req.attachments?.[0]}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-400 hover:text-blue-300 p-1"
+                                                    title="Open Reference Link"
+                                                >
+                                                    <Paperclip size={16} />
+                                                </a>
+                                            ) : (
+                                                <span className="text-slate-600">-</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-red-400">
                                             {req.status === RequisitionStatus.REJECTED && req.remarks ? (
@@ -530,7 +563,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             )
                         })}
                         {filteredRequisitions.length === 0 && (
-                            <tr><td colSpan={8} className="px-6 py-8 text-center text-slate-400 italic">No requisitions found.</td></tr>
+                            <tr><td colSpan={9} className="px-6 py-8 text-center text-slate-400 italic">No requisitions found.</td></tr>
                         )}
                     </tbody>
                 </table>

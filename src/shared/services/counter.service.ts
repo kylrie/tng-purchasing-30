@@ -1,4 +1,4 @@
-import { doc, runTransaction } from 'firebase/firestore';
+import { doc, runTransaction, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
 /**
@@ -108,6 +108,38 @@ export class CounterService {
     }
 
     /**
+     * Generate a batch-specific PRF ID for BURF-to-PRF conversions
+     * Queries existing PRFs linked to this BURF and generates the next batch number
+     * @param parentBurfId - The original BURF ID (e.g., "BURF-0033")
+     * @returns Formatted batch ID (e.g., "BURF-0033-B1", "BURF-0033-B2")
+     */
+    static async generateBatchPrfId(parentBurfId: string): Promise<string> {
+        try {
+            // Query for existing PRFs that were created from this BURF
+            // They will have prfDetails.requisitionId = parentBurfId OR id starts with parentBurfId-B
+            const requisitionsRef = collection(db, 'requisitions');
+
+            // Count existing batches by looking for IDs that start with parentBurfId-B
+            const batchQuery = query(
+                requisitionsRef,
+                where('prfDetails.requisitionId', '==', parentBurfId)
+            );
+
+            const snapshot = await getDocs(batchQuery);
+            const batchCount = snapshot.size;
+
+            // Generate next batch number (B1, B2, B3, etc.)
+            const nextBatchNumber = batchCount + 1;
+            return `${parentBurfId}-B${nextBatchNumber}`;
+        } catch (error) {
+            console.error(`Error generating batch PRF ID for ${parentBurfId}:`, error);
+            // Fallback: use timestamp-based suffix to avoid collisions
+            const fallbackSuffix = Date.now().toString().slice(-4);
+            return `${parentBurfId}-B${fallbackSuffix}`;
+        }
+    }
+
+    /**
      * Format a number as a PRF ID
      * @param value - Counter value
      * @returns Formatted PRF ID (e.g., "PRF-0001")
@@ -161,43 +193,24 @@ export class CounterService {
 
     /**
      * Reset a counter to a specific value
-     * @deprecated SECURITY FIX C2: This function is disabled in production to prevent ID collisions.
-     * Counter resets should only be performed via Firebase Admin SDK by authorized personnel.
-     * @param counterType - Type of counter to reset
-     * @param value - New counter value
+     * @deprecated SECURITY FIX C3: This function is COMPLETELY DISABLED to prevent ID collisions.
+     * Counter resets should ONLY be performed via Firebase Admin SDK by authorized personnel.
+     * 
+     * Rationale: Even in development, resetting counters can cause ID reuse which may
+     * propagate to production through data exports/imports or shared staging environments.
+     * 
+     * @param _counterType - Type of counter to reset (unused - function disabled)
+     * @param _value - New counter value (unused - function disabled)
+     * @throws Always throws an error directing to Firebase Admin SDK
      */
-    static async resetCounter(counterType: CounterType, value: number = 0): Promise<void> {
-        // FIX C2: Block counter reset in production - could cause duplicate IDs
-        if (import.meta.env.PROD) {
-            throw new Error('Counter reset is disabled in production for security reasons. Use Firebase Admin SDK.');
-        }
-
-        // Development only - log warning
-        console.warn(`⚠️ SECURITY WARNING: Resetting counter ${counterType} to ${value}. This should NOT be used in production.`);
-
-        const counterRef = doc(db, this.COLLECTION_NAME, counterType);
-        const prefix = this.PREFIXES[counterType];
-
-        try {
-            await runTransaction(db, async (transaction) => {
-                // FIX C2: Validate that new value is greater than current to prevent ID reuse
-                const currentDoc = await transaction.get(counterRef);
-                if (currentDoc.exists()) {
-                    const currentValue = currentDoc.data().value || 0;
-                    if (value <= currentValue) {
-                        throw new Error(`Cannot reset counter to ${value}. Current value is ${currentValue}. Resetting to lower values would cause ID collisions.`);
-                    }
-                }
-
-                transaction.set(counterRef, {
-                    value,
-                    prefix: prefix,
-                    lastUpdated: new Date().toISOString(),
-                });
-            });
-        } catch (error) {
-            console.error(`Error resetting counter ${counterType}:`, error);
-            throw error instanceof Error ? error : new Error(`Failed to reset ${counterType} counter`);
-        }
+    static async resetCounter(_counterType: CounterType, _value: number = 0): Promise<void> {
+        // FIX C3: COMPLETELY DISABLED - was only checking PROD environment
+        // Risk: Development data with reused IDs could leak to production
+        // Solution: Always throw, directing users to proper admin procedures
+        throw new Error(
+            'Counter reset is permanently disabled in client code to prevent ID collisions. ' +
+            'Use Firebase Admin SDK with proper authorization for counter management.'
+        );
     }
+
 }

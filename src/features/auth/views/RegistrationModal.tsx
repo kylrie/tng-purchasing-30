@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import { UserRole } from '../../../shared/types/firebase.types';
-import type { Business } from '../../procurement/types';
+import type { Business, RoleType } from '../../procurement/types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
+import { useRoleOptions } from '../../../hooks/useRoleOptions';
 
 interface RegistrationModalProps {
-  onRegister: (role: UserRole, businessId: string, password?: string) => void;
+  onRegister: (role: RoleType, businessId: string, password?: string) => void;
   loading: boolean;
   isGoogleSignIn: boolean;
 }
 
 const RegistrationModal: React.FC<RegistrationModalProps> = ({ onRegister, loading, isGoogleSignIn }) => {
-  const [role, setRole] = useState<UserRole>(UserRole.EMPLOYEE);
+  const { roleOptions, defaultRole, isLoading: rolesLoading } = useRoleOptions();
+  const [role, setRole] = useState<string>(defaultRole);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -47,8 +48,8 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ onRegister, loadi
       return;
     }
     if (!selectedBusinessId) {
-        setError("Please select a Business Unit.");
-        return;
+      setError("Please select a Business Unit.");
+      return;
     }
     onRegister(role, selectedBusinessId, password);
   };
@@ -62,20 +63,29 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ onRegister, loadi
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">Select your Role</label>
-            <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500">
-                {Object.values(UserRole).map((roleValue) => (
-                    <option key={roleValue} value={roleValue}>
-                        {roleValue.replace(/_/g, ' ')}
-                    </option>
-                ))}
+            <select
+              value={role}
+              onChange={e => setRole(e.target.value)}
+              disabled={rolesLoading}
+              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500 disabled:opacity-50"
+            >
+              {rolesLoading ? (
+                <option>Loading roles...</option>
+              ) : (
+                roleOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-slate-400 mb-1">Select your Business Unit</label>
             <select value={selectedBusinessId} onChange={e => setSelectedBusinessId(e.target.value)} className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500">
-                <option value="">Choose a business unit...</option>
-                {businesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+              <option value="">Choose a business unit...</option>
+              {businesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </div>
 
@@ -106,7 +116,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ onRegister, loadi
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
-          <button onClick={handleSubmit} disabled={loading} className="w-full flex justify-center items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={loading || rolesLoading} className="w-full flex justify-center items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-xl font-semibold disabled:opacity-50">
             {loading ? 'Registering...' : 'Submit for Approval'}
           </button>
         </div>

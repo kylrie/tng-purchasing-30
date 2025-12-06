@@ -1,11 +1,38 @@
 import { FirestoreService, where } from '../../../shared/services/firestore.service';
-import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, collection, query, where as firestoreWhere, getDocs } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import type { Requisition, RequisitionHistory } from '../types';
+import type { Requisition, RequisitionHistory, RequisitionItem, SupplierDetails } from '../types';
 import { RequisitionStatus, UserRole, hasGlobalAccess } from '../types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
+import { removeUndefinedFields } from '../../../shared/utils/firestore.utils';
 
 const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
+
+/**
+ * Parameters for creating a batch PRF from BURF
+ */
+interface CreateBatchPrfParams {
+  sourceBurfId: string;
+  sourceBusinessId: string; // Required for query permissions
+  selectedItems: RequisitionItem[];
+  prfDetails: {
+    supplier: SupplierDetails;
+    preparedBy: string;
+    preparedByName: string;
+    designatedApproverId?: string;
+  };
+  userId: string;
+  userName: string;
+}
+
+/**
+ * Result of batch PRF creation
+ */
+interface CreateBatchPrfResult {
+  newPrfId: string;
+  sourceBurfNewStatus: RequisitionStatus;
+  remainingItemsCount: number;
+}
 
 /**
  * Service for all requisition related database operations
@@ -13,7 +40,184 @@ const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
 export class RequisitionService {
 
   /**
+   * Create a batch PRF from a BURF using a Firestore transaction
+   * This ensures atomic operations: PRF is created AND items are removed from BURF together
+   * 
+   * @param params - Parameters for the batch PRF creation
+   * @returns Result containing new PRF ID and updated BURF status
+   */
+  static async createBatchPrfFromBurf(params: CreateBatchPrfParams): Promise<CreateBatchPrfResult> {
+    const { sourceBurfId, sourceBusinessId, selectedItems, prfDetails, userId, userName } = params;
+
+    console.log(`[createBatchPrfFromBurf] Starting for BURF: ${sourceBurfId}`);
+    console.log(`[createBatchPrfFromBurf] Selected items count: ${selectedItems.length}`);
+
+    try {
+      const sourceBurfRef = doc(db, REQUISITIONS_COLLECTION, sourceBurfId);
+
+      // Step 1: Query for existing batches to determine next batch number
+      // This is done BEFORE the transaction to avoid contention
+      console.log('[createBatchPrfFromBurf] Step 1: Querying existing batches...');
+      const requisitionsRef = collection(db, REQUISITIONS_COLLECTION);
+      // Add businessId to the query to satisfy Firestore read rules (belongsToSameBU)
+      const batchQuery = query(
+        requisitionsRef,
+        firestoreWhere('parentBurfId', '==', sourceBurfId),
+        firestoreWhere('businessId', '==', sourceBusinessId)
+      );
+      const existingBatches = await getDocs(batchQuery);
+      const nextBatchNumber = existingBatches.size + 1;
+      const paddedBatch = nextBatchNumber.toString().padStart(2, '0');
+      const newPrfId = `${sourceBurfId}-Batch${paddedBatch}`;
+      console.log(`[createBatchPrfFromBurf] Step 1 complete. Existing batches: ${existingBatches.size}, New ID: ${newPrfId}`);
+
+      // Step 2: Run transaction for atomic create + update
+      let sourceBurfNewStatus: RequisitionStatus = RequisitionStatus.READY_FOR_PRF;
+      let remainingItemsCount = 0;
+
+      console.log('[createBatchPrfFromBurf] Step 2: Starting transaction...');
+      await runTransaction(db, async (transaction) => {
+        // Step A: Read the current state of the source BURF
+        console.log('[createBatchPrfFromBurf] Step A: Reading source BURF...');
+        const sourceBurfSnap = await transaction.get(sourceBurfRef);
+        if (!sourceBurfSnap.exists()) {
+          throw new Error(`Source BURF ${sourceBurfId} not found`);
+        }
+
+        const sourceBurf = { id: sourceBurfSnap.id, ...sourceBurfSnap.data() } as Requisition;
+        console.log(`[createBatchPrfFromBurf] Step A complete. BURF status: ${sourceBurf.status}, items: ${sourceBurf.items.length}`);
+
+        // Validate source BURF is in the correct status
+        if (sourceBurf.status !== RequisitionStatus.READY_FOR_PRF) {
+          throw new Error(`Cannot create PRF from BURF in status: ${sourceBurf.status}. Expected READY_FOR_PRF.`);
+        }
+
+        // Step B: Split items
+        console.log('[createBatchPrfFromBurf] Step B: Splitting items...');
+        const selectedItemIds = new Set(selectedItems.map(item => item.itemId));
+        const remainingItems = sourceBurf.items.filter(item => !selectedItemIds.has(item.itemId));
+        remainingItemsCount = remainingItems.length;
+        console.log(`[createBatchPrfFromBurf] Step B complete. Selected: ${selectedItems.length}, Remaining: ${remainingItemsCount}`);
+
+        // Determine new status for source BURF
+        sourceBurfNewStatus = remainingItems.length === 0
+          ? RequisitionStatus.BURF_COMPLETED
+          : RequisitionStatus.READY_FOR_PRF;
+
+        // Step C: Create new PRF document
+        console.log('[createBatchPrfFromBurf] Step C: Creating PRF document...');
+        const newPrf: Requisition = {
+          id: newPrfId,
+          requesterId: sourceBurf.requesterId,
+          requesterName: sourceBurf.requesterName || '',
+          requesterPhotoUrl: sourceBurf.requesterPhotoUrl || '',
+          businessId: sourceBurf.businessId,
+          items: selectedItems,
+          totalAmount: selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+          status: RequisitionStatus.PRF_PENDING_MANAGER,
+          dateCreated: new Date().toISOString(),
+          description: sourceBurf.description || '',
+          projectName: sourceBurf.projectName || '', // Fallback to prevent undefined
+          remarks: `Batch ${paddedBatch} from ${sourceBurfId}`,
+          dateNeeded: sourceBurf.dateNeeded || '',
+          priority: sourceBurf.priority || 'NORMAL',
+          attachments: sourceBurf.attachments || [],
+          parentBurfId: sourceBurfId,
+          prfDetails: {
+            supplier: prfDetails.supplier,
+            preparedBy: prfDetails.preparedBy,
+            preparedByName: prfDetails.preparedByName,
+            datePrepared: new Date().toISOString(),
+            requisitionId: sourceBurfId,
+            timestamp: new Date().toISOString(),
+            designatedApproverId: prfDetails.designatedApproverId,
+          },
+          timestamp: new Date().toISOString(),
+          history: [{
+            date: new Date().toISOString(),
+            actorId: userId,
+            actorName: userName,
+            action: 'Created from BURF',
+            stage: RequisitionStatus.PRF_PENDING_MANAGER,
+            comments: `PRF created as ${newPrfId} from BURF ${sourceBurfId}`,
+          }],
+        };
+
+        // Step D: Create history entry for source BURF update
+        console.log('[createBatchPrfFromBurf] Step D: Creating history entries...');
+        const burfHistoryEntry: RequisitionHistory = {
+          date: new Date().toISOString(),
+          actorId: userId,
+          actorName: userName,
+          action: remainingItems.length === 0 ? 'Fully Converted to PRF' : 'Partial PRF Created',
+          stage: sourceBurfNewStatus,
+          comments: `${selectedItems.length} items moved to ${newPrfId}. ${remainingItems.length} items remaining.`,
+        };
+        const updatedBurfHistory = [burfHistoryEntry, ...(sourceBurf.history || [])];
+
+        // Step E: Write operations (atomic within transaction)
+        console.log('[createBatchPrfFromBurf] Step E: Writing to Firestore...');
+        const newPrfRef = doc(db, REQUISITIONS_COLLECTION, newPrfId);
+        // Sanitize the PRF object to remove any undefined values before writing
+        const sanitizedPrf = removeUndefinedFields(newPrf);
+        transaction.set(newPrfRef, sanitizedPrf);
+        console.log('[createBatchPrfFromBurf] Step E1: PRF document set');
+
+        transaction.update(sourceBurfRef, {
+          items: remainingItems,
+          totalAmount: remainingItems.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0),
+          status: sourceBurfNewStatus,
+          history: updatedBurfHistory,
+          updatedAt: serverTimestamp(),
+        });
+        console.log('[createBatchPrfFromBurf] Step E2: BURF document updated');
+      });
+
+      console.log(`[createBatchPrfFromBurf] SUCCESS: Created ${newPrfId} from ${sourceBurfId}. Remaining items: ${remainingItemsCount}`);
+
+      return {
+        newPrfId,
+        sourceBurfNewStatus,
+        remainingItemsCount,
+      };
+    } catch (error: any) {
+      console.error('[createBatchPrfFromBurf] FAILED');
+      console.error('Error Code:', error?.code);
+      console.error('Error Message:', error?.message);
+      console.error('Full Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * FIX M6: Batch query utility - chunks IDs into groups of 10 for Firestore 'in' limit
+   * Prevents downloading entire collection for users with many business units
+   */
+  private static async getRequisitionsWithBatching(
+    businessIds: string[]
+  ): Promise<Requisition[]> {
+    const BATCH_SIZE = 10;
+    const results: Requisition[] = [];
+
+    // Chunk into groups of 10
+    for (let i = 0; i < businessIds.length; i += BATCH_SIZE) {
+      const chunk = businessIds.slice(i, i + BATCH_SIZE);
+      const constraints = [where('businessId', 'in', chunk)];
+      const chunkResults = await FirestoreService.getDocuments<Requisition>(
+        REQUISITIONS_COLLECTION,
+        constraints
+      );
+      results.push(...chunkResults);
+    }
+
+    // Deduplicate by ID (in case of concurrent updates)
+    const uniqueMap = new Map(results.map(r => [r.id, r]));
+    return Array.from(uniqueMap.values());
+  }
+
+  /**
    * Get requisitions based on user role and business ID(s)
+   * FIX M6: Uses batched queries for all cases (no more fetch-all fallback)
    */
   static async getRequisitions(
     userRole: UserRole,
@@ -27,26 +231,14 @@ export class RequisitionService {
     }
 
     // 2. Normal User: Fetch based on assigned Business Units
-    // Combine primary businessId with additionalIds
     const allAccessibleIds = Array.from(new Set([businessId, ...additionalBusinessIds]));
 
     if (allAccessibleIds.length === 0) {
       return [];
     }
 
-    // Firestore 'in' query supports up to 10 items.
-    // If a user has > 10 BUs, we might need multiple queries or client-side filtering.
-    // For now, assuming < 10 BUs per user for simplicity.
-    if (allAccessibleIds.length <= 10) {
-      const constraints = [where('businessId', 'in', allAccessibleIds)];
-      return FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, constraints);
-    }
-
-    // Fallback for > 10 BUs: Fetch all and filter client-side (or optimize later)
-    // fetching all might be heavy, but it's a safe fallback for "Power Users" who aren't Super Admins
-    // Ideally, we'd batch the queries.
-    const allDocs = await FirestoreService.getDocuments<Requisition>(REQUISITIONS_COLLECTION, []);
-    return allDocs.filter(doc => allAccessibleIds.includes(doc.businessId));
+    // FIX M6: Always use batched queries (handles any number of BUs)
+    return this.getRequisitionsWithBatching(allAccessibleIds);
   }
 
   /**
@@ -58,6 +250,7 @@ export class RequisitionService {
 
   /**
    * Subscribe to real-time updates for requisitions
+   * FIX M6: Uses batched subscriptions for >10 business units
    */
   static subscribeToRequisitions(
     userRole: UserRole,
@@ -83,6 +276,7 @@ export class RequisitionService {
       return () => { };
     }
 
+    // FIX M6: For subscriptions with >10 BUs, use multiple subscriptions and merge
     if (allAccessibleIds.length <= 10) {
       const constraints = [where('businessId', 'in', allAccessibleIds)];
       return FirestoreService.subscribeToCollection<Requisition>(
@@ -92,17 +286,39 @@ export class RequisitionService {
       );
     }
 
-    // Fallback for > 10: Subscribe to all and filter in callback
-    // Note: This downloads everything, which isn't ideal for bandwidth but ensures correctness
-    return FirestoreService.subscribeToCollection<Requisition>(
-      REQUISITIONS_COLLECTION,
-      (allDocs) => {
-        const filtered = allDocs.filter(doc => allAccessibleIds.includes(doc.businessId));
-        callback(filtered);
-      },
-      []
-    );
+    // Multiple subscriptions for >10 BUs
+    const BATCH_SIZE = 10;
+    const unsubscribes: (() => void)[] = [];
+    const resultsByChunk: Map<number, Requisition[]> = new Map();
+
+    const mergeAndCallback = () => {
+      const allResults: Requisition[] = [];
+      resultsByChunk.forEach(chunk => allResults.push(...chunk));
+      // Deduplicate
+      const uniqueMap = new Map(allResults.map(r => [r.id, r]));
+      callback(Array.from(uniqueMap.values()));
+    };
+
+    for (let i = 0; i < allAccessibleIds.length; i += BATCH_SIZE) {
+      const chunkIndex = i / BATCH_SIZE;
+      const chunk = allAccessibleIds.slice(i, i + BATCH_SIZE);
+      const constraints = [where('businessId', 'in', chunk)];
+
+      const unsub = FirestoreService.subscribeToCollection<Requisition>(
+        REQUISITIONS_COLLECTION,
+        (chunkResults) => {
+          resultsByChunk.set(chunkIndex, chunkResults);
+          mergeAndCallback();
+        },
+        constraints
+      );
+      unsubscribes.push(unsub);
+    }
+
+    // Return cleanup function that unsubscribes all
+    return () => unsubscribes.forEach(unsub => unsub());
   }
+
 
   /**
    * Create a new requisition
@@ -221,6 +437,8 @@ export class RequisitionService {
 
   /**
    * Reject a requisition
+   * FIX C5: Now uses transaction to prevent race conditions (matching approveRequisition pattern)
+   * Previously used separate update + addHistoryEntry calls which could cause data inconsistency
    */
   static async rejectRequisition(
     requisitionId: string,
@@ -228,16 +446,36 @@ export class RequisitionService {
     userName: string,
     comments: string
   ): Promise<void> {
-    await this.updateRequisition(requisitionId, { status: RequisitionStatus.REJECTED });
-    await this.addHistoryEntry(
-      requisitionId,
-      userId,
-      userName,
-      'Rejected',
-      RequisitionStatus.REJECTED,
-      comments
-    );
+    const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
+
+    // FIX C5: Use transaction for atomic read-modify-write (was separate operations)
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) throw new Error('Requisition not found');
+
+      const requisition = { id: snap.id, ...snap.data() } as Requisition;
+
+      // Create history entry inline (can't call async methods in transaction)
+      const historyEntry: RequisitionHistory = {
+        date: new Date().toISOString(),
+        actorId: userId,
+        actorName: userName,
+        action: 'Rejected',
+        stage: RequisitionStatus.REJECTED,
+        comments: comments,
+      };
+
+      const updatedHistory = [historyEntry, ...(requisition.history || [])];
+
+      // Atomic update within transaction - status + history together
+      transaction.update(docRef, {
+        status: RequisitionStatus.REJECTED,
+        history: updatedHistory,
+        updatedAt: serverTimestamp(),
+      });
+    });
   }
+
 
   /**
    * Re-file a rejected requisition

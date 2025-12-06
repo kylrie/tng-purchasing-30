@@ -3,13 +3,19 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ROLES_TO_PERMISSIONS } from '../config/permissions';
 import type { Permission } from '../config/permissions';
-import { UserRole } from '../features/procurement/types';
+import { SystemRole, DEFAULT_BUSINESS_ROLES } from '../features/procurement/types';
+
+// Default roles: System roles + default business roles
+const DEFAULT_ROLES: string[] = [
+    ...Object.values(SystemRole),
+    ...DEFAULT_BUSINESS_ROLES
+];
 
 interface PermissionsContextType {
-    permissions: Record<UserRole, Permission[]>;
-    roles: UserRole[];
-    updatePermissions: (newPermissions: Record<UserRole, Permission[]>) => Promise<void>;
-    updateRoles: (newRoles: UserRole[]) => Promise<void>;
+    permissions: Record<string, Permission[]>;
+    roles: string[]; // Changed to string[] for dynamic roles
+    updatePermissions: (newPermissions: Record<string, Permission[]>) => Promise<void>;
+    updateRoles: (newRoles: string[]) => Promise<void>;
     loading: boolean;
     error: string | null;
 }
@@ -25,8 +31,8 @@ export const usePermissionsContext = () => {
 };
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [permissions, setPermissions] = useState<Record<UserRole, Permission[]>>(ROLES_TO_PERMISSIONS);
-    const [roles, setRoles] = useState<UserRole[]>(Object.values(UserRole));
+    const [permissions, setPermissions] = useState<Record<string, Permission[]>>(ROLES_TO_PERMISSIONS);
+    const [roles, setRoles] = useState<string[]>(DEFAULT_ROLES);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -42,15 +48,15 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
                         setPermissions({ ...ROLES_TO_PERMISSIONS, ...data.permissions });
                     }
                     if (data.roles && Array.isArray(data.roles)) {
-                        // Ensure we have unique roles merging defaults + custom
-                        const uniqueRoles = Array.from(new Set([...Object.values(UserRole), ...data.roles]));
-                        setRoles(uniqueRoles as UserRole[]);
+                        // Ensure we have unique roles: defaults + Firestore roles
+                        const uniqueRoles = Array.from(new Set([...DEFAULT_ROLES, ...data.roles]));
+                        setRoles(uniqueRoles);
                     }
                 } else {
-                    // Initialize with defaults
-                    await setDoc(docRef, { 
-                        permissions: ROLES_TO_PERMISSIONS, 
-                        roles: Object.values(UserRole) 
+                    // Initialize Firestore with defaults
+                    await setDoc(docRef, {
+                        permissions: ROLES_TO_PERMISSIONS,
+                        roles: DEFAULT_ROLES
                     });
                 }
             } catch (err: any) {
@@ -64,10 +70,9 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         fetchPermissions();
     }, []);
 
-    const updatePermissions = async (newPermissions: Record<UserRole, Permission[]>) => {
+    const updatePermissions = async (newPermissions: Record<string, Permission[]>) => {
         try {
             const docRef = doc(db, 'config', 'permissions');
-            // We only update the 'permissions' field
             await setDoc(docRef, { permissions: newPermissions }, { merge: true });
             setPermissions(newPermissions);
         } catch (err: any) {
@@ -76,10 +81,9 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
     };
 
-    const updateRoles = async (newRoles: UserRole[]) => {
+    const updateRoles = async (newRoles: string[]) => {
         try {
             const docRef = doc(db, 'config', 'permissions');
-            // We only update the 'roles' field
             await setDoc(docRef, { roles: newRoles }, { merge: true });
             setRoles(newRoles);
         } catch (err: any) {

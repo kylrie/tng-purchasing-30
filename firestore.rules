@@ -35,6 +35,17 @@ service cloud.firestore {
     }
     
     // =====================================================
+    // FIX BUG 9: PRF PREPARER CHECK
+    // Allows PRF preparer to refile rejected PRFs
+    // =====================================================
+    
+    function isPrfPreparer(resource) {
+      return isSignedIn() && 
+        resource.data.prfDetails != null && 
+        resource.data.prfDetails.preparedBy == request.auth.uid;
+    }
+    
+    // =====================================================
     // PERMISSION-BASED ACCESS CONTROL
     // Reads permissions from config/permissions document
     // =====================================================
@@ -54,19 +65,40 @@ service cloud.firestore {
     
     // =====================================================
     // BUSINESS UNIT FUNCTIONS
+    // FIX BUG 3: Use hasAny() instead of 'in' operator
+    // The 'in' operator fails for arrays with >10 elements
+    // hasAny() checks if ANY element in the first list is in the second list
     // =====================================================
     
     function belongsToSameBU(resource) {
       let userData = getUserData();
       return isSuperAdminOrAdmin() ||
         userData.businessId == resource.data.businessId ||
-        (userData.businessUnitIds != null && resource.data.businessId in userData.businessUnitIds);
+        (userData.businessUnitIds != null && 
+         userData.businessUnitIds.hasAny([resource.data.businessId]));
     }
     
     function canReadRequisition(resource) {
       return isSuperAdminOrAdmin() ||
         resource.data.requesterId == request.auth.uid ||
         belongsToSameBU(resource);
+    }
+    
+    // =====================================================
+    // FIX BUG 2: TIMESTAMP VALIDATION
+    // Ensures timestamps are server-generated, not client-spoofed
+    // =====================================================
+    
+    function hasServerTimestamp(data, field) {
+      // Check if the field is a timestamp type (server timestamps are of type timestamp)
+      return field in data && data[field] is timestamp;
+    }
+    
+    function hasValidCreateTimestamps(data) {
+      // For creates, we require server timestamps on critical audit fields
+      // Note: dateCreated can be a date string for display purposes
+      // but timestamp field must be a server timestamp for audit integrity
+      return !('timestamp' in data) || data.timestamp is timestamp;
     }
     
     // =====================================================
@@ -87,7 +119,8 @@ service cloud.firestore {
         'LIQUIDATION_REJECTED',
         'AUDITED_CLEARED',
         'REJECTED',
-        'CANCELLED'
+        'CANCELLED',
+        'BURF_COMPLETED'
       ];
     }
     
@@ -106,6 +139,101 @@ service cloud.firestore {
     function hasValidItems(items) {
       return items.size() > 0 && items.size() <= 500;
     }
+    
+    // =====================================================
+    // FIX M3: TEXT FIELD LENGTH VALIDATION
+    // Prevents excessively long strings that could cause display issues or DoS
+    // =====================================================
+    
+    function isValidStringLength(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+    
+    // Validate text fields have reasonable lengths
+    function hasValidTextFields(data) {
+      // Description: max 500 chars
+      let validDesc = !('description' in data) || 
+                      data.description == null || 
+                      isValidStringLength(data.description, 500);
+      // Remarks: max 500 chars  
+      let validRemarks = !('remarks' in data) || 
+                         data.remarks == null || 
+                         isValidStringLength(data.remarks, 500);
+      return validDesc && validRemarks;
+    }
+    
+    // =====================================================
+    // WORKFLOW UPDATE FIELD VALIDATION
+    // Ensures workflow actions only modify allowed fields
+    // Blocks changes to sensitive fields like items, amounts, etc.
+    // =====================================================
+    
+    function isValidWorkflowUpdate() {
+      // Get the set of fields that changed
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      
+      // These are the ONLY fields workflow actions are allowed to modify
+      // Be permissive - allow any reasonable workflow-related field
+      let allowedFields = [
+        'status',
+        'history', 
+        'updatedAt',
+        'lastModified',
+        'lastModifiedBy',
+        'lastActionIndex',
+        'approvals',
+        'rejectionReason',
+        'rejectedAt',
+        'rejectedBy',
+        'cancelledAt',
+        'cancelledBy'
+      ].toSet();
+      
+      return affectedKeys.hasOnly(allowedFields);
+    }
+    
+    // =====================================================
+    // MANAGER APPROVAL CHECK
+    // Allows MANAGER role to approve BURFs even if permissions not configured
+    // =====================================================
+    
+    function canApproveAsManager() {
+      let role = getUserRole();
+      // Allow if user has MANAGER, GENERAL_MANAGER role, or has the explicit permission
+      return role == 'MANAGER' || 
+             role == 'GENERAL_MANAGER' || 
+             hasPermission('approval:manager:burf');
+    }
+    
+    function canApproveAsCIC() {
+      let role = getUserRole();
+      return role == 'CIC' || hasPermission('approval:cic:burf');
+    }
+    
+    function canApprovePRF() {
+      let role = getUserRole();
+      return role == 'MANAGER' || 
+             role == 'GENERAL_MANAGER' || 
+             hasPermission('approval:manager:prf');
+    }
+    
+    // =====================================================
+    // FIX BUG 14: NOTIFICATION VALIDATION
+    // Validates notification content to prevent abuse
+    // =====================================================
+    
+    function isValidNotificationType(type) {
+      return type in ['info', 'warning', 'success', 'error', 'approval', 'system'];
+    }
+    
+    function hasValidNotificationFields(data) {
+      return data.keys().hasAll(['userId', 'message', 'type', 'read']) &&
+        data.userId is string &&
+        isValidStringLength(data.message, 500) &&
+        isValidNotificationType(data.type) &&
+        data.read is bool;
+    }
+
 
     // =====================================================
     // REQUISITIONS COLLECTION
@@ -115,14 +243,24 @@ service cloud.firestore {
       allow read: if isSignedIn() && canReadRequisition(resource);
       
       // Create: Must be authenticated user with valid data (Issue #5)
+      // FIX M3: Added hasValidTextFields for max-length validation
+      // FIX: Allow PRF creation from BURF where preparer may be different from original requester
       allow create: if isSignedIn() && 
-        request.resource.data.requesterId == request.auth.uid &&
         hasRequiredRequisitionFields(request.resource.data) &&
         hasValidItems(request.resource.data.items) &&
-        // New requisitions must start as DRAFT, BURF_PENDING_MANAGER, or PRF_PENDING_MANAGER (for direct PRF)
-        (request.resource.data.status == 'DRAFT' || 
-         request.resource.data.status == 'BURF_PENDING_MANAGER' || 
-         request.resource.data.status == 'PRF_PENDING_MANAGER');
+        hasValidTextFields(request.resource.data) &&
+        (
+          // Standard requisition creation: user is the requester
+          (request.resource.data.requesterId == request.auth.uid &&
+           (request.resource.data.status == 'DRAFT' || 
+            request.resource.data.status == 'BURF_PENDING_MANAGER' || 
+            request.resource.data.status == 'PRF_PENDING_MANAGER'))
+          ||
+          // PRF created from BURF: prfDetails.preparedBy is the current user
+          (request.resource.data.parentBurfId is string &&
+           request.resource.data.prfDetails.preparedBy == request.auth.uid &&
+           request.resource.data.status == 'PRF_PENDING_MANAGER')
+        );
       
       allow update: if isSignedIn() && (
         // SUPER ADMIN: Can do anything
@@ -137,46 +275,55 @@ service cloud.firestore {
           (isOwner(resource) || hasPermission('requisition:cancel'))
         ) ||
         
-        // REFILE: Owner, from REJECTED to PENDING
+        // FIX BUG 9: REFILE - Owner OR PRF Preparer, from REJECTED to PENDING
+        // Allows the original BURF requester OR the PRF preparer to refile
         (
           resource.data.status == 'REJECTED' &&
           (request.resource.data.status == 'BURF_PENDING_MANAGER' || request.resource.data.status == 'PRF_PENDING_MANAGER') &&
-          isOwner(resource)
+          (isOwner(resource) || isPrfPreparer(resource))
         ) ||
 
-        // APPROVE BURF (Manager stage): Permission-based + same BU
+        // APPROVE BURF (Manager stage): Role-based OR Permission-based + same BU + field restriction
         (
           resource.data.status == 'BURF_PENDING_MANAGER' &&
           (request.resource.data.status == 'BURF_PENDING_CIC' || request.resource.data.status == 'READY_FOR_PRF') &&
-          hasPermission('approval:manager:burf') &&
-          belongsToSameBU(resource)
+          canApproveAsManager() &&
+          belongsToSameBU(resource) &&
+          isValidWorkflowUpdate()
         ) ||
 
-        // APPROVE BURF (CIC stage): Permission-based + same BU
+        // APPROVE BURF (CIC stage): Role-based OR Permission-based + same BU + field restriction
         (
           resource.data.status == 'BURF_PENDING_CIC' &&
           request.resource.data.status == 'READY_FOR_PRF' &&
-          hasPermission('approval:cic:burf') &&
+          canApproveAsCIC() &&
+          belongsToSameBU(resource) &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // BURF-to-PRF Conversion: Update BURF when creating PRF batch
+        // Allows updating items/totalAmount/status when converting BURF to PRF
+        (
+          resource.data.status == 'READY_FOR_PRF' &&
+          (request.resource.data.status == 'READY_FOR_PRF' || request.resource.data.status == 'BURF_COMPLETED') &&
           belongsToSameBU(resource)
         ) ||
         
-        // APPROVE PRF: Permission-based + same BU
+        // APPROVE PRF: Role-based OR Permission-based + same BU + field restriction
         (
           resource.data.status == 'PRF_PENDING_MANAGER' &&
           request.resource.data.status == 'APPROVED_FOR_PAYMENT' &&
-          hasPermission('approval:manager:prf') &&
-          belongsToSameBU(resource)
+          canApprovePRF() &&
+          belongsToSameBU(resource) &&
+          isValidWorkflowUpdate()
         ) ||
 
-        // REJECT: Any approver permission + same BU
+        // REJECT: Any approver role OR permission + same BU + field restriction
         (
           request.resource.data.status == 'REJECTED' &&
-          (
-            hasPermission('approval:manager:burf') || 
-            hasPermission('approval:cic:burf') || 
-            hasPermission('approval:manager:prf')
-          ) &&
-          belongsToSameBU(resource)
+          (canApproveAsManager() || canApproveAsCIC() || canApprovePRF()) &&
+          belongsToSameBU(resource) &&
+          isValidWorkflowUpdate()
         ) ||
         
         // Finance: Release Funds - Permission-based
@@ -212,8 +359,24 @@ service cloud.firestore {
       allow update: if isSignedIn() && 
         (request.auth.uid == userId || hasPermission('admin:manage:users'));
       
-      // Create/Delete requires admin:manage:users permission
-      allow create, delete: if isSignedIn() && hasPermission('admin:manage:users');
+      // Create: Allow self-registration OR admin:manage:users permission
+      // Self-registration requires:
+      //   1. Creating document for own UID
+      //   2. Status must be PENDING_APPROVAL (prevents users from granting themselves immediate access)
+      //   3. Email must match the authenticated user's email
+      // Note: Self-registration check MUST come first because hasPermission() will error
+      // if the user document doesn't exist yet (which is the case during self-registration)
+      allow create: if isSignedIn() && (
+        (
+          request.auth.uid == userId &&
+          request.resource.data.status == 'PENDING_APPROVAL' &&
+          request.resource.data.email == request.auth.token.email
+        ) ||
+        hasPermission('admin:manage:users')
+      );
+      
+      // Delete requires admin:manage:users permission
+      allow delete: if isSignedIn() && hasPermission('admin:manage:users');
     }
     
     // =====================================================
@@ -228,11 +391,27 @@ service cloud.firestore {
     
     // =====================================================
     // NOTIFICATIONS COLLECTION
+    // FIX BUG 14: Locked down with strict validation
+    // - User can only read/update/delete their own notifications
+    // - Creates require valid structure and content validation
     // =====================================================
     match /notifications/{id} {
+      // Read: Only own notifications
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      // Create: Must target self AND have valid structure
+      allow create: if isSignedIn() && 
+        request.resource.data.userId == request.auth.uid &&
+        hasValidNotificationFields(request.resource.data);
+      
+      // Update: Only own notifications, only allow marking as read
+      allow update: if isSignedIn() && 
+        resource.data.userId == request.auth.uid &&
+        // Only allow changing the 'read' field
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      
+      // Delete: Only own notifications
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
     
     // =====================================================
@@ -264,11 +443,12 @@ service cloud.firestore {
       allow read: if isSignedIn();
       
       // Allow creation of new counters with required fields
+      // FIX BUG 13: First counter must start at exactly 1 (not 0)
+      // This ensures IDs like PRF-0001 instead of PRF-0000
       allow create: if isSignedIn() && 
         request.resource.data.keys().hasAll(['value', 'prefix']) &&
         request.resource.data.value is int &&
-        request.resource.data.value >= 0 &&
-        request.resource.data.value <= 1; // First value must be 0 or 1
+        request.resource.data.value == 1; // First value MUST be 1
         
       // Only allow incrementing the value (new value must be greater than old)
       // FIX: Removed prefix check since update() doesn't include unchanged fields

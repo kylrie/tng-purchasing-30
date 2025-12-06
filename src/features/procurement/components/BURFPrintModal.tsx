@@ -44,7 +44,7 @@ const BURFPrintModal: React.FC<BURFPrintModalProps> = ({ req, onClose, business,
 
                         {/* Form Header */}
                         <div className="text-center mb-8 border-b-2 border-slate-800 pb-4">
-                            <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-wide mb-1">Budget Utilization Request Form</h1>
+                            <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-wide mb-1">Business Unit Request Form</h1>
                             <p className="text-slate-600 font-medium">Procurement Department</p>
                         </div>
 

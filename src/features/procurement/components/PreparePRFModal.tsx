@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Check, ArrowLeft } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails, User } from '../types';
 import { RequisitionStatus } from '../types';
-import { CounterService } from '../../../shared/services/counter.service';
+import { RequisitionService } from '../services/requisitions.service';
 import SearchableDropdown from '../../../shared/components/SearchableDropdown';
+import EditableItemTable from './EditableItemTable';
 
 interface PreparePRFModalProps {
     requisition: Requisition;
@@ -22,8 +23,12 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     currentUserId,
     users = [] // Default to empty array if not provided
 }) => {
-    const [items, setItems] = useState<(RequisitionItem & { selected: boolean })[]>(
-        requisition.items.map(item => ({ ...item, price: item.price ?? 0, selected: true }))
+    // Items state - store as pure RequisitionItem[] with separate selection Set
+    const [items, setItems] = useState<RequisitionItem[]>(
+        requisition.items.map(item => ({ ...item, price: item.price ?? 0 }))
+    );
+    const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
+        new Set(requisition.items.map(item => item.itemId))
     );
 
     const existingSupplier = requisition.prfDetails?.supplier;
@@ -52,14 +57,18 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     // Filter list of eligible approvers
     const eligibleApprovers = users.filter(u => u.isApprover);
 
-    const totalAmount = items
-        .filter(item => item.selected)
-        .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    // Calculate total amount for selected items
+    const totalAmount = useMemo(() =>
+        items
+            .filter(item => selectedItemIds.has(item.itemId))
+            .reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0),
+        [items, selectedItemIds]
+    );
 
     const isValid = () => {
-        const selectedItems = items.filter(item => item.selected);
+        const selectedItems = items.filter(item => selectedItemIds.has(item.itemId));
         const hasSelection = selectedItems.length > 0;
-        const allPricesFilled = selectedItems.every(item => item.price > 0);
+        const allPricesFilled = selectedItems.every(item => (item.price || 0) > 0);
 
         const supplierValid = createNewSupplier
             ? supplierDetails.name && supplierDetails.tin && supplierDetails.address && supplierDetails.paymentMode
@@ -87,57 +96,79 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         }
     };
 
-    const handlePriceChange = (index: number, price: number) => {
-        const newItems = [...items];
-        newItems[index] = { ...newItems[index], price };
-        setItems(newItems);
-    };
-
-    const handleSelectionToggle = (index: number) => {
-        const newItems = [...items];
-        newItems[index] = { ...newItems[index], selected: !newItems[index].selected };
-        setItems(newItems);
+    // Selection handlers for EditableItemTable
+    const handleToggleSelection = (itemId: string) => {
+        setSelectedItemIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(itemId)) {
+                newSet.delete(itemId);
+            } else {
+                newSet.add(itemId);
+            }
+            return newSet;
+        });
     };
 
     const handleToggleAll = (checked: boolean) => {
-        const newItems = items.map(item => ({ ...item, selected: checked }));
-        setItems(newItems);
-    }
+        if (checked) {
+            setSelectedItemIds(new Set(items.map(item => item.itemId)));
+        } else {
+            setSelectedItemIds(new Set());
+        }
+    };
 
     const handleSubmit = async () => {
         try {
-            const selectedItems = items.filter(item => item.selected).map(({ selected, ...item }) => item);
-            const unselectedItems = items.filter(item => !item.selected).map(({ selected, ...item }) => item);
+            const selectedItems = items.filter(item => selectedItemIds.has(item.itemId));
+            const unselectedItems = items.filter(item => !selectedItemIds.has(item.itemId));
 
+            // Get preparer's name from users array for denormalization
+            const preparer = users.find(u => u.id === currentUserId);
+            const preparedByName = preparer?.name || 'Unknown';
+
+            // BURF-to-PRF Conversion with splitting: Use transactional service
             if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length > 0) {
-                const newPrf: Requisition = {
-                    ...requisition,
-                    id: await CounterService.generatePRFId(),
-                    items: selectedItems,
-                    totalAmount,
-                    status: RequisitionStatus.PRF_PENDING_MANAGER,
+                // Use the new transactional service for atomic PRF creation + BURF update
+                const result = await RequisitionService.createBatchPrfFromBurf({
+                    sourceBurfId: requisition.id,
+                    sourceBusinessId: requisition.businessId, // Required for query permissions
+                    selectedItems: selectedItems,
                     prfDetails: {
                         supplier: supplierDetails,
                         preparedBy: currentUserId,
-                        datePrepared: new Date().toISOString(),
-                        requisitionId: requisition.id,
-                        timestamp: new Date().toISOString(),
-                        designatedApproverId: designatedApproverId // Save designated approver
+                        preparedByName: preparedByName,
+                        designatedApproverId: designatedApproverId,
                     },
-                    remarks: `${requisition.remarks || ''} (Split from ${requisition.id})`,
-                    prfIdentifier
-                };
+                    userId: currentUserId,
+                    userName: preparedByName,
+                });
 
-                const updatedBurf: Requisition = {
-                    ...requisition,
-                    items: unselectedItems,
-                    totalAmount: unselectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-                    status: RequisitionStatus.READY_FOR_PRF
-                };
+                console.log(`PRF ${result.newPrfId} created. BURF status: ${result.sourceBurfNewStatus}, remaining items: ${result.remainingItemsCount}`);
 
-                onSubmit(newPrf, updatedBurf);
-                onSubmit(newPrf, updatedBurf);
+                // Close modal - parent will refresh from Firestore subscription
+                onClose();
+            } else if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length === 0) {
+                // ALL items selected for conversion - use transactional service
+                const result = await RequisitionService.createBatchPrfFromBurf({
+                    sourceBurfId: requisition.id,
+                    sourceBusinessId: requisition.businessId, // Required for query permissions
+                    selectedItems: selectedItems,
+                    prfDetails: {
+                        supplier: supplierDetails,
+                        preparedBy: currentUserId,
+                        preparedByName: preparedByName,
+                        designatedApproverId: designatedApproverId,
+                    },
+                    userId: currentUserId,
+                    userName: preparedByName,
+                });
+
+                console.log(`PRF ${result.newPrfId} created (full conversion). BURF status: ${result.sourceBurfNewStatus}`);
+
+                // Close modal - parent will refresh from Firestore subscription
+                onClose();
             } else {
+                // Non-splitting case: Editing existing PRF or direct PRF creation
                 const updatedRequisition: Requisition = {
                     ...requisition,
                     items: selectedItems,
@@ -145,24 +176,33 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     prfDetails: {
                         supplier: supplierDetails,
                         preparedBy: currentUserId,
+                        preparedByName: preparedByName,
                         datePrepared: new Date().toISOString(),
                         requisitionId: requisition.prfDetails?.requisitionId || requisition.id,
                         timestamp: new Date().toISOString(),
-                        designatedApproverId: designatedApproverId // Save designated approver
+                        designatedApproverId: designatedApproverId
                     },
                     status: RequisitionStatus.PRF_PENDING_MANAGER,
                     prfIdentifier
                 };
                 onSubmit(updatedRequisition);
             }
-        } catch (error) {
-            console.error("Error submitting PRF:", error);
-            alert("Failed to submit PRF. Please try again.");
+        } catch (error: any) {
+            // Detailed error logging for debugging
+            console.error("=== PRF SUBMISSION ERROR ===");
+            console.error("Firestore Error Code:", error?.code);
+            console.error("Firestore Error Message:", error?.message);
+            console.log("Full Error Object:", error);
+            console.error("===========================");
+
+            // Show user-friendly message with actual error detail
+            const errorMessage = error?.message || "Unknown error occurred";
+            alert(`Failed to submit PRF: ${errorMessage}`);
         }
     };
 
-    const allSelected = items.every(i => i.selected);
-    const unselectedCount = items.filter(i => !i.selected).length;
+    // Computed values for UI hints (using selectedItemIds)
+    const unselectedCount = items.filter(i => !selectedItemIds.has(i.itemId)).length;
     const isSplitting = requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedCount > 0;
 
     return (
@@ -240,67 +280,16 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                             <h3 className="text-lg font-semibold text-white">Item Specification & Costing</h3>
                             <span className="text-xs text-slate-400">Select items to include in this PRF</span>
                         </div>
-                        <div className="border border-slate-700 rounded-lg overflow-hidden">
-                            <table className="w-full text-sm">
-                                <thead className="bg-slate-900/50 border-b border-slate-700">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-400 w-8">
-                                            <input
-                                                type="checkbox"
-                                                checked={allSelected}
-                                                onChange={(e) => handleToggleAll(e.target.checked)}
-                                                className="rounded cursor-pointer bg-slate-800 border-slate-600"
-                                            />
-                                        </th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">ITEM</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">QTY / UOM</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">REMARKS</th>
-                                        <th className="px-4 py-3 text-left font-semibold text-slate-400">UNIT PRICE</th>
-                                        <th className="px-4 py-3 text-right font-semibold text-slate-400">TOTAL</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-700">
-                                    {items.map((item, index) => (
-                                        <tr key={index} className={`hover:bg-slate-700/30 ${!item.selected ? 'opacity-50 bg-slate-900/30' : ''}`}>
-                                            <td className="px-4 py-3">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={item.selected}
-                                                    onChange={() => handleSelectionToggle(index)}
-                                                    className="rounded cursor-pointer bg-slate-800 border-slate-600"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3 font-medium text-slate-200">{item.name}</td>
-                                            <td className="px-4 py-3 text-slate-400">{item.quantity} {item.uom}</td>
-                                            <td className="px-4 py-3 text-slate-500 text-xs">{item.remarks || '-'}</td>
-                                            <td className="px-4 py-3">
-                                                <input
-                                                    type="number"
-                                                    disabled={!item.selected}
-                                                    value={item.price}
-                                                    onChange={(e) => handlePriceChange(index, parseFloat(e.target.value) || 0)}
-                                                    placeholder="0"
-                                                    className="w-24 px-2 py-1 bg-slate-900/50 border border-slate-600 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-800 text-white placeholder-slate-600"
-                                                />
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-semibold text-slate-200">
-                                                ₱{(item.price * item.quantity)?.toLocaleString()}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot className="bg-slate-900/50 border-t-2 border-slate-700">
-                                    <tr>
-                                        <td colSpan={5} className="px-4 py-3 text-right font-bold text-slate-300">
-                                            Total Amount (Selected)
-                                        </td>
-                                        <td className="px-4 py-3 text-right font-bold text-blue-400 text-lg">
-                                            ₱{totalAmount?.toLocaleString()}
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
+                        <EditableItemTable
+                            items={items}
+                            onUpdateItems={setItems}
+                            showSelection={true}
+                            selectedItemIds={selectedItemIds}
+                            onToggleSelection={handleToggleSelection}
+                            onToggleAll={handleToggleAll}
+                            showDelete={false}
+                            readOnly={false}
+                        />
                     </div>
 
                     {/* Supplier Information */}

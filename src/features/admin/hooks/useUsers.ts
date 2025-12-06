@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { collection, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+// deleteDoc removed - user deletion handled via Firebase Console
 import { db } from "../../../config/firebase";
 import { COLLECTIONS } from "../../../shared/types/firebase.types";
 import type { User } from "../../../shared/types";
@@ -37,16 +38,8 @@ export const useUsers = () => {
         }
     };
 
-    const deleteUser = async (userId: string) => {
-        try {
-            const userDoc = doc(db, COLLECTIONS.USERS, userId);
-            await deleteDoc(userDoc);
-            setUsers(prev => prev.filter(u => u.id !== userId));
-        } catch (error) {
-            console.error("Error deleting user: ", error);
-            throw error;
-        }
-    };
+    // deleteUser function removed - user deletion handled via Firebase Console
+    // If needed in the future, implement soft-delete (status: 'ARCHIVED') instead of deleteDoc
 
-    return { users, setUsers, loading, updateUser, deleteUser };
+    return { users, setUsers, loading, updateUser };
 };

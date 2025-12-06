@@ -25,13 +25,29 @@ export const useRequisitions = () => {
             currentUser.businessId,
             currentUser.businessUnitIds || [], // Pass the new multi-BU array
             (data) => {
-                // Sort by ID descending (newest first)
+                // FIX BUG 7: Robust sorting with date validation
+                // Prevents NaN from invalid dates causing unpredictable sort order
                 const sorted = [...data].sort((a, b) => {
-                    // Sort by timestamp if available, else by ID
-                    if (a.dateCreated && b.dateCreated) {
-                        return new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime();
+                    // Parse dates with validation
+                    const dateA = a.dateCreated ? new Date(a.dateCreated) : null;
+                    const dateB = b.dateCreated ? new Date(b.dateCreated) : null;
+
+                    const timeA = dateA ? dateA.getTime() : NaN;
+                    const timeB = dateB ? dateB.getTime() : NaN;
+
+                    const validA = !isNaN(timeA);
+                    const validB = !isNaN(timeB);
+
+                    // Both valid: sort by date descending
+                    if (validA && validB) {
+                        return timeB - timeA;
                     }
-                    return a.id.localeCompare(b.id) * -1; // Descending ID
+                    // Only A valid: A comes first
+                    if (validA && !validB) return -1;
+                    // Only B valid: B comes first
+                    if (!validA && validB) return 1;
+                    // Neither valid: fallback to ID comparison
+                    return (b.id || '').localeCompare(a.id || '');
                 });
 
                 setRequisitions(sorted);

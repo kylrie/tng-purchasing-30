@@ -1,16 +1,89 @@
 
-export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN', // Can manage users and settings
-  ADMIN = 'ADMIN', // System Admin (Deprecated/Legacy, kept for compatibility)
-  MANAGER = 'MANAGER', // Acts as Business Unit Manager (BUM)
-  EMPLOYEE = 'EMPLOYEE', // Requestor
-  CIC = 'CIC', // Corporate Inventory Controller
-  PURCHASING_OFFICER = 'PURCHASING_OFFICER',
-  FINANCE = 'FINANCE', // Treasury (Releases Budget)
-  AUDITOR = 'AUDITOR', // Checks Liquidation
-  GENERAL_MANAGER = 'GENERAL_MANAGER',
-  BOARD_OF_DIRECTOR = 'BOARD_OF_DIRECTOR'
+// =============================================================================
+// HYBRID ROLE SYSTEM
+// =============================================================================
+// SystemRole: Hardcoded critical roles for type-safe checks
+// RoleType: Union type allowing system roles + dynamic business roles from Firestore
+// =============================================================================
+
+/**
+ * System Roles - Hardcoded, critical roles that require type-safe checks.
+ * These roles have special privileges in the application logic.
+ */
+export enum SystemRole {
+  SUPER_ADMIN = 'SUPER_ADMIN', // Developer/God-mode - full system access
+  ADMIN = 'ADMIN',             // System Configuration - manages users and settings
 }
+
+/**
+ * Default Business Roles - These exist as constants for backward compatibility
+ * but are fetched dynamically from Firestore at runtime.
+ * New business roles can be added via the Permission Matrix without code changes.
+ */
+export const DEFAULT_BUSINESS_ROLES = [
+  'MANAGER',           // Business Unit Manager (BUM)
+  'EMPLOYEE',          // Requestor
+  'CIC',               // Corporate Inventory Controller
+  'PURCHASING_OFFICER',
+  'FINANCE',           // Treasury (Releases Budget)
+  'AUDITOR',           // Checks Liquidation
+  'GENERAL_MANAGER',
+  'BOARD_OF_DIRECTOR',
+] as const;
+
+/**
+ * RoleType - Union of system roles + any string (for dynamic business roles)
+ * This allows type-safe checks for SystemRole while accepting dynamic roles.
+ */
+export type RoleType = SystemRole | string;
+
+/**
+ * @deprecated Use RoleType instead. Kept for backward compatibility.
+ * UserRole is now an alias to RoleType to allow gradual migration.
+ */
+export type UserRole = RoleType;
+
+// Re-export SystemRole values as UserRole for backward compatibility
+export const UserRole = {
+  ...SystemRole,
+  // Business roles as string constants (not enum) for backward compatibility
+  MANAGER: 'MANAGER' as const,
+  EMPLOYEE: 'EMPLOYEE' as const,
+  CIC: 'CIC' as const,
+  PURCHASING_OFFICER: 'PURCHASING_OFFICER' as const,
+  FINANCE: 'FINANCE' as const,
+  AUDITOR: 'AUDITOR' as const,
+  GENERAL_MANAGER: 'GENERAL_MANAGER' as const,
+  BOARD_OF_DIRECTOR: 'BOARD_OF_DIRECTOR' as const,
+} as const;
+
+/**
+ * Type guard to check if a role is a system role (SUPER_ADMIN or ADMIN)
+ */
+export const isSystemRole = (role: string): role is SystemRole => {
+  return Object.values(SystemRole).includes(role as SystemRole);
+};
+
+/**
+ * Type guard to check if a role is SUPER_ADMIN specifically
+ */
+export const isSuperAdmin = (role: string): boolean => {
+  return role === SystemRole.SUPER_ADMIN;
+};
+
+/**
+ * Type guard to check if a role is ADMIN or SUPER_ADMIN
+ */
+export const isAdminOrSuperAdmin = (role: string): boolean => {
+  return role === SystemRole.SUPER_ADMIN || role === SystemRole.ADMIN;
+};
+
+/**
+ * Format a role string for display (e.g., 'SUPER_ADMIN' -> 'Super Admin')
+ */
+export const formatRoleLabel = (role: string): string => {
+  return role.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+};
 
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
@@ -20,9 +93,9 @@ export enum UserStatus {
 }
 
 // Helper function to determine if user has global access to all business units
-// Refactored to only return true for Super Admin, forcing others to use granular businessUnitIds
-export const hasGlobalAccess = (role: UserRole): boolean => {
-  return role === UserRole.SUPER_ADMIN;
+// Only SUPER_ADMIN has global access, all others use granular businessUnitIds
+export const hasGlobalAccess = (role: RoleType): boolean => {
+  return role === SystemRole.SUPER_ADMIN;
 };
 
 export enum RequisitionStatus {
@@ -37,7 +110,8 @@ export enum RequisitionStatus {
   LIQUIDATION_REJECTED = 'LIQUIDATION_REJECTED', // Auditor rejected, can refile
   AUDITED_CLEARED = 'AUDITED_CLEARED', // Finance approved liquidation
   REJECTED = 'REJECTED',
-  CANCELLED = 'CANCELLED' // New Status
+  CANCELLED = 'CANCELLED', // Cancelled by user
+  BURF_COMPLETED = 'BURF_COMPLETED' // All items have been converted to PRFs
 }
 
 export interface Business {
@@ -51,7 +125,7 @@ export interface Business {
 export interface User {
   id: string;
   name: string;
-  role: UserRole;
+  role: RoleType; // Changed from UserRole enum to RoleType for dynamic roles
   permissionLevel?: number; // 1-5, higher is more priviledge
   avatar: string;
   email: string;
@@ -134,12 +208,16 @@ export interface RequisitionHistory {
   action: string; // 'CREATED', 'SUBMITTED', 'APPROVED', 'REJECTED', 'UPDATED'
   comments?: string;
   stage: RequisitionStatus;
+  actionIndex?: number; // FIX BUG 6: Sequential index for server timestamp correlation
 }
 
 export interface Requisition {
   id: string;
   requesterId: string;
+  requesterName?: string; // Denormalized: User's display name at time of creation
+  requesterPhotoUrl?: string; // Denormalized: User's photo URL at time of creation
   businessId: string;
+  externalLink?: string; // External reference link (Google Drive, etc.)
   items: RequisitionItem[];
   totalAmount: number;
   status: RequisitionStatus;
@@ -151,6 +229,7 @@ export interface Requisition {
   priority?: 'NORMAL' | 'URGENT'; // Priority level
   attachments?: string[]; // Array of attachment links
   prfIdentifier?: string; // Custom identifier for PRFs
+  parentBurfId?: string; // Link to parent BURF for batch PRF tracking
 
   fundReleaseDate?: string; // Date when funds were released by Finance
   chequeNumber?: string;
@@ -160,9 +239,10 @@ export interface Requisition {
   prfDetails?: {
     supplier: SupplierDetails;
     preparedBy: string; // Purchasing Officer ID
+    preparedByName?: string; // Denormalized: Admin name who prepared the PRF
     createdBy?: string; // User who initiated/created the PRF (optional for backward compatibility)
     datePrepared: string;
-    requisitionId?: string;
+    requisitionId?: string; // Original BURF ID for conversions
     timestamp: string;
     designatedApproverId?: string; // New field for specific approver
   };
@@ -183,5 +263,5 @@ export interface NotificationItem {
   requisitionId?: string;
   timestamp: string;
   read: boolean;
-  targetRoles?: UserRole[];
+  targetRoles?: RoleType[]; // Changed to RoleType to support dynamic roles
 }

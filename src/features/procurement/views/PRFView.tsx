@@ -1,15 +1,27 @@
 import React, { useState } from 'react';
-import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save } from 'lucide-react';
+import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
+import EditableItemTable from '../components/EditableItemTable';
 import Card from '../../../shared/components/Card';
 import { CounterService } from '../../../shared/services/counter.service';
-import { RequisitionService } from '../services/requisitions.service';
 import SearchableDropdown from '../../../shared/components/SearchableDropdown';
+// FIX C6: Import sanitization utility to prevent XSS/injection attacks
+import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
+
+// FIX BUG 8: URL validation utility to prevent malicious URLs (javascript:, data:, etc.)
+const isValidUrl = (url: string): boolean => {
+    try {
+        const parsed = new URL(url);
+        return ['http:', 'https:'].includes(parsed.protocol);
+    } catch {
+        return false;
+    }
+};
 
 interface PrfViewProps {
     currentUser: User;
@@ -124,45 +136,77 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
         }
     };
 
-    const removeItem = (index: number) => {
-        setNewItems(newItems.filter((_, i) => i !== index));
-    };
+    // removeItem is now handled by EditableItemTable component
 
-    const handleSubmit = async () => {
-        const supplierValid = createNewSupplier
-            ? supplierDetails.name && supplierDetails.paymentMode
-            : selectedSupplierId !== '';
+    const handleSubmit = async (isDraft: boolean = false) => {
+        // Validation is only enforced for final submissions, not drafts
+        if (!isDraft) {
+            const supplierValid = createNewSupplier
+                ? supplierDetails.name && supplierDetails.paymentMode
+                : selectedSupplierId !== '';
 
-        if (!supplierValid) {
-            alert("Please provide valid supplier details.");
-            return;
+            if (!supplierValid) {
+                alert("Please provide valid supplier details.");
+                return;
+            }
+
+            // Validate approver if there are eligible approvers
+            if (eligibleApprovers.length > 0 && !designatedApproverId) {
+                alert("Please select a designated approver.");
+                return;
+            }
+
+            // Require at least one item for final submission
+            if (newItems.length === 0) {
+                alert("Please add at least one item.");
+                return;
+            }
         }
 
-        // Validate approver if there are eligible approvers
-        if (eligibleApprovers.length > 0 && !designatedApproverId) {
-            alert("Please select a designated approver.");
-            return;
-        }
+        const prfId = initialData?.id || customId || await CounterService.generatePRFId();
 
-        const prfId = customId || await CounterService.generatePRFId();
+        // FIX C6: Sanitize all user-generated content before saving to Firestore
+        const sanitizedSupplierDetails: SupplierDetails = {
+            name: sanitizeText(supplierDetails.name),
+            tin: sanitizeText(supplierDetails.tin),
+            address: sanitizeText(supplierDetails.address),
+            paymentMode: supplierDetails.paymentMode, // From dropdown, safe
+            terms: sanitizeText(supplierDetails.terms),
+            isVatable: supplierDetails.isVatable,
+            bankDetails: supplierDetails.bankDetails
+        };
+
+        // Set status based on isDraft flag
+        const status = isDraft ? RequisitionStatus.DRAFT : RequisitionStatus.PRF_PENDING_MANAGER;
 
         const baseReq: any = {
             id: prfId,
             requesterId: currentUser.id,
+            // Denormalized user info - stored directly for fast reading without lookups
+            requesterName: currentUser.name,
+            requesterPhotoUrl: currentUser.avatar || '',
             businessId: selectedBusinessId,
-            items: newItems,
-            totalAmount: newItems.reduce((sum, item) => sum + (item.quantity * (item.price || 0)), 0),
-            status: RequisitionStatus.PRF_PENDING_MANAGER, // Re-submit to manager
+            externalLink: attachmentLink && isValidUrl(attachmentLink) ? attachmentLink : undefined, // Store as dedicated field
+            items: sanitizeItems(newItems), // FIX C6: Sanitize item names/remarks
+            totalAmount: newItems.reduce((sum, item) => {
+                // FIX: Edge case - prevent NaN from undefined/null prices
+                const qty = item.quantity || 0;
+                const price = item.price || 0;
+                return sum + (qty * price);
+            }, 0),
+            status: status,
             dateCreated: new Date().toISOString().split('T')[0],
-            description,
-            remarks,
-            attachments: attachmentLink ? [attachmentLink] : [],
+            description: sanitizeText(description), // FIX C6: Sanitize
+            remarks: sanitizeText(remarks), // FIX C6: Sanitize
+            // FIX BUG 8: Validate URL before storing to prevent malicious links
+            attachments: attachmentLink && isValidUrl(attachmentLink) ? [attachmentLink] : [],
             prfDetails: {
-                supplier: supplierDetails,
+                supplier: sanitizedSupplierDetails, // FIX C6: Use sanitized supplier
                 preparedBy: currentUser.id,
+                preparedByName: currentUser.name, // Denormalized for display
                 datePrepared: new Date().toISOString(),
                 timestamp: new Date().toISOString(),
-                designatedApproverId: designatedApproverId // Save designated approver
+                designatedApproverId: designatedApproverId
             },
             timestamp: new Date().toISOString(),
         };
@@ -345,11 +389,19 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                             </div>
                             <div className="w-20">
                                 <label className="block text-xs text-slate-400 mb-1">Qty</label>
-                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" type="number" placeholder="Qty" value={tempItem.quantity} onChange={e => setTempItem({ ...tempItem, quantity: parseFloat(e.target.value) })} />
+                                {/* FIX BUG 5: Handle empty string by defaulting to 0 or keeping undefined */}
+                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" type="number" placeholder="Qty" value={tempItem.quantity} onChange={e => {
+                                    const val = e.target.value;
+                                    setTempItem({ ...tempItem, quantity: val === '' ? 0 : parseFloat(val) || 0 });
+                                }} />
                             </div>
                             <div className="w-24">
                                 <label className="block text-xs text-slate-400 mb-1">Price</label>
-                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Price" type="number" value={tempItem.price} onChange={e => setTempItem({ ...tempItem, price: parseFloat(e.target.value) })} />
+                                {/* FIX BUG 5: Handle empty string by defaulting to 0 */}
+                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Price" type="number" value={tempItem.price} onChange={e => {
+                                    const val = e.target.value;
+                                    setTempItem({ ...tempItem, price: val === '' ? 0 : parseFloat(val) || 0 });
+                                }} />
                             </div>
                             <div className="w-24">
                                 <label className="block text-xs text-slate-400 mb-1">UOM</label>
@@ -360,39 +412,34 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                             <button onClick={addItem} className="bg-purple-600 text-white p-2 rounded hover:bg-purple-700 mb-[1px]"><Plus size={16} /></button>
                         </div>
 
-                        <div className="border border-slate-700 rounded overflow-hidden">
-                            <table className="w-full text-sm text-left text-slate-300">
-                                <thead className="bg-slate-800 text-xs uppercase">
-                                    <tr>
-                                        <th className="px-4 py-2">Item</th>
-                                        <th className="px-4 py-2">Qty</th>
-                                        <th className="px-4 py-2">Price</th>
-                                        <th className="px-4 py-2">Total</th>
-                                        <th className="px-4 py-2"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-700">
-                                    {newItems.map((item, idx) => (
-                                        <tr key={idx}>
-                                            <td className="px-4 py-2">{item.name}</td>
-                                            <td className="px-4 py-2">{item.quantity} {item.uom}</td>
-                                            <td className="px-4 py-2">₱{item.price?.toLocaleString()}</td>
-                                            <td className="px-4 py-2">₱{(item.quantity * item.price)?.toLocaleString()}</td>
-                                            <td className="px-4 py-2 text-right">
-                                                <button onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300"><X size={14} /></button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <EditableItemTable
+                            items={newItems}
+                            onUpdateItems={setNewItems}
+                            showSelection={false}
+                            showDelete={true}
+                            readOnly={false}
+                        />
                     </div>
                 </div>
 
                 <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
                     <button onClick={onCancel} className="px-4 py-2 text-slate-300 hover:text-white">Cancel</button>
-                    <button onClick={handleSubmit} disabled={!selectedSupplierId || newItems.length === 0} className="bg-purple-600 text-white px-4 py-2 rounded font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2">
-                        <Save size={16} /> {initialData ? 'Update PRF' : 'Create PRF'}
+
+                    {/* Save as Draft button - no validation required */}
+                    <button
+                        onClick={() => handleSubmit(true)}
+                        className="border border-slate-600 text-slate-300 px-4 py-2 rounded font-medium hover:bg-slate-700 hover:text-white flex items-center gap-2"
+                    >
+                        <Save size={16} /> Save as Draft
+                    </button>
+
+                    {/* Submit for Approval button - full validation enforced */}
+                    <button
+                        onClick={() => handleSubmit(false)}
+                        disabled={(createNewSupplier ? !supplierDetails.name || !supplierDetails.paymentMode : !selectedSupplierId) || newItems.length === 0}
+                        className="bg-purple-600 text-white px-4 py-2 rounded font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                    >
+                        <Save size={16} /> {initialData ? 'Update PRF' : 'Submit for Approval'}
                     </button>
                 </div>
             </Card >
@@ -444,21 +491,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
         setPreparePRFReq(null);
     };
 
-    const handleRefileSubmit = async (prfReq: Requisition) => {
-        try {
-            // Use the refile service method
-            await RequisitionService.reFileRequisition(
-                prfReq.id,
-                currentUser.id,
-                currentUser.name,
-                prfReq
-            );
-            setEditingPrf(null);
-        } catch (error: any) {
-            console.error('Error refiling PRF:', error);
-            alert(`Failed to refile PRF: ${error.message || 'Unknown error'}`);
-        }
-    };
+    // FIX #3 cleanup: Removed handleRefileSubmit - refile now handled by DirectPrfModal with onUpdate
 
     const handleCancel = (id: string) => {
         if (confirm("Are you sure you want to cancel this PRF? This action cannot be undone.")) {
@@ -487,6 +520,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
 
     // Filter Logic
     const pendingStatuses = [
+        RequisitionStatus.DRAFT, // Drafts appear in pending tab
         RequisitionStatus.READY_FOR_PRF,
         RequisitionStatus.PRF_PENDING_MANAGER,
         RequisitionStatus.APPROVED_FOR_PAYMENT,
@@ -627,6 +661,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                         Business Unit {renderSortIcon('businessId')}
                                     </div>
                                 </th>
+                                <th className="px-6 py-4">Requested By</th>
+                                <th className="px-6 py-4">Processed By</th>
                                 <th
                                     className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
                                     onClick={() => handleSort('description')}
@@ -641,7 +677,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                     onClick={() => handleSort('dateCreated')}
                                 >
                                     <div className="flex items-center">
-                                        Date & Time {renderSortIcon('dateCreated')}
+                                        Date Needed {renderSortIcon('dateCreated')}
                                     </div>
                                 </th>
                                 <th
@@ -652,6 +688,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                         Status {renderSortIcon('status')}
                                     </div>
                                 </th>
+                                <th className="px-6 py-4">Link</th>
                                 <th className="px-6 py-4">Rejection Reason</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
@@ -659,16 +696,62 @@ export const PrfView: React.FC<PrfViewProps> = ({
                         <tbody className="divide-y divide-slate-700">
                             {filteredAndSortedReqs.map(req => {
                                 const business = businesses.find(b => b.id === req.businessId);
-                                const isOwner = req.prfDetails?.preparedBy === currentUser.id || hasPermission('requisition:view:all');
-                                const canEdit = req.status === RequisitionStatus.REJECTED && isOwner;
+                                // Use denormalized requesterName, fallback to lookup for legacy data
+                                const requesterName = req.requesterName || allUsers.find(u => u.id === req.requesterId)?.name || 'Unknown';
+                                // Processed By - the admin who prepared the PRF (with safe fallback)
+                                const preparedByName = req.prfDetails?.preparedByName
+                                    || allUsers.find(u => u.id === req.prfDetails?.preparedBy)?.name
+                                    || (req.prfDetails?.preparedBy ? 'Unknown' : '-');
+                                const isOwner = req.prfDetails?.preparedBy === currentUser.id || req.requesterId === currentUser.id || hasPermission('requisition:view:all');
+                                // Allow editing for DRAFT (owner) or REJECTED (owner/preparer)
+                                const canEdit = (req.status === RequisitionStatus.DRAFT || req.status === RequisitionStatus.REJECTED) && isOwner;
+
+                                // Safe date formatting - handles Firestore Timestamps and ISO strings
+                                const formatSafeDate = (dateValue: any): string => {
+                                    if (!dateValue) return '-';
+                                    // Firestore Timestamp object
+                                    if (dateValue?.toDate && typeof dateValue.toDate === 'function') {
+                                        return dateValue.toDate().toLocaleDateString();
+                                    }
+                                    // ISO string or Date
+                                    const parsed = new Date(dateValue);
+                                    return isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString();
+                                };
 
                                 return (
                                     <tr key={req.id} className="hover:bg-slate-800/60">
-                                        <td className="px-6 py-4 font-medium text-slate-200">{req.id}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-200 whitespace-nowrap">{req.id}</td>
                                         <td className="px-6 py-4 text-slate-300 text-xs">{business?.name || 'N/A'}</td>
+                                        {/* Requested By - using denormalized name, fallback to lookup for legacy data */}
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                                    {requesterName.charAt(0).toUpperCase()}
+                                                </div>
+                                                <span className="text-slate-200">{requesterName}</span>
+                                            </div>
+                                        </td>
+                                        {/* Processed By - the admin who prepared the PRF */}
+                                        <td className="px-6 py-4">
+                                            {preparedByName !== '-' ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-6 h-6 rounded-full bg-purple-700 flex items-center justify-center text-xs font-bold text-purple-200">
+                                                        {preparedByName.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <span className="text-slate-300 text-xs">{preparedByName}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-slate-600">-</span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4 text-slate-200">{req.description}</td>
                                         <td className="px-6 py-4 text-slate-400">{req.items.length} items</td>
-                                        <td className="px-6 py-4 text-purple-400 text-xs">{new Date(req.dateCreated).toLocaleDateString()}</td>
+                                        {/* Date Needed - safe formatting handles Timestamps and ISO strings */}
+                                        <td className="px-6 py-4 text-purple-400 text-xs">
+                                            {formatSafeDate(req.dateNeeded) !== '-'
+                                                ? formatSafeDate(req.dateNeeded)
+                                                : formatSafeDate(req.dateCreated)}
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1">
                                                 {getStatusBadge(req.status)}
@@ -678,6 +761,22 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                     <span className="text-[10px] text-emerald-400">Funds Released: {new Date(req.fundReleaseDate).toLocaleDateString()}</span>
                                                 )}
                                             </div>
+                                        </td>
+                                        {/* External Link - paperclip icon that opens externalLink or first attachment */}
+                                        <td className="px-6 py-4">
+                                            {(req.externalLink || req.attachments?.[0]) ? (
+                                                <a
+                                                    href={req.externalLink || req.attachments?.[0]}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-400 hover:text-blue-300 p-1"
+                                                    title="Open Reference Link"
+                                                >
+                                                    <Paperclip size={16} />
+                                                </a>
+                                            ) : (
+                                                <span className="text-slate-600">-</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 text-sm text-red-400">
                                             {req.status === RequisitionStatus.REJECTED && req.remarks ? (
@@ -709,9 +808,9 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                     <button
                                                         onClick={() => setEditingPrf(req)}
                                                         className="text-blue-400 hover:text-blue-300 p-1"
-                                                        title="Re-file / Edit"
+                                                        title={req.status === RequisitionStatus.DRAFT ? 'Edit Draft' : 'Re-file / Edit'}
                                                     >
-                                                        <RefreshCw size={16} />
+                                                        {req.status === RequisitionStatus.DRAFT ? <Pencil size={16} /> : <RefreshCw size={16} />}
                                                     </button>
                                                 )}
 
@@ -740,19 +839,21 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                     </tr>
                                 );
                             })}
+                            {/* FIX BUG 12: ColSpan matches 10 columns (ID, Business Unit, Requested By, Description, Items, Date Needed, Status, Link, Rejection Reason, Actions) */}
                             {filteredAndSortedReqs.length === 0 && (
-                                <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-500 italic">No PRF found.</td></tr>
+                                <tr><td colSpan={10} className="px-6 py-8 text-center text-slate-500 italic">No PRF found.</td></tr>
                             )}
                         </tbody>
                     </table>
                 </div>
-            </Card >
+            </Card>
 
             {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} users={allUsers} />}
-            {editingPrf && <PreparePRFModal requisition={editingPrf} suppliers={suppliers} onClose={() => setEditingPrf(null)} onSubmit={handleRefileSubmit} currentUserId={currentUser.id} users={allUsers} />}
+            {/* FIX #3: Removed duplicate modal - editingPrf is already handled by DirectPrfModal at line 558 */}
             {printReq && <PRFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)} />}
-        </div >
+        </div>
     );
 };
 
 export default PrfView;
+

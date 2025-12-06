@@ -35,21 +35,36 @@ export const executeWorkflowAction = async ({
     const data = snap.data();
     const currentStatus = data.status as RequisitionStatus;
 
-    // Audit Entry with server timestamp (Issue #7)
-    // Note: arrayUnion with serverTimestamp requires special handling
+    // =====================================================
+    // FIX BUG 6: Audit History Timestamp Strategy
+    // =====================================================
+    // PROBLEM: Firestore's arrayUnion() doesn't support serverTimestamp() inside arrays.
+    // SOLUTION: We use a hybrid approach:
+    //   1. Client ISO timestamp in array for immediate display (date field)
+    //   2. Server timestamp on main document (lastModified) for authoritative audit
+    //   3. A sequential actionIndex to correlate history entries with server timestamps
+    // 
+    // For forensic auditing, cross-reference:
+    //   history[n].actionIndex === n means history[n] was created when lastModified was set
+    // =====================================================
+
+    const currentHistoryLength = Array.isArray(data.history) ? data.history.length : 0;
+
     const auditEntry: RequisitionHistory = {
       action,
       actorId: user.uid,
       actorName: user.displayName,
-      date: new Date().toISOString(), // For history array (serverTimestamp not supported in arrayUnion)
+      date: new Date().toISOString(), // Client timestamp for display
       stage: currentStatus,
-      comments: reason || undefined
+      comments: reason || undefined,
+      actionIndex: currentHistoryLength // FIX BUG 6: Sequential index for server timestamp correlation
     };
 
     const updates: Record<string, unknown> = {
       history: arrayUnion(auditEntry),
-      lastModified: serverTimestamp(), // Server timestamp for main doc (Issue #7)
-      lastModifiedBy: user.uid
+      lastModified: serverTimestamp(), // Server timestamp - authoritative audit trail
+      lastModifiedBy: user.uid,
+      lastActionIndex: currentHistoryLength // FIX BUG 6: Track which history entry triggered this update
     };
 
     switch (action) {
@@ -121,7 +136,8 @@ export const executeWorkflowAction = async ({
           throw new Error("Can only refile rejected requisitions.");
         }
         // Reset to initial pending state based on type (BURF vs PRF)
-        const isPrf = !!data.prfIdentifier;
+        // FIX #5: Changed from data.prfIdentifier (doesn't exist) to data.prfDetails (actual schema field)
+        const isPrf = !!data.prfDetails;
         updates.status = isPrf ? RequisitionStatus.PRF_PENDING_MANAGER : RequisitionStatus.BURF_PENDING_MANAGER;
         updates.rejectionReason = null;
         updates.refiledAt = serverTimestamp();
