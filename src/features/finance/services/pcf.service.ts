@@ -261,8 +261,8 @@ export class PCFService {
                 throw new Error(`Cannot approve: Liquidation is in ${liquidation.status} status`);
             }
 
-            // Step 2: Generate PRF ID for replenishment
-            newPrfId = await CounterService.generatePRFId();
+            // Step 2: Generate PCF Replenishment ID (uses its own PCF-00001 sequence)
+            newPrfId = await CounterService.getNextId('PCF');
 
             // Step 3: Create auto-approved PRF (FAST TRACK - skips manager approval)
             const prfRef = doc(db, REQUISITIONS_COLLECTION, newPrfId);

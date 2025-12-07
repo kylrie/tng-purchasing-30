@@ -8,6 +8,7 @@ export enum CounterType {
     PRF = 'prf',
     BURF = 'burf',
     LIQUIDATION = 'liquidation',
+    PCF = 'pcf',
 }
 
 /**
@@ -32,6 +33,7 @@ export class CounterService {
         [CounterType.PRF]: 'PRF',
         [CounterType.BURF]: 'BURF',
         [CounterType.LIQUIDATION]: 'LIQ',
+        [CounterType.PCF]: 'PCF',
     };
 
     /**
@@ -77,6 +79,55 @@ export class CounterService {
         } catch (error) {
             console.error(`Error incrementing counter ${counterType}:`, error);
             throw new Error(`Failed to generate next ${counterType} ID`);
+        }
+    }
+
+    /**
+     * Get the next ID for any prefix (dynamic counter support)
+     * Handles new/unknown prefixes by automatically creating the counter document starting at 1
+     * @param prefix - The prefix string (e.g., 'PRF', 'BURF', 'PCF')
+     * @returns Formatted ID string (e.g., 'PCF-00001')
+     */
+    static async getNextId(prefix: string): Promise<string> {
+        // Normalize prefix to lowercase for document ID
+        const counterDocId = prefix.toLowerCase();
+        const counterRef = doc(db, this.COLLECTION_NAME, counterDocId);
+
+        try {
+            const nextValue = await runTransaction(db, async (transaction) => {
+                const counterDoc = await transaction.get(counterRef);
+
+                let currentValue = 0;
+                if (counterDoc.exists()) {
+                    const data = counterDoc.data() as CounterDocument;
+                    currentValue = data.value || 0;
+                }
+
+                const nextVal = currentValue + 1;
+
+                // Use update() for existing docs, set() for new docs (auto-initialize at 1)
+                if (counterDoc.exists()) {
+                    transaction.update(counterRef, {
+                        value: nextVal,
+                        lastUpdated: new Date().toISOString(),
+                    });
+                } else {
+                    // Auto-create new counter document starting at 1
+                    transaction.set(counterRef, {
+                        value: nextVal,
+                        prefix: prefix.toUpperCase(),
+                        lastUpdated: new Date().toISOString(),
+                    });
+                }
+
+                return nextVal;
+            });
+
+            // Format: PREFIX-00001 (5-digit padding for larger sequences)
+            return `${prefix.toUpperCase()}-${nextValue.toString().padStart(5, '0')}`;
+        } catch (error) {
+            console.error(`Error generating next ID for ${prefix}:`, error);
+            throw new Error(`Failed to generate next ${prefix} ID`);
         }
     }
 
