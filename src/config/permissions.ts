@@ -28,6 +28,12 @@ export const ALL_PERMISSIONS = [
   'liquidation:audit',
   'liquidation:print',
 
+  // PCF (Petty Cash Fund)
+  'pcf:view:own',
+  'pcf:view:all',
+  'pcf:create',
+  'pcf:approve',
+
   // Data Visibility
   'requisition:view:own',
   'requisition:view:business_unit',
@@ -56,6 +62,8 @@ export const ALL_PERMISSIONS = [
   'module:view:approved',
   'module:view:finance',
   'module:view:liquidation',
+  'module:view:pcf',
+  'module:view:pcf_approvals',
   'module:view:suppliers',
   'module:view:settings',
 
@@ -93,8 +101,12 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approved',
     'module:view:finance',
     'module:view:liquidation',
+    'module:view:pcf',
+    'module:view:pcf_approvals',
     'module:view:suppliers',
     'module:view:settings',
+    'pcf:view:all',
+    'pcf:approve',
   ],
 
   // High-level approver, global view
@@ -115,6 +127,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approvals',
     'module:view:approved',
     'module:view:liquidation',
+    'module:view:pcf',
+    'module:view:pcf_approvals',
+    'pcf:view:all',
+    'pcf:approve',
   ],
 
   // View-only global role
@@ -150,6 +166,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approvals',
     'module:view:approved',
     'module:view:liquidation',
+    'module:view:pcf',
+    'module:view:pcf_approvals',
+    'pcf:view:all',
+    'pcf:approve',
   ],
 
   // Basic user, can only create requests and see their own
@@ -163,6 +183,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:dashboard',
     'module:view:burf',
     'module:view:liquidation',
+    'module:view:pcf',
+    'pcf:view:own',
+    'pcf:create',
   ],
 
   // Specialist approver with global view

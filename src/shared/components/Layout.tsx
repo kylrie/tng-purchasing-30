@@ -82,7 +82,8 @@ const Layout: React.FC<LayoutProps> = ({
             icon: GitBranch,
             canView: hasPermission('module:view:approvals'),
             subItems: [
-                { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('module:view:approvals') }
+                { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('module:view:approvals') },
+                { path: '/pcf-approvals', label: 'PCF Approvals', icon: Wallet, canView: hasPermission('approval:manager:prf') }
             ]
         },
         {
@@ -91,7 +92,8 @@ const Layout: React.FC<LayoutProps> = ({
             canView: hasPermission('module:view:finance') || hasPermission('module:view:liquidation'),
             subItems: [
                 { path: '/finance', label: 'Finance Dashboard', icon: Scale, canView: hasPermission('module:view:finance') },
-                { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('module:view:liquidation') }
+                { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('module:view:liquidation') },
+                { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: true }
             ]
         },
         {

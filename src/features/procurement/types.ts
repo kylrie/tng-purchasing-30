@@ -134,6 +134,7 @@ export interface User {
   businessUnitIds?: string[]; // New: List of accessible Business Units. If empty/null, falls back to businessId.
   isPasswordSet?: boolean; // Track if Google users have set a password
   isApprover?: boolean; // New field to designate if user is an eligible approver for PRFs
+  pcfCeiling?: number; // Petty Cash Fund ceiling amount for the user
   status: UserStatus;
 }
 

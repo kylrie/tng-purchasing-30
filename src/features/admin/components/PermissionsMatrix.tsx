@@ -72,6 +72,12 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'liquidation:audit': { label: 'Audit Liquidations', category: 'Finance Workflow' },
   'liquidation:print': { label: 'Print Liquidation', category: 'Finance Workflow' },
 
+  // PCF (Petty Cash Fund)
+  'pcf:view:own': { label: 'View Own PCF', category: 'Petty Cash Fund' },
+  'pcf:view:all': { label: 'View All PCF Records', category: 'Petty Cash Fund' },
+  'pcf:create': { label: 'Create PCF Liquidation', category: 'Petty Cash Fund' },
+  'pcf:approve': { label: 'Approve PCF Liquidations', category: 'Petty Cash Fund' },
+
   // Data Visibility
   'requisition:view:own': { label: 'View Own Requests', category: 'Data Visibility' },
   'requisition:view:business_unit': { label: 'View Business Unit', category: 'Data Visibility' },
@@ -97,6 +103,8 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'module:view:approved': { label: 'View Approved List', category: 'Module Access' },
   'module:view:finance': { label: 'View Finance Module', category: 'Module Access' },
   'module:view:liquidation': { label: 'View Liquidation', category: 'Module Access' },
+  'module:view:pcf': { label: 'View PCF Module', category: 'Module Access' },
+  'module:view:pcf_approvals': { label: 'View PCF Approvals', category: 'Module Access' },
   'module:view:suppliers': { label: 'View Suppliers', category: 'Module Access' },
   'module:view:settings': { label: 'View Settings', category: 'Module Access' },
 

@@ -12,6 +12,8 @@ import ProcurementApprovalsView from './features/procurement/views/ProcurementAp
 import ApprovedView from './features/procurement/views/ApprovedView';
 import FinanceView from './features/finance/views/FinanceView';
 import LiquidationView from './features/finance/views/LiquidationView';
+import PCFView from './features/finance/views/PCFView';
+import PCFApprovalView from './features/finance/views/PCFApprovalView';
 import SuppliersView from './features/inventory/views/SuppliersView';
 import { SettingsView } from './features/admin/views/SettingsView';
 import type { NotificationItem } from './shared/types';
@@ -217,6 +219,22 @@ function ProtectedApp() {
             handleReleaseFunds={handleReleaseFunds}
             businesses={businesses}
             onUpdateRequisition={updateRequisition}
+            allUsers={users}
+          />
+        } />
+
+        <Route path="/pcf" element={
+          <PCFView
+            currentUser={currentUser}
+            businesses={businesses}
+            allUsers={users}
+          />
+        } />
+
+        <Route path="/pcf-approvals" element={
+          <PCFApprovalView
+            currentUser={currentUser}
+            businesses={businesses}
             allUsers={users}
           />
         } />

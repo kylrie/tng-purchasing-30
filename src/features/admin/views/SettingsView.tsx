@@ -87,7 +87,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     businessId: newUser.businessId,
                     businessUnitIds: newUser.businessUnitIds || [],
                     status: newUser.status || UserStatus.ACTIVE,
-                    isApprover: newUser.isApprover || false
+                    isApprover: newUser.isApprover || false,
+                    pcfCeiling: newUser.pcfCeiling || 0,
                 };
 
                 if (editingUserId) {
@@ -488,6 +489,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                             <div><label className={labelClass}>Email Address</label><input type="email" className={inputClass} value={newUser.email || ''} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
                                             <div><label className={labelClass}>Role</label><select className={inputClass} value={newUser.role || UserRole.EMPLOYEE} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRole })}>{Object.values(UserRole).map(role => (<option key={role} value={role}>{role.replace(/_/g, ' ')}</option>))}</select></div>
                                             <div><label className={labelClass}>Primary Business Unit</label><select className={inputClass} value={newUser.businessId || ''} onChange={e => setNewUser({ ...newUser, businessId: e.target.value })}><option value="">Select Primary BU</option>{businesses.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
+                                            <div>
+                                                <label className={labelClass}>PCF Ceiling (₱)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="100"
+                                                    className={inputClass}
+                                                    value={newUser.pcfCeiling || ''}
+                                                    onChange={e => setNewUser({ ...newUser, pcfCeiling: parseFloat(e.target.value) || 0 })}
+                                                    placeholder="e.g., 10000"
+                                                />
+                                                <p className="text-xs text-slate-500 mt-1">Petty Cash Fund limit for this user. Leave 0 or empty to disable PCF.</p>
+                                            </div>
                                             {!editingUserId && (
                                                 <div className="md:col-span-2">
                                                     <label className={labelClass}>Password</label>

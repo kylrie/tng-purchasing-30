@@ -474,5 +474,41 @@ service cloud.firestore {
       // Permission-based UOM management
       allow create, update, delete: if isSignedIn() && hasPermission('inventory:manage:uom');
     }
+    
+    // =====================================================
+    // PCF LIQUIDATIONS COLLECTION
+    // Petty Cash Fund liquidation records with approval workflow
+    // =====================================================
+    match /pcf_liquidations/{liquidationId} {
+      // Users can read their own liquidations
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isSuperAdminOrAdmin() ||
+        hasPermission('approval:manager:prf')
+      );
+      
+      // Users can create liquidations for themselves (DRAFT or direct PENDING_APPROVAL)
+      allow create: if isSignedIn() && 
+        request.resource.data.userId == request.auth.uid &&
+        (request.resource.data.status == 'DRAFT' || request.resource.data.status == 'PENDING_APPROVAL');
+      
+      // Owner can update DRAFT liquidations or submit for approval
+      // Managers can approve/reject PENDING_APPROVAL liquidations
+      allow update: if isSignedIn() && (
+        // Owner updating own DRAFT
+        (resource.data.userId == request.auth.uid && resource.data.status == 'DRAFT') ||
+        // Owner submitting for approval
+        (resource.data.userId == request.auth.uid && 
+         resource.data.status == 'DRAFT' && 
+         request.resource.data.status == 'PENDING_APPROVAL') ||
+        // Manager approving/rejecting
+        (hasPermission('approval:manager:prf') && 
+         resource.data.status == 'PENDING_APPROVAL' &&
+         (request.resource.data.status == 'APPROVED' || request.resource.data.status == 'REJECTED'))
+      );
+      
+      // No deletion allowed - audit trail required
+      allow delete: if false;
+    }
   }
 }
