@@ -278,6 +278,9 @@ export interface Requisition {
   requisitionId?: string;
   timestamp: string;
 
+  // PCF Replenishment link - used to update parent PCF status when funds are released
+  linkedPcfId?: string;
+
   // New Enhancements
   history?: RequisitionHistory[];
 }

@@ -20,6 +20,7 @@ import type { NotificationItem } from './shared/types';
 import { UserRole, UserStatus, COLLECTIONS } from './shared/types/firebase.types';
 import { RequisitionStatus } from './features/procurement/types';
 import { useRequisitions } from './features/procurement/hooks/useRequisitions';
+import { RequisitionService } from './features/procurement/services/requisitions.service';
 import { useUsers } from './features/admin/hooks/useUsers';
 import { useBusinesses } from './features/admin/hooks/useBusinesses';
 import { useSuppliers } from './features/inventory/hooks/useSuppliers';
@@ -116,16 +117,14 @@ function ProtectedApp() {
   };
 
   const handleReleaseFunds = async (id: string, chequeNumber: string, chequeImageUrl?: string) => {
-    const requisition = requisitions.find(r => r.id === id);
-    if (requisition) {
-      await updateRequisition({
-        ...requisition,
-        status: RequisitionStatus.FUNDS_RELEASED,
-        chequeNumber: chequeNumber,
-        chequeImageUrl: chequeImageUrl,
-        fundReleaseDate: new Date().toISOString(),
-      });
-    }
+    // Use the new service method that automatically updates linked PCF liquidations
+    await RequisitionService.releaseFundsWithPcfUpdate(
+      id,
+      chequeNumber,
+      chequeImageUrl,
+      currentUser?.id,
+      currentUser?.name
+    );
   };
 
   if (loading) {

@@ -260,6 +260,12 @@ service cloud.firestore {
           (request.resource.data.parentBurfId is string &&
            request.resource.data.prfDetails.preparedBy == request.auth.uid &&
            request.resource.data.status == 'PRF_PENDING_MANAGER')
+          ||
+          // PCF Replenishment: Manager with approval permission can create PRF at APPROVED_FOR_PAYMENT
+          // This happens when approving a PCF liquidation (Fast Track auto-PRF)
+          (request.resource.data.description.matches('.*\\[PCF_REPLENISHMENT\\].*') &&
+           request.resource.data.status == 'APPROVED_FOR_PAYMENT' &&
+           hasPermission('approval:manager:prf'))
         );
       
       allow update: if isSignedIn() && (
@@ -493,18 +499,30 @@ service cloud.firestore {
         (request.resource.data.status == 'DRAFT' || request.resource.data.status == 'PENDING_APPROVAL');
       
       // Owner can update DRAFT liquidations or submit for approval
+      // Owner can refile REJECTED liquidations
       // Managers can approve/reject PENDING_APPROVAL liquidations
+      // Finance can mark APPROVED_WAITING_RELEASE as REPLENISHED when funds are released
       allow update: if isSignedIn() && (
         // Owner updating own DRAFT
         (resource.data.userId == request.auth.uid && resource.data.status == 'DRAFT') ||
-        // Owner submitting for approval
+        // Owner submitting DRAFT for approval
         (resource.data.userId == request.auth.uid && 
          resource.data.status == 'DRAFT' && 
+         request.resource.data.status == 'PENDING_APPROVAL') ||
+        // Owner refiling REJECTED for approval
+        (resource.data.userId == request.auth.uid && 
+         resource.data.status == 'REJECTED' && 
          request.resource.data.status == 'PENDING_APPROVAL') ||
         // Manager approving/rejecting
         (hasPermission('approval:manager:prf') && 
          resource.data.status == 'PENDING_APPROVAL' &&
-         (request.resource.data.status == 'APPROVED' || request.resource.data.status == 'REJECTED'))
+         (request.resource.data.status == 'APPROVED' || 
+          request.resource.data.status == 'APPROVED_WAITING_RELEASE' || 
+          request.resource.data.status == 'REJECTED')) ||
+        // Finance marking as REPLENISHED when releasing funds
+        (hasPermission('finance:release_funds') && 
+         resource.data.status == 'APPROVED_WAITING_RELEASE' && 
+         request.resource.data.status == 'REPLENISHED')
       );
       
       // No deletion allowed - audit trail required

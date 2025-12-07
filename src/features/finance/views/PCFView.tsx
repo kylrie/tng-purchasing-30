@@ -25,6 +25,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
     const [loading, setLoading] = useState(true);
     const [showDrawer, setShowDrawer] = useState(false);
     const [selectedLiquidation, setSelectedLiquidation] = useState<PCFLiquidation | null>(null);
+    const [editingLiquidation, setEditingLiquidation] = useState<PCFLiquidation | null>(null);
     const [walletStats, setWalletStats] = useState({
         cashOnHand: 0,
         activeLiquidationsTotal: 0,
@@ -91,6 +92,48 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
         );
         await loadData();
         setShowDrawer(false);
+    };
+
+    // Handle save draft from drawer
+    const handleSaveDraft = async (expenses: any[], receiptsLink: string, remarks: string) => {
+        await PCFService.createDraftLiquidation(
+            currentUser.id,
+            currentUser.name,
+            currentUser.businessId,
+            expenses,
+            receiptsLink,
+            remarks
+        );
+        await loadData();
+        // Don't close drawer - user may want to continue editing
+    };
+
+    // Handle edit rejected liquidation - opens drawer with prefilled data
+    const handleEditRejected = (liquidation: PCFLiquidation) => {
+        setEditingLiquidation(liquidation);
+        setSelectedLiquidation(null); // Close detail drawer
+        setShowDrawer(true); // Open edit drawer
+    };
+
+    // Handle submit edited/refiled liquidation
+    const handleEditSubmit = async (expenses: any[], receiptsLink: string, remarks: string) => {
+        if (!editingLiquidation) return;
+
+        await PCFService.refileLiquidation(
+            editingLiquidation.id,
+            expenses,
+            receiptsLink,
+            remarks
+        );
+        await loadData();
+        setShowDrawer(false);
+        setEditingLiquidation(null);
+    };
+
+    // Handle close drawer (reset edit mode)
+    const handleCloseDrawer = () => {
+        setShowDrawer(false);
+        setEditingLiquidation(null);
     };
 
     if (loading) {
@@ -296,10 +339,18 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
             {/* New Liquidation Drawer */}
             <PCFLiquidationDrawer
                 isOpen={showDrawer}
-                onClose={() => setShowDrawer(false)}
-                onSubmit={handleSubmitLiquidation}
+                onClose={handleCloseDrawer}
+                onSubmit={editingLiquidation ? handleEditSubmit : handleSubmitLiquidation}
+                onSaveDraft={editingLiquidation ? undefined : handleSaveDraft}
                 cashOnHand={walletStats.cashOnHand}
                 pcfCeiling={pcfCeiling}
+                editingId={editingLiquidation?.id}
+                initialData={editingLiquidation ? {
+                    expenses: editingLiquidation.expenses,
+                    receiptsLink: editingLiquidation.receiptsLink,
+                    remarks: editingLiquidation.remarks,
+                } : null}
+                title={editingLiquidation ? 'Edit & Refile Liquidation' : undefined}
             />
 
             {/* Detail Drawer (slide-in from right) */}
@@ -456,13 +507,22 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                         </div>
 
                         {/* Footer */}
-                        <div className="p-4 border-t border-slate-700 bg-slate-800/50">
+                        <div className="p-4 border-t border-slate-700 bg-slate-800/50 flex gap-3">
                             <button
                                 onClick={() => setSelectedLiquidation(null)}
-                                className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                                className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
                             >
                                 Close
                             </button>
+                            {selectedLiquidation.status === PCFStatus.REJECTED && (
+                                <button
+                                    onClick={() => handleEditRejected(selectedLiquidation)}
+                                    className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                                >
+                                    <FileText size={16} />
+                                    Edit & Refile
+                                </button>
+                            )}
                         </div>
                     </div>
                 </>

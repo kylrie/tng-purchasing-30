@@ -297,6 +297,8 @@ export class PCFService {
                 requesterName: liquidation.userName,
                 dateCreated: new Date().toISOString(),
                 timestamp: new Date().toISOString(),
+                // Link to parent PCF for auto-update when funds are released
+                linkedPcfId: liquidationId,
                 prfDetails: {
                     supplier: supplierDetails,
                     preparedBy: approverId,
@@ -361,5 +363,63 @@ export class PCFService {
      */
     static async getLiquidationById(liquidationId: string): Promise<PCFLiquidation | null> {
         return await FirestoreService.getDocument<PCFLiquidation>(PCF_COLLECTION, liquidationId);
+    }
+
+    /**
+     * Refile a rejected liquidation - resets to PENDING_APPROVAL
+     * Clears rejection data and allows the user to submit again
+     */
+    static async refileLiquidation(
+        liquidationId: string,
+        expenses: PCFExpenseItem[],
+        receiptsLink?: string,
+        remarks?: string
+    ): Promise<void> {
+        // Calculate totals
+        const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+        const totalVat = expenses.reduce((sum, e) => sum + e.vat, 0);
+        const totalEwt = expenses.reduce((sum, e) => sum + e.ewt, 0);
+        const netAmount = totalAmount - totalEwt + totalVat;
+
+        await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
+            expenses,
+            totalAmount,
+            totalVat,
+            totalEwt,
+            netAmount,
+            receiptsLink: receiptsLink || '',
+            remarks: remarks || '',
+            status: PCFStatus.PENDING_APPROVAL,
+            dateSubmitted: new Date().toISOString(),
+            // Clear rejection data
+            rejectedBy: null,
+            rejectedByName: null,
+            rejectionReason: null,
+        });
+    }
+
+    /**
+     * Update a draft liquidation
+     */
+    static async updateDraftLiquidation(
+        liquidationId: string,
+        expenses: PCFExpenseItem[],
+        receiptsLink?: string,
+        remarks?: string
+    ): Promise<void> {
+        const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+        const totalVat = expenses.reduce((sum, e) => sum + e.vat, 0);
+        const totalEwt = expenses.reduce((sum, e) => sum + e.ewt, 0);
+        const netAmount = totalAmount - totalEwt + totalVat;
+
+        await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
+            expenses,
+            totalAmount,
+            totalVat,
+            totalEwt,
+            netAmount,
+            receiptsLink: receiptsLink || '',
+            remarks: remarks || '',
+        });
     }
 }

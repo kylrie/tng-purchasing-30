@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { X, Plus, Trash2, Calendar, Receipt, FileText, Link as LinkIcon, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { X, Plus, Trash2, Calendar, Receipt, FileText, Link as LinkIcon, AlertTriangle, CheckCircle, Edit3 } from 'lucide-react';
 import type { PCFExpenseItem, ExpenseClassification } from '../services/pcf.service';
 import { EXPENSE_CLASSIFICATIONS } from '../services/pcf.service';
 
@@ -7,8 +7,17 @@ interface PCFLiquidationDrawerProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => Promise<void>;
+    onSaveDraft?: (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => Promise<void>;
     cashOnHand: number;
     pcfCeiling: number;
+    // Edit mode props
+    editingId?: string | null;
+    initialData?: {
+        expenses: PCFExpenseItem[];
+        receiptsLink?: string;
+        remarks?: string;
+    } | null;
+    title?: string;
 }
 
 // Helper: Format currency
@@ -44,13 +53,32 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
     isOpen,
     onClose,
     onSubmit,
+    onSaveDraft,
     cashOnHand,
     pcfCeiling,
+    editingId,
+    initialData,
+    title,
 }) => {
     const [expenses, setExpenses] = useState<PCFExpenseItem[]>([createEmptyExpense()]);
     const [receiptsLink, setReceiptsLink] = useState('');
     const [remarks, setRemarks] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [savingDraft, setSavingDraft] = useState(false);
+
+    // Initialize form when editing existing liquidation
+    useEffect(() => {
+        if (isOpen && initialData) {
+            setExpenses(initialData.expenses.length > 0 ? initialData.expenses : [createEmptyExpense()]);
+            setReceiptsLink(initialData.receiptsLink || '');
+            setRemarks(initialData.remarks || '');
+        } else if (isOpen && !editingId) {
+            // Reset form for new liquidation
+            setExpenses([createEmptyExpense()]);
+            setReceiptsLink('');
+            setRemarks('');
+        }
+    }, [isOpen, initialData, editingId]);
 
     // Calculate totals
     const totals = useMemo(() => {
@@ -125,6 +153,29 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
         }
     };
 
+    // Handle save draft
+    const handleSaveDraft = async () => {
+        if (!onSaveDraft) return;
+
+        // Basic validation - at least one expense with some data
+        const hasData = expenses.some(e => e.amount > 0 || e.payeeVendor || e.orNo);
+        if (!hasData) {
+            alert('Please add at least one expense item before saving.');
+            return;
+        }
+
+        setSavingDraft(true);
+        try {
+            await onSaveDraft(expenses, receiptsLink, remarks);
+            alert('Draft saved successfully!');
+        } catch (error) {
+            console.error('Save draft error:', error);
+            alert('Failed to save draft. Please try again.');
+        } finally {
+            setSavingDraft(false);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -141,8 +192,8 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                 <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
                     <div>
                         <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <Receipt size={24} className="text-purple-400" />
-                            New PCF Liquidation
+                            {editingId ? <Edit3 size={24} className="text-yellow-400" /> : <Receipt size={24} className="text-purple-400" />}
+                            {title || (editingId ? 'Edit PCF Liquidation' : 'New PCF Liquidation')}
                         </h2>
                         <p className="text-sm text-slate-400 mt-1">
                             Available: <span className="text-emerald-400 font-semibold">{formatCurrency(cashOnHand)}</span>
@@ -422,9 +473,19 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                         >
                             Cancel
                         </button>
+                        {onSaveDraft && (
+                            <button
+                                onClick={handleSaveDraft}
+                                disabled={savingDraft || submitting}
+                                className="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors border border-slate-600"
+                            >
+                                <FileText size={18} />
+                                {savingDraft ? 'Saving...' : 'Save Draft'}
+                            </button>
+                        )}
                         <button
                             onClick={handleSubmit}
-                            disabled={!isValid || submitting}
+                            disabled={!isValid || submitting || savingDraft}
                             className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
                         >
                             <CheckCircle size={18} />

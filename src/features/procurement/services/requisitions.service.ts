@@ -577,4 +577,59 @@ export class RequisitionService {
       });
     });
   }
+
+  /**
+   * Release funds for a requisition and automatically update linked PCF status
+   * If the PRF has a linkedPcfId (PCF Replenishment), also update the PCF to REPLENISHED
+   */
+  static async releaseFundsWithPcfUpdate(
+    requisitionId: string,
+    chequeNumber: string,
+    chequeImageUrl?: string,
+    userId?: string,
+    userName?: string
+  ): Promise<void> {
+    const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
+    const pcfCollectionName = 'pcf_liquidations';
+
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) {
+        throw new Error('Requisition not found');
+      }
+
+      const requisition = { id: snap.id, ...snap.data() } as Requisition;
+
+      // Build history entry
+      const historyEntry: RequisitionHistory = {
+        date: new Date().toISOString(),
+        actorId: userId || 'system',
+        actorName: userName || 'Finance',
+        action: 'FUNDS_RELEASED',
+        stage: RequisitionStatus.FUNDS_RELEASED,
+        comments: `Cheque #${chequeNumber} released`,
+      };
+
+      const updatedHistory = [historyEntry, ...(requisition.history || [])];
+
+      // Step 1: Update the PRF to FUNDS_RELEASED
+      transaction.update(docRef, {
+        status: RequisitionStatus.FUNDS_RELEASED,
+        chequeNumber: chequeNumber,
+        chequeImageUrl: chequeImageUrl || '',
+        fundReleaseDate: new Date().toISOString(),
+        history: updatedHistory,
+        updatedAt: serverTimestamp(),
+      });
+
+      // Step 2: If this is a PCF Replenishment PRF, update the linked PCF to REPLENISHED
+      if (requisition.linkedPcfId) {
+        const pcfRef = doc(db, pcfCollectionName, requisition.linkedPcfId);
+        transaction.update(pcfRef, {
+          status: 'REPLENISHED',
+          dateReplenished: new Date().toISOString(),
+        });
+      }
+    });
+  }
 }
