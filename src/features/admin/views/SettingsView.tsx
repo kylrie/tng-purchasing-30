@@ -6,6 +6,7 @@ import type { User, Business } from '../../../shared/types';
 import type { Permission } from '../../../config/permissions';
 import { UserRole, UserStatus, SystemRole } from '../../procurement/types';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { useRoleOptions } from '../../../hooks/useRoleOptions';
 
 // Import Layout Components
 import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search, Loader2 } from 'lucide-react';
@@ -44,6 +45,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
     const { updatePermissions, updateRoles } = usePermissionsContext();
     const { hasPermission } = usePermissions();
+    const { roleOptions, isLoading: rolesLoading, defaultRole } = useRoleOptions();
 
     // State Definitions
     const [activeTab, setActiveTab] = useState('profile');
@@ -487,7 +489,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div><label className={labelClass}>Full Name</label><input type="text" className={inputClass} value={newUser.name || ''} onChange={e => setNewUser({ ...newUser, name: e.target.value })} /></div>
                                             <div><label className={labelClass}>Email Address</label><input type="email" className={inputClass} value={newUser.email || ''} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
-                                            <div><label className={labelClass}>Role</label><select className={inputClass} value={newUser.role || UserRole.EMPLOYEE} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRole })}>{Object.values(UserRole).map(role => (<option key={role} value={role}>{role.replace(/_/g, ' ')}</option>))}</select></div>
+                                            <div><label className={labelClass}>Role</label><select className={inputClass} value={newUser.role || defaultRole} onChange={e => setNewUser({ ...newUser, role: e.target.value as UserRole })} disabled={rolesLoading}>{rolesLoading ? (<option>Loading roles...</option>) : roleOptions.map(opt => (<option key={opt.value} value={opt.value}>{opt.label}{opt.isSystem ? ' (System)' : ''}</option>))}</select></div>
                                             <div><label className={labelClass}>Primary Business Unit</label><select className={inputClass} value={newUser.businessId || ''} onChange={e => setNewUser({ ...newUser, businessId: e.target.value })}><option value="">Select Primary BU</option>{businesses.map(b => (<option key={b.id} value={b.id}>{b.name}</option>))}</select></div>
                                             <div>
                                                 <label className={labelClass}>PCF Ceiling (₱)</label>
