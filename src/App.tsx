@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import Layout from './shared/components/Layout';
+import ProtectedRoute from './shared/components/ProtectedRoute';
 import LoginView from './features/auth/views/LoginView';
 import DashboardView from './features/dashboard/views/DashboardView';
 
@@ -152,119 +153,139 @@ function ProtectedApp() {
         <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
 
         <Route path="/burf" element={
-          <BurfView
-            currentUser={currentUser}
-            visibleRequisitions={requisitions}
-            allUsers={users}
-            businesses={businesses}
-            getStatusBadge={getStatusBadge}
-            onCreateRequisition={createRequisition}
-            onUpdateRequisition={updateRequisition}
-            uomOptions={uomOptions}
-          />
+          <ProtectedRoute permission="module:view:burf">
+            <BurfView
+              currentUser={currentUser}
+              visibleRequisitions={requisitions}
+              allUsers={users}
+              businesses={businesses}
+              getStatusBadge={getStatusBadge}
+              onCreateRequisition={createRequisition}
+              onUpdateRequisition={updateRequisition}
+              uomOptions={uomOptions}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/prf" element={
-          <PrfView
-            currentUser={currentUser}
-            visibleRequisitions={requisitions}
-            getStatusBadge={getStatusBadge}
-            businesses={businesses}
-            allUsers={users}
-            onCreateRequisition={createRequisition}
-            onUpdateRequisition={updateRequisition}
-            suppliers={suppliers}
-            uomOptions={uomOptions}
-          />
+          <ProtectedRoute permission="module:view:prf">
+            <PrfView
+              currentUser={currentUser}
+              visibleRequisitions={requisitions}
+              getStatusBadge={getStatusBadge}
+              businesses={businesses}
+              allUsers={users}
+              onCreateRequisition={createRequisition}
+              onUpdateRequisition={updateRequisition}
+              suppliers={suppliers}
+              uomOptions={uomOptions}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/procurement-approvals" element={
-          <ProcurementApprovalsView
-            currentUser={currentUser}
-            requisitions={requisitions}
-            allUsers={users}
-            businesses={businesses}
-            onUpdateRequisition={updateRequisition}
-            getStatusBadge={getStatusBadge}
-          />
+          <ProtectedRoute permission="module:view:approvals">
+            <ProcurementApprovalsView
+              currentUser={currentUser}
+              requisitions={requisitions}
+              allUsers={users}
+              businesses={businesses}
+              onUpdateRequisition={updateRequisition}
+              getStatusBadge={getStatusBadge}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/approved" element={
-          <ApprovedView
-            currentUser={currentUser}
-            requisitions={requisitions}
-            allUsers={users}
-            businesses={businesses}
-            getStatusBadge={getStatusBadge}
-          />
+          <ProtectedRoute permission="module:view:approved">
+            <ApprovedView
+              currentUser={currentUser}
+              requisitions={requisitions}
+              allUsers={users}
+              businesses={businesses}
+              getStatusBadge={getStatusBadge}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/finance" element={
-          <FinanceView
-            currentUser={currentUser}
-            requisitions={requisitions}
-            getStatusBadge={getStatusBadge}
-            handleReleaseFunds={handleReleaseFunds}
-            businesses={businesses}
-            allUsers={users}
-          />
+          <ProtectedRoute permission="module:view:finance">
+            <FinanceView
+              currentUser={currentUser}
+              requisitions={requisitions}
+              getStatusBadge={getStatusBadge}
+              handleReleaseFunds={handleReleaseFunds}
+              businesses={businesses}
+              allUsers={users}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/liquidation" element={
-          <LiquidationView
-            currentUser={currentUser}
-            requisitions={requisitions}
-            getStatusBadge={getStatusBadge}
-            handleReleaseFunds={handleReleaseFunds}
-            businesses={businesses}
-            onUpdateRequisition={updateRequisition}
-            allUsers={users}
-          />
+          <ProtectedRoute permission="module:view:liquidation">
+            <LiquidationView
+              currentUser={currentUser}
+              requisitions={requisitions}
+              getStatusBadge={getStatusBadge}
+              handleReleaseFunds={handleReleaseFunds}
+              businesses={businesses}
+              onUpdateRequisition={updateRequisition}
+              allUsers={users}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/pcf" element={
-          <PCFView
-            currentUser={currentUser}
-            businesses={businesses}
-            allUsers={users}
-          />
+          <ProtectedRoute permission="module:view:pcf">
+            <PCFView
+              currentUser={currentUser}
+              businesses={businesses}
+              allUsers={users}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/pcf-approvals" element={
-          <PCFApprovalView
-            currentUser={currentUser}
-            businesses={businesses}
-            allUsers={users}
-          />
+          <ProtectedRoute permission="pcf:approve">
+            <PCFApprovalView
+              currentUser={currentUser}
+              businesses={businesses}
+              allUsers={users}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/suppliers" element={
-          <SuppliersView
-            suppliers={suppliers}
-            onCreateSupplier={createSupplier}
-            onUpdateSupplier={updateSupplier}
-            onDeleteSupplier={deleteSupplier}
-            currentUser={currentUser}
-            businesses={businesses}
-          />
+          <ProtectedRoute permission="module:view:suppliers">
+            <SuppliersView
+              suppliers={suppliers}
+              onCreateSupplier={createSupplier}
+              onUpdateSupplier={updateSupplier}
+              onDeleteSupplier={deleteSupplier}
+              currentUser={currentUser}
+              businesses={businesses}
+            />
+          </ProtectedRoute>
         } />
 
         <Route path="/settings" element={
-          <SettingsView
-            currentUser={currentUser}
-            businesses={businesses}
-            handleAddBusiness={addBusiness}
-            onUpdateBusiness={updateBusiness}
-            onDeleteBusiness={deleteBusiness}
-            allUsers={users}
-            setAllUsers={updateUser}
-            pendingUsers={pendingUsers}
-            onApproveUser={handleApproveUser}
-            onRejectUser={handleRejectUser}
-            loadingUserId={approvalLoadingId}
-            uomOptions={uomOptions}
-            setUomOptions={updateUOMs}
-          />
+          <ProtectedRoute permission="module:view:settings">
+            <SettingsView
+              currentUser={currentUser}
+              businesses={businesses}
+              handleAddBusiness={addBusiness}
+              onUpdateBusiness={updateBusiness}
+              onDeleteBusiness={deleteBusiness}
+              allUsers={users}
+              setAllUsers={updateUser}
+              pendingUsers={pendingUsers}
+              onApproveUser={handleApproveUser}
+              onRejectUser={handleRejectUser}
+              loadingUserId={approvalLoadingId}
+              uomOptions={uomOptions}
+              setUomOptions={updateUOMs}
+            />
+          </ProtectedRoute>
         } />
 
 

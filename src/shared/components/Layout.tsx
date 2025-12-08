@@ -75,7 +75,7 @@ const Layout: React.FC<LayoutProps> = ({
             subItems: [
                 { path: '/finance', label: 'Finance Dashboard', icon: Scale, canView: hasPermission('module:view:finance') },
                 { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('module:view:liquidation') },
-                { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: true }
+                { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: hasPermission('module:view:pcf') }
             ]
         },
         {

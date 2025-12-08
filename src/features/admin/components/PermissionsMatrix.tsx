@@ -119,10 +119,20 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'dashboard:widget:total_spend': { label: 'Total Spend Card', category: 'Dashboard Widgets' },
   'dashboard:widget:pending_audit': { label: 'Pending Audit Card', category: 'Dashboard Widgets' },
   'dashboard:widget:pcf_approvals': { label: 'PCF Approvals Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:overdue_items': { label: 'Overdue Items Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:avg_processing': { label: 'Avg Processing Time Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:completed_month': { label: 'Completed This Month Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:top_requesters': { label: 'Top Requesters Card', category: 'Dashboard Widgets' },
   'dashboard:section:pending_list': { label: 'Pending Approvals List', category: 'Dashboard Widgets' },
   'dashboard:section:ready_for_prf_list': { label: 'Ready for PRF List', category: 'Dashboard Widgets' },
   'dashboard:section:pending_fund_release': { label: 'Pending Fund Release List', category: 'Dashboard Widgets' },
   'dashboard:section:pending_audit_list': { label: 'Pending Audit List', category: 'Dashboard Widgets' },
+
+  // Approval History
+  'approval:view:history': { label: 'View Approval History', category: 'Approval Workflow' },
+
+  // Inventory Management
+  'inventory:manage:uom': { label: 'Manage Units of Measure', category: 'Admin Functions' },
 };
 
 // Default roles that cannot be deleted (system + original business roles)
