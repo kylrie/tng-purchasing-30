@@ -5,9 +5,12 @@ import { UserRole } from '../features/procurement/types';
  * Format: 'feature:action' or 'feature:action:scope'
  */
 export const ALL_PERMISSIONS = [
+  // Requisition Creation
+  'requisition:create:burf',  // Create new BURF
+  'requisition:prepare:prf',  // Prepare PRF from approved BURF
+  'requisition:create:prf',   // Create Direct PRF (without BURF)
+
   // Requisition Lifecycle
-  'requisition:create:burf',
-  'requisition:create:prf',
   'requisition:edit:draft',
   'requisition:refile:rejected',
   'requisition:cancel',
@@ -273,7 +276,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
 
   // Creates PRFs and manages suppliers
   [UserRole.PURCHASING_OFFICER]: [
-    'requisition:create:prf',
+    'requisition:prepare:prf',  // Prepare PRF from approved BURF
+    'requisition:create:prf',   // Create Direct PRF
     'requisition:view:all',
     'requisition:print',
     'supplier:view',

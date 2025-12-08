@@ -40,17 +40,34 @@ const SCOPED_PERMISSIONS_MAP: Record<string, string[]> = {
 };
 
 const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
-  // Virtual Scoped Permission
-  'requisition:create': {
-    label: 'Create Requisition',
-    category: 'Requisition Lifecycle',
-    isScoped: true,
-    scopes: ['BURF', 'PRF'],
-    basePermission: 'requisition:create'
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REQUISITION CREATION - Scoped Permissions
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Create BURF (Budget Use Request Form)
+  'requisition:create:burf': {
+    label: 'Create BURF',
+    category: 'Requisition Creation',
+    description: 'Create new Budget Use Request Forms'
   },
 
-  // Real permissions that are NOT covered by the virtual one above should be listed if any.
-  // Note: 'requisition:create:burf' and 'requisition:create:prf' are now managed by 'requisition:create' row.
+  // Prepare PRF from approved BURF (Convert BURF → PRF)
+  'requisition:prepare:prf': {
+    label: 'Prepare PRF (from BURF)',
+    category: 'Requisition Creation',
+    description: 'Convert approved BURFs to Purchase Requisition Forms'
+  },
+
+  // Create Direct PRF (without BURF)
+  'requisition:create:prf': {
+    label: 'Create Direct PRF',
+    category: 'Requisition Creation',
+    description: 'Create PRF directly without a BURF'
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REQUISITION LIFECYCLE
+  // ═══════════════════════════════════════════════════════════════════════════
 
   // Requisition Lifecycle
   'requisition:edit:draft': { label: 'Edit Drafts', category: 'Requisition Lifecycle' },
