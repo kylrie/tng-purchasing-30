@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -6,7 +6,6 @@ import {
     ShoppingCart,
     Scale,
     Users,
-    Bell,
     Menu,
     Settings,
     LogOut,
@@ -20,14 +19,11 @@ import {
     Database
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
-import type { NotificationItem } from '../types';
 import { usePermissions } from '../../hooks/usePermissions';
 
 interface LayoutProps {
     children: React.ReactNode;
     currentUser: User;
-    notifications?: NotificationItem[];
-    onNotificationClick?: (id: string) => void;
     onLogout?: () => void;
     pendingApprovalsCount?: number;
 }
@@ -43,8 +39,6 @@ interface NavItem {
 const Layout: React.FC<LayoutProps> = ({
     children,
     currentUser,
-    notifications = [],
-    onNotificationClick,
     onLogout
 }) => {
     const navigate = useNavigate();
@@ -52,19 +46,7 @@ const Layout: React.FC<LayoutProps> = ({
     const { hasPermission } = usePermissions();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
-    const [isNotifOpen, setIsNotifOpen] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
-    const notifRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-                setIsNotifOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     const navItems: NavItem[] = [
         { path: '/', label: 'Dashboard', icon: LayoutDashboard, canView: true },
@@ -293,45 +275,6 @@ const Layout: React.FC<LayoutProps> = ({
                     <button onClick={() => setIsSidebarOpen(true)} className="text-slate-400 hover:text-white p-2 bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50">
                         <Menu size={24} />
                     </button>
-                </div>
-
-                <div className="absolute bottom-8 right-8 z-50" ref={notifRef}>
-                    <button
-                        onClick={() => setIsNotifOpen(!isNotifOpen)}
-                        className="p-4 text-white bg-purple-600 hover:bg-purple-700 rounded-full shadow-lg shadow-purple-900/40 transition-all hover:scale-110 flex items-center justify-center"
-                    >
-                        <Bell size={24} />
-                        {notifications.some(n => !n.read) && (
-                            <span className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse border-2 border-purple-600"></span>
-                        )}
-                    </button>
-
-                    {isNotifOpen && (
-                        <div className="absolute bottom-16 right-0 w-80 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
-                            <div className="p-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-                                <h3 className="font-semibold text-white">Notifications</h3>
-                                <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">{notifications.length} New</span>
-                            </div>
-                            <div className="max-h-[400px] overflow-y-auto">
-                                {notifications.length > 0 ? notifications.map(notif => (
-                                    <div key={notif.id} className="p-4 border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors cursor-pointer" onClick={() => onNotificationClick?.(notif.id)}>
-                                        <div className="flex gap-3">
-                                            <div className={`w-2 h-2 mt-2 rounded-full flex-shrink-0 ${notif.type === 'BURF' ? 'bg-orange-500' :
-                                                notif.type === 'PRF' ? 'bg-purple-500' :
-                                                    notif.type === 'LIQUIDATION' ? 'bg-emerald-500' : 'bg-blue-500'
-                                                }`} />
-                                            <div>
-                                                <p className="text-sm text-slate-200">{notif.message}</p>
-                                                <p className="text-xs text-slate-500 mt-1">{new Date(notif.timestamp).toLocaleDateString()}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )) : (
-                                    <div className="p-8 text-center text-slate-500 text-sm">No new notifications</div>
-                                )}
-                            </div>
-                        </div>
-                    )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scroll-smooth">

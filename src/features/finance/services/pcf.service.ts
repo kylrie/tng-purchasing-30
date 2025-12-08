@@ -5,6 +5,7 @@ import type { Requisition, RequisitionItem, SupplierDetails } from '../../procur
 import { RequisitionStatus } from '../../procurement/types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 import { CounterService } from '../../../shared/services/counter.service';
+import { SettingsService } from '../../../shared/services/settings.service';
 
 // =====================================================
 // PCF STATUS ENUM
@@ -77,6 +78,11 @@ export interface PCFLiquidation {
     rejectedByName?: string;
     rejectionReason?: string;
     replenishmentPrfId?: string;
+    // Late submission tracking
+    isLate?: boolean;
+    daysLate?: number;
+    deadlineDay?: number;  // The deadline that was active at time of submission
+    expenseMonth?: number; // The month (0-11) the expenses are for
 }
 
 const PCF_COLLECTION = 'pcf_liquidations';
@@ -149,6 +155,10 @@ export class PCFService {
 
     /**
      * Submit a new PCF Liquidation with the 10-column expense structure
+     * Checks against configured deadline and marks as late if submitted after deadline
+     * 
+     * DEADLINE LOGIC: Expenses from Month X are due by Day Y of Month X+1
+     * Example: November expenses → due by December 5th
      */
     static async submitLiquidation(
         userId: string,
@@ -165,6 +175,18 @@ export class PCFService {
         const totalEwt = expenses.reduce((sum, e) => sum + e.ewt, 0);
         const netAmount = totalAmount - totalEwt + totalVat;
 
+        // Check deadline for late submission based on EXPENSE DATES
+        const settings = await SettingsService.getPcfSettings();
+        const submissionDate = new Date();
+
+        // Extract expense dates for deadline calculation
+        const expenseDates = expenses.map(e => e.date).filter(Boolean);
+        const { isLate, daysLate, expenseMonth } = SettingsService.calculateLatenessFromExpenses(
+            submissionDate,
+            expenseDates,
+            settings.deadlineDay
+        );
+
         const newLiquidation: Omit<PCFLiquidation, 'id'> = {
             userId,
             userName,
@@ -180,6 +202,11 @@ export class PCFService {
             status: PCFStatus.PENDING_APPROVAL, // Direct submit for approval
             dateCreated: new Date().toISOString(),
             dateSubmitted: new Date().toISOString(),
+            // Late submission tracking
+            isLate,
+            daysLate: isLate ? daysLate : 0,
+            deadlineDay: settings.deadlineDay,
+            expenseMonth: expenseMonth, // Store which month these expenses are for
         };
 
         const docId = await FirestoreService.createDocument(PCF_COLLECTION, newLiquidation);

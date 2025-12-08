@@ -119,6 +119,7 @@ export class RequisitionService {
           projectName: sourceBurf.projectName || '',
           remarks: `Batch ${paddedBatch} from ${sourceBurfId}`,
           dateNeeded: sourceBurf.dateNeeded || '',
+          isUrgent: sourceBurf.isUrgent || false, // Persist urgency flag through lifecycle
           priority: sourceBurf.priority || 'NORMAL',
           attachments: sourceBurf.attachments || [],
           parentBurfId: sourceBurfId,
@@ -581,6 +582,10 @@ export class RequisitionService {
   /**
    * Release funds for a requisition and automatically update linked PCF status
    * If the PRF has a linkedPcfId (PCF Replenishment), also update the PCF to REPLENISHED
+   * 
+   * PCF Replenishment Lifecycle:
+   * - PCF Replenishments do NOT need liquidation (receipts already submitted)
+   * - When funds are released, PCF Replenishments go directly to COMPLETED status
    */
   static async releaseFundsWithPcfUpdate(
     requisitionId: string,
@@ -600,21 +605,31 @@ export class RequisitionService {
 
       const requisition = { id: snap.id, ...snap.data() } as Requisition;
 
+      // Determine final status based on requisition type
+      // PCF Replenishments (have linkedPcfId): AUDITED_CLEARED (no liquidation needed)
+      // Standard PRFs: FUNDS_RELEASED (needs liquidation)
+      const isPcfReplenishment = !!requisition.linkedPcfId;
+      const finalStatus = isPcfReplenishment
+        ? RequisitionStatus.AUDITED_CLEARED
+        : RequisitionStatus.FUNDS_RELEASED;
+
       // Build history entry
       const historyEntry: RequisitionHistory = {
         date: new Date().toISOString(),
         actorId: userId || 'system',
         actorName: userName || 'Finance',
-        action: 'FUNDS_RELEASED',
-        stage: RequisitionStatus.FUNDS_RELEASED,
-        comments: `Cheque #${chequeNumber} released`,
+        action: isPcfReplenishment ? 'AUDITED_CLEARED' : 'FUNDS_RELEASED',
+        stage: finalStatus,
+        comments: isPcfReplenishment
+          ? `Cheque #${chequeNumber} released - PCF Replenishment complete (no liquidation required)`
+          : `Cheque #${chequeNumber} released`,
       };
 
       const updatedHistory = [historyEntry, ...(requisition.history || [])];
 
-      // Step 1: Update the PRF to FUNDS_RELEASED
+      // Step 1: Update the PRF status
       transaction.update(docRef, {
-        status: RequisitionStatus.FUNDS_RELEASED,
+        status: finalStatus,
         chequeNumber: chequeNumber,
         chequeImageUrl: chequeImageUrl || '',
         fundReleaseDate: new Date().toISOString(),

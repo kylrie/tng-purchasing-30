@@ -147,7 +147,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 : (req.fundReleaseDate ? new Date(req.fundReleaseDate).toLocaleDateString() : '-')
                                             }
                                         </td>
-                                        <td className="px-6 py-4">{getStatusBadge(req.status)}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                {getStatusBadge(req.status)}
+                                                {(req.isUrgent || req.priority === 'URGENT') && (
+                                                    <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-1.5 py-0.5 rounded-full uppercase">Urgent</span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="px-6 py-4 text-right">
                                             {activeTab === 'pending' ? (
                                                 hasPermission('finance:release_funds') ? (

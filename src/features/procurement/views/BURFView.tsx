@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip } from 'lucide-react';
+import { Plus, Trash2, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Loader2 } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -57,6 +57,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const [selectedBurf, setSelectedBurf] = useState<Requisition | null>(null);
     // FIX L2: Added error state to replace browser alert() with inline messages
     const [saveError, setSaveError] = useState<string | null>(null);
+    // Submission loading state to prevent double-clicks
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const isUrgent = useMemo(() => {
         if (!dateNeeded) return false;
@@ -64,7 +66,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
         const needed = new Date(dateNeeded);
         const diffTime = needed.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays < 3;
+        return diffDays < 5;
     }, [dateNeeded]);
 
     const handleSort = (field: SortField) => {
@@ -128,7 +130,16 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 return true;
             });
 
+        // Secondary sort: prioritize URGENT items first, then apply user-selected sort
         return filtered.sort((a, b) => {
+            // First, prioritize urgent items at the top
+            const aIsUrgent = a.priority === 'URGENT' ? 1 : 0;
+            const bIsUrgent = b.priority === 'URGENT' ? 1 : 0;
+            if (bIsUrgent !== aIsUrgent) {
+                return bIsUrgent - aIsUrgent; // Urgent items first
+            }
+
+            // Then apply user-selected sort
             let aValue: any = a[sortField];
             let bValue: any = b[sortField];
 
@@ -183,6 +194,10 @@ export const BurfView: React.FC<BurfViewProps> = ({
     };
 
     const saveRequisition = async (isFinalSubmission: boolean) => {
+        // Prevent duplicate submissions
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
         try {
             const status = isFinalSubmission ? RequisitionStatus.BURF_PENDING_MANAGER : RequisitionStatus.DRAFT;
             const attachments = attachmentLink ? [attachmentLink] : [];
@@ -208,6 +223,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 description: sanitizeText(description), // Sanitize user input
                 remarks: sanitizeText(remarks), // Sanitize user input
                 dateNeeded,
+                isUrgent, // Persist urgency flag for querying/filtering
                 priority: isUrgent ? 'URGENT' : 'NORMAL',
                 attachments,
                 timestamp: new Date().toISOString()
@@ -226,6 +242,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
             setSaveError("Failed to save requisition. Please try again.");
             // Clear error after 5 seconds
             setTimeout(() => setSaveError(null), 5000);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -256,7 +274,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             {isUrgent && (
                                 <div className="flex items-center gap-1 text-orange-400 text-xs mt-1">
                                     <AlertTriangle size={12} />
-                                    <span>Date is less than 3 days. Marked as URGENT.</span>
+                                    <span>Date is less than 5 days. Marked as URGENT.</span>
                                 </div>
                             )}
                         </div>
@@ -331,11 +349,21 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
                         <button onClick={resetForm} className="px-6 py-2 text-slate-300 font-medium hover:bg-slate-700 rounded-lg">Cancel</button>
-                        <button onClick={() => saveRequisition(false)} disabled={newItems.length === 0 || !description || !dateNeeded} className="px-6 py-2 border border-purple-500 text-purple-400 font-medium rounded-lg hover:bg-purple-900/50 flex items-center gap-2 disabled:opacity-50">
-                            <Save size={18} /> Save as Draft
+                        <button
+                            onClick={() => saveRequisition(false)}
+                            disabled={newItems.length === 0 || !description || !dateNeeded || isSubmitting}
+                            className="px-6 py-2 border border-purple-500 text-purple-400 font-medium rounded-lg hover:bg-purple-900/50 flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                            {isSubmitting ? 'Saving...' : 'Save as Draft'}
                         </button>
-                        <button onClick={() => saveRequisition(true)} disabled={newItems.length === 0 || !description || !dateNeeded} className="px-6 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2">
-                            <Check size={18} /> {editingId ? 'Re-Submit' : 'Submit Final'}
+                        <button
+                            onClick={() => saveRequisition(true)}
+                            disabled={newItems.length === 0 || !description || !dateNeeded || isSubmitting}
+                            className="px-6 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
+                        >
+                            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                            {isSubmitting ? 'Processing...' : (editingId ? 'Re-Submit' : 'Submit Final')}
                         </button>
                     </div>
                 </Card>
@@ -465,9 +493,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                     <td className="px-6 py-4">
                                         <div className="font-medium text-slate-200">{req.description}</div>
                                         <div className="text-xs text-slate-400">{req.items.length} items</div>
-                                        {req.priority === 'URGENT' && (
-                                            <span className="text-[10px] text-orange-400 font-bold border border-orange-400 px-1 rounded">URGENT</span>
-                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-slate-300 font-medium text-xs">{business?.name || 'N/A'}</td>
                                     {/* FIXED: Use denormalized requesterName directly */}
@@ -480,7 +505,12 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-slate-300 text-xs">
-                                        {req.dateNeeded ? new Date(req.dateNeeded).toLocaleDateString() : '-'}
+                                        <div className="flex items-center gap-2">
+                                            <span>{req.dateNeeded ? new Date(req.dateNeeded).toLocaleDateString() : '-'}</span>
+                                            {req.priority === 'URGENT' && (
+                                                <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-1.5 py-0.5 rounded-full uppercase">Urgent</span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 cursor-pointer hover:opacity-80" onClick={(e) => { e.stopPropagation(); /* setTrackingReq(req) */ }}>
                                         {getStatusBadge(req.status)}

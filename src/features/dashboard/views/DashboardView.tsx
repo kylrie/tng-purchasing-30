@@ -2,18 +2,20 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Clock,
-    AlertCircle,
     FileText,
     DollarSign,
-    PlusCircle,
     Receipt,
-    Upload,
-    Truck,
-    Settings
+    AlertTriangle,
+    Timer,
+    CheckCircle2,
+    Users,
+    Wallet,
+    Coins
 } from 'lucide-react';
+import DashboardCard from '../components/DashboardCard';
 import type { Requisition, Supplier } from '../../procurement/types';
 import { RequisitionStatus } from '../../procurement/types';
-import type { User } from '../../../shared/types';
+import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import PreparePRFModal from '../../procurement/components/PreparePRFModal';
 import ReleaseFundModal from '../../finance/components/ReleaseFundModal';
@@ -27,17 +29,19 @@ interface DashboardViewProps {
     currentUser: User;
     allUsers: User[];
     suppliers: Supplier[];
+    businesses: Business[];
     onCreateRequisition: (req: any) => void;
     onUpdateRequisition: (req: Requisition) => void;
 }
 
-const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser, allUsers, suppliers, onCreateRequisition, onUpdateRequisition }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser, allUsers, suppliers, businesses, onCreateRequisition, onUpdateRequisition }) => {
     const navigate = useNavigate();
     const { hasPermission } = usePermissions();
     const [preparePRFReq, setPreparePRFReq] = React.useState<Requisition | null>(null);
     const [releaseFundReq, setReleaseFundReq] = React.useState<Requisition | null>(null);
     const [auditReq, setAuditReq] = React.useState<Requisition | null>(null);
     const [rejectingReq, setRejectingReq] = React.useState<Requisition | null>(null);
+    const [selectedBU, setSelectedBU] = React.useState<string>('all');
 
     // Determine if the user is an approver
     const isApprover = hasPermission('approval:manager:burf') ||
@@ -68,13 +72,88 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         return false;
     }).length;
 
-    const activePRFs = requisitions.filter(r =>
-        [RequisitionStatus.READY_FOR_PRF, RequisitionStatus.PRF_PENDING_MANAGER, RequisitionStatus.APPROVED_FOR_PAYMENT].includes(r.status)
-    ).length;
 
     const totalSpend = requisitions
         .filter(r => [RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.LIQUIDATION_FILED, RequisitionStatus.AUDITED_CLEARED].includes(r.status))
+        .filter(r => selectedBU === 'all' || r.businessId === selectedBU)
         .reduce((sum, r) => sum + r.totalAmount, 0);
+
+    // Business filter options for Total Spend widget
+    const businessFilterOptions = [
+        { value: 'all', label: 'All BUs' },
+        ...businesses.map(b => ({ value: b.id, label: b.name }))
+    ];
+
+    // For PRF Count
+    const forPrfCount = requisitions.filter(r =>
+        r.status === RequisitionStatus.READY_FOR_PRF
+    ).length;
+
+    // === NEW METRICS FOR MANAGERS ===
+
+    // Overdue Items - past dateNeeded and not completed
+    const now = new Date();
+    const overdueItems = requisitions.filter(r => {
+        if (!r.dateNeeded) return false;
+        const needed = new Date(r.dateNeeded);
+        const isOverdue = needed < now;
+        const isNotCompleted = ![
+            RequisitionStatus.FUNDS_RELEASED,
+            RequisitionStatus.AUDITED_CLEARED,
+            RequisitionStatus.CANCELLED,
+            RequisitionStatus.REJECTED
+        ].includes(r.status);
+        return isOverdue && isNotCompleted;
+    });
+    const overdueCount = overdueItems.length;
+
+    // Average Processing Time (days from BURF creation to fund release)
+    const completedReqs = requisitions.filter(r =>
+        r.status === RequisitionStatus.FUNDS_RELEASED && r.fundReleaseDate
+    );
+    const avgProcessingDays = completedReqs.length > 0
+        ? Math.round(completedReqs.reduce((sum, r) => {
+            const created = new Date(r.dateCreated).getTime();
+            const released = new Date(r.fundReleaseDate!).getTime();
+            return sum + (released - created) / (1000 * 60 * 60 * 24);
+        }, 0) / completedReqs.length)
+        : 0;
+
+    // Completed This Month vs Last Month
+    const thisMonth = new Date();
+    const lastMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth() - 1, 1);
+    const thisMonthStart = new Date(thisMonth.getFullYear(), thisMonth.getMonth(), 1);
+
+    const completedThisMonth = requisitions.filter(r => {
+        if (r.status !== RequisitionStatus.FUNDS_RELEASED || !r.fundReleaseDate) return false;
+        const released = new Date(r.fundReleaseDate);
+        return released >= thisMonthStart;
+    }).length;
+
+    const completedLastMonth = requisitions.filter(r => {
+        if (r.status !== RequisitionStatus.FUNDS_RELEASED || !r.fundReleaseDate) return false;
+        const released = new Date(r.fundReleaseDate);
+        return released >= lastMonth && released < thisMonthStart;
+    }).length;
+
+    const monthlyTrendPercent = completedLastMonth > 0
+        ? Math.round(((completedThisMonth - completedLastMonth) / completedLastMonth) * 100)
+        : completedThisMonth > 0 ? 100 : 0;
+
+    // Top 5 Requesters
+    const requesterCounts: Record<string, { name: string; count: number }> = {};
+    requisitions.forEach(r => {
+        const requester = allUsers.find(u => u.id === r.requesterId);
+        const name = requester?.name || 'Unknown';
+        if (!requesterCounts[r.requesterId]) {
+            requesterCounts[r.requesterId] = { name, count: 0 };
+        }
+        requesterCounts[r.requesterId].count++;
+    });
+    const top5Requesters = Object.entries(requesterCounts)
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 5)
+        .map(([id, data]) => ({ id, ...data }));
 
     // Pending Approvals - Show items that need the current user's approval
     const pendingApprovals = [...requisitions]
@@ -120,104 +199,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             };
         });
 
-    // Calculate Liquidation Stat based on role
-    let liquidationStat = {
-        label: 'Liquidations',
-        value: '0',
-        change: 'Total',
-        trend: 'neutral',
-        icon: AlertCircle,
-        color: 'text-slate-400',
-        bg: 'bg-slate-900/50',
-        route: '/liquidation'
-    };
 
-    if (hasPermission('liquidation:audit')) {
-        const pendingAuditCount = requisitions.filter(r => r.status === RequisitionStatus.LIQUIDATION_FILED).length;
-        liquidationStat = {
-            label: 'Pending Audit',
-            value: pendingAuditCount.toString(),
-            change: 'Needs Review',
-            trend: pendingAuditCount > 0 ? 'up' : 'neutral',
-            icon: AlertCircle,
-            color: 'text-orange-400',
-            bg: 'bg-orange-900/50',
-            route: '/liquidation'
-        };
-    } else if (hasPermission('liquidation:file:own') || hasPermission('liquidation:file:all')) {
-        const toFileCount = requisitions.filter(r =>
-            (r.status === RequisitionStatus.FUNDS_RELEASED || r.status === RequisitionStatus.LIQUIDATION_REJECTED) &&
-            (hasPermission('liquidation:file:all') || r.requesterId === currentUser.id)
-        ).length;
 
-        liquidationStat = {
-            label: 'To Liquidate',
-            value: toFileCount.toString(),
-            change: 'Action Required',
-            trend: toFileCount > 0 ? 'up' : 'neutral',
-            icon: AlertCircle,
-            color: 'text-cyan-400',
-            bg: 'bg-cyan-900/50',
-            route: '/liquidation'
-        };
-    }
 
-    // New Card for Liquidation Filing (Purchaser)
-    // Assuming 'liquidation:file:all' or specific role check if needed, but 'liquidationStat' covers general liquidation.
-    // The user asked for "another card that is link for Liquidation filing of the purchaser".
-    // "To Liquidate" card above effectively does this for users who need to file.
-    // If we need a specific "Purchaser Liquidation" link, we can add it or modify the logic.
-    // Let's assume the user wants an explicit quick link if they have the right permission.
 
-    // Actually, looking at the code, `liquidationStat` is already dynamically creating a card for Liquidation.
-    // If the user wants a *separate* Quick Action link, I'll add it there.
-    // If they want a separate Stat Card, I can add one.
-    // Given the phrasing "in dashboard add another card that is link for Liquidation filing", I'll add a Quick Action button.
-
-    // Wait, the previous instruction was about the stat card.
-    // "in dashboard add another card that is link for Liquidation filing of the purchaser"
-    // I will add a Quick Action button for this specific purpose if it's not already covered clearly.
-    // The existing "View Liquidations" button goes to `/liquidation`.
-    // I will add a specific "File Liquidation" button if there are items to liquidate.
-
-    const itemsToLiquidateCount = requisitions.filter(r =>
-        (r.status === RequisitionStatus.FUNDS_RELEASED || r.status === RequisitionStatus.LIQUIDATION_REJECTED) &&
-        (hasPermission('liquidation:file:all') || r.requesterId === currentUser.id)
-    ).length;
-
-    const stats = [
-        {
-            label: 'Pending Approvals',
-            value: pendingCount.toString(),
-            change: 'Active',
-            trend: 'neutral',
-            icon: Clock,
-            color: 'text-orange-400',
-            bg: 'bg-orange-900/50',
-            route: '/procurement-approvals'
-        },
-        {
-            label: 'Active PRFs',
-            value: activePRFs.toString(),
-            change: 'In Progress',
-            trend: 'up',
-            icon: FileText,
-            color: 'text-blue-400',
-            bg: 'bg-blue-900/50',
-            route: '/prf'
-        },
-        {
-            label: 'Total Spend (Est)',
-            value: `₱${(totalSpend / 1000).toFixed(1)}k`,
-            change: 'MTD',
-            trend: 'down',
-            icon: DollarSign,
-            color: 'text-emerald-400',
-            bg: 'bg-emerald-900/50',
-            route: '/liquidation'
-        },
-        liquidationStat
-    ];
 
     // Ready for PRF Items (Purchasing Officer View)
     const readyForPrfItems = requisitions.filter(r => {
@@ -299,8 +284,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         }
     };
 
-    // Filter stats for non-approvers
-    const visibleStats = isApprover ? stats : stats.filter(s => s.label !== 'Pending Approvals');
+
 
     return (
         <div className="space-y-8 text-white min-h-screen">
@@ -320,31 +304,181 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             <div className="flex flex-col-reverse lg:flex-row lg:items-start gap-6 lg:gap-8">
                 {/* Main Content Area */}
                 <div className="flex-1 space-y-8 w-full">
-                    {/* Stats Grid */}
-                    <div className={`grid grid-cols-1 md:grid-cols-2 ${isApprover ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}>
-                        {visibleStats.map((stat, index) => (
-                            <button
-                                key={index}
-                                onClick={() => navigate(stat.route)}
-                                className={`bg-slate-800/50 backdrop-blur-sm p-6 rounded-2xl border border-slate-700/50 shadow-lg hover:border-purple-500/50 hover:shadow-purple-500/20 transition-all cursor-pointer group text-left w-full`}
-                            >
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className={`p-3 rounded-lg ${stat.bg} group-hover:scale-110 transition-transform`}>
-                                        <stat.icon className={`w-6 h-6 ${stat.color}`} />
-                                    </div>
-                                    <div className={`flex items-center text-xs font-medium ${stat.trend === 'up' ? 'text-green-400' : stat.trend === 'down' ? 'text-red-400' : 'text-slate-400'}`}>
-                                        {stat.change}
-                                    </div>
-                                </div>
-                                <h3 className="text-slate-300 text-sm font-medium mb-1 group-hover:text-white transition-colors">{stat.label}</h3>
-                                <p className="text-3xl font-bold text-white">{stat.value}</p>
-                            </button>
-                        ))}
+                    {/* Stats Grid - Enhanced DashboardCard Components */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                        {/* For Approvals Card */}
+                        {hasPermission('dashboard:widget:pending_approvals') && (
+                            <DashboardCard
+                                id="for-approvals"
+                                label="For Approvals"
+                                value={pendingCount.toString()}
+                                route="/procurement-approvals"
+                                icon={Clock}
+                                progress={Math.min(pendingCount * 10, 100)}
+                                sparklineData={[5, 12, 8, 15, 10, pendingCount]}
+                                gradientColors={['#f97316', '#eab308']}
+                                iconColor="text-orange-400"
+                                sparklineColor="#f97316"
+                                urgency={pendingCount > 5 ? 'critical' : pendingCount > 2 ? 'warning' : 'normal'}
+                                trendPercent={pendingCount > 0 ? 15 : 0}
+                                trend={pendingCount > 3 ? 'up' : 'neutral'}
+                                previewItems={pendingApprovals.slice(0, 3).map(r => ({
+                                    id: r.id,
+                                    title: r.id,
+                                    subtitle: `₱${r.rawRequisition.totalAmount.toLocaleString()}`
+                                }))}
+                                breakdown={[
+                                    { label: 'Mgr BURF', count: requisitions.filter(r => r.status === RequisitionStatus.BURF_PENDING_MANAGER).length, color: 'text-orange-400' },
+                                    { label: 'CIC BURF', count: requisitions.filter(r => r.status === RequisitionStatus.BURF_PENDING_CIC).length, color: 'text-amber-400' },
+                                    { label: 'Mgr PRF', count: requisitions.filter(r => r.status === RequisitionStatus.PRF_PENDING_MANAGER).length, color: 'text-blue-400' },
+                                    ...(hasPermission('finance:release_funds') ? [{ label: 'Fund Rel', count: requisitions.filter(r => r.status === RequisitionStatus.APPROVED_FOR_PAYMENT).length, color: 'text-emerald-400' }] : [])
+                                ]}
+                            />
+                        )}
+
+                        {/* Overdue Items Card */}
+                        {hasPermission('dashboard:widget:overdue_items') && (
+                            <DashboardCard
+                                id="overdue-items"
+                                label="Overdue"
+                                value={overdueCount.toString()}
+                                route="/procurement-approvals"
+                                icon={AlertTriangle}
+                                progress={Math.min(overdueCount * 15, 100)}
+                                sparklineData={[2, 4, 3, 5, 4, overdueCount]}
+                                gradientColors={overdueCount > 0 ? ['#ef4444', '#f97316'] : ['#64748b', '#475569']}
+                                iconColor={overdueCount > 0 ? 'text-red-400' : 'text-slate-400'}
+                                sparklineColor={overdueCount > 0 ? '#ef4444' : '#64748b'}
+                                urgency={overdueCount > 3 ? 'critical' : overdueCount > 0 ? 'warning' : 'normal'}
+                                previewItems={overdueItems.slice(0, 3).map(r => ({
+                                    id: r.id,
+                                    title: r.id,
+                                    subtitle: `Due: ${new Date(r.dateNeeded!).toLocaleDateString()}`
+                                }))}
+                            />
+                        )}
+
+                        {/* PCF Approval Card */}
+                        {hasPermission('dashboard:widget:pcf_approvals') && (
+                            <DashboardCard
+                                id="pcf-approval"
+                                label="PCF Approval"
+                                value="0"
+                                route="/pcf-approvals"
+                                icon={Wallet}
+                                progress={0}
+                                sparklineData={[0, 0, 0, 0, 0, 0]}
+                                gradientColors={['#64748b', '#475569']}
+                                iconColor="text-slate-400"
+                                sparklineColor="#64748b"
+                            />
+                        )}
+
+                        {/* Ready for PRF Card */}
+                        {hasPermission('dashboard:widget:ready_for_prf') && (
+                            <DashboardCard
+                                id="ready-for-prf"
+                                label="Ready for PRF"
+                                value={forPrfCount.toString()}
+                                route="/prf"
+                                icon={FileText}
+                                progress={Math.min(forPrfCount * 20, 100)}
+                                sparklineData={[2, 4, 6, 3, 5, forPrfCount]}
+                                gradientColors={['#eab308', '#22c55e']}
+                                iconColor="text-yellow-400"
+                                sparklineColor="#eab308"
+                                trendPercent={forPrfCount > 0 ? 8 : 0}
+                                trend={forPrfCount > 2 ? 'up' : 'neutral'}
+                            />
+                        )}
+
+                        {/* Avg Processing Time Card */}
+                        {hasPermission('dashboard:widget:avg_processing') && (
+                            <DashboardCard
+                                id="avg-processing"
+                                label="Avg Days"
+                                value={avgProcessingDays.toString()}
+                                route="/finance"
+                                icon={Timer}
+                                progress={Math.min(100 - avgProcessingDays * 5, 100)}
+                                sparklineData={[12, 10, 8, 9, 7, avgProcessingDays]}
+                                gradientColors={avgProcessingDays < 7 ? ['#22c55e', '#10b981'] : ['#eab308', '#f97316']}
+                                iconColor={avgProcessingDays < 7 ? 'text-emerald-400' : 'text-yellow-400'}
+                                sparklineColor={avgProcessingDays < 7 ? '#22c55e' : '#eab308'}
+                                trendPercent={avgProcessingDays > 0 ? -5 : 0}
+                                trend={avgProcessingDays < 7 ? 'down' : 'up'}
+                            />
+                        )}
+
+                        {/* Completed This Month Card */}
+                        {hasPermission('dashboard:widget:completed_month') && (
+                            <DashboardCard
+                                id="completed-month"
+                                label="Completed"
+                                value={completedThisMonth.toString()}
+                                route="/finance"
+                                icon={CheckCircle2}
+                                progress={Math.min(completedThisMonth * 10, 100)}
+                                sparklineData={[3, 5, 4, 6, completedLastMonth, completedThisMonth]}
+                                gradientColors={['#22c55e', '#10b981']}
+                                iconColor="text-emerald-400"
+                                sparklineColor="#22c55e"
+                                trendPercent={Math.abs(monthlyTrendPercent)}
+                                trend={monthlyTrendPercent > 0 ? 'up' : monthlyTrendPercent < 0 ? 'down' : 'neutral'}
+                            />
+                        )}
+
+                        {/* Total Spend Card with Business Filter */}
+                        {hasPermission('dashboard:widget:total_spend') && (
+                            <DashboardCard
+                                id="total-spend"
+                                label="Spend"
+                                value={`₱${(totalSpend / 1000).toFixed(0)}k`}
+                                route="/finance"
+                                icon={Coins}
+                                progress={85}
+                                sparklineData={[20, 35, 45, 60, 75, 85]}
+                                gradientColors={['#22c55e', '#10b981']}
+                                iconColor="text-emerald-400"
+                                sparklineColor="#22c55e"
+                                trendPercent={12}
+                                trend="up"
+                                filterOptions={businessFilterOptions}
+                                selectedFilter={selectedBU}
+                                onFilterChange={setSelectedBU}
+                            />
+                        )}
+
+                        {/* Top Requesters Card */}
+                        {hasPermission('dashboard:widget:top_requesters') && (
+                            <DashboardCard
+                                id="top-requesters"
+                                label="Top Requester"
+                                value={top5Requesters[0]?.count.toString() || '0'}
+                                route="/settings"
+                                icon={Users}
+                                progress={top5Requesters.length > 0 ? 100 : 0}
+                                sparklineData={top5Requesters.slice(0, 6).map(r => r.count)}
+                                gradientColors={['#8b5cf6', '#a855f7']}
+                                iconColor="text-purple-400"
+                                sparklineColor="#8b5cf6"
+                                breakdown={top5Requesters.map(r => ({
+                                    label: r.name.split(' ')[0],
+                                    count: r.count,
+                                    color: 'text-purple-400'
+                                }))}
+                                previewItems={top5Requesters.slice(0, 3).map(r => ({
+                                    id: r.id,
+                                    title: r.name,
+                                    subtitle: `${r.count} requests`
+                                }))}
+                            />
+                        )}
                     </div>
 
                     <div className={`grid grid-cols-1 ${isApprover ? 'lg:grid-cols-3' : 'lg:grid-cols-1 max-w-4xl mx-auto'} gap-8`}>
-                        {/* Pending Approvals - Only visible to approvers */}
-                        {isApprover && (
+                        {/* Pending Approvals - Only visible with permission */}
+                        {hasPermission('dashboard:section:pending_list') && (
                             <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white">Pending Approvals</h2>
@@ -404,7 +538,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Ready for PRF - Visible to Purchasing Officers */}
-                        {readyForPrfItems.length > 0 && (
+                        {hasPermission('dashboard:section:ready_for_prf_list') && readyForPrfItems.length > 0 && (
                             <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -442,7 +576,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Pending Fund Release - Visible to Finance */}
-                        {pendingFundReleaseItems.length > 0 && (
+                        {hasPermission('dashboard:section:pending_fund_release') && pendingFundReleaseItems.length > 0 && (
                             <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -480,7 +614,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Pending Audit - Visible to Auditors */}
-                        {pendingAuditItems.length > 0 && (
+                        {hasPermission('dashboard:section:pending_audit_list') && pendingAuditItems.length > 0 && (
                             <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -520,79 +654,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     </div>
                 </div>
 
-                {/* Right Sidebar - Quick Actions */}
-                <div className="w-full lg:w-fit flex flex-row lg:flex-col gap-4 overflow-x-auto lg:overflow-visible bg-slate-800/50 lg:bg-transparent backdrop-blur-sm lg:backdrop-blur-none p-4 lg:p-0 rounded-xl lg:rounded-none border border-slate-700/50 lg:border-0 static lg:sticky lg:top-8 scrollbar-hide">
-                    <div className="flex flex-row lg:flex-col gap-4 min-w-max lg:min-w-0">
-                        <button
-                            onClick={() => navigate('/burf')}
-                            className="p-4 rounded-xl bg-slate-800 hover:bg-purple-900/40 border border-slate-600/50 hover:border-purple-500/50 transition-all group relative shrink-0"
-                            title="Create New BURF"
-                        >
-                            <PlusCircle className="w-6 h-6 text-slate-400 group-hover:text-purple-300 transition-transform group-hover:rotate-90" />
-                        </button>
 
-                        <button
-                            onClick={() => navigate('/liquidation')}
-                            className="p-4 rounded-xl bg-slate-800 hover:bg-cyan-900/40 border border-slate-600/50 hover:border-cyan-500/50 transition-all group relative shrink-0"
-                            title="View Liquidations"
-                        >
-                            <Receipt className="w-6 h-6 text-slate-400 group-hover:text-cyan-300 transition-transform group-hover:scale-110" />
-                        </button>
-
-                        {itemsToLiquidateCount > 0 && (
-                            <button
-                                onClick={() => navigate('/liquidation')}
-                                className="p-4 rounded-xl bg-cyan-900/20 hover:bg-cyan-800/40 border border-cyan-500/50 hover:border-cyan-400 transition-all group relative shrink-0"
-                                title={`File Liquidation (${itemsToLiquidateCount} pending)`}
-                            >
-                                <div className="absolute -top-2 -right-2 bg-cyan-500 text-slate-900 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-slate-900">
-                                    {itemsToLiquidateCount}
-                                </div>
-                                <Upload className="w-6 h-6 text-cyan-500 group-hover:text-cyan-300 transition-transform group-hover:-translate-y-1" />
-                            </button>
-                        )}
-
-                        {hasPermission('supplier:view') && (
-                            <button
-                                onClick={() => navigate('/suppliers')}
-                                className="p-4 rounded-xl bg-slate-800 hover:bg-emerald-900/40 border border-slate-600/50 hover:border-emerald-500/50 transition-all group relative shrink-0"
-                                title="Manage Suppliers"
-                            >
-                                <Truck className="w-6 h-6 text-slate-400 group-hover:text-emerald-300 transition-transform group-hover:translate-x-1" />
-                            </button>
-                        )}
-
-                        {hasPermission('finance:release_funds') && (
-                            <button
-                                onClick={() => navigate('/finance')}
-                                className="p-4 rounded-xl bg-slate-800 hover:bg-emerald-900/40 border border-slate-600/50 hover:border-emerald-500/50 transition-all group relative shrink-0"
-                                title="Release Funds"
-                            >
-                                <DollarSign className="w-6 h-6 text-slate-400 group-hover:text-emerald-300 transition-transform group-hover:scale-110" />
-                            </button>
-                        )}
-
-                        {hasPermission('liquidation:audit') && (
-                            <button
-                                onClick={() => navigate('/liquidation')}
-                                className="p-4 rounded-xl bg-slate-800 hover:bg-amber-900/40 border border-slate-600/50 hover:border-amber-500/50 transition-all group relative shrink-0"
-                                title="Audit Liquidations"
-                            >
-                                <Receipt className="w-6 h-6 text-slate-400 group-hover:text-amber-300 transition-transform group-hover:scale-110" />
-                            </button>
-                        )}
-
-                        {hasPermission('admin:manage:users') && (
-                            <button
-                                onClick={() => navigate('/settings')}
-                                className="p-4 rounded-xl bg-slate-800 hover:bg-blue-900/40 border border-slate-600/50 hover:border-blue-500/50 transition-all group relative shrink-0"
-                                title="System Settings"
-                            >
-                                <Settings className="w-6 h-6 text-slate-400 group-hover:text-blue-300 transition-transform group-hover:rotate-90" />
-                            </button>
-                        )}
-                    </div>
-                </div>
             </div>
 
             {

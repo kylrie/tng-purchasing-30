@@ -71,6 +71,22 @@ export const ALL_PERMISSIONS = [
   'ui:view:approvals_page',
   'ui:view:settings_page',
 
+  // Dashboard Widget Visibility
+  'dashboard:widget:pending_approvals',
+  'dashboard:widget:active_prfs',
+  'dashboard:widget:ready_for_prf',
+  'dashboard:widget:total_spend',
+  'dashboard:widget:pending_audit',
+  'dashboard:widget:pcf_approvals',
+  'dashboard:widget:overdue_items',
+  'dashboard:widget:avg_processing',
+  'dashboard:widget:completed_month',
+  'dashboard:widget:top_requesters',
+  'dashboard:section:pending_list',
+  'dashboard:section:ready_for_prf_list',
+  'dashboard:section:pending_fund_release',
+  'dashboard:section:pending_audit_list',
+
 ] as const;
 
 export type Permission = typeof ALL_PERMISSIONS[number];
@@ -107,6 +123,21 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:settings',
     'pcf:view:all',
     'pcf:approve',
+    // Dashboard Widgets
+    'dashboard:widget:pending_approvals',
+    'dashboard:widget:active_prfs',
+    'dashboard:widget:ready_for_prf',
+    'dashboard:widget:total_spend',
+    'dashboard:widget:pending_audit',
+    'dashboard:widget:pcf_approvals',
+    'dashboard:widget:overdue_items',
+    'dashboard:widget:avg_processing',
+    'dashboard:widget:completed_month',
+    'dashboard:widget:top_requesters',
+    'dashboard:section:pending_list',
+    'dashboard:section:ready_for_prf_list',
+    'dashboard:section:pending_fund_release',
+    'dashboard:section:pending_audit_list',
   ],
 
   // High-level approver, global view
@@ -131,6 +162,21 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:pcf_approvals',
     'pcf:view:all',
     'pcf:approve',
+    // Dashboard Widgets
+    'dashboard:widget:pending_approvals',
+    'dashboard:widget:active_prfs',
+    'dashboard:widget:ready_for_prf',
+    'dashboard:widget:total_spend',
+    'dashboard:widget:pending_audit',
+    'dashboard:widget:pcf_approvals',
+    'dashboard:widget:overdue_items',
+    'dashboard:widget:avg_processing',
+    'dashboard:widget:completed_month',
+    'dashboard:widget:top_requesters',
+    'dashboard:section:pending_list',
+    'dashboard:section:ready_for_prf_list',
+    'dashboard:section:pending_fund_release',
+    'dashboard:section:pending_audit_list',
   ],
 
   // View-only global role
@@ -146,6 +192,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:prf',
     'module:view:approved',
     'module:view:liquidation',
+    // Dashboard Widgets
+    'dashboard:widget:active_prfs',
+    'dashboard:widget:total_spend',
   ],
 
   // Approver for their specific business unit
@@ -170,6 +219,17 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:pcf_approvals',
     'pcf:view:all',
     'pcf:approve',
+    // Dashboard Widgets
+    'dashboard:widget:pending_approvals',
+    'dashboard:widget:active_prfs',
+    'dashboard:widget:ready_for_prf',
+    'dashboard:widget:pending_audit',
+    'dashboard:widget:pcf_approvals',
+    'dashboard:widget:overdue_items',
+    'dashboard:widget:avg_processing',
+    'dashboard:widget:completed_month',
+    'dashboard:widget:top_requesters',
+    'dashboard:section:pending_list',
   ],
 
   // Basic user, can only create requests and see their own
@@ -186,6 +246,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:pcf',
     'pcf:view:own',
     'pcf:create',
+    // Dashboard Widgets (limited)
+    'dashboard:widget:pending_audit',
   ],
 
   // Specialist approver with global view
@@ -203,6 +265,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approvals',
     'module:view:approved',
     'module:view:liquidation',
+    // Dashboard Widgets
+    'dashboard:widget:pending_approvals',
+    'dashboard:widget:active_prfs',
+    'dashboard:section:pending_list',
   ],
 
   // Creates PRFs and manages suppliers
@@ -224,6 +290,12 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:liquidation',
     'module:view:suppliers',
     'inventory:manage:uom',
+    // Dashboard Widgets
+    'dashboard:widget:active_prfs',
+    'dashboard:widget:ready_for_prf',
+    'dashboard:widget:total_spend',
+    'dashboard:widget:pending_audit',
+    'dashboard:section:ready_for_prf_list',
   ],
 
   // Handles money, releases funds
@@ -243,6 +315,13 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approved',
     'module:view:finance',
     'module:view:liquidation',
+    // Dashboard Widgets
+    'dashboard:widget:pending_approvals',
+    'dashboard:widget:active_prfs',
+    'dashboard:widget:total_spend',
+    'dashboard:widget:pending_audit',
+    'dashboard:section:pending_list',
+    'dashboard:section:pending_fund_release',
   ],
 
   // Audits liquidations
@@ -260,5 +339,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approvals',
     'module:view:approved',
     'module:view:liquidation',
+    // Dashboard Widgets
+    'dashboard:widget:pending_audit',
+    'dashboard:widget:total_spend',
+    'dashboard:section:pending_audit_list',
   ],
 };

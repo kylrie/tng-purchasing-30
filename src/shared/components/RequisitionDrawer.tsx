@@ -134,6 +134,10 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                         <div className="flex items-center gap-3">
                             <h2 className="text-xl font-bold text-white truncate">{requisition.id}</h2>
                             {getStatusBadge && getStatusBadge(requisition.status)}
+                            {/* URGENT Badge - shows for urgent requisitions */}
+                            {(requisition.isUrgent || requisition.priority === 'URGENT') && (
+                                <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-1.5 py-0.5 rounded-full uppercase border border-red-500/30">Urgent</span>
+                            )}
                         </div>
                         <p className="text-sm text-slate-400 mt-1 truncate">{requisition.description || 'No description'}</p>
                         <p className="text-xs text-slate-500 mt-1">{getTitle()}</p>

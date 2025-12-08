@@ -1,16 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import { usePermissionsContext } from '../../../contexts/PermissionsContext';
 import PermissionsMatrix from '../components/PermissionsMatrix';
 import type { User, Business } from '../../../shared/types';
 import type { Permission } from '../../../config/permissions';
 import { UserRole, UserStatus, SystemRole } from '../../procurement/types';
-import { usePermissions } from '../../../hooks/usePermissions';
 import { useRoleOptions } from '../../../hooks/useRoleOptions';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // Import Layout Components
-import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search, Loader2 } from 'lucide-react';
+import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search, Loader2, Calendar } from 'lucide-react';
 import { AuthService } from '../../../shared/services/auth.service';
+import { SettingsService, type PCFSettings } from '../../../shared/services/settings.service';
 
 interface SettingsViewProps {
     currentUser: User;
@@ -73,6 +74,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     // UOM State
     const [newUOM, setNewUOM] = useState('');
     const [editingUOMIndex, setEditingUOMIndex] = useState<number | null>(null);
+
+    // PCF Settings State
+    const [pcfSettings, setPcfSettings] = useState<PCFSettings>({ deadlineDay: 5 });
+    const [pcfDeadlineDay, setPcfDeadlineDay] = useState(5);
+    const [savingPcfSettings, setSavingPcfSettings] = useState(false);
+
+    // Admin role check helper
+    const isAdmin = currentUser.role === SystemRole.SUPER_ADMIN || currentUser.role === SystemRole.ADMIN;
+    const isStaging = typeof window !== 'undefined' && (window.location.hostname.includes('staging') || window.location.hostname.includes('localhost'));
+
+    // Load PCF Settings on mount
+    useEffect(() => {
+        const loadPcfSettings = async () => {
+            try {
+                const settings = await SettingsService.getPcfSettings();
+                setPcfSettings(settings);
+                setPcfDeadlineDay(settings.deadlineDay);
+            } catch (error) {
+                console.error('Error loading PCF settings:', error);
+            }
+        };
+        if (isAdmin) {
+            loadPcfSettings();
+        }
+    }, [isAdmin]);
 
     // User Handlers
     const handleCreateOrUpdateUser = async () => {
@@ -141,8 +167,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         setNewUserPassword('');
         setEditingUserId(null);
     };
-
-    const isStaging = window.location.hostname.includes('staging') || window.location.hostname.includes('localhost');
 
     // Business Handlers
     const handleSaveBusiness = async () => {
@@ -255,10 +279,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const inputClass = "w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
     const labelClass = "block text-sm font-medium text-slate-300 mb-1";
 
-    // Admin role check helper - only SUPER_ADMIN and ADMIN remain as hardcoded checks
-    // These are SystemRoles, kept for type-safe admin tab visibility
-    const isAdmin = currentUser.role === SystemRole.SUPER_ADMIN || currentUser.role === SystemRole.ADMIN;
-
     return (
         <div className="space-y-6 max-w-7xl animate-in fade-in slide-in-from-bottom-4 pb-10 text-white" >
             {/* Header ... (same as before) */}
@@ -285,6 +305,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <button onClick={() => setActiveTab('users')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'users' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>User Management</button>
                         <button onClick={() => setActiveTab('approvers')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'approvers' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Approver Config</button>
                         <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
+                        <button onClick={() => setActiveTab('pcf')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'pcf' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>PCF Settings</button>
                     </>
                 )}
                 {/* Inventory Tab - Uses permission check (supports dynamic roles) */}
@@ -761,6 +782,104 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                                 </div>
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* PCF Settings Tab */}
+                {
+                    activeTab === 'pcf' && isAdmin && (
+                        <div className={cardClass}>
+                            <h3 className="font-bold text-lg flex items-center gap-2 text-white mb-6">
+                                <Calendar size={20} className="text-purple-400" />
+                                PCF Liquidation Settings
+                            </h3>
+                            <p className="text-slate-400 text-sm mb-6">
+                                Configure the monthly deadline for PCF liquidation submissions. Submissions after this day will be marked as "Late".
+                            </p>
+
+                            <div className="max-w-md space-y-6">
+                                {/* Deadline Day Selector */}
+                                <div>
+                                    <label className={labelClass}>Liquidation Deadline (Day of Month)</label>
+                                    <div className="flex items-center gap-4">
+                                        <select
+                                            value={pcfDeadlineDay}
+                                            onChange={(e) => setPcfDeadlineDay(parseInt(e.target.value))}
+                                            className={inputClass + " max-w-[120px]"}
+                                        >
+                                            {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                                                <option key={day} value={day}>
+                                                    Day {day}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <span className="text-slate-400 text-sm">of every month</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mt-2">
+                                        Current setting: Day <strong className="text-purple-400">{pcfSettings.deadlineDay}</strong>
+                                    </p>
+                                </div>
+
+                                {/* Save Button */}
+                                <div className="flex items-center gap-4">
+                                    <button
+                                        onClick={async () => {
+                                            setSavingPcfSettings(true);
+                                            try {
+                                                await SettingsService.updatePcfSettings(
+                                                    { deadlineDay: pcfDeadlineDay },
+                                                    currentUser.id,
+                                                    currentUser.name
+                                                );
+                                                setPcfSettings({ ...pcfSettings, deadlineDay: pcfDeadlineDay });
+                                                alert('PCF settings saved successfully!');
+                                            } catch (error) {
+                                                console.error('Error saving PCF settings:', error);
+                                                alert('Failed to save settings. Please try again.');
+                                            } finally {
+                                                setSavingPcfSettings(false);
+                                            }
+                                        }}
+                                        disabled={savingPcfSettings || pcfDeadlineDay === pcfSettings.deadlineDay}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                                    >
+                                        {savingPcfSettings ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin" />
+                                                Saving...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Check size={16} />
+                                                Save Changes
+                                            </>
+                                        )}
+                                    </button>
+                                    {pcfDeadlineDay !== pcfSettings.deadlineDay && (
+                                        <span className="text-yellow-400 text-xs">Unsaved changes</span>
+                                    )}
+                                </div>
+
+                                {/* Info Box */}
+                                <div className="p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg mt-6">
+                                    <h4 className="text-sm font-semibold text-blue-300 mb-2">How it works</h4>
+                                    <ul className="text-xs text-blue-200/70 space-y-1">
+                                        <li>• Liquidations submitted <strong>on or before</strong> Day {pcfDeadlineDay} are on time.</li>
+                                        <li>• Liquidations submitted <strong>after</strong> Day {pcfDeadlineDay} are marked as <span className="text-red-400 font-semibold">LATE</span>.</li>
+                                        <li>• Late submissions show how many days past the deadline they were filed.</li>
+                                        <li>• This setting applies to all PCF Custodians.</li>
+                                    </ul>
+                                </div>
+
+                                {/* Last Updated Info */}
+                                {pcfSettings.lastUpdated && (
+                                    <div className="text-xs text-slate-500 mt-4">
+                                        Last updated: {new Date(pcfSettings.lastUpdated).toLocaleString()}
+                                        {pcfSettings.updatedByName && ` by ${pcfSettings.updatedByName}`}
                                     </div>
                                 )}
                             </div>

@@ -2,9 +2,12 @@
 
 /* Custom animations */
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -12,6 +15,25 @@
 
 .animate-pulse {
   animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Fast pulse for critical urgency */
+@keyframes pulse-fast {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.7;
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse-fast {
+  animation: pulse-fast 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 .delay-1000 {
@@ -65,7 +87,6 @@
   background: rgba(147, 51, 234, 0.8);
 }
 
-
 /* Ensure backdrop blur works */
 .backdrop-blur-xl {
   backdrop-filter: blur(24px);
@@ -84,31 +105,111 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* Neon glow effects for dashboard cards */
+.neon-card {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 1rem;
+  transition: all 0.3s ease;
+}
+
+.neon-card:hover {
+  transform: translateY(-2px);
+}
+
+.neon-glow-orange {
+  box-shadow: 0 0 20px rgba(251, 146, 60, 0.25),
+    0 0 40px rgba(251, 146, 60, 0.1),
+    inset 0 1px 0 rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.neon-glow-orange:hover {
+  box-shadow: 0 0 30px rgba(251, 146, 60, 0.35),
+    0 0 60px rgba(251, 146, 60, 0.15),
+    inset 0 1px 0 rgba(251, 146, 60, 0.2);
+}
+
+.neon-glow-blue {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.25),
+    0 0 40px rgba(59, 130, 246, 0.1),
+    inset 0 1px 0 rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.neon-glow-blue:hover {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.35),
+    0 0 60px rgba(59, 130, 246, 0.15),
+    inset 0 1px 0 rgba(59, 130, 246, 0.2);
+}
+
+.neon-glow-green {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.25),
+    0 0 40px rgba(34, 197, 94, 0.1),
+    inset 0 1px 0 rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.neon-glow-green:hover {
+  box-shadow: 0 0 30px rgba(34, 197, 94, 0.35),
+    0 0 60px rgba(34, 197, 94, 0.15),
+    inset 0 1px 0 rgba(34, 197, 94, 0.2);
+}
+
+.neon-glow-amber {
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25),
+    0 0 40px rgba(245, 158, 11, 0.1),
+    inset 0 1px 0 rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.neon-glow-amber:hover {
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.35),
+    0 0 60px rgba(245, 158, 11, 0.15),
+    inset 0 1px 0 rgba(245, 158, 11, 0.2);
+}
+
+.neon-glow-purple {
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.25),
+    0 0 40px rgba(168, 85, 247, 0.1),
+    inset 0 1px 0 rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.3);
+}
+
+.neon-glow-purple:hover {
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.35),
+    0 0 60px rgba(168, 85, 247, 0.15),
+    inset 0 1px 0 rgba(168, 85, 247, 0.2);
+}
+
+/* Neon ring glow filter */
+.neon-ring-glow {
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
 /* Print Styles */
 @media print {
   @page {
     size: auto;
-    margin: 10mm; /* Use reasonable margins */
+    margin: 10mm;
   }
 
-  /* Hide all elements in the body */
   body * {
     visibility: hidden;
   }
 
-  /* Ensure the body and html take up full space */
-  html, body {
+  html,
+  body {
     height: auto;
     overflow: visible;
     background: white;
   }
 
-  /* Make the printable content visible */
-  #printable-content, #printable-content * {
+  #printable-content,
+  #printable-content * {
     visibility: visible;
   }
 
-  /* Position the printable content to fill the page */
   #printable-content {
     position: absolute;
     left: 0;
@@ -117,21 +218,21 @@
     margin: 0;
     padding: 0;
     background-color: white;
-    color: black !important; /* Force black text */
+    color: black !important;
     z-index: 9999;
   }
-  
-  /* Allow page breaks inside the printable content if needed */
+
   #printable-content {
     page-break-inside: auto;
   }
-  
-  /* Avoid breaking inside specific elements like tables or rows if possible */
-  tr, td, th, div {
+
+  tr,
+  td,
+  th,
+  div {
     page-break-inside: avoid;
   }
 
-  /* Hide the modal overlay/backdrop specifically to prevent it from overlaying the content */
   .fixed.inset-0 {
     position: static !important;
     background: none !important;

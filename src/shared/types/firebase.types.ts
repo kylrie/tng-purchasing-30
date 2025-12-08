@@ -98,6 +98,7 @@ export const COLLECTIONS = {
   REQUISITIONS: 'requisitions',
   SUPPLIERS: 'suppliers',
   NOTIFICATIONS: 'notifications',
+  SETTINGS: 'settings',
 } as const;
 
 // Query constraints type

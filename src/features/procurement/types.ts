@@ -253,6 +253,7 @@ export interface Requisition {
   remarks?: string; // General remarks
   dateNeeded?: string; // Date needed for the request
   priority?: 'NORMAL' | 'URGENT'; // Priority level
+  isUrgent?: boolean; // Auto-calculated: true if dateNeeded < 5 days from filing
   attachments?: string[]; // Array of attachment links
   prfIdentifier?: string; // Custom identifier for PRFs
   parentBurfId?: string; // Link to parent BURF for batch PRF tracking

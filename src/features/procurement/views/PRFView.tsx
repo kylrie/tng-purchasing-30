@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil } from 'lucide-react';
+import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil, Loader2 } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -77,6 +77,9 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     const [attachmentLink, setAttachmentLink] = useState(initialData?.attachments?.[0] || '');
     const [customId, setCustomId] = useState('');
     const { hasPermission } = usePermissions();
+
+    // Submission loading state to prevent double-clicks
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Allow business unit selection if user has global access OR multiple business units
     const userBusinessUnits = currentUser.businessUnitIds || [];
@@ -165,60 +168,72 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
             }
         }
 
-        const prfId = initialData?.id || customId || await CounterService.generatePRFId();
+        // Prevent duplicate submissions
+        if (isSubmitting) return;
+        setIsSubmitting(true);
 
-        // FIX C6: Sanitize all user-generated content before saving to Firestore
-        const sanitizedSupplierDetails: SupplierDetails = {
-            name: sanitizeText(supplierDetails.name),
-            tin: sanitizeText(supplierDetails.tin),
-            address: sanitizeText(supplierDetails.address),
-            paymentMode: supplierDetails.paymentMode, // From dropdown, safe
-            terms: sanitizeText(supplierDetails.terms),
-            isVatable: supplierDetails.isVatable,
-            bankDetails: supplierDetails.bankDetails
-        };
+        try {
 
-        // Set status based on isDraft flag
-        const status = isDraft ? RequisitionStatus.DRAFT : RequisitionStatus.PRF_PENDING_MANAGER;
+            const prfId = initialData?.id || customId || await CounterService.generatePRFId();
 
-        const baseReq: any = {
-            id: prfId,
-            requesterId: currentUser.id,
-            // Denormalized user info - stored directly for fast reading without lookups
-            requesterName: currentUser.name,
-            requesterPhotoUrl: currentUser.avatar || '',
-            businessId: selectedBusinessId,
-            externalLink: attachmentLink && isValidUrl(attachmentLink) ? attachmentLink : undefined, // Store as dedicated field
-            items: sanitizeItems(newItems), // FIX C6: Sanitize item names/remarks
-            totalAmount: newItems.reduce((sum, item) => {
-                // FIX: Edge case - prevent NaN from undefined/null prices
-                const qty = item.quantity || 0;
-                const price = item.price || 0;
-                return sum + (qty * price);
-            }, 0),
-            status: status,
-            dateCreated: new Date().toISOString().split('T')[0],
-            description: sanitizeText(description), // FIX C6: Sanitize
-            remarks: sanitizeText(remarks), // FIX C6: Sanitize
-            // FIX BUG 8: Validate URL before storing to prevent malicious links
-            attachments: attachmentLink && isValidUrl(attachmentLink) ? [attachmentLink] : [],
-            prfDetails: {
-                supplier: sanitizedSupplierDetails, // FIX C6: Use sanitized supplier
-                preparedBy: currentUser.id,
-                preparedByName: currentUser.name, // Denormalized for display
-                datePrepared: new Date().toISOString(),
+            // FIX C6: Sanitize all user-generated content before saving to Firestore
+            const sanitizedSupplierDetails: SupplierDetails = {
+                name: sanitizeText(supplierDetails.name),
+                tin: sanitizeText(supplierDetails.tin),
+                address: sanitizeText(supplierDetails.address),
+                paymentMode: supplierDetails.paymentMode, // From dropdown, safe
+                terms: sanitizeText(supplierDetails.terms),
+                isVatable: supplierDetails.isVatable,
+                bankDetails: supplierDetails.bankDetails
+            };
+
+            // Set status based on isDraft flag
+            const status = isDraft ? RequisitionStatus.DRAFT : RequisitionStatus.PRF_PENDING_MANAGER;
+
+            const baseReq: any = {
+                id: prfId,
+                requesterId: currentUser.id,
+                // Denormalized user info - stored directly for fast reading without lookups
+                requesterName: currentUser.name,
+                requesterPhotoUrl: currentUser.avatar || '',
+                businessId: selectedBusinessId,
+                externalLink: attachmentLink && isValidUrl(attachmentLink) ? attachmentLink : undefined, // Store as dedicated field
+                items: sanitizeItems(newItems), // FIX C6: Sanitize item names/remarks
+                totalAmount: newItems.reduce((sum, item) => {
+                    // FIX: Edge case - prevent NaN from undefined/null prices
+                    const qty = item.quantity || 0;
+                    const price = item.price || 0;
+                    return sum + (qty * price);
+                }, 0),
+                status: status,
+                dateCreated: new Date().toISOString().split('T')[0],
+                description: sanitizeText(description), // FIX C6: Sanitize
+                remarks: sanitizeText(remarks), // FIX C6: Sanitize
+                // FIX BUG 8: Validate URL before storing to prevent malicious links
+                attachments: attachmentLink && isValidUrl(attachmentLink) ? [attachmentLink] : [],
+                prfDetails: {
+                    supplier: sanitizedSupplierDetails, // FIX C6: Use sanitized supplier
+                    preparedBy: currentUser.id,
+                    preparedByName: currentUser.name, // Denormalized for display
+                    datePrepared: new Date().toISOString(),
+                    timestamp: new Date().toISOString(),
+                    designatedApproverId: designatedApproverId
+                },
                 timestamp: new Date().toISOString(),
-                designatedApproverId: designatedApproverId
-            },
-            timestamp: new Date().toISOString(),
-        };
+            };
 
-        if (initialData && onUpdate) {
-            onUpdate({ ...initialData, ...baseReq });
-        } else if (onCreateRequisition) {
-            onCreateRequisition(baseReq);
+            if (initialData && onUpdate) {
+                onUpdate({ ...initialData, ...baseReq });
+            } else if (onCreateRequisition) {
+                onCreateRequisition(baseReq);
+            }
+            onCancel();
+        } catch (error: any) {
+            console.error('Error saving PRF:', error);
+            alert(`Failed to save PRF: ${error.message || 'Unknown error'}`);
+        } finally {
+            setIsSubmitting(false);
         }
-        onCancel();
     };
 
     return (
@@ -430,18 +445,21 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                     {/* Save as Draft button - no validation required */}
                     <button
                         onClick={() => handleSubmit(true)}
-                        className="border border-slate-600 text-slate-300 px-4 py-2 rounded font-medium hover:bg-slate-700 hover:text-white flex items-center gap-2"
+                        disabled={isSubmitting}
+                        className="border border-slate-600 text-slate-300 px-4 py-2 rounded font-medium hover:bg-slate-700 hover:text-white flex items-center gap-2 disabled:opacity-50"
                     >
-                        <Save size={16} /> Save as Draft
+                        {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        {isSubmitting ? 'Saving...' : 'Save as Draft'}
                     </button>
 
                     {/* Submit for Approval button - full validation enforced */}
                     <button
                         onClick={() => handleSubmit(false)}
-                        disabled={(createNewSupplier ? !supplierDetails.name || !supplierDetails.paymentMode : !selectedSupplierId) || newItems.length === 0}
+                        disabled={(createNewSupplier ? !supplierDetails.name || !supplierDetails.paymentMode : !selectedSupplierId) || newItems.length === 0 || isSubmitting}
                         className="bg-purple-600 text-white px-4 py-2 rounded font-medium hover:bg-purple-700 disabled:opacity-50 flex items-center gap-2"
                     >
-                        <Save size={16} /> {initialData ? 'Update PRF' : 'Submit for Approval'}
+                        {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        {isSubmitting ? 'Processing...' : (initialData ? 'Update PRF' : 'Submit for Approval')}
                     </button>
                 </div>
             </Card >
@@ -626,10 +644,12 @@ export const PrfView: React.FC<PrfViewProps> = ({
     }, [visibleRequisitions]);
 
     // Tab 3: "For Liquidation" - Funds released, awaiting liquidation docs
+    // PCF Replenishments (identified by linkedPcfId) are EXCLUDED - they don't need liquidation
     const liquidationReqs = useMemo(() => {
         return visibleRequisitions.filter(r =>
             r.status === RequisitionStatus.FUNDS_RELEASED &&
-            r.prfDetails // Only PRFs
+            r.prfDetails && // Only PRFs
+            !r.linkedPcfId // Exclude PCF Replenishments - they go straight to History
         );
     }, [visibleRequisitions]);
 
@@ -898,10 +918,17 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                         <td className="px-6 py-4 text-slate-200 max-w-[200px] truncate\" title={req.description}>{req.description || '-'}</td>
                                         <td className="px-6 py-4 text-slate-400">{req.items.length} items</td>
                                         {/* Date Needed - safe formatting handles Timestamps and ISO strings */}
-                                        <td className="px-6 py-4 text-purple-400 text-xs">
-                                            {formatSafeDate(req.dateNeeded) !== '-'
-                                                ? formatSafeDate(req.dateNeeded)
-                                                : formatSafeDate(req.dateCreated)}
+                                        <td className="px-6 py-4 text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-purple-400">
+                                                    {formatSafeDate(req.dateNeeded) !== '-'
+                                                        ? formatSafeDate(req.dateNeeded)
+                                                        : formatSafeDate(req.dateCreated)}
+                                                </span>
+                                                {(req.isUrgent || req.priority === 'URGENT') && (
+                                                    <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-1.5 py-0.5 rounded-full uppercase">Urgent</span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1">

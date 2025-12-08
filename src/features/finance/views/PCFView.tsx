@@ -320,7 +320,14 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                                             {formatCurrency(liq.totalAmount)}
                                         </td>
                                         <td className="px-4 py-3">
-                                            {getStatusBadge(liq.status)}
+                                            <div className="flex items-center gap-2">
+                                                {getStatusBadge(liq.status)}
+                                                {liq.isLate && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+                                                        LATE {liq.daysLate ? `(+${liq.daysLate}d)` : ''}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 font-mono text-xs text-purple-400">
                                             {liq.replenishmentPrfId || '-'}
@@ -370,6 +377,11 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                     <Receipt size={20} className="text-purple-400" />
                                     Liquidation Details
+                                    {selectedLiquidation.isLate && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+                                            LATE {selectedLiquidation.daysLate ? `(+${selectedLiquidation.daysLate}d)` : ''}
+                                        </span>
+                                    )}
                                 </h2>
                                 <p className="text-sm text-slate-400 mt-1">
                                     {new Date(selectedLiquidation.dateCreated).toLocaleDateString('en-US', {
@@ -390,11 +402,32 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
 
                         {/* Body - Scrollable */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+                            {/* Late Submission Warning */}
+                            {selectedLiquidation.isLate && (
+                                <div className="bg-red-900/20 border border-red-700/50 rounded-lg p-4 flex items-start gap-3">
+                                    <AlertTriangle size={20} className="text-red-400 shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-medium text-red-400">Late Submission</p>
+                                        <p className="text-xs text-red-300/70 mt-1">
+                                            This liquidation was submitted {selectedLiquidation.daysLate} day{selectedLiquidation.daysLate !== 1 ? 's' : ''} after the deadline
+                                            (Day {selectedLiquidation.deadlineDay} of the month).
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Status & Summary Cards */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                                     <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">Status</p>
-                                    {getStatusBadge(selectedLiquidation.status)}
+                                    <div className="flex items-center gap-2">
+                                        {getStatusBadge(selectedLiquidation.status)}
+                                        {selectedLiquidation.isLate && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/20 text-red-400">
+                                                LATE
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
                                     <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">Total Amount</p>

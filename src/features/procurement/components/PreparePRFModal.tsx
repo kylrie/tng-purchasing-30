@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Check, ArrowLeft } from 'lucide-react';
+import { Check, ArrowLeft, Loader2 } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails, User } from '../types';
 import { RequisitionStatus } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
@@ -53,6 +53,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
     const [prfIdentifier, setPrfIdentifier] = useState(requisition.prfIdentifier || '');
     const [designatedApproverId, setDesignatedApproverId] = useState(requisition.prfDetails?.designatedApproverId || '');
+
+    // Submission loading state to prevent double-clicks
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Filter list of eligible approvers
     const eligibleApprovers = users.filter(u => u.isApprover);
@@ -118,6 +121,10 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     };
 
     const handleSubmit = async () => {
+        // Prevent duplicate submissions
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
         try {
             const selectedItems = items.filter(item => selectedItemIds.has(item.itemId));
             const unselectedItems = items.filter(item => !selectedItemIds.has(item.itemId));
@@ -198,6 +205,8 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             // Show user-friendly message with actual error detail
             const errorMessage = error?.message || "Unknown error occurred";
             alert(`Failed to submit PRF: ${errorMessage}`);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -412,13 +421,17 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                             </div>
                             <button
                                 onClick={handleSubmit}
-                                disabled={!isValid()}
-                                className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${isValid()
+                                disabled={!isValid() || isSubmitting}
+                                className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${isValid() && !isSubmitting
                                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                                     : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                                     }`}
                             >
-                                <Check size={18} /> {requisition.prfDetails ? 'Update PRF' : 'Submit PRF'}
+                                {isSubmitting ? (
+                                    <><Loader2 size={18} className="animate-spin" /> Processing...</>
+                                ) : (
+                                    <><Check size={18} /> {requisition.prfDetails ? 'Update PRF' : 'Submit PRF'}</>
+                                )}
                             </button>
                         </div>
                     </div>

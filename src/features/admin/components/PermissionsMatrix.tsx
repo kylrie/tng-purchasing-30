@@ -111,6 +111,18 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   // Deprecated / UI
   'ui:view:approvals_page': { label: 'View Approvals Page (Legacy)', category: 'Legacy / UI' },
   'ui:view:settings_page': { label: 'View Settings Page (Legacy)', category: 'Legacy / UI' },
+
+  // Dashboard Widget Visibility
+  'dashboard:widget:pending_approvals': { label: 'Pending Approvals Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:active_prfs': { label: 'Active PRFs Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:ready_for_prf': { label: 'Ready for PRF Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:total_spend': { label: 'Total Spend Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:pending_audit': { label: 'Pending Audit Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:pcf_approvals': { label: 'PCF Approvals Card', category: 'Dashboard Widgets' },
+  'dashboard:section:pending_list': { label: 'Pending Approvals List', category: 'Dashboard Widgets' },
+  'dashboard:section:ready_for_prf_list': { label: 'Ready for PRF List', category: 'Dashboard Widgets' },
+  'dashboard:section:pending_fund_release': { label: 'Pending Fund Release List', category: 'Dashboard Widgets' },
+  'dashboard:section:pending_audit_list': { label: 'Pending Audit List', category: 'Dashboard Widgets' },
 };
 
 // Default roles that cannot be deleted (system + original business roles)

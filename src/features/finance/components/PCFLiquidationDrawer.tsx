@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Plus, Trash2, Calendar, Receipt, FileText, Link as LinkIcon, AlertTriangle, CheckCircle, Edit3 } from 'lucide-react';
+import { X, Plus, Trash2, Calendar, Receipt, FileText, Link as LinkIcon, AlertTriangle, CheckCircle, Edit3, Clock } from 'lucide-react';
 import type { PCFExpenseItem, ExpenseClassification } from '../services/pcf.service';
 import { EXPENSE_CLASSIFICATIONS } from '../services/pcf.service';
+import { SettingsService } from '../../../shared/services/settings.service';
 
 interface PCFLiquidationDrawerProps {
     isOpen: boolean;
@@ -65,6 +66,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
     const [remarks, setRemarks] = useState('');
     const [submitting, setSubmitting] = useState(false);
     const [savingDraft, setSavingDraft] = useState(false);
+    const [deadlineInfo, setDeadlineInfo] = useState<{ deadlineDay: number; isLate: boolean; daysLate: number; expenseMonthName?: string } | null>(null);
 
     // Initialize form when editing existing liquidation
     useEffect(() => {
@@ -88,6 +90,45 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
         const netAmount = totalAmount - totalEwt + totalVat;
         return { totalAmount, totalVat, totalEwt, netAmount };
     }, [expenses]);
+
+    // Calculate deadline info based on expense dates
+    useEffect(() => {
+        const calculateDeadline = async () => {
+            try {
+                const settings = await SettingsService.getPcfSettings();
+                const now = new Date();
+
+                // Get expense dates from current expenses
+                const expenseDates = expenses.map(e => e.date).filter(Boolean);
+
+                if (expenseDates.length > 0) {
+                    // Use expense-based calculation
+                    const { isLate, daysLate, expenseMonth } = SettingsService.calculateLatenessFromExpenses(
+                        now,
+                        expenseDates,
+                        settings.deadlineDay
+                    );
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+                    setDeadlineInfo({
+                        deadlineDay: settings.deadlineDay,
+                        isLate,
+                        daysLate,
+                        expenseMonthName: monthNames[expenseMonth]
+                    });
+                } else {
+                    // Fallback: use simple current-month check
+                    const { isLate, daysLate } = SettingsService.calculateLateness(now, settings.deadlineDay);
+                    setDeadlineInfo({ deadlineDay: settings.deadlineDay, isLate, daysLate });
+                }
+            } catch (error) {
+                console.error('Error calculating deadline:', error);
+            }
+        };
+        if (isOpen) {
+            calculateDeadline();
+        }
+    }, [isOpen, expenses]);
 
     // Check if exceeds available cash
     const exceedsCashOnHand = totals.totalAmount > cashOnHand;
@@ -424,6 +465,28 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                 <p className="text-red-400 text-sm mt-1">
                                     Total ({formatCurrency(totals.totalAmount)}) exceeds your available cash on hand ({formatCurrency(cashOnHand)}).
                                     Please reduce expenses or wait for pending liquidations to be replenished.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Late Submission Warning */}
+                    {deadlineInfo?.isLate && !editingId && (
+                        <div className="p-4 bg-yellow-900/30 border border-yellow-700/50 rounded-lg flex items-start gap-3">
+                            <Clock size={20} className="text-yellow-400 mt-0.5 flex-shrink-0" />
+                            <div>
+                                <p className="text-yellow-300 font-medium">Past Deadline Submission</p>
+                                <p className="text-yellow-400/80 text-sm mt-1">
+                                    {deadlineInfo.expenseMonthName ? (
+                                        <>
+                                            <strong>{deadlineInfo.expenseMonthName}</strong> expenses were due by <strong>Day {deadlineInfo.deadlineDay}</strong> of the following month.
+                                        </>
+                                    ) : (
+                                        <>
+                                            You are submitting past the deadline (Day {deadlineInfo.deadlineDay}).
+                                        </>
+                                    )}
+                                    {' '}This liquidation will be permanently marked as <strong className="text-red-400">LATE (+{deadlineInfo.daysLate} days)</strong>.
                                 </p>
                             </div>
                         </div>

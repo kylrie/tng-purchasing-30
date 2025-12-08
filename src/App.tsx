@@ -149,7 +149,7 @@ function ProtectedApp() {
   return (
     <Layout {...layoutProps}>
       <Routes>
-        <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
+        <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
 
         <Route path="/burf" element={
           <BurfView
