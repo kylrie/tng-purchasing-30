@@ -11,7 +11,7 @@ import { usePermissions } from '../../../hooks/usePermissions';
 // Import Layout Components
 import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search, Loader2, Calendar } from 'lucide-react';
 import { AuthService } from '../../../shared/services/auth.service';
-import { SettingsService, type PCFSettings } from '../../../shared/services/settings.service';
+import { SettingsService, type PCFSettings, type ApproverAssignments } from '../../../shared/services/settings.service';
 
 interface SettingsViewProps {
     currentUser: User;
@@ -80,23 +80,31 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [pcfDeadlineDay, setPcfDeadlineDay] = useState(5);
     const [savingPcfSettings, setSavingPcfSettings] = useState(false);
 
+    // Workflow Approver Assignments State
+    const [approverAssignments, setApproverAssignments] = useState<ApproverAssignments>({});
+    const [savingApproverAssignments, setSavingApproverAssignments] = useState(false);
+
     // Admin role check helper
     const isAdmin = currentUser.role === SystemRole.SUPER_ADMIN || currentUser.role === SystemRole.ADMIN;
     const isStaging = typeof window !== 'undefined' && (window.location.hostname.includes('staging') || window.location.hostname.includes('localhost'));
 
-    // Load PCF Settings on mount
+    // Load PCF Settings and Approver Assignments on mount
     useEffect(() => {
-        const loadPcfSettings = async () => {
+        const loadSettings = async () => {
             try {
-                const settings = await SettingsService.getPcfSettings();
-                setPcfSettings(settings);
-                setPcfDeadlineDay(settings.deadlineDay);
+                const [pcf, approvers] = await Promise.all([
+                    SettingsService.getPcfSettings(),
+                    SettingsService.getApproverAssignments()
+                ]);
+                setPcfSettings(pcf);
+                setPcfDeadlineDay(pcf.deadlineDay);
+                setApproverAssignments(approvers);
             } catch (error) {
-                console.error('Error loading PCF settings:', error);
+                console.error('Error loading settings:', error);
             }
         };
         if (isAdmin) {
-            loadPcfSettings();
+            loadSettings();
         }
     }, [isAdmin]);
 
@@ -225,6 +233,109 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const handlePermissionsSave = ({ permissions, roles }: { permissions: Record<UserRole, Permission[]>, roles: UserRole[] }) => {
         updatePermissions(permissions);
         updateRoles(roles);
+    };
+
+    // Handler for saving workflow approver assignments
+    const handleSaveApproverAssignments = async () => {
+        setSavingApproverAssignments(true);
+        try {
+            await SettingsService.updateApproverAssignments(
+                approverAssignments,
+                currentUser.id,
+                currentUser.name
+            );
+            alert('Workflow assignments saved successfully!');
+        } catch (error) {
+            console.error('Error saving approver assignments:', error);
+            alert('Failed to save workflow assignments. Please try again.');
+        } finally {
+            setSavingApproverAssignments(false);
+        }
+    };
+
+    // Helper to update single-user assignments (GM, CFO)
+    const updateSingleApprover = (role: 'gm' | 'cfo', userId: string) => {
+        const user = allUsers.find(u => u.id === userId);
+        setApproverAssignments(prev => ({
+            ...prev,
+            [`${role}Uid`]: userId || undefined,
+            [`${role}Name`]: user?.name || undefined,
+        }));
+    };
+
+    // Helper to add a Finance Head with BU assignments
+    const addFinanceHead = (userId: string, businessUnitIds: string[]) => {
+        const user = allUsers.find(u => u.id === userId);
+        if (!user || businessUnitIds.length === 0) return;
+
+        setApproverAssignments(prev => ({
+            ...prev,
+            financeHeads: [
+                ...(prev.financeHeads || []).filter(fh => fh.userId !== userId),
+                { userId, userName: user.name, businessUnitIds }
+            ]
+        }));
+    };
+
+    // Helper to remove a Finance Head
+    const removeFinanceHead = (userId: string) => {
+        setApproverAssignments(prev => ({
+            ...prev,
+            financeHeads: (prev.financeHeads || []).filter(fh => fh.userId !== userId)
+        }));
+    };
+
+    // Helper to add a BOD approver
+    const addBodApprover = (userId: string) => {
+        const user = allUsers.find(u => u.id === userId);
+        if (!user) return;
+
+        setApproverAssignments(prev => ({
+            ...prev,
+            bodApprovers: [
+                ...(prev.bodApprovers || []).filter(bod => bod.userId !== userId),
+                { userId, userName: user.name }
+            ]
+        }));
+    };
+
+    // Helper to remove a BOD approver
+    const removeBodApprover = (userId: string) => {
+        setApproverAssignments(prev => ({
+            ...prev,
+            bodApprovers: (prev.bodApprovers || []).filter(bod => bod.userId !== userId)
+        }));
+    };
+
+    // State for new Finance Head form
+    const [newFinanceHeadUserId, setNewFinanceHeadUserId] = React.useState('');
+    const [newFinanceHeadBUs, setNewFinanceHeadBUs] = React.useState<string[]>([]);
+
+    // State for new BOD form  
+    const [newBodUserId, setNewBodUserId] = React.useState('');
+
+    // UI Handlers for Workflow Assignments
+    const handleAddFinanceHead = () => {
+        if (newFinanceHeadUserId && newFinanceHeadBUs.length > 0) {
+            addFinanceHead(newFinanceHeadUserId, newFinanceHeadBUs);
+            setNewFinanceHeadUserId('');
+            setNewFinanceHeadBUs([]);
+        }
+    };
+
+    const toggleFinanceHeadBU = (bizId: string) => {
+        setNewFinanceHeadBUs(prev =>
+            prev.includes(bizId)
+                ? prev.filter(id => id !== bizId)
+                : [...prev, bizId]
+        );
+    };
+
+    const handleAddBodApprover = () => {
+        if (newBodUserId) {
+            addBodApprover(newBodUserId);
+            setNewBodUserId('');
+        }
     };
 
     // UOM Handlers
@@ -665,60 +776,247 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 {/* New Approvers Configuration Tab */}
                 {
                     activeTab === 'approvers' && hasPermission('admin:manage:users') && (
-                        <div className={cardClass}>
-                            <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Sliders size={20} className="text-blue-400" /> Approver Configuration</h3>
-                            <p className="text-slate-400 text-sm mb-6">
-                                Designate users who are authorized to approve Direct PRFs. Only users selected here will appear in the approver dropdown when creating/editing a PRF.
-                            </p>
+                        <div className="space-y-6">
+                            {/* Workflow Role Assignments Section */}
+                            <div className={cardClass}>
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white">
+                                    <Shield size={20} className="text-purple-400" /> Workflow Role Assignments
+                                </h3>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    Assign specific users to key workflow approval roles. These users will be the designated approvers for their respective stages in the 7-step PRF approval process.
+                                </p>
 
-                            <div className="overflow-x-auto border border-slate-700 rounded-lg max-h-[600px] overflow-y-auto">
-                                <table className="w-full text-left text-sm text-slate-300">
-                                    <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs sticky top-0 z-10 backdrop-blur-md">
-                                        <tr>
-                                            <th className="p-3">User</th>
-                                            <th className="p-3">Role</th>
-                                            <th className="p-3">Business Unit</th>
-                                            <th className="p-3 text-center">Is Approver</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-700">
-                                        {allUsers.map(user => (
-                                            <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
-                                                <td className="p-3">
-                                                    <div className="font-medium text-white">{user.name}</div>
-                                                    <div className="text-xs text-slate-500">{user.email}</div>
-                                                </td>
-                                                <td className="p-3">
-                                                    <span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{user.role.replace(/_/g, ' ')}</span>
-                                                </td>
-                                                <td className="p-3 text-slate-400">
-                                                    {businesses.find(b => b.id === user.businessId)?.name || 'N/A'}
-                                                </td>
-                                                <td className="p-3 text-center">
-                                                    <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                                                        <input
-                                                            type="checkbox"
-                                                            name={`toggle-${user.id}`}
-                                                            id={`toggle-${user.id}`}
-                                                            className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                                                            checked={!!user.isApprover}
-                                                            onChange={() => toggleApproverStatus(user)}
-                                                            style={{
-                                                                right: user.isApprover ? '0' : 'auto',
-                                                                left: user.isApprover ? 'auto' : '0',
-                                                                borderColor: user.isApprover ? '#9333ea' : '#4b5563'
-                                                            }}
-                                                        />
-                                                        <label
-                                                            htmlFor={`toggle-${user.id}`}
-                                                            className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${user.isApprover ? 'bg-purple-600' : 'bg-slate-600'}`}
-                                                        ></label>
+                                <div className="space-y-6 mb-6">
+                                    {/* 1. Finance Head (BU Specific) - Step 3 */}
+                                    <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <label className={labelClass}>Finance Head (BU Specific)</label>
+                                                <p className="text-xs text-slate-500">Approves Step 3: Budget Review</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Current Assignments */}
+                                        <div className="space-y-2 mb-4">
+                                            {approverAssignments.financeHeads?.map((fh, idx) => (
+                                                <div key={idx} className="flex items-center justify-between bg-slate-700/50 p-2 rounded text-sm text-slate-300">
+                                                    <div>
+                                                        <span className="font-bold text-white mr-2">{fh.userName}</span>
+                                                        <span className="text-xs text-slate-400">
+                                                            Handles: {fh.businessUnitIds.map(bid => businesses.find(b => b.id === bid)?.name || bid).join(', ')}
+                                                        </span>
                                                     </div>
-                                                </td>
+                                                    <button
+                                                        onClick={() => removeFinanceHead(fh.userId)}
+                                                        className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-slate-600 transition-colors"
+                                                        title="Remove Assignment"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {(!approverAssignments.financeHeads || approverAssignments.financeHeads.length === 0) && (
+                                                <div className="text-xs text-slate-500 italic p-2">No Finance Heads assigned yet.</div>
+                                            )}
+                                        </div>
+
+                                        {/* Add Form */}
+                                        <div className="bg-slate-900/50 p-3 rounded border border-slate-700/50">
+                                            <div className="flex flex-col gap-3">
+                                                <select
+                                                    className={inputClass}
+                                                    value={newFinanceHeadUserId}
+                                                    onChange={e => setNewFinanceHeadUserId(e.target.value)}
+                                                >
+                                                    <option value="">-- Select User to Assign --</option>
+                                                    {allUsers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                                                </select>
+
+                                                <div className="text-xs text-slate-400 font-medium px-1">Select Business Units:</div>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1">
+                                                    {businesses.map(b => (
+                                                        <label key={b.id} className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer hover:text-white select-none">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={newFinanceHeadBUs.includes(b.id)}
+                                                                onChange={() => toggleFinanceHeadBU(b.id)}
+                                                                className="rounded border-slate-600 bg-slate-700 focus:ring-purple-500 w-3.5 h-3.5"
+                                                            />
+                                                            {b.name}
+                                                        </label>
+                                                    ))}
+                                                </div>
+
+                                                <button
+                                                    onClick={handleAddFinanceHead}
+                                                    disabled={!newFinanceHeadUserId || newFinanceHeadBUs.length === 0}
+                                                    className="self-end bg-purple-600 text-white px-3 py-1.5 rounded text-xs flex items-center gap-1.5 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+                                                >
+                                                    <Plus size={14} /> Add Assignment
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. Single Approvers Row (GM & CFO) */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {/* General Manager */}
+                                        <div>
+                                            <label className={labelClass}>General Manager</label>
+                                            <select
+                                                className={inputClass}
+                                                value={approverAssignments.gmUid || ''}
+                                                onChange={(e) => updateSingleApprover('gm', e.target.value)}
+                                            >
+                                                <option value="">-- Select General Manager --</option>
+                                                {allUsers.map(user => (
+                                                    <option key={user.id} value={user.id}>
+                                                        {user.name} ({user.role.replace(/_/g, ' ')})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="text-xs text-slate-500 mt-1">Approves Step 2 (if ≥₱50k) and Step 4: Final Budget</p>
+                                        </div>
+
+                                        {/* CFO Approver (Renamed from BOD Approver) */}
+                                        <div>
+                                            <label className={labelClass}>CFO Approver</label>
+                                            <select
+                                                className={inputClass}
+                                                value={approverAssignments.cfoUid || ''}
+                                                onChange={(e) => updateSingleApprover('cfo', e.target.value)}
+                                            >
+                                                <option value="">-- Select CFO --</option>
+                                                {allUsers.map(user => (
+                                                    <option key={user.id} value={user.id}>
+                                                        {user.name} ({user.role.replace(/_/g, ' ')})
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="text-xs text-slate-500 mt-1">Approves Step 5: CFO Approval</p>
+                                        </div>
+                                    </div>
+
+                                    {/* 3. BOD Approvers (Multiple) - Step 6 */}
+                                    <div className="bg-slate-800/50 p-4 rounded-lg border border-slate-700">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <label className={labelClass}>BOD Approvers (Multiple)</label>
+                                                <p className="text-xs text-slate-500">Approves Step 6: Board Approval</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Current BOD Approvers */}
+                                        <div className="space-y-2 mb-4">
+                                            {approverAssignments.bodApprovers?.map((bod, idx) => (
+                                                <div key={idx} className="flex items-center justify-between bg-slate-700/50 p-2 rounded text-sm text-slate-300 max-w-md">
+                                                    <span className="font-bold text-white ml-1">{bod.userName}</span>
+                                                    <button
+                                                        onClick={() => removeBodApprover(bod.userId)}
+                                                        className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-slate-600 transition-colors"
+                                                        title="Remove Approver"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {(!approverAssignments.bodApprovers || approverAssignments.bodApprovers.length === 0) && (
+                                                <div className="text-xs text-slate-500 italic p-2">No BOD Approvers assigned yet.</div>
+                                            )}
+                                        </div>
+
+                                        {/* Add BOD Form */}
+                                        <div className="flex gap-2 max-w-md">
+                                            <select
+                                                className={inputClass}
+                                                value={newBodUserId}
+                                                onChange={e => setNewBodUserId(e.target.value)}
+                                            >
+                                                <option value="">-- Select User to Add --</option>
+                                                {allUsers.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role})</option>)}
+                                            </select>
+                                            <button
+                                                onClick={handleAddBodApprover}
+                                                disabled={!newBodUserId}
+                                                className="bg-purple-600 text-white px-3 py-1 rounded text-xs flex items-center gap-1 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap font-medium"
+                                            >
+                                                <Plus size={14} /> Add User
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={handleSaveApproverAssignments}
+                                        disabled={savingApproverAssignments}
+                                        className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {savingApproverAssignments ? (
+                                            <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                                        ) : (
+                                            <><Check size={16} /> Save Assignments</>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Existing Direct PRF Approvers Table */}
+                            <div className={cardClass}>
+                                <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Sliders size={20} className="text-blue-400" /> Direct PRF Approvers</h3>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    Designate users who are authorized to approve Direct PRFs. Only users selected here will appear in the approver dropdown when creating/editing a PRF.
+                                </p>
+
+                                <div className="overflow-x-auto border border-slate-700 rounded-lg max-h-[600px] overflow-y-auto">
+                                    <table className="w-full text-left text-sm text-slate-300">
+                                        <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs sticky top-0 z-10 backdrop-blur-md">
+                                            <tr>
+                                                <th className="p-3">User</th>
+                                                <th className="p-3">Role</th>
+                                                <th className="p-3">Business Unit</th>
+                                                <th className="p-3 text-center">Is Approver</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-700">
+                                            {allUsers.map(user => (
+                                                <tr key={user.id} className="hover:bg-slate-800/50 transition-colors">
+                                                    <td className="p-3">
+                                                        <div className="font-medium text-white">{user.name}</div>
+                                                        <div className="text-xs text-slate-500">{user.email}</div>
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <span className="bg-slate-700 text-white text-xs px-2 py-1 rounded-full">{user.role.replace(/_/g, ' ')}</span>
+                                                    </td>
+                                                    <td className="p-3 text-slate-400">
+                                                        {businesses.find(b => b.id === user.businessId)?.name || 'N/A'}
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                                            <input
+                                                                type="checkbox"
+                                                                name={`toggle-${user.id}`}
+                                                                id={`toggle-${user.id}`}
+                                                                className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer"
+                                                                checked={!!user.isApprover}
+                                                                onChange={() => toggleApproverStatus(user)}
+                                                                style={{
+                                                                    right: user.isApprover ? '0' : 'auto',
+                                                                    left: user.isApprover ? 'auto' : '0',
+                                                                    borderColor: user.isApprover ? '#9333ea' : '#4b5563'
+                                                                }}
+                                                            />
+                                                            <label
+                                                                htmlFor={`toggle-${user.id}`}
+                                                                className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${user.isApprover ? 'bg-purple-600' : 'bg-slate-600'}`}
+                                                            ></label>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     )

@@ -100,15 +100,31 @@ export const hasGlobalAccess = (role: RoleType): boolean => {
 
 export enum RequisitionStatus {
   DRAFT = 'DRAFT', // Initial draft state
+
+  // BURF Workflow (unchanged)
   BURF_PENDING_MANAGER = 'BURF_PENDING_MANAGER',
   BURF_PENDING_CIC = 'BURF_PENDING_CIC',
   READY_FOR_PRF = 'READY_FOR_PRF',
-  PRF_PENDING_MANAGER = 'PRF_PENDING_MANAGER',
+
+  // PRF 7-Stage Approval Workflow
+  PRF_PENDING_MANAGER = 'PRF_PENDING_MANAGER', // Step 1: BUM (Business Unit Manager) Approval
+  PENDING_GM_PRF_APPROVAL = 'PENDING_GM_PRF_APPROVAL', // Step 2 (if amount >= 50k): GM checks PRF details
+  PENDING_FINANCE_HEAD_BR_APPROVAL = 'PENDING_FINANCE_HEAD_BR_APPROVAL', // Step 3: Finance Head Budget Review (BU-specific)
+  PENDING_GM_BR_APPROVAL = 'PENDING_GM_BR_APPROVAL', // Step 4: GM Final Budget Approval
+  PENDING_CFO_APPROVAL = 'PENDING_CFO_APPROVAL', // Step 5: CFO Approval
+  PENDING_BOD_APPROVAL = 'PENDING_BOD_APPROVAL', // Step 6: BOD Approval (multiple approvers)
+  FOR_FUND_RELEASE = 'FOR_FUND_RELEASE', // Step 7: Ready for Fund Release
+
+  // Legacy status (mapped to FOR_FUND_RELEASE in new workflow)
   APPROVED_FOR_PAYMENT = 'APPROVED_FOR_PAYMENT',
+
+  // Post-Approval Statuses
   FUNDS_RELEASED = 'FUNDS_RELEASED', // Funds given to employee/supplier
   LIQUIDATION_FILED = 'LIQUIDATION_FILED', // Employee submitted receipts
   LIQUIDATION_REJECTED = 'LIQUIDATION_REJECTED', // Auditor rejected, can refile
   AUDITED_CLEARED = 'AUDITED_CLEARED', // Finance approved liquidation
+
+  // Terminal Statuses
   REJECTED = 'REJECTED',
   CANCELLED = 'CANCELLED', // Cancelled by user
   BURF_COMPLETED = 'BURF_COMPLETED' // All items have been converted to PRFs
@@ -281,6 +297,9 @@ export interface Requisition {
 
   // PCF Replenishment link - used to update parent PCF status when funds are released
   linkedPcfId?: string;
+
+  // Workflow Assignment - UID of the currently assigned approver (for dashboard filtering)
+  currentApproverId?: string;
 
   // New Enhancements
   history?: RequisitionHistory[];

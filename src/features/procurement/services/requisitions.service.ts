@@ -5,8 +5,14 @@ import type { Requisition, RequisitionHistory, RequisitionItem, SupplierDetails 
 import { RequisitionStatus, UserRole, hasGlobalAccess } from '../types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 import { removeUndefinedFields } from '../../../shared/utils/firestore.utils';
+import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
 
 const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
+
+/**
+ * Threshold amount for requiring GM PRF approval step
+ */
+const GM_PRF_THRESHOLD = 50000;
 
 /**
  * Parameters for creating a batch PRF from BURF
@@ -35,9 +41,120 @@ interface CreateBatchPrfResult {
 }
 
 /**
+ * Determines the next workflow status based on current status and amount
+ * Implements the 7-stage PRF approval chain with 50k conditional logic
+ * 
+ * PRF Workflow:
+ * Step 1: PRF_PENDING_MANAGER (BUM Approval - permission based)
+ * Step 2: PENDING_GM_PRF_APPROVAL (if amount >= 50k, GM checks PRF details)
+ * Step 3: PENDING_FINANCE_HEAD_BR_APPROVAL (Finance Head Budget Review - BU-specific)
+ * Step 4: PENDING_GM_BR_APPROVAL (GM Final Budget Approval)
+ * Step 5: PENDING_CFO_APPROVAL (CFO Approval)
+ * Step 6: PENDING_BOD_APPROVAL (BOD Approval - multiple approvers)
+ * Step 7: FOR_FUND_RELEASE (Ready for Fund Release)
+ * Final: FUNDS_RELEASED
+ * 
+ * @param currentStatus - The current status of the requisition
+ * @param amount - The total amount of the requisition (for 50k conditional)
+ * @returns The next status or null if no transition available
+ */
+function determineNextPrfStatus(
+  currentStatus: RequisitionStatus,
+  amount: number
+): RequisitionStatus | null {
+  switch (currentStatus) {
+    // Step 1 → Step 2 (if >= 50k) or Step 3 (if < 50k)
+    case RequisitionStatus.PRF_PENDING_MANAGER:
+      return amount >= GM_PRF_THRESHOLD
+        ? RequisitionStatus.PENDING_GM_PRF_APPROVAL
+        : RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL;
+
+    // Step 2 → Step 3
+    case RequisitionStatus.PENDING_GM_PRF_APPROVAL:
+      return RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL;
+
+    // Step 3 → Step 4
+    case RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL:
+      return RequisitionStatus.PENDING_GM_BR_APPROVAL;
+
+    // Step 4 → Step 5 (CFO)
+    case RequisitionStatus.PENDING_GM_BR_APPROVAL:
+      return RequisitionStatus.PENDING_CFO_APPROVAL;
+
+    // Step 5 → Step 6 (BOD)
+    case RequisitionStatus.PENDING_CFO_APPROVAL:
+      return RequisitionStatus.PENDING_BOD_APPROVAL;
+
+    // Step 6 → Step 7
+    case RequisitionStatus.PENDING_BOD_APPROVAL:
+      return RequisitionStatus.FOR_FUND_RELEASE;
+
+    // Step 7 → Complete
+    case RequisitionStatus.FOR_FUND_RELEASE:
+      return RequisitionStatus.FUNDS_RELEASED;
+
+    // Legacy status - treat like FOR_FUND_RELEASE
+    case RequisitionStatus.APPROVED_FOR_PAYMENT:
+      return RequisitionStatus.FUNDS_RELEASED;
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * Gets the approver UID for a given status based on approver assignments
+ * For BU-specific roles (Finance Head), looks up by businessId
+ * For multi-user roles (BOD), returns first approver UID (any can approve)
+ * 
+ * @param nextStatus - The next status the requisition is moving to
+ * @param assignments - The approver assignments from settings
+ * @param businessId - The business unit ID for BU-specific lookup (optional)
+ * @returns The UID of the approver for this status, or undefined if permission-based
+ */
+function getApproverIdForStatus(
+  nextStatus: RequisitionStatus,
+  assignments: ApproverAssignments,
+  businessId?: string
+): string | undefined {
+  switch (nextStatus) {
+    case RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL:
+      // BU-specific: Find the finance head that handles this business unit
+      if (businessId && assignments.financeHeads) {
+        const financeHead = assignments.financeHeads.find(fh =>
+          fh.businessUnitIds.includes(businessId)
+        );
+        return financeHead?.userId;
+      }
+      // Fallback to first finance head if no BU match
+      return assignments.financeHeads?.[0]?.userId;
+
+    case RequisitionStatus.PENDING_GM_PRF_APPROVAL:
+    case RequisitionStatus.PENDING_GM_BR_APPROVAL:
+      return assignments.gmUid;
+
+    case RequisitionStatus.PENDING_CFO_APPROVAL:
+      return assignments.cfoUid;
+
+    case RequisitionStatus.PENDING_BOD_APPROVAL:
+      // Multiple approvers - return first one for currentApproverId
+      // Dashboard filtering will check if current user is in the array
+      return assignments.bodApprovers?.[0]?.userId;
+
+    // For permission-based statuses, return undefined
+    case RequisitionStatus.PRF_PENDING_MANAGER:
+    case RequisitionStatus.BURF_PENDING_MANAGER:
+    case RequisitionStatus.BURF_PENDING_CIC:
+    default:
+      return undefined;
+  }
+}
+
+/**
  * Service for all requisition related database operations
  */
 export class RequisitionService {
+
 
   /**
    * Create a batch PRF from a BURF using a Firestore transaction
@@ -377,7 +494,8 @@ export class RequisitionService {
 
   /**
    * Approve a requisition (Manager, CIC, etc.)
-   * FIX H2: Now uses transaction to prevent race conditions when multiple approvers click simultaneously
+   * Updated for 7-stage PRF workflow with conditional 50k logic
+   * FIX H2: Uses transaction to prevent race conditions when multiple approvers click simultaneously
    */
   static async approveRequisition(
     requisitionId: string,
@@ -387,31 +505,50 @@ export class RequisitionService {
   ): Promise<void> {
     const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
 
+    // Fetch approver assignments for currentApproverId routing
+    const approverAssignments = await SettingsService.getApproverAssignments();
+
     // FIX H2: Use transaction for atomic read-modify-write (was separate read/write causing race conditions)
     await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(docRef);
       if (!snap.exists()) throw new Error('Requisition not found');
 
       const requisition = { id: snap.id, ...snap.data() } as Requisition;
-      let nextStatus: RequisitionStatus | undefined;
+      let nextStatus: RequisitionStatus | null = null;
+      let currentApproverId: string | undefined = undefined;
       const approvalAction = 'Approved';
 
       // Determine next status based on current status
       switch (requisition.status) {
+        // BURF Workflow (unchanged)
         case RequisitionStatus.BURF_PENDING_MANAGER:
           nextStatus = RequisitionStatus.BURF_PENDING_CIC;
           break;
         case RequisitionStatus.BURF_PENDING_CIC:
           nextStatus = RequisitionStatus.READY_FOR_PRF;
           break;
+
+        // PRF 7-Stage Workflow - use helper function
         case RequisitionStatus.PRF_PENDING_MANAGER:
-          nextStatus = RequisitionStatus.APPROVED_FOR_PAYMENT;
+        case RequisitionStatus.PENDING_GM_PRF_APPROVAL:
+        case RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL:
+        case RequisitionStatus.PENDING_GM_BR_APPROVAL:
+        case RequisitionStatus.PENDING_CFO_APPROVAL:
+        case RequisitionStatus.PENDING_BOD_APPROVAL:
+        case RequisitionStatus.FOR_FUND_RELEASE:
+        case RequisitionStatus.APPROVED_FOR_PAYMENT: // Legacy support
+          nextStatus = determineNextPrfStatus(requisition.status, requisition.totalAmount);
           break;
+
         default:
           throw new Error(`Cannot approve requisition in status: ${requisition.status}`);
       }
 
       if (nextStatus) {
+        // Get the currentApproverId for the next status (for dashboard filtering)
+        // Pass businessId for BU-specific Finance Head lookup
+        currentApproverId = getApproverIdForStatus(nextStatus, approverAssignments, requisition.businessId);
+
         // Create history entry inline (can't call async methods in transaction)
         const historyEntry: RequisitionHistory = {
           date: new Date().toISOString(),
@@ -424,12 +561,23 @@ export class RequisitionService {
 
         const updatedHistory = [historyEntry, ...(requisition.history || [])];
 
-        // Atomic update within transaction
-        transaction.update(docRef, {
+        // Build update object
+        const updateData: Record<string, unknown> = {
           status: nextStatus,
           history: updatedHistory,
           updatedAt: serverTimestamp(),
-        });
+        };
+
+        // Set currentApproverId if we have one (for dashboard filtering)
+        if (currentApproverId) {
+          updateData.currentApproverId = currentApproverId;
+        } else {
+          // Clear it for permission-based stages
+          updateData.currentApproverId = null;
+        }
+
+        // Atomic update within transaction
+        transaction.update(docRef, updateData);
       }
     });
   }

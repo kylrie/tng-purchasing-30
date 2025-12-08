@@ -23,6 +23,7 @@ import LiquidationAuditModal from '../../finance/components/LiquidationAuditModa
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import RejectionModal from '../../../shared/components/RejectionModal';
 import { CheckCircle, XCircle } from 'lucide-react';
+import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
 
 interface DashboardViewProps {
     requisitions: Requisition[];
@@ -43,12 +44,56 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const [rejectingReq, setRejectingReq] = React.useState<Requisition | null>(null);
     const [selectedBU, setSelectedBU] = React.useState<string>('all');
 
+    // Workflow Approver Assignments for filtering
+    const [approverAssignments, setApproverAssignments] = React.useState<ApproverAssignments>({});
+
+    // Load approver assignments on mount
+    React.useEffect(() => {
+        SettingsService.getApproverAssignments().then(setApproverAssignments);
+    }, []);
+
     // Determine if the user is an approver
     const isApprover = hasPermission('approval:manager:burf') ||
         hasPermission('approval:manager:prf') ||
         hasPermission('approval:cic:burf') ||
         hasPermission('finance:release_funds') ||
         (hasPermission('requisition:view:all') && hasPermission('admin:manage:users'));
+
+    // Helper to check if user is assigned to a workflow role
+    const isAssignedApprover = (r: Requisition): boolean => {
+        switch (r.status) {
+            // BU-specific Finance Head - check if user handles this BU
+            case RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL:
+                if (approverAssignments.financeHeads) {
+                    return approverAssignments.financeHeads.some(fh =>
+                        fh.userId === currentUser.id &&
+                        fh.businessUnitIds.includes(r.businessId)
+                    );
+                }
+                return false;
+
+            case RequisitionStatus.PENDING_GM_PRF_APPROVAL:
+            case RequisitionStatus.PENDING_GM_BR_APPROVAL:
+                return currentUser.id === approverAssignments.gmUid;
+
+            case RequisitionStatus.PENDING_CFO_APPROVAL:
+                return currentUser.id === approverAssignments.cfoUid;
+
+            // Multiple BOD approvers - any of them can approve
+            case RequisitionStatus.PENDING_BOD_APPROVAL:
+                if (approverAssignments.bodApprovers) {
+                    return approverAssignments.bodApprovers.some(bod =>
+                        bod.userId === currentUser.id
+                    );
+                }
+                return false;
+
+            case RequisitionStatus.FOR_FUND_RELEASE:
+                return hasPermission('finance:release_funds');
+            default:
+                return false;
+        }
+    };
 
     // Calculate Stats
     // Pending Count: Only count items that SPECIFICALLY need THIS user's approval
@@ -59,18 +104,28 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 RequisitionStatus.BURF_PENDING_MANAGER,
                 RequisitionStatus.BURF_PENDING_CIC,
                 RequisitionStatus.PRF_PENDING_MANAGER,
-                RequisitionStatus.APPROVED_FOR_PAYMENT
+                RequisitionStatus.PENDING_GM_PRF_APPROVAL,
+                RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL,
+                RequisitionStatus.PENDING_GM_BR_APPROVAL,
+                RequisitionStatus.PENDING_CFO_APPROVAL,
+                RequisitionStatus.PENDING_BOD_APPROVAL,
+                RequisitionStatus.FOR_FUND_RELEASE,
+                RequisitionStatus.APPROVED_FOR_PAYMENT // Legacy
             ].includes(r.status);
         }
 
-        // Specific Approver Checks - Only count if user has permission AND status matches
+        // Existing permission-based checks
         if (hasPermission('approval:manager:burf') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
         if (hasPermission('approval:manager:prf') && r.status === RequisitionStatus.PRF_PENDING_MANAGER) return true;
         if (hasPermission('approval:cic:burf') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
         if (hasPermission('finance:release_funds') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
 
+        // New workflow - check assigned approver
+        if (isAssignedApprover(r)) return true;
+
         return false;
     }).length;
+
 
 
     const totalSpend = requisitions
@@ -164,14 +219,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     RequisitionStatus.BURF_PENDING_MANAGER,
                     RequisitionStatus.BURF_PENDING_CIC,
                     RequisitionStatus.PRF_PENDING_MANAGER,
-                    RequisitionStatus.APPROVED_FOR_PAYMENT
+                    RequisitionStatus.PENDING_GM_PRF_APPROVAL,
+                    RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL,
+                    RequisitionStatus.PENDING_GM_BR_APPROVAL,
+                    RequisitionStatus.PENDING_CFO_APPROVAL,
+                    RequisitionStatus.PENDING_BOD_APPROVAL,
+                    RequisitionStatus.FOR_FUND_RELEASE,
+                    RequisitionStatus.APPROVED_FOR_PAYMENT // Legacy
                 ].includes(r.status);
             }
 
+            // Permission-based checks
             if (hasPermission('approval:manager:burf') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
             if (hasPermission('approval:manager:prf') && r.status === RequisitionStatus.PRF_PENDING_MANAGER) return true;
             if (hasPermission('approval:cic:burf') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
             if (hasPermission('finance:release_funds') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
+
+            // New workflow - check assigned approver
+            if (isAssignedApprover(r)) return true;
 
             return false;
         })
@@ -181,8 +246,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             let action = 'needs approval';
             if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'submitted BURF';
             if (r.status === RequisitionStatus.BURF_PENDING_CIC) action = 'approved BURF';
-            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'submitted PRF';
-            if (r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) action = 'approved Payment';
+            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'PRF for BUM Approval';
+            if (r.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL) action = 'PRF for GM (≥50k)';
+            if (r.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL) action = 'PRF for Finance Head';
+            if (r.status === RequisitionStatus.PENDING_GM_BR_APPROVAL) action = 'PRF for GM Budget';
+            if (r.status === RequisitionStatus.PENDING_CFO_APPROVAL) action = 'PRF for CFO';
+            if (r.status === RequisitionStatus.PENDING_BOD_APPROVAL) action = 'PRF for BOD';
+            if (r.status === RequisitionStatus.FOR_FUND_RELEASE) action = 'Ready for Fund Release';
+            if (r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) action = 'Ready for Payment';
 
             const requester = allUsers.find(u => u.id === r.requesterId);
             const requesterName = requester?.name || 'Unknown User';
