@@ -34,9 +34,10 @@ interface PermissionConfig {
   basePermission?: string;
 }
 
-// Define scoped permissions map for quick lookup
+// Scoped permissions map - CLEARED to show individual permissions
+// Previously grouped requisition:create:burf/prf together, now they show separately
 const SCOPED_PERMISSIONS_MAP: Record<string, string[]> = {
-  'requisition:create': ['BURF', 'PRF']
+  // Empty - all permissions now show individually with clear labels
 };
 
 const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
