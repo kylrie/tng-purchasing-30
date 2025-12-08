@@ -574,6 +574,24 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [sortField, setSortField] = useState<SortField>('dateCreated');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
+    // Calculate liquidation deadline status for 5-day deadline enforcement
+    const getLiquidationDeadline = (req: Requisition): { daysLeft: number; isLate: boolean; daysOverdue: number } => {
+        // Try fundReleaseDate first, fallback to history
+        const releaseDate = req.fundReleaseDate
+            || req.history?.find(h => h.stage === RequisitionStatus.FUNDS_RELEASED)?.date;
+
+        if (!releaseDate) return { daysLeft: 5, isLate: false, daysOverdue: 0 };
+
+        const diffTime = Math.abs(new Date().getTime() - new Date(releaseDate).getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        return {
+            daysLeft: Math.max(5 - diffDays, 0),
+            isLate: diffDays > 5,
+            daysOverdue: diffDays > 5 ? diffDays - 5 : 0
+        };
+    };
+
     const handlePreparePRFSubmit = (prfReq: Requisition, updatedOrigin?: Requisition) => {
         if (updatedOrigin) {
             onUpdateRequisition(updatedOrigin);
@@ -708,8 +726,44 @@ export const PrfView: React.FC<PrfViewProps> = ({
             return 0;
         });
 
+    // Calculate overdue liquidations for current user (for alert banner)
+    // TARGETED LOGIC: Only show alert to the person responsible for the transaction
+    const overdueCount = useMemo(() => {
+        return liquidationReqs.filter(req => {
+            const deadline = getLiquidationDeadline(req);
+
+            // Must be overdue (> 5 days since fund release)
+            if (!deadline.isLate) return false;
+
+            // Exclude PCF Replenishments - they don't need liquidation
+            if (req.linkedPcfId) return false;
+
+            // OWNERSHIP TARGETING:
+            // - BURF-converted PRF (has parentBurfId): Target the PROCESSOR (preparedBy)
+            // - Direct PRF (no parentBurfId): Target the REQUESTER (requesterId)
+            const isFromBurf = !!req.parentBurfId;
+            const isMyResponsibility = isFromBurf
+                ? req.prfDetails?.preparedBy === currentUser.id  // Processor is responsible
+                : req.requesterId === currentUser.id;            // Requester is responsible
+
+            return isMyResponsibility;
+        }).length;
+    }, [liquidationReqs, currentUser.id]);
+
     return (
         <div className="space-y-6 text-white">
+            {/* Late Liquidation Alert Banner */}
+            {overdueCount > 0 && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
+                    <AlertTriangle className="text-red-400 flex-shrink-0" size={24} />
+                    <div>
+                        <p className="font-bold text-red-400">Action Required</p>
+                        <p className="text-sm text-red-300">
+                            You have {overdueCount} overdue liquidation{overdueCount > 1 ? 's' : ''}. Please file them immediately.
+                        </p>
+                    </div>
+                </div>
+            )}
             {isDirectOpen && <DirectPrfModal onCancel={() => setIsDirectOpen(false)} currentUser={currentUser} onCreateRequisition={onCreateRequisition} suppliers={suppliers} businesses={businesses} uomOptions={uomOptions} users={allUsers} />}
             {editingPrf && <DirectPrfModal onCancel={() => setEditingPrf(null)} currentUser={currentUser} onUpdate={onUpdateRequisition} suppliers={suppliers} businesses={businesses} initialData={editingPrf} uomOptions={uomOptions} users={allUsers} />}
 
@@ -851,6 +905,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                         Status {renderSortIcon('status')}
                                     </div>
                                 </th>
+                                <th className="px-6 py-4">Deadline</th>
                                 <th className="px-6 py-4">Link</th>
                                 <th className="px-6 py-4">Rejection Reason</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
@@ -940,6 +995,25 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                 )}
                                             </div>
                                         </td>
+                                        {/* Liquidation Deadline Column */}
+                                        <td className="px-6 py-4">
+                                            {activeTab === 'liquidation' ? (() => {
+                                                const deadline = getLiquidationDeadline(req);
+                                                if (deadline.isLate) {
+                                                    return (
+                                                        <span className="px-2 py-1 text-xs font-bold rounded bg-red-500/20 text-red-400 whitespace-nowrap">
+                                                            🔴 LATE (+{deadline.daysOverdue} days)
+                                                        </span>
+                                                    );
+                                                } else {
+                                                    return (
+                                                        <span className="px-2 py-1 text-xs font-bold rounded bg-amber-500/20 text-amber-400 whitespace-nowrap">
+                                                            ⚠️ {deadline.daysLeft} days left
+                                                        </span>
+                                                    );
+                                                }
+                                            })() : <span className="text-slate-600">-</span>}
+                                        </td>
                                         {/* External Link - paperclip icon that opens externalLink or first attachment */}
                                         <td className="px-6 py-4">
                                             {(req.externalLink || req.attachments?.[0]) ? (
@@ -1017,9 +1091,9 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                     </tr>
                                 );
                             })}
-                            {/* FIX BUG 12: ColSpan matches 10 columns (ID, Business Unit, Requested By, Description, Items, Date Needed, Status, Link, Rejection Reason, Actions) */}
+                            {/* ColSpan matches 11 columns (ID, Business Unit, Requested By, Processed By, Description, Items, Date Needed, Status, Deadline, Link, Rejection Reason, Actions) */}
                             {filteredAndSortedReqs.length === 0 && (
-                                <tr><td colSpan={10} className="px-6 py-8 text-center text-slate-500 italic">No PRF found.</td></tr>
+                                <tr><td colSpan={12} className="px-6 py-8 text-center text-slate-500 italic">No PRF found.</td></tr>
                             )}
                         </tbody>
                     </table>

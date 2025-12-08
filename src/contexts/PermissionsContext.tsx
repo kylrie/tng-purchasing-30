@@ -45,25 +45,24 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     if (data.permissions) {
-                        // Merge Firestore permissions with defaults, ensuring new permissions are added
-                        const mergedPermissions: Record<string, Permission[]> = {};
+                        // FIX: Firestore permissions are authoritative - don't merge with defaults
+                        // This ensures unchecked permissions stay unchecked after refresh
+                        const savedPermissions: Record<string, Permission[]> = {};
 
-                        // Start with all roles from defaults
-                        for (const [role, defaultPerms] of Object.entries(ROLES_TO_PERMISSIONS)) {
-                            const firestorePerms = data.permissions[role] || [];
-                            // Combine: Firestore perms + any new perms from defaults not in Firestore
-                            const allPerms = new Set([...firestorePerms, ...defaultPerms]);
-                            mergedPermissions[role] = Array.from(allPerms) as Permission[];
+                        // Load permissions exactly as saved in Firestore
+                        for (const [role, perms] of Object.entries(data.permissions)) {
+                            savedPermissions[role] = perms as Permission[];
                         }
 
-                        // Also include any custom roles from Firestore
-                        for (const [role, perms] of Object.entries(data.permissions)) {
-                            if (!mergedPermissions[role]) {
-                                mergedPermissions[role] = perms as Permission[];
+                        // Add any roles from defaults that don't exist in Firestore yet
+                        // (but DON'T merge their permissions - just add empty array if missing)
+                        for (const role of Object.keys(ROLES_TO_PERMISSIONS)) {
+                            if (!savedPermissions[role]) {
+                                savedPermissions[role] = ROLES_TO_PERMISSIONS[role];
                             }
                         }
 
-                        setPermissions(mergedPermissions);
+                        setPermissions(savedPermissions);
                     }
                     if (data.roles && Array.isArray(data.roles)) {
                         // Ensure we have unique roles: defaults + Firestore roles
