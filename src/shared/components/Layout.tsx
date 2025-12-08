@@ -65,7 +65,7 @@ const Layout: React.FC<LayoutProps> = ({
             canView: hasPermission('module:view:approvals'),
             subItems: [
                 { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('module:view:approvals') },
-                { path: '/pcf-approvals', label: 'PCF Approvals', icon: Wallet, canView: hasPermission('approval:manager:prf') }
+                { path: '/pcf-approvals', label: 'PCF Approvals', icon: Wallet, canView: hasPermission('pcf:approve') }
             ]
         },
         {
