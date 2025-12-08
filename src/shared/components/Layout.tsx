@@ -237,8 +237,12 @@ const Layout: React.FC<LayoutProps> = ({
                 <div className="p-4 border-t border-slate-700/50">
                     <div className={`bg-slate-900/50 rounded-xl p-4 border border-slate-700/50 mb-3 ${isCollapsed ? 'lg:p-2 lg:flex lg:justify-center' : ''}`}>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold flex-shrink-0">
-                                {currentUser.name.charAt(0)}
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden">
+                                {currentUser.avatar ? (
+                                    <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    currentUser.name.charAt(0)
+                                )}
                             </div>
                             <div className={`flex-1 min-w-0 ${isCollapsed ? 'lg:hidden' : 'block'}`}>
                                 <p className="text-sm font-bold text-white truncate">{currentUser.name}</p>

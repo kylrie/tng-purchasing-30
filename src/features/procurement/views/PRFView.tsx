@@ -983,8 +983,12 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                         {/* Requested By - using denormalized name, fallback to lookup for legacy data */}
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                                                    {requesterName.charAt(0).toUpperCase()}
+                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 overflow-hidden">
+                                                    {req.requesterPhotoUrl ? (
+                                                        <img src={req.requesterPhotoUrl} alt={requesterName} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        requesterName.charAt(0).toUpperCase()
+                                                    )}
                                                 </div>
                                                 <span className="text-slate-200">{requesterName}</span>
                                             </div>
