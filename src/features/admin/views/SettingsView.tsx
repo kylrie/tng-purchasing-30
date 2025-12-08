@@ -322,8 +322,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <div className={cardClass}>
                             <h3 className="font-bold text-lg flex items-center gap-2 text-white mb-6"><UserIcon size={20} className="text-purple-400" /> My Profile</h3>
                             <div className="flex items-start gap-6">
-                                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg border-2 border-slate-700">
-                                    {currentUser.name.charAt(0)}
+                                {/* Profile Picture - Clickable for upload */}
+                                <div className="relative group">
+                                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-3xl font-bold text-white shadow-lg border-2 border-slate-700 overflow-hidden">
+                                        {currentUser.avatar ? (
+                                            <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            currentUser.name.charAt(0)
+                                        )}
+                                    </div>
+                                    {/* Upload overlay */}
+                                    <label
+                                        htmlFor="profile-upload"
+                                        className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                                    >
+                                        <span className="text-xs text-white text-center">Change<br />Photo</span>
+                                    </label>
+                                    <input
+                                        id="profile-upload"
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                // For now, show a message - real upload would require storage setup
+                                                alert('Profile picture upload requires Firebase Storage configuration. Please contact your administrator.');
+                                            }
+                                        }}
+                                    />
                                 </div>
                                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div>
@@ -346,19 +373,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     </div>
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Business Unit</label>
-                                        <div className="flex items-center gap-2">
-                                            <Building2 size={16} className="text-slate-500" />
+                                        <div className="flex items-start gap-2">
+                                            <Building2 size={16} className="text-slate-500 mt-0.5" />
                                             <div className="flex flex-col gap-1">
-                                                {currentUser.businessUnitIds && currentUser.businessUnitIds.length > 0 ? (
-                                                    currentUser.businessUnitIds.map(buId => (
-                                                        <span key={buId} className="text-slate-200 font-medium">
-                                                            {businesses.find(b => b.id === buId)?.name || 'Unknown Business Unit'}
-                                                        </span>
-                                                    ))
-                                                ) : (
+                                                {/* Primary Business Unit - Always shown with badge */}
+                                                <div className="flex items-center gap-2">
                                                     <span className="text-slate-200 font-medium">
                                                         {businesses.find(b => b.id === currentUser.businessId)?.name || 'N/A'}
                                                     </span>
+                                                    <span className="px-1.5 py-0.5 text-[10px] font-bold uppercase bg-purple-600/20 text-purple-300 rounded border border-purple-500/30">
+                                                        Primary
+                                                    </span>
+                                                </div>
+                                                {/* Additional Business Units - listed below */}
+                                                {currentUser.businessUnitIds && currentUser.businessUnitIds.filter(id => id !== currentUser.businessId).length > 0 && (
+                                                    <>
+                                                        {currentUser.businessUnitIds
+                                                            .filter(buId => buId !== currentUser.businessId) // Exclude primary
+                                                            .map(buId => (
+                                                                <span key={buId} className="text-slate-400 text-sm">
+                                                                    {businesses.find(b => b.id === buId)?.name || 'Unknown'}
+                                                                </span>
+                                                            ))}
+                                                    </>
                                                 )}
                                             </div>
                                         </div>

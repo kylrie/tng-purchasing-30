@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil, Loader2 } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus } from '../types';
@@ -76,47 +76,79 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     const [remarks] = useState(initialData?.remarks || '');
     const [attachmentLink, setAttachmentLink] = useState(initialData?.attachments?.[0] || '');
     const [customId, setCustomId] = useState('');
-    const { hasPermission } = usePermissions();
 
     // Submission loading state to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Allow business unit selection if user has global access OR multiple business units
-    const userBusinessUnits = currentUser.businessUnitIds || [];
-    const hasMultipleBusinessUnits = userBusinessUnits.length > 1;
-    const canSelectBusiness = hasPermission('requisition:view:all') || hasMultipleBusinessUnits;
+    // ========== BUSINESS UNIT FILTERING LOGIC ==========
+    // Determine accessible business units based on user role
+    // NOTE: requisition:view:all is for VIEWING - not for CREATING in any BU
+    const accessibleBusinessUnits = useMemo(() => {
+        // ONLY Super Admin can create PRF in any BU
+        if (currentUser.role === 'SUPER_ADMIN') {
+            return businesses;
+        }
+
+        // COMBINE Primary BU (businessId) + Additional BUs (businessUnitIds)
+        // Use Set to deduplicate in case primary is also in the array
+        const userBuIds = new Set<string>();
+
+        // Add primary business unit
+        if (currentUser.businessId) {
+            userBuIds.add(currentUser.businessId);
+        }
+
+        // Add additional accessible business units
+        if (Array.isArray(currentUser.businessUnitIds)) {
+            currentUser.businessUnitIds.forEach(id => userBuIds.add(id));
+        }
+
+        return businesses.filter(bu => userBuIds.has(bu.id));
+    }, [businesses, currentUser]);
+
+    // Determine if user can change business unit selection
+    const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+    const canSelectBusiness = isSuperAdmin || accessibleBusinessUnits.length > 1;
 
     // Validate and set default business ID
     const getValidBusinessId = () => {
-        const defaultId = initialData?.businessId || currentUser.businessId;
-
-        // Check if the default ID exists in the businesses array
-        if (defaultId && businesses.some(b => b.id === defaultId)) {
-            return defaultId;
+        // If editing, use existing businessId
+        if (initialData?.businessId && businesses.some(b => b.id === initialData.businessId)) {
+            return initialData.businessId;
         }
-        // Fallback to first available business unit for the user
-        if (userBusinessUnits.length > 0) {
-            const firstValidBusiness = businesses.find(b => userBusinessUnits.includes(b.id));
-            if (firstValidBusiness) {
-                return firstValidBusiness.id;
-            }
+        // Use first accessible BU
+        if (accessibleBusinessUnits.length > 0) {
+            return accessibleBusinessUnits[0].id;
         }
-        // Last resort: use first business in the list
-        return businesses.length > 0 ? businesses[0].id : '';
+        // Fallback to user's primary businessId
+        return currentUser.businessId || '';
     };
 
     const [selectedBusinessId, setSelectedBusinessId] = useState<string>(getValidBusinessId());
 
-    // Filter list of eligible approvers by business unit
+    // Auto-select business unit if user has only one
+    useEffect(() => {
+        if (accessibleBusinessUnits.length === 1 && !initialData) {
+            setSelectedBusinessId(accessibleBusinessUnits[0].id);
+        }
+    }, [accessibleBusinessUnits, initialData]);
+
+
+    // Filter list of eligible approvers by business unit (STRICT MATCH)
     const eligibleApprovers = users.filter(u => {
-        // Must be an approver
+        // 1. Must be an approver
         if (!u.isApprover) return false;
 
-        // Check if approver has access to this requisition's business unit
-        const approverBUs = u.businessUnitIds || [];
-        // Use selectedBusinessId for the check
-        return approverBUs.includes(selectedBusinessId) || approverBUs.length === 0;
+        // 2. Strict Business Unit Match
+        // Check if the user's businessUnitIds (array) includes the selected BU
+        if (Array.isArray(u.businessUnitIds) && u.businessUnitIds.length > 0) {
+            return u.businessUnitIds.includes(selectedBusinessId);
+        }
+
+        // Fallback: Check legacy single businessId field
+        return u.businessId === selectedBusinessId;
     });
+
 
     const handleSupplierSelect = (supplierId: string) => {
         setSelectedSupplierId(supplierId);
@@ -256,7 +288,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                     value={selectedBusinessId}
                                     onChange={(e) => setSelectedBusinessId(e.target.value)}
                                 >
-                                    {(hasPermission('requisition:view:all') ? businesses : businesses.filter(b => userBusinessUnits.includes(b.id))).map(b => (
+                                    {accessibleBusinessUnits.map(b => (
                                         <option key={b.id} value={b.id}>{b.name}</option>
                                     ))}
                                 </select>

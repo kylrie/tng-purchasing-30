@@ -57,8 +57,24 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     // Submission loading state to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Filter list of eligible approvers
-    const eligibleApprovers = users.filter(u => u.isApprover);
+    // Filter list of eligible approvers by business unit (STRICT MATCH)
+    const eligibleApprovers = users.filter(u => {
+        // 1. Must be an approver
+        if (!u.isApprover) return false;
+
+        // 2. Strict Business Unit Match
+        const targetBusinessUnitId = requisition.businessId;
+
+        // Check if the user's businessUnitIds (array) includes the target BU
+        if (Array.isArray(u.businessUnitIds) && u.businessUnitIds.length > 0) {
+            return u.businessUnitIds.includes(targetBusinessUnitId);
+        }
+
+        // Fallback: Check legacy single businessId field
+        return u.businessId === targetBusinessUnitId;
+    });
+
+
 
     // Calculate total amount for selected items
     const totalAmount = useMemo(() =>
