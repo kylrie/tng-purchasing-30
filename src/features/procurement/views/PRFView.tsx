@@ -1066,7 +1066,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                     </button>
                                                 )}
 
-                                                {req.status === RequisitionStatus.READY_FOR_PRF && hasPermission('requisition:create:prf') && (
+                                                {req.status === RequisitionStatus.READY_FOR_PRF && hasPermission('requisition:prepare:prf') && (
                                                     <button onClick={() => setPreparePRFReq(req)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium">Prepare PRF</button>
                                                 )}
 

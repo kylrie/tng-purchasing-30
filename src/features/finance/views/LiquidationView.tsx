@@ -182,19 +182,21 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        {/* File/Edit Liquidation */}
-                        {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) && activeTab === 'liquidations' && (
-                          <button
-                            onClick={() => setEditingLiquidationReq(req)}
-                            className="text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-700 bg-cyan-900/50 hover:bg-cyan-800/50"
-                          >
-                            {req.status === RequisitionStatus.FUNDS_RELEASED ? (
-                              <><FileText size={14} /> File Liquidation</>
-                            ) : (
-                              <><Edit size={14} /> Edit Liquidation</>
-                            )}
-                          </button>
-                        )}
+                        {/* File/Edit Liquidation - Only for OWN liquidations OR if has file:all permission */}
+                        {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) &&
+                          activeTab === 'liquidations' &&
+                          (req.requesterId === currentUser.id || hasPermission('liquidation:file:all')) && (
+                            <button
+                              onClick={() => setEditingLiquidationReq(req)}
+                              className="text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-700 bg-cyan-900/50 hover:bg-cyan-800/50"
+                            >
+                              {req.status === RequisitionStatus.FUNDS_RELEASED ? (
+                                <><FileText size={14} /> File Liquidation</>
+                              ) : (
+                                <><Edit size={14} /> Edit Liquidation</>
+                              )}
+                            </button>
+                          )}
 
                         {/* Audit (Auditor/SuperAdmin) */}
                         {req.status === RequisitionStatus.LIQUIDATION_FILED &&
