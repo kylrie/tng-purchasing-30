@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Receipt, DollarSign, Building2, Eye } from 'lucide-react';
+import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Receipt, DollarSign, Building2, Eye, Users, User as UserIcon, Ban, Printer } from 'lucide-react';
 import Card from '../../../shared/components/Card';
-import type { User, Business } from '../../../shared/types';
+import type { User as UserType, Business } from '../../../shared/types';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
 import PCFLiquidationDrawer from '../components/PCFLiquidationDrawer';
+import PCFPrintModal from '../components/PCFPrintModal';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 interface PCFViewProps {
-    currentUser: User;
+    currentUser: UserType;
     businesses: Business[];
-    allUsers: User[];
+    allUsers: UserType[];
 }
 
 // Helper: Format currency
@@ -20,30 +22,49 @@ const formatCurrency = (amount: number): string => {
     }).format(amount);
 };
 
-const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
+const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) => {
     const [liquidations, setLiquidations] = useState<PCFLiquidation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showDrawer, setShowDrawer] = useState(false);
     const [selectedLiquidation, setSelectedLiquidation] = useState<PCFLiquidation | null>(null);
     const [editingLiquidation, setEditingLiquidation] = useState<PCFLiquidation | null>(null);
+    const [printLiquidation, setPrintLiquidation] = useState<PCFLiquidation | null>(null);
     const [walletStats, setWalletStats] = useState({
         cashOnHand: 0,
         activeLiquidationsTotal: 0,
         activeLiquidationsCount: 0,
     });
+    const [viewAll, setViewAll] = useState(false);
 
+    const { hasPermission } = usePermissions();
+    const canViewAll = hasPermission('pcf:view:all');
     const pcfCeiling = currentUser.pcfCeiling || 0;
+
+    // Get username from allUsers list
+    const getUserName = (userId: string): string => {
+        const user = allUsers.find(u => u.id === userId);
+        return user?.name || 'Unknown User';
+    };
 
     // Fetch liquidations and calculate wallet
     const loadData = async () => {
         setLoading(true);
         try {
-            const [userLiquidations, stats] = await Promise.all([
-                PCFService.getUserLiquidations(currentUser.id),
-                PCFService.calculateCashOnHand(currentUser.id, pcfCeiling),
-            ]);
-            setLiquidations(userLiquidations);
-            setWalletStats(stats);
+            if (viewAll && canViewAll) {
+                // Fetch all liquidations when viewing all
+                const allLiquidations = await PCFService.getAllLiquidations();
+                setLiquidations(allLiquidations);
+                // Don't show wallet stats when viewing all
+                setWalletStats({ cashOnHand: 0, activeLiquidationsTotal: 0, activeLiquidationsCount: 0 });
+            } else {
+                // Fetch only user's liquidations
+                const [userLiquidations, stats] = await Promise.all([
+                    PCFService.getUserLiquidations(currentUser.id),
+                    PCFService.calculateCashOnHand(currentUser.id, pcfCeiling),
+                ]);
+                setLiquidations(userLiquidations);
+                setWalletStats(stats);
+            }
         } catch (error) {
             console.error('Error loading PCF data:', error);
         } finally {
@@ -53,7 +74,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
 
     useEffect(() => {
         loadData();
-    }, [currentUser.id, pcfCeiling]);
+    }, [currentUser.id, pcfCeiling, viewAll]);
 
     // Status badge helper
     const getStatusBadge = (status: PCFStatus) => {
@@ -64,6 +85,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
             [PCFStatus.APPROVED_WAITING_RELEASE]: { bg: 'bg-blue-600/30', text: 'text-blue-300', icon: <Wallet size={12} /> },
             [PCFStatus.REPLENISHED]: { bg: 'bg-emerald-600/30', text: 'text-emerald-300', icon: <DollarSign size={12} /> },
             [PCFStatus.REJECTED]: { bg: 'bg-red-600/30', text: 'text-red-300', icon: <XCircle size={12} /> },
+            [PCFStatus.CANCELLED]: { bg: 'bg-orange-600/30', text: 'text-orange-300', icon: <Ban size={12} /> },
         };
         const config = configs[status];
         return (
@@ -113,6 +135,40 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
         setEditingLiquidation(liquidation);
         setSelectedLiquidation(null); // Close detail drawer
         setShowDrawer(true); // Open edit drawer
+    };
+
+    // Handle edit draft liquidation - opens drawer with prefilled data
+    const handleEditDraft = (liquidation: PCFLiquidation) => {
+        setEditingLiquidation(liquidation);
+        setSelectedLiquidation(null); // Close detail drawer
+        setShowDrawer(true); // Open edit drawer
+    };
+
+    // Handle update draft - just saves changes without submitting
+    const handleUpdateDraft = async (expenses: any[], receiptsLink: string, remarks: string) => {
+        if (!editingLiquidation) return;
+
+        await PCFService.updateDraftLiquidation(
+            editingLiquidation.id,
+            expenses,
+            receiptsLink,
+            remarks
+        );
+        await loadData();
+        setShowDrawer(false);
+        setEditingLiquidation(null);
+    };
+
+    // Handle submit draft for approval
+    const handleSubmitDraft = async (liquidation: PCFLiquidation) => {
+        try {
+            await PCFService.submitForApproval(liquidation.id);
+            await loadData();
+            setSelectedLiquidation(null);
+        } catch (error) {
+            console.error('Submit draft error:', error);
+            alert('Failed to submit draft for approval. Please try again.');
+        }
     };
 
     // Handle submit edited/refiled liquidation
@@ -178,14 +234,41 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                     <h1 className="text-2xl font-bold text-white">Petty Cash Fund</h1>
                     <p className="text-slate-400 text-sm">Revolving fund management with auto-replenishment.</p>
                 </div>
-                <button
-                    onClick={() => setShowDrawer(true)}
-                    disabled={walletStats.cashOnHand <= 0}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <Plus size={18} />
-                    New Liquidation
-                </button>
+                <div className="flex items-center gap-3">
+                    {/* View Toggle - Only show when user has pcf:view:all permission */}
+                    {canViewAll && (
+                        <div className="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                            <button
+                                onClick={() => setViewAll(false)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${!viewAll
+                                    ? 'bg-purple-600 text-white'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
+                            >
+                                <UserIcon size={14} />
+                                My Liquidations
+                            </button>
+                            <button
+                                onClick={() => setViewAll(true)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${viewAll
+                                    ? 'bg-purple-600 text-white'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
+                            >
+                                <Users size={14} />
+                                All Liquidations
+                            </button>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => setShowDrawer(true)}
+                        disabled={walletStats.cashOnHand <= 0 && !viewAll}
+                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Plus size={18} />
+                        New Liquidation
+                    </button>
+                </div>
             </div>
 
             {/* Wallet Cards - SAFETY NET LOGIC */}
@@ -289,6 +372,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                             <thead className="text-xs uppercase text-slate-400 bg-slate-800/50">
                                 <tr>
                                     <th className="px-4 py-3">Date</th>
+                                    {viewAll && <th className="px-4 py-3">Custodian</th>}
                                     <th className="px-4 py-3">Business</th>
                                     <th className="px-4 py-3 text-center">Items</th>
                                     <th className="px-4 py-3 text-right">Amount</th>
@@ -307,6 +391,14 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                                         <td className="px-4 py-3">
                                             {new Date(liq.dateCreated).toLocaleDateString()}
                                         </td>
+                                        {viewAll && (
+                                            <td className="px-4 py-3">
+                                                <div className="flex items-center gap-2">
+                                                    <UserIcon size={14} className="text-slate-500" />
+                                                    <span className="text-slate-300">{getUserName(liq.userId)}</span>
+                                                </div>
+                                            </td>
+                                        )}
                                         <td className="px-4 py-3 flex items-center gap-2">
                                             <Building2 size={14} className="text-slate-500" />
                                             {getBusinessName(liq.businessId)}
@@ -333,7 +425,16 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                                             {liq.replenishmentPrfId || '-'}
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <Eye size={16} className="text-slate-400" />
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setPrintLiquidation(liq); }}
+                                                    className="text-slate-400 hover:text-white p-1"
+                                                    title="Print Preview"
+                                                >
+                                                    <Printer size={16} />
+                                                </button>
+                                                <Eye size={16} className="text-slate-400" />
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -347,8 +448,20 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
             <PCFLiquidationDrawer
                 isOpen={showDrawer}
                 onClose={handleCloseDrawer}
-                onSubmit={editingLiquidation ? handleEditSubmit : handleSubmitLiquidation}
-                onSaveDraft={editingLiquidation ? undefined : handleSaveDraft}
+                onSubmit={
+                    editingLiquidation?.status === PCFStatus.DRAFT
+                        ? handleEditSubmit // Submit draft for approval after editing
+                        : editingLiquidation?.status === PCFStatus.REJECTED
+                            ? handleEditSubmit // Refile rejected
+                            : handleSubmitLiquidation // New liquidation
+                }
+                onSaveDraft={
+                    editingLiquidation?.status === PCFStatus.DRAFT
+                        ? handleUpdateDraft // Update existing draft
+                        : editingLiquidation
+                            ? undefined // No save draft for rejected refiling
+                            : handleSaveDraft // New draft
+                }
                 cashOnHand={walletStats.cashOnHand}
                 pcfCeiling={pcfCeiling}
                 editingId={editingLiquidation?.id}
@@ -357,7 +470,13 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                     receiptsLink: editingLiquidation.receiptsLink,
                     remarks: editingLiquidation.remarks,
                 } : null}
-                title={editingLiquidation ? 'Edit & Refile Liquidation' : undefined}
+                title={
+                    editingLiquidation?.status === PCFStatus.DRAFT
+                        ? 'Edit Draft Liquidation'
+                        : editingLiquidation?.status === PCFStatus.REJECTED
+                            ? 'Edit & Refile Liquidation'
+                            : undefined
+                }
             />
 
             {/* Detail Drawer (slide-in from right) */}
@@ -547,6 +666,24 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                             >
                                 Close
                             </button>
+                            {selectedLiquidation.status === PCFStatus.DRAFT && (
+                                <>
+                                    <button
+                                        onClick={() => handleEditDraft(selectedLiquidation)}
+                                        className="flex-1 px-4 py-2 bg-slate-600 hover:bg-slate-500 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                                    >
+                                        <FileText size={16} />
+                                        Edit Draft
+                                    </button>
+                                    <button
+                                        onClick={() => handleSubmitDraft(selectedLiquidation)}
+                                        className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition-colors"
+                                    >
+                                        <CheckCircle size={16} />
+                                        Submit for Approval
+                                    </button>
+                                </>
+                            )}
                             {selectedLiquidation.status === PCFStatus.REJECTED && (
                                 <button
                                     onClick={() => handleEditRejected(selectedLiquidation)}
@@ -559,6 +696,15 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses }) => {
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* Print Modal */}
+            {printLiquidation && (
+                <PCFPrintModal
+                    liquidation={printLiquidation}
+                    onClose={() => setPrintLiquidation(null)}
+                    business={businesses.find(b => b.id === printLiquidation.businessId)}
+                />
             )}
         </div>
     );

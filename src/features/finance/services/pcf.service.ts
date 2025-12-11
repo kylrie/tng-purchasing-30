@@ -17,6 +17,7 @@ export enum PCFStatus {
     APPROVED_WAITING_RELEASE = 'APPROVED_WAITING_RELEASE',
     REPLENISHED = 'REPLENISHED',
     REJECTED = 'REJECTED',
+    CANCELLED = 'CANCELLED',
 }
 
 // =====================================================
@@ -77,6 +78,11 @@ export interface PCFLiquidation {
     rejectedBy?: string;
     rejectedByName?: string;
     rejectionReason?: string;
+    // Cancellation fields
+    cancelledBy?: string;
+    cancelledByName?: string;
+    cancellationReason?: string;
+    dateCancelled?: string;
     replenishmentPrfId?: string;
     // Late submission tracking
     isLate?: boolean;
@@ -99,6 +105,19 @@ export class PCFService {
         const liquidations = await FirestoreService.getDocuments<PCFLiquidation>(
             PCF_COLLECTION,
             [where('userId', '==', userId)]
+        );
+        return liquidations.sort((a, b) =>
+            new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime()
+        );
+    }
+
+    /**
+     * Get all liquidations from all users (for pcf:view:all permission)
+     */
+    static async getAllLiquidations(): Promise<PCFLiquidation[]> {
+        const liquidations = await FirestoreService.getDocuments<PCFLiquidation>(
+            PCF_COLLECTION,
+            []
         );
         return liquidations.sort((a, b) =>
             new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime()
@@ -382,6 +401,24 @@ export class PCFService {
             rejectedBy: rejectedById,
             rejectedByName: rejectedByName,
             rejectionReason: reason,
+        });
+    }
+
+    /**
+     * Cancel a liquidation (returns amount to balance since CANCELLED is not in active statuses)
+     */
+    static async cancelLiquidation(
+        liquidationId: string,
+        cancelledById: string,
+        cancelledByName: string,
+        reason: string
+    ): Promise<void> {
+        await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
+            status: PCFStatus.CANCELLED,
+            cancelledBy: cancelledById,
+            cancelledByName: cancelledByName,
+            cancellationReason: reason,
+            dateCancelled: new Date().toISOString(),
         });
     }
 

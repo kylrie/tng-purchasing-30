@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CheckCircle, XCircle, Clock, Receipt, AlertTriangle, FileText, DollarSign, User, Building2, Wallet } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Receipt, AlertTriangle, FileText, DollarSign, User, Building2, Wallet, Ban, Printer, History } from 'lucide-react';
 import Card from '../../../shared/components/Card';
 import type { User as UserType, Business } from '../../../shared/types';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
+import { UserRole } from '../../procurement/types';
+import PCFPrintModal from '../components/PCFPrintModal';
 
 interface PCFApprovalViewProps {
     currentUser: UserType;
@@ -21,11 +23,16 @@ const formatCurrency = (amount: number): string => {
 
 const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, businesses, allUsers }) => {
     const [liquidations, setLiquidations] = useState<PCFLiquidation[]>([]);
+    const [historyLiquidations, setHistoryLiquidations] = useState<PCFLiquidation[]>([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [rejectModalId, setRejectModalId] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [cancelModalId, setCancelModalId] = useState<string | null>(null);
+    const [cancelReason, setCancelReason] = useState('');
     const [selectedLiquidation, setSelectedLiquidation] = useState<PCFLiquidation | null>(null);
+    const [viewMode, setViewMode] = useState<'pending' | 'history'>('pending');
+    const [printLiquidation, setPrintLiquidation] = useState<PCFLiquidation | null>(null);
 
     // Fetch all pending liquidations (manager view)
     const loadPendingLiquidations = async () => {
@@ -40,9 +47,34 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
         }
     };
 
+    // Fetch history liquidations (approved, replenished, rejected, cancelled)
+    const loadHistoryLiquidations = async () => {
+        setLoading(true);
+        try {
+            const allLiquidations = await PCFService.getAllLiquidations();
+            // Filter to show only completed/processed liquidations
+            const history = allLiquidations.filter(l =>
+                l.status === PCFStatus.APPROVED ||
+                l.status === PCFStatus.APPROVED_WAITING_RELEASE ||
+                l.status === PCFStatus.REPLENISHED ||
+                l.status === PCFStatus.REJECTED ||
+                l.status === PCFStatus.CANCELLED
+            );
+            setHistoryLiquidations(history);
+        } catch (error) {
+            console.error('Error loading history:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        loadPendingLiquidations();
-    }, []);
+        if (viewMode === 'pending') {
+            loadPendingLiquidations();
+        } else {
+            loadHistoryLiquidations();
+        }
+    }, [viewMode]);
 
     // Get pending liquidations count
     const pendingLiquidations = useMemo(() => {
@@ -119,6 +151,37 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
         }
     };
 
+    // Handle cancel - returns amount to balance
+    const handleCancel = async () => {
+        if (!cancelModalId || !cancelReason.trim()) {
+            alert('Please provide a reason for cancellation.');
+            return;
+        }
+
+        setProcessingId(cancelModalId);
+        try {
+            await PCFService.cancelLiquidation(
+                cancelModalId,
+                currentUser.id,
+                currentUser.name,
+                cancelReason
+            );
+
+            alert('PCF Liquidation cancelled. The amount has been returned to the custodian\'s available balance.');
+
+            // Refresh list
+            await loadPendingLiquidations();
+            setCancelModalId(null);
+            setCancelReason('');
+            setSelectedLiquidation(null);
+        } catch (error: any) {
+            console.error('Error cancelling PCF:', error);
+            alert(`Failed to cancel: ${error.message}`);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -130,9 +193,35 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
     return (
         <div className="space-y-6 max-w-7xl pb-10">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-white">PCF Approvals</h1>
-                <p className="text-slate-400 text-sm">Review and approve Petty Cash Fund liquidations. Approval auto-creates PRF for replenishment.</p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h1 className="text-2xl font-bold text-white">PCF Approvals</h1>
+                    <p className="text-slate-400 text-sm">Review and approve Petty Cash Fund liquidations. Approval auto-creates PRF for replenishment.</p>
+                </div>
+
+                {/* Toggle Buttons */}
+                <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                    <button
+                        onClick={() => setViewMode('pending')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${viewMode === 'pending'
+                            ? 'bg-yellow-600 text-white'
+                            : 'text-slate-400 hover:text-white'
+                            }`}
+                    >
+                        <Clock size={16} />
+                        Pending
+                    </button>
+                    <button
+                        onClick={() => setViewMode('history')}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${viewMode === 'history'
+                            ? 'bg-purple-600 text-white'
+                            : 'text-slate-400 hover:text-white'
+                            }`}
+                    >
+                        <History size={16} />
+                        History
+                    </button>
+                </div>
             </div>
 
             {/* Stats Cards */}
@@ -177,63 +266,145 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             </div>
 
             {/* Main Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Pending List */}
-                <Card className="lg:col-span-2">
+            {viewMode === 'pending' ? (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Pending List */}
+                    <Card className="lg:col-span-2">
+                        <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
+                            <Clock size={20} className="text-yellow-400" />
+                            Pending Liquidations
+                        </h3>
+
+                        {pendingLiquidations.length === 0 ? (
+                            <div className="text-center py-12">
+                                <CheckCircle size={48} className="mx-auto text-green-600 mb-4" />
+                                <p className="text-slate-400">No pending PCF liquidations to approve.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {pendingLiquidations.map((liq) => {
+                                    const user = getUserById(liq.userId);
+                                    return (
+                                        <div
+                                            key={liq.id}
+                                            onClick={() => setSelectedLiquidation(liq)}
+                                            className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedLiquidation?.id === liq.id
+                                                ? 'border-purple-500 bg-purple-900/20'
+                                                : 'border-slate-700 bg-slate-800/30 hover:bg-slate-800/50'
+                                                }`}
+                                        >
+                                            <div className="flex justify-between items-start">
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <User size={14} className="text-slate-500" />
+                                                        <span className="font-medium text-white">{liq.userName}</span>
+                                                        <span className="text-xs text-slate-500">({user?.role || 'Unknown'})</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                        <Building2 size={12} />
+                                                        {getBusinessName(liq.businessId)}
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="font-bold text-lg text-white">{formatCurrency(liq.totalAmount)}</p>
+                                                    <p className="text-xs text-slate-500">
+                                                        {liq.expenses.length} expense{liq.expenses.length !== 1 ? 's' : ''}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 text-xs text-slate-500">
+                                                Submitted: {new Date(liq.dateSubmitted || liq.dateCreated).toLocaleDateString()}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </Card>
+
+                    {/* Detail Panel - Removed, now using Drawer */}
+                </div>
+            ) : (
+                /* History View */
+                <Card>
                     <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
-                        <Clock size={20} className="text-yellow-400" />
-                        Pending Liquidations
+                        <History size={20} className="text-purple-400" />
+                        Approval History
                     </h3>
 
-                    {pendingLiquidations.length === 0 ? (
+                    {historyLiquidations.length === 0 ? (
                         <div className="text-center py-12">
-                            <CheckCircle size={48} className="mx-auto text-green-600 mb-4" />
-                            <p className="text-slate-400">No pending PCF liquidations to approve.</p>
+                            <FileText size={48} className="mx-auto text-slate-600 mb-4" />
+                            <p className="text-slate-400">No approval history yet.</p>
                         </div>
                     ) : (
-                        <div className="space-y-3">
-                            {pendingLiquidations.map((liq) => {
-                                const user = getUserById(liq.userId);
-                                return (
-                                    <div
-                                        key={liq.id}
-                                        onClick={() => setSelectedLiquidation(liq)}
-                                        className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedLiquidation?.id === liq.id
-                                            ? 'border-purple-500 bg-purple-900/20'
-                                            : 'border-slate-700 bg-slate-800/30 hover:bg-slate-800/50'
-                                            }`}
-                                    >
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <User size={14} className="text-slate-500" />
-                                                    <span className="font-medium text-white">{liq.userName}</span>
-                                                    <span className="text-xs text-slate-500">({user?.role || 'Unknown'})</span>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                                    <Building2 size={12} />
-                                                    {getBusinessName(liq.businessId)}
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="font-bold text-lg text-white">{formatCurrency(liq.totalAmount)}</p>
-                                                <p className="text-xs text-slate-500">
-                                                    {liq.expenses.length} expense{liq.expenses.length !== 1 ? 's' : ''}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="mt-2 text-xs text-slate-500">
-                                            Submitted: {new Date(liq.dateSubmitted || liq.dateCreated).toLocaleDateString()}
-                                        </div>
-                                    </div>
-                                );
-                            })}
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="text-left text-xs text-slate-400 uppercase tracking-wider border-b border-slate-700">
+                                        <th className="pb-3 px-3">Custodian</th>
+                                        <th className="pb-3 px-3">Business Unit</th>
+                                        <th className="pb-3 px-3">Amount</th>
+                                        <th className="pb-3 px-3">Status</th>
+                                        <th className="pb-3 px-3">Approved By</th>
+                                        <th className="pb-3 px-3">Date</th>
+                                        <th className="pb-3 px-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {historyLiquidations.map((liq) => (
+                                        <tr key={liq.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                                            <td className="py-3 px-3">
+                                                <span className="font-medium text-white">{liq.userName}</span>
+                                            </td>
+                                            <td className="py-3 px-3 text-slate-400 text-sm">
+                                                {getBusinessName(liq.businessId)}
+                                            </td>
+                                            <td className="py-3 px-3 font-bold text-white">
+                                                {formatCurrency(liq.totalAmount)}
+                                            </td>
+                                            <td className="py-3 px-3">
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${liq.status === PCFStatus.REPLENISHED
+                                                        ? 'bg-emerald-600/20 text-emerald-400'
+                                                        : liq.status === PCFStatus.APPROVED || liq.status === PCFStatus.APPROVED_WAITING_RELEASE
+                                                            ? 'bg-green-600/20 text-green-400'
+                                                            : liq.status === PCFStatus.REJECTED
+                                                                ? 'bg-red-600/20 text-red-400'
+                                                                : liq.status === PCFStatus.CANCELLED
+                                                                    ? 'bg-orange-600/20 text-orange-400'
+                                                                    : 'bg-slate-600/20 text-slate-400'
+                                                    }`}>
+                                                    {liq.status.replace(/_/g, ' ')}
+                                                </span>
+                                            </td>
+                                            <td className="py-3 px-3 text-slate-400 text-sm">
+                                                {liq.approvedByName || liq.rejectedByName || liq.cancelledByName || '-'}
+                                            </td>
+                                            <td className="py-3 px-3 text-slate-400 text-sm">
+                                                {liq.dateApproved
+                                                    ? new Date(liq.dateApproved).toLocaleDateString()
+                                                    : liq.dateCancelled
+                                                        ? new Date(liq.dateCancelled).toLocaleDateString()
+                                                        : new Date(liq.dateCreated).toLocaleDateString()
+                                                }
+                                            </td>
+                                            <td className="py-3 px-3 text-right">
+                                                <button
+                                                    onClick={() => setPrintLiquidation(liq)}
+                                                    className="text-slate-400 hover:text-white p-1"
+                                                    title="Print Preview"
+                                                >
+                                                    <Printer size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </Card>
-
-                {/* Detail Panel - Removed, now using Drawer */}
-            </div>
+            )}
 
             {/* Detail Drawer (slide-in from right) */}
             {selectedLiquidation && (
@@ -399,9 +570,21 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                     onClick={() => setRejectModalId(selectedLiquidation.id)}
                                     disabled={processingId === selectedLiquidation.id}
                                     className="px-6 bg-red-600/20 hover:bg-red-600/30 text-red-400 py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-red-700/30 transition-colors"
+                                    title="Reject"
                                 >
                                     <XCircle size={18} />
                                 </button>
+                                {/* Cancel button - SuperAdmin only */}
+                                {currentUser.role === UserRole.SUPER_ADMIN && (
+                                    <button
+                                        onClick={() => setCancelModalId(selectedLiquidation.id)}
+                                        disabled={processingId === selectedLiquidation.id}
+                                        className="px-6 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-orange-700/30 transition-colors"
+                                        title="Cancel & Return Balance"
+                                    >
+                                        <Ban size={18} />
+                                    </button>
+                                )}
                             </div>
 
                             {/* Fast Track Notice */}
@@ -461,6 +644,65 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* Cancel Modal */}
+            {cancelModalId && (
+                <>
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setCancelModalId(null)} />
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="bg-slate-900 rounded-xl border border-slate-700 w-full max-w-md shadow-2xl">
+                            <div className="p-6 border-b border-slate-700">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <Ban size={24} className="text-orange-400" />
+                                    Cancel PCF Liquidation
+                                </h2>
+                                <p className="text-sm text-slate-400 mt-2">
+                                    Cancelling will permanently close this liquidation and return the amount to the custodian's available balance.
+                                </p>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="text-sm text-slate-400 block mb-2">Reason for Cancellation</label>
+                                    <textarea
+                                        value={cancelReason}
+                                        onChange={(e) => setCancelReason(e.target.value)}
+                                        placeholder="Please provide a reason..."
+                                        rows={3}
+                                        className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
+                                    />
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
+                                <button
+                                    onClick={() => {
+                                        setCancelModalId(null);
+                                        setCancelReason('');
+                                    }}
+                                    className="px-4 py-2 text-slate-300 hover:text-white"
+                                >
+                                    Close
+                                </button>
+                                <button
+                                    onClick={handleCancel}
+                                    disabled={!cancelReason.trim() || processingId === cancelModalId}
+                                    className="px-6 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium disabled:opacity-50"
+                                >
+                                    {processingId === cancelModalId ? 'Cancelling...' : 'Cancel Liquidation'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Print Modal */}
+            {printLiquidation && (
+                <PCFPrintModal
+                    liquidation={printLiquidation}
+                    onClose={() => setPrintLiquidation(null)}
+                    business={businesses.find(b => b.id === printLiquidation.businessId)}
+                />
             )}
         </div>
     );

@@ -6,6 +6,8 @@ import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
+import PCFPrintModal from '../../finance/components/PCFPrintModal';
+import { PCFService, type PCFLiquidation } from '../../finance/services/pcf.service';
 import EditableItemTable from '../components/EditableItemTable';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import Card from '../../../shared/components/Card';
@@ -519,10 +521,41 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [activeTab, setActiveTab] = useState<'processing' | 'pending' | 'liquidation' | 'history'>('processing');
     const [preparePRFReq, setPreparePRFReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
+    const [pcfPrintData, setPcfPrintData] = useState<PCFLiquidation | null>(null);
     const [editingPrf, setEditingPrf] = useState<Requisition | null>(null);
     const [selectedReq, setSelectedReq] = useState<Requisition | null>(null); // Quick Peek drawer state
     const [drawerLoading, setDrawerLoading] = useState(false);
     const { hasPermission } = usePermissions();
+
+    // Handle print - fetch PCF data if it's a PCF Replenishment
+    const handlePrint = async (req: Requisition) => {
+        if (req.linkedPcfId) {
+            // It's a PCF Replenishment - fetch the linked PCF data
+            try {
+                const pcfData = await PCFService.getLiquidationById(req.linkedPcfId);
+                if (pcfData) {
+                    setPcfPrintData(pcfData);
+                    setPrintReq(req);
+                } else {
+                    // Fallback to regular PRF modal if PCF not found
+                    setPrintReq(req);
+                }
+            } catch (error) {
+                console.error('Error fetching PCF data:', error);
+                // Fallback to regular PRF modal
+                setPrintReq(req);
+            }
+        } else {
+            // Regular PRF - use PRF print modal
+            setPrintReq(req);
+        }
+    };
+
+    // Close print modal
+    const closePrintModal = () => {
+        setPrintReq(null);
+        setPcfPrintData(null);
+    };
 
     // PRF Drawer Approval Handlers
     const handleDrawerApprove = async () => {
@@ -1119,7 +1152,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                                 <ExternalLink size={16} />
                                                             </a>
                                                         )}
-                                                        <button onClick={() => setPrintReq(req)} className="text-slate-400 p-1 hover:text-white" title="Print PRF"><Printer size={16} /></button>
+                                                        <button onClick={() => handlePrint(req)} className="text-slate-400 p-1 hover:text-white" title="Print PRF"><Printer size={16} /></button>
                                                     </div>
                                                 )}
                                             </div>
@@ -1138,7 +1171,24 @@ export const PrfView: React.FC<PrfViewProps> = ({
 
             {preparePRFReq && <PreparePRFModal requisition={preparePRFReq} suppliers={suppliers} onClose={() => setPreparePRFReq(null)} onSubmit={handlePreparePRFSubmit} currentUserId={currentUser.id} users={allUsers} />}
             {/* FIX #3: Removed duplicate modal - editingPrf is already handled by DirectPrfModal at line 558 */}
-            {printReq && <PRFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)} />}
+            {/* Print Modal - Use PCFPrintModal for PCF Replenishments, PRFPrintModal for regular PRFs */}
+            {printReq && (
+                pcfPrintData ? (
+                    <PCFPrintModal
+                        liquidation={pcfPrintData}
+                        onClose={closePrintModal}
+                        business={businesses.find(b => b.id === printReq.businessId)}
+                    />
+                ) : (
+                    <PRFPrintModal
+                        req={printReq}
+                        onClose={closePrintModal}
+                        business={businesses.find(b => b.id === printReq.businessId)}
+                        requester={allUsers.find(u => u.id === printReq.requesterId)}
+                        preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)}
+                    />
+                )
+            )}
 
             {/* Quick Peek Drawer */}
             <RequisitionDrawer
