@@ -18,6 +18,56 @@ const DEFAULT_PCF_SETTINGS: PCFSettings = {
 
 const SETTINGS_COLLECTION = COLLECTIONS.SETTINGS;
 const PCF_CONFIG_DOC = 'pcf_config';
+const APPROVER_ASSIGNMENTS_DOC = 'approver_assignments';
+
+// =====================================================
+// APPROVER ASSIGNMENTS INTERFACE
+// =====================================================
+
+/**
+ * Finance Head assignment per Business Unit
+ * Maps business unit ID to Finance Head user ID
+ */
+export interface FinanceHeadAssignment {
+    userId: string;
+    userName: string;
+    businessUnitIds: string[]; // Which BUs this finance head handles
+}
+
+/**
+ * BOD Approver (multiple users can be assigned)
+ */
+export interface BodApprover {
+    userId: string;
+    userName: string;
+}
+
+export interface ApproverAssignments {
+    // Finance Head - BU-specific (multiple, each handles specific BUs)
+    financeHeads?: FinanceHeadAssignment[];
+
+    // General Manager (single user)
+    gmUid?: string;
+    gmName?: string;
+
+    // CFO Approver (single user) - renamed from BOD Approver
+    cfoUid?: string;
+    cfoName?: string;
+
+    // BOD Approvers (multiple users) - renamed from Check Prep Officer
+    bodApprovers?: BodApprover[];
+
+    // Audit trail
+    lastUpdated?: string;
+    updatedBy?: string;
+    updatedByName?: string;
+}
+
+const DEFAULT_APPROVER_ASSIGNMENTS: ApproverAssignments = {
+    financeHeads: [],
+    bodApprovers: [],
+};
+
 
 // =====================================================
 // SETTINGS SERVICE
@@ -67,6 +117,57 @@ export class SettingsService {
         await FirestoreService.setDocument(
             SETTINGS_COLLECTION,
             PCF_CONFIG_DOC,
+            updatePayload
+        );
+    }
+
+    // =====================================================
+    // APPROVER ASSIGNMENTS METHODS
+    // =====================================================
+
+    /**
+     * Get workflow approver assignments (Finance Head, GM, BOD, Check Prep Officer)
+     * Returns empty object if not configured
+     */
+    static async getApproverAssignments(): Promise<ApproverAssignments> {
+        try {
+            const assignments = await FirestoreService.getDocument<ApproverAssignments>(
+                SETTINGS_COLLECTION,
+                APPROVER_ASSIGNMENTS_DOC
+            );
+
+            if (!assignments) {
+                return { ...DEFAULT_APPROVER_ASSIGNMENTS };
+            }
+
+            return {
+                ...DEFAULT_APPROVER_ASSIGNMENTS,
+                ...assignments,
+            };
+        } catch (error) {
+            console.error('[SettingsService] Error fetching approver assignments:', error);
+            return { ...DEFAULT_APPROVER_ASSIGNMENTS };
+        }
+    }
+
+    /**
+     * Update workflow approver assignments
+     */
+    static async updateApproverAssignments(
+        assignments: Partial<ApproverAssignments>,
+        userId?: string,
+        userName?: string
+    ): Promise<void> {
+        const updatePayload: Partial<ApproverAssignments> = {
+            ...assignments,
+            lastUpdated: new Date().toISOString(),
+            updatedBy: userId,
+            updatedByName: userName,
+        };
+
+        await FirestoreService.setDocument(
+            SETTINGS_COLLECTION,
+            APPROVER_ASSIGNMENTS_DOC,
             updatePayload
         );
     }
