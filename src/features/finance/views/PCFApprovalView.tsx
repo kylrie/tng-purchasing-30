@@ -169,8 +169,9 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
             alert('PCF Liquidation cancelled. The amount has been returned to the custodian\'s available balance.');
 
-            // Refresh list
+            // Refresh both lists
             await loadPendingLiquidations();
+            await loadHistoryLiquidations();
             setCancelModalId(null);
             setCancelReason('');
             setSelectedLiquidation(null);
@@ -365,14 +366,14 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                             </td>
                                             <td className="py-3 px-3">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${liq.status === PCFStatus.REPLENISHED
-                                                        ? 'bg-emerald-600/20 text-emerald-400'
-                                                        : liq.status === PCFStatus.APPROVED || liq.status === PCFStatus.APPROVED_WAITING_RELEASE
-                                                            ? 'bg-green-600/20 text-green-400'
-                                                            : liq.status === PCFStatus.REJECTED
-                                                                ? 'bg-red-600/20 text-red-400'
-                                                                : liq.status === PCFStatus.CANCELLED
-                                                                    ? 'bg-orange-600/20 text-orange-400'
-                                                                    : 'bg-slate-600/20 text-slate-400'
+                                                    ? 'bg-emerald-600/20 text-emerald-400'
+                                                    : liq.status === PCFStatus.APPROVED || liq.status === PCFStatus.APPROVED_WAITING_RELEASE
+                                                        ? 'bg-green-600/20 text-green-400'
+                                                        : liq.status === PCFStatus.REJECTED
+                                                            ? 'bg-red-600/20 text-red-400'
+                                                            : liq.status === PCFStatus.CANCELLED
+                                                                ? 'bg-orange-600/20 text-orange-400'
+                                                                : 'bg-slate-600/20 text-slate-400'
                                                     }`}>
                                                     {liq.status.replace(/_/g, ' ')}
                                                 </span>
@@ -388,7 +389,17 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                                         : new Date(liq.dateCreated).toLocaleDateString()
                                                 }
                                             </td>
-                                            <td className="py-3 px-3 text-right">
+                                            <td className="py-3 px-3 text-right flex gap-1 justify-end">
+                                                {/* Cancel button for stuck APPROVED_WAITING_RELEASE items */}
+                                                {liq.status === PCFStatus.APPROVED_WAITING_RELEASE && (
+                                                    <button
+                                                        onClick={() => setCancelModalId(liq.id)}
+                                                        className="text-orange-400 hover:text-orange-300 p-1"
+                                                        title="Cancel this stuck request"
+                                                    >
+                                                        <Ban size={16} />
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => setPrintLiquidation(liq)}
                                                     className="text-slate-400 hover:text-white p-1"

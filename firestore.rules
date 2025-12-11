@@ -521,9 +521,9 @@ service cloud.firestore {
          (request.resource.data.status == 'APPROVED' || 
           request.resource.data.status == 'APPROVED_WAITING_RELEASE' || 
           request.resource.data.status == 'REJECTED')) ||
-        // SuperAdmin only: Cancel PCF liquidation
+        // SuperAdmin only: Cancel PCF liquidation (from PENDING or APPROVED_WAITING_RELEASE)
         (isSuperAdmin() && 
-         resource.data.status == 'PENDING_APPROVAL' &&
+         (resource.data.status == 'PENDING_APPROVAL' || resource.data.status == 'APPROVED_WAITING_RELEASE') &&
          request.resource.data.status == 'CANCELLED') ||
         // Finance marking as REPLENISHED when releasing funds
         (hasPermission('finance:release_funds') && 
