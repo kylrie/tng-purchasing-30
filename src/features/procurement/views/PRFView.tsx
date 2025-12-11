@@ -50,6 +50,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     uomOptions: string[];
     users?: User[];
 }) => {
+    const { hasPermission } = usePermissions();
     const [newItems, setNewItems] = useState<RequisitionItem[]>(initialData?.items || []);
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', price: 0 });
 
@@ -86,8 +87,8 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     // Determine accessible business units based on user role
     // NOTE: requisition:view:all is for VIEWING - not for CREATING in any BU
     const accessibleBusinessUnits = useMemo(() => {
-        // ONLY Super Admin can create PRF in any BU
-        if (currentUser.role === 'SUPER_ADMIN') {
+        // Users with global access can create PRF in any BU
+        if (hasPermission('requisition:view:all')) {
             return businesses;
         }
 
@@ -109,8 +110,8 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     }, [businesses, currentUser]);
 
     // Determine if user can change business unit selection
-    const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
-    const canSelectBusiness = isSuperAdmin || accessibleBusinessUnits.length > 1;
+    const hasGlobalAccess = hasPermission('requisition:view:all');
+    const canSelectBusiness = hasGlobalAccess || accessibleBusinessUnits.length > 1;
 
     // Validate and set default business ID
     const getValidBusinessId = () => {

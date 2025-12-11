@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, CheckCircle, XCircle, Printer, ChevronDown } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
-import { RequisitionStatus, UserRole } from '../types';
+import { RequisitionStatus } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
@@ -73,12 +73,12 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 // Filter by Selected Status Dropdown (only for pending tab)
                 if (statusFilter !== 'all' && req.status !== statusFilter) return false;
 
-                // Check designated approver (Allow Super Admin to bypass)
+                // Check designated approver (Allow users with global access to bypass)
                 if (req.prfDetails?.designatedApproverId) {
                     const isDesignated = req.prfDetails.designatedApproverId === currentUser.id;
-                    const isSuperAdmin = currentUser.role === UserRole.SUPER_ADMIN;
+                    const hasGlobalAccess = hasPermission('requisition:view:all');
 
-                    if (!isDesignated && !isSuperAdmin) {
+                    if (!isDesignated && !hasGlobalAccess) {
                         return false;
                     }
                 }

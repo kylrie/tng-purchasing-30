@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Edit2, Trash2, X, Star, Check, Building2 } from 'lucide-react';
 import type { Supplier, BankDetails, Business, User } from '../../procurement/types';
-import { UserRole } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // Task 3: TIN Validation Helper
 const isValidTIN = (tin: string): boolean => {
@@ -62,11 +62,6 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
             // Check if bank details are actually populated
             const hasBankDetails = !!(initialData.bankDetails?.bankName || initialData.bankDetails?.accountNumber);
 
-            // If creating new, default to current user's business unit if not super admin
-            if (!supplier && currentUser.role !== UserRole.SUPER_ADMIN && currentUser.businessId) {
-                initialData.businessUnitIds = [currentUser.businessId];
-            }
-
             return { ...initialData, hasBankDetails };
         }
     );
@@ -96,8 +91,8 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
 
             const hasBankDetails = !!(initialData.bankDetails?.bankName || initialData.bankDetails?.accountNumber);
 
-            // If creating new, default to current user's business unit if not super admin
-            if (!supplier && currentUser.role !== UserRole.SUPER_ADMIN && currentUser.businessId) {
+            // If creating new, default to current user's business unit
+            if (!supplier && currentUser.businessId) {
                 initialData.businessUnitIds = [currentUser.businessId];
             }
 
@@ -456,6 +451,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
 
 
 const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSupplier, onUpdateSupplier, onDeleteSupplier, currentUser, businesses }) => {
+    const { hasPermission } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -558,12 +554,14 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                             <option key={business.id} value={business.id}>{business.name}</option>
                         ))}
                     </select>
-                    <button
-                        onClick={handleAdd}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2"
-                    >
-                        <Plus size={18} /> Add Supplier
-                    </button>
+                    {hasPermission('supplier:create') && (
+                        <button
+                            onClick={handleAdd}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2"
+                        >
+                            <Plus size={18} /> Add Supplier
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -628,18 +626,22 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button
-                                                onClick={() => handleEdit(supplier)}
-                                                className="text-cyan-400 hover:text-cyan-300 p-1 hover:bg-slate-700 rounded"
-                                            >
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(supplier.id)}
-                                                className="text-red-400 hover:text-red-300 p-1 hover:bg-slate-700 rounded"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {hasPermission('supplier:edit') && (
+                                                <button
+                                                    onClick={() => handleEdit(supplier)}
+                                                    className="text-cyan-400 hover:text-cyan-300 p-1 hover:bg-slate-700 rounded"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                            )}
+                                            {hasPermission('supplier:delete') && (
+                                                <button
+                                                    onClick={() => handleDelete(supplier.id)}
+                                                    className="text-red-400 hover:text-red-300 p-1 hover:bg-slate-700 rounded"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

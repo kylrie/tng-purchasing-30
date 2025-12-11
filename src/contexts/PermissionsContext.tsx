@@ -90,8 +90,25 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const updatePermissions = async (newPermissions: Record<string, Permission[]>) => {
         try {
             const docRef = doc(db, 'config', 'permissions');
-            await setDoc(docRef, { permissions: newPermissions }, { merge: true });
-            setPermissions(newPermissions);
+
+            // First, read current data from Firestore to preserve any roles not in local state
+            const currentDoc = await getDoc(docRef);
+            let mergedPermissions = { ...newPermissions };
+
+            if (currentDoc.exists()) {
+                const currentData = currentDoc.data();
+                if (currentData.permissions) {
+                    // Preserve roles from Firestore that aren't in the new permissions
+                    for (const [role, perms] of Object.entries(currentData.permissions)) {
+                        if (!(role in mergedPermissions)) {
+                            mergedPermissions[role] = perms as Permission[];
+                        }
+                    }
+                }
+            }
+
+            await setDoc(docRef, { permissions: mergedPermissions }, { merge: true });
+            setPermissions(mergedPermissions);
         } catch (err: any) {
             console.error('Error saving permissions:', err);
             throw err;

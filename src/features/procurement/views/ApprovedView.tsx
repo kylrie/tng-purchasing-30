@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Search, Filter, ChevronDown } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
-import { RequisitionStatus, hasGlobalAccess } from '../types';
+import { RequisitionStatus } from '../types';
+import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 
 interface ApprovedViewProps {
@@ -19,6 +20,7 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
     businesses,
     getStatusBadge
 }) => {
+    const { hasPermission } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [typeFilter, setTypeFilter] = useState<string>('all'); // all, burf, prf
@@ -32,6 +34,9 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
         RequisitionStatus.AUDITED_CLEARED
     ];
 
+    // Use permission instead of role-based check
+    const hasGlobalAccess = hasPermission('requisition:view:all');
+
     const filteredRequisitions = useMemo(() => {
         return requisitions.filter(req => {
             // 1. Filter by Approved Statuses
@@ -42,8 +47,7 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
             if (typeFilter === 'prf' && !req.id.startsWith('PRF') && req.status !== RequisitionStatus.PRF_PENDING_MANAGER) return false;
 
             // 3. Filter by Business Unit
-            const hasGlobal = hasGlobalAccess(currentUser.role);
-            if (hasGlobal) {
+            if (hasGlobalAccess) {
                 if (selectedBusinessUnit !== 'all' && req.businessId !== selectedBusinessUnit) return false;
             } else {
                 if (req.businessId !== currentUser.businessId) return false;
@@ -65,7 +69,7 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
 
             return true;
         }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
-    }, [requisitions, approvedStatuses, typeFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses]);
+    }, [requisitions, approvedStatuses, typeFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasGlobalAccess]);
 
     return (
         <div className="space-y-6 text-white animate-in fade-in slide-in-from-bottom-4">
@@ -76,16 +80,16 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
-                    {/* Business Unit Filter (Global Roles Only) */}
-                    {(hasGlobalAccess(currentUser.role) || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
+                    {/* Business Unit Filter (Global Access or Multi-BU Users) */}
+                    {(hasGlobalAccess || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
                         <div className="relative">
                             <select
                                 value={selectedBusinessUnit}
                                 onChange={(e) => setSelectedBusinessUnit(e.target.value)}
                                 className="appearance-none pl-4 pr-10 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                             >
-                                <option value="all">{hasGlobalAccess(currentUser.role) ? 'All Business Units' : 'All My Business Units'}</option>
-                                {hasGlobalAccess(currentUser.role) ? (
+                                <option value="all">{hasGlobalAccess ? 'All Business Units' : 'All My Business Units'}</option>
+                                {hasGlobalAccess ? (
                                     businesses.map(b => (
                                         <option key={b.id} value={b.id}>{b.name}</option>
                                     ))

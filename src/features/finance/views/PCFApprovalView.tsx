@@ -3,7 +3,7 @@ import { CheckCircle, XCircle, Clock, Receipt, AlertTriangle, FileText, DollarSi
 import Card from '../../../shared/components/Card';
 import type { User as UserType, Business } from '../../../shared/types';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
-import { UserRole } from '../../procurement/types';
+import { usePermissions } from '../../../hooks/usePermissions';
 import PCFPrintModal from '../components/PCFPrintModal';
 
 interface PCFApprovalViewProps {
@@ -33,6 +33,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
     const [selectedLiquidation, setSelectedLiquidation] = useState<PCFLiquidation | null>(null);
     const [viewMode, setViewMode] = useState<'pending' | 'history'>('pending');
     const [printLiquidation, setPrintLiquidation] = useState<PCFLiquidation | null>(null);
+    const { hasPermission } = usePermissions();
 
     // Fetch all pending liquidations (manager view)
     const loadPendingLiquidations = async () => {
@@ -585,8 +586,8 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                 >
                                     <XCircle size={18} />
                                 </button>
-                                {/* Cancel button - SuperAdmin only */}
-                                {currentUser.role === UserRole.SUPER_ADMIN && (
+                                {/* Cancel button - requires pcf:cancel permission */}
+                                {hasPermission('pcf:cancel') && (
                                     <button
                                         onClick={() => setCancelModalId(selectedLiquidation.id)}
                                         disabled={processingId === selectedLiquidation.id}

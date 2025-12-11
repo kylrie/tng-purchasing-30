@@ -36,6 +36,7 @@ export const ALL_PERMISSIONS = [
   'pcf:view:all',
   'pcf:create',
   'pcf:approve',
+  'pcf:cancel',       // Cancel PCF liquidations (returns balance)
 
   // Data Visibility
   'requisition:view:own',

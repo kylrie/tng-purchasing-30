@@ -95,6 +95,7 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'pcf:view:all': { label: 'View All PCF Records', category: 'Petty Cash Fund' },
   'pcf:create': { label: 'Create PCF Liquidation', category: 'Petty Cash Fund' },
   'pcf:approve': { label: 'Approve PCF Liquidations', category: 'Petty Cash Fund' },
+  'pcf:cancel': { label: 'Cancel PCF Liquidation', category: 'Petty Cash Fund' },
 
   // Data Visibility
   'requisition:view:own': { label: 'View Own Requests', category: 'Data Visibility' },
