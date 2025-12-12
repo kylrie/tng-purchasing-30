@@ -230,9 +230,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         }
     };
 
-    const handlePermissionsSave = ({ permissions, roles }: { permissions: Record<UserRole, Permission[]>, roles: UserRole[] }) => {
-        updatePermissions(permissions);
-        updateRoles(roles);
+    const handlePermissionsSave = async ({ permissions, roles }: { permissions: Record<UserRole, Permission[]>, roles: UserRole[] }): Promise<void> => {
+        await updatePermissions(permissions);
+        await updateRoles(roles);
     };
 
     // Handler for saving workflow approver assignments

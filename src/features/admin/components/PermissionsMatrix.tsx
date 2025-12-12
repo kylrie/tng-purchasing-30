@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 interface PermissionsMatrixProps {
-  onSave: (data: { permissions: Record<string, Permission[]>, roles: string[] }) => void;
+  onSave: (data: { permissions: Record<string, Permission[]>, roles: string[] }) => Promise<void>;
 }
 
 // 1. Data Transformation & Configuration
@@ -172,11 +172,17 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
   const [viewMode, setViewMode] = useState<'matrix' | 'role'>('role');
   const [selectedRoleForPivot, setSelectedRoleForPivot] = useState<string>('EMPLOYEE');
   const [isDirty, setIsDirty] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
+  // Only sync from context on initial load, not on every context change
+  // This prevents race conditions where useEffect overwrites local state after save
   useEffect(() => {
-    setPermissions(contextPermissions);
-    setRoles(contextRoles);
-  }, [contextPermissions, contextRoles]);
+    if (!isInitialized && Object.keys(contextPermissions).length > 0) {
+      setPermissions(contextPermissions);
+      setRoles(contextRoles);
+      setIsInitialized(true);
+    }
+  }, [contextPermissions, contextRoles, isInitialized]);
 
   const groupedPermissions = useMemo(() => {
     const groups: Record<string, PermissionConfig[]> = {};
@@ -274,10 +280,15 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     setIsDirty(true);
   };
 
-  const handleSave = () => {
-    onSave({ permissions, roles });
-    setIsDirty(false);
-    alert('Permissions saved successfully.');
+  const handleSave = async () => {
+    try {
+      await onSave({ permissions, roles });
+      setIsDirty(false);
+      alert('Permissions saved successfully.');
+    } catch (error) {
+      console.error('Error saving permissions:', error);
+      alert('Failed to save permissions. Please try again.');
+    }
   };
 
   const handleAddRole = () => {

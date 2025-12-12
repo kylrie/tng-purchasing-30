@@ -88,40 +88,40 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }, []);
 
     const updatePermissions = async (newPermissions: Record<string, Permission[]>) => {
+        // Store previous state for rollback on error
+        const previousPermissions = permissions;
+
         try {
+            // Optimistic update - set local state immediately for responsive UI
+            setPermissions(newPermissions);
+
             const docRef = doc(db, 'config', 'permissions');
 
-            // First, read current data from Firestore to preserve any roles not in local state
-            const currentDoc = await getDoc(docRef);
-            let mergedPermissions = { ...newPermissions };
-
-            if (currentDoc.exists()) {
-                const currentData = currentDoc.data();
-                if (currentData.permissions) {
-                    // Preserve roles from Firestore that aren't in the new permissions
-                    for (const [role, perms] of Object.entries(currentData.permissions)) {
-                        if (!(role in mergedPermissions)) {
-                            mergedPermissions[role] = perms as Permission[];
-                        }
-                    }
-                }
-            }
-
-            await setDoc(docRef, { permissions: mergedPermissions }, { merge: true });
-            setPermissions(mergedPermissions);
+            // Save directly - the UI passes the complete final state
+            // No need to merge with existing data since the matrix represents final state
+            await setDoc(docRef, { permissions: newPermissions }, { merge: true });
         } catch (err: any) {
             console.error('Error saving permissions:', err);
+            // Rollback on error - restore previous state
+            setPermissions(previousPermissions);
             throw err;
         }
     };
 
     const updateRoles = async (newRoles: string[]) => {
+        // Store previous state for rollback on error
+        const previousRoles = roles;
+
         try {
+            // Optimistic update - set local state immediately
+            setRoles(newRoles);
+
             const docRef = doc(db, 'config', 'permissions');
             await setDoc(docRef, { roles: newRoles }, { merge: true });
-            setRoles(newRoles);
         } catch (err: any) {
             console.error('Error saving roles:', err);
+            // Rollback on error - restore previous state
+            setRoles(previousRoles);
             throw err;
         }
     };
