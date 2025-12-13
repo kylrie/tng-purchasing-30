@@ -69,6 +69,8 @@ export const ALL_PERMISSIONS = [
   'module:view:approvals',
   'module:view:approved',
   'module:view:finance',
+  'module:view:finance:br',           // View BR (Budget Request) sub-tab in Finance
+  'module:view:finance:check_auth',   // View Check Auth (BOD) sub-tab in Finance
   'module:view:liquidation',
   'module:view:pcf',
   'module:view:pcf_approvals',
@@ -125,6 +127,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approvals',
     'module:view:approved',
     'module:view:finance',
+    'module:view:finance:br',
+    'module:view:finance:check_auth',
     'module:view:liquidation',
     'module:view:pcf',
     'module:view:pcf_approvals',
@@ -328,6 +332,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approvals',
     'module:view:approved',
     'module:view:finance',
+    'module:view:finance:br',
+    'module:view:finance:check_auth',
     'module:view:liquidation',
     'dashboard:widget:pending_approvals',
     'dashboard:widget:active_prfs',
