@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, CheckCircle, XCircle, Printer, ChevronDown } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, CheckCircle, XCircle, Printer, ChevronDown } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
 import { RequisitionStatus } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
 import Card from '../../../shared/components/Card';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import RejectionModal from '../../../shared/components/RejectionModal';
@@ -29,13 +30,24 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
-    const [statusFilter, setStatusFilter] = useState<string>('all');
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [printingReq, setPrintingReq] = useState<Requisition | null>(null);
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
     const [drawerLoading, setDrawerLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+    const [pendingSubTab, setPendingSubTab] = useState<'burf' | 'cic' | 'prf' | 'gmprf'>('burf');
     const { hasPermission } = usePermissions();
+
+    // Workflow Approver Assignments for GM PRF filtering
+    const [approverAssignments, setApproverAssignments] = useState<ApproverAssignments>({});
+
+    // Load approver assignments on mount
+    useEffect(() => {
+        SettingsService.getApproverAssignments().then(setApproverAssignments);
+    }, []);
+
+    // Check if current user is the assigned GM
+    const isAssignedGM = currentUser.id === approverAssignments.gmUid;
 
     // Determine which statuses the current user is allowed to approve
     const userApprovalStatuses = useMemo(() => {
@@ -47,12 +59,16 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         if (hasPermission('approval:cic:burf')) {
             statuses.push(RequisitionStatus.BURF_PENDING_CIC);
         }
-        if (hasPermission('approval:manager:prf')) {
-            statuses.push(RequisitionStatus.PRF_PENDING_MANAGER);
+        // PRF_PENDING_MANAGER now uses designatedApproverId - include for all users who might be designated
+        statuses.push(RequisitionStatus.PRF_PENDING_MANAGER);
+
+        // GM PRF Approval (Step 2 for items >= 50k) - only include if user is the assigned GM
+        if (isAssignedGM || hasPermission('requisition:view:all')) {
+            statuses.push(RequisitionStatus.PENDING_GM_PRF_APPROVAL);
         }
 
         return statuses;
-    }, [hasPermission]);
+    }, [hasPermission, isAssignedGM]);
 
     // Determine approved/history statuses
     const approvedStatuses = [
@@ -70,16 +86,20 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 // Pending tab: show only pending statuses relevant to user
                 if (!userApprovalStatuses.includes(req.status)) return false;
 
-                // Filter by Selected Status Dropdown (only for pending tab)
-                if (statusFilter !== 'all' && req.status !== statusFilter) return false;
+                // Note: Sub-tab filtering (BURF/CIC/PRF) is applied after this via displayRequisitions
 
-                // Check designated approver (Allow users with global access to bypass)
-                if (req.prfDetails?.designatedApproverId) {
-                    const isDesignated = req.prfDetails.designatedApproverId === currentUser.id;
-                    const hasGlobalAccess = hasPermission('requisition:view:all');
-
-                    if (!isDesignated && !hasGlobalAccess) {
-                        return false;
+                // PRF_PENDING_MANAGER: Check based on source type
+                if (req.status === RequisitionStatus.PRF_PENDING_MANAGER) {
+                    // BURF→PRF conversions: Use BUM role-based approval
+                    if (req.parentBurfId) {
+                        if (!hasPermission('approval:manager:prf')) return false;
+                    } else {
+                        // Direct PRF: Use designated approver
+                        const isDesignated = req.prfDetails?.designatedApproverId === currentUser.id;
+                        const hasGlobalAccess = hasPermission('requisition:view:all');
+                        if (!isDesignated && !hasGlobalAccess) {
+                            return false;
+                        }
                     }
                 }
             } else {
@@ -115,9 +135,54 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             if (activeTab === 'history') {
                 return new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime();
             }
-            return 0;
+            return new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime();
         });
-    }, [requisitions, activeTab, userApprovalStatuses, approvedStatuses, statusFilter, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission]);
+    }, [requisitions, activeTab, userApprovalStatuses, approvedStatuses, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission]);
+
+    // === SECONDARY TABS: Split pending requisitions into categories ===
+    // Tab 1: BURF Approvals (BURF_PENDING_MANAGER only)
+    const burfApprovals = useMemo(() =>
+        filteredRequisitions.filter(req =>
+            req.status === RequisitionStatus.BURF_PENDING_MANAGER &&
+            activeTab === 'pending'
+        ), [filteredRequisitions, activeTab]);
+
+    // Tab 2: CIC Reviews (Check Prep tasks)
+    const cicReviews = useMemo(() =>
+        filteredRequisitions.filter(req =>
+            req.status === RequisitionStatus.BURF_PENDING_CIC &&
+            activeTab === 'pending'
+        ), [filteredRequisitions, activeTab]);
+
+    // Tab 3: PRF Approvals (PRF Step 1 - Manager/Designated Approver ONLY)
+    const prfApprovals = useMemo(() =>
+        filteredRequisitions.filter(req =>
+            req.status === RequisitionStatus.PRF_PENDING_MANAGER &&
+            activeTab === 'pending'
+        ), [filteredRequisitions, activeTab]);
+
+    // Tab 4: GM PRF Approvals (Step 2 - General Manager for items >= 50k)
+    const gmPrfApprovals = useMemo(() =>
+        filteredRequisitions.filter(req =>
+            req.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL &&
+            activeTab === 'pending'
+        ), [filteredRequisitions, activeTab]);
+
+    // Get current sub-tab's data
+    const getActiveSubTabItems = () => {
+        switch (pendingSubTab) {
+            case 'burf': return burfApprovals;
+            case 'cic': return cicReviews;
+            case 'prf': return prfApprovals;
+            case 'gmprf': return gmPrfApprovals;
+            default: return burfApprovals;
+        }
+    };
+
+    // For display: use filtered items based on sub-tab when in pending mode
+    const displayRequisitions = activeTab === 'pending'
+        ? getActiveSubTabItems()
+        : filteredRequisitions;
 
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -250,20 +315,69 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                         </div>
                     )}
 
-                    {/* Status Filter - Only show for Pending tab */}
+                    {/* Secondary Tabs - Only show for Pending tab */}
                     {activeTab === 'pending' && (
-                        <div className="relative">
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="appearance-none pl-4 pr-10 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setPendingSubTab('burf')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'burf'
+                                    ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                    }`}
                             >
-                                <option value="all">All Pending Types</option>
-                                <option value={RequisitionStatus.BURF_PENDING_MANAGER}>Pending Manager (BURF)</option>
-                                <option value={RequisitionStatus.BURF_PENDING_CIC}>Pending CIC (BURF)</option>
-                                <option value={RequisitionStatus.PRF_PENDING_MANAGER}>Pending Manager (PRF)</option>
-                            </select>
-                            <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                BURF
+                                {burfApprovals.length > 0 && (
+                                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-600 text-slate-300'
+                                        }`}>
+                                        {burfApprovals.length}
+                                    </span>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setPendingSubTab('cic')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'cic'
+                                    ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                    }`}
+                            >
+                                CIC
+                                {cicReviews.length > 0 && (
+                                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-slate-300'
+                                        }`}>
+                                        {cicReviews.length}
+                                    </span>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setPendingSubTab('prf')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'prf'
+                                    ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                    }`}
+                            >
+                                PRF
+                                {prfApprovals.length > 0 && (
+                                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-600 text-slate-300'
+                                        }`}>
+                                        {prfApprovals.length}
+                                    </span>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setPendingSubTab('gmprf')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'gmprf'
+                                    ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                    }`}
+                            >
+                                GM PRF
+                                {gmPrfApprovals.length > 0 && (
+                                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-600 text-slate-300'
+                                        }`}>
+                                        {gmPrfApprovals.length}
+                                    </span>
+                                )}
+                            </button>
                         </div>
                     )}
 
@@ -297,7 +411,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700">
-                        {filteredRequisitions.map(req => {
+                        {displayRequisitions.map(req => {
                             const requester = allUsers.find(u => u.id === req.requesterId);
                             const business = businesses.find(b => b.id === req.businessId);
                             const isPrf = req.id.startsWith('PRF') || req.status === RequisitionStatus.PRF_PENDING_MANAGER;

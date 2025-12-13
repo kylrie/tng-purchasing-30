@@ -58,6 +58,10 @@ export const ALL_PERMISSIONS = [
   // Inventory Management
   'inventory:manage:uom',
 
+  // Chart of Accounts
+  'coa:view',           // View Chart of Accounts
+  'coa:manage',         // Create, edit, import, toggle active status
+
   // Module View Permissions
   'module:view:dashboard',
   'module:view:burf',
@@ -70,6 +74,7 @@ export const ALL_PERMISSIONS = [
   'module:view:pcf_approvals',
   'module:view:suppliers',
   'module:view:settings',
+  'module:view:coa',          // View Chart of Accounts module
 
   // UI Component Visibility (deprecated, use module:view instead)
   'ui:view:approvals_page',
@@ -142,6 +147,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:section:ready_for_prf_list',
     'dashboard:section:pending_fund_release',
     'dashboard:section:pending_audit_list',
+    // Chart of Accounts
+    'coa:view',
+    'coa:manage',
+    'module:view:coa',
   ],
 
   // High-level approver, global view
@@ -320,13 +329,15 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approved',
     'module:view:finance',
     'module:view:liquidation',
-    // Dashboard Widgets
     'dashboard:widget:pending_approvals',
     'dashboard:widget:active_prfs',
     'dashboard:widget:total_spend',
     'dashboard:widget:pending_audit',
     'dashboard:section:pending_list',
     'dashboard:section:pending_fund_release',
+    // Chart of Accounts (Finance can view for liquidation classification)
+    'coa:view',
+    'module:view:coa',
   ],
 
   // Audits liquidations

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Trash2, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Loader2, ArrowRightCircle } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
 import { RequisitionStatus } from '../types';
 import type { User, Business } from '../../../shared/types';
@@ -59,6 +59,9 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const [saveError, setSaveError] = useState<string | null>(null);
     // Submission loading state to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Tab state for Active vs Completed
+    const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
 
     const isUrgent = useMemo(() => {
         if (!dateNeeded) return false;
@@ -156,6 +159,23 @@ export const BurfView: React.FC<BurfViewProps> = ({
             return 0;
         });
     }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit, sortField, sortDirection, hasPermission]);
+
+    // Tab-based filtering: Active vs Completed
+    const tabbedRequisitions = useMemo(() => {
+        return filteredRequisitions.filter(req => {
+            if (activeTab === 'active') {
+                return req.status !== RequisitionStatus.BURF_COMPLETED;
+            }
+            if (activeTab === 'completed') {
+                return req.status === RequisitionStatus.BURF_COMPLETED;
+            }
+            return true;
+        });
+    }, [filteredRequisitions, activeTab]);
+
+    // Count for badge display
+    const activeCount = filteredRequisitions.filter(r => r.status !== RequisitionStatus.BURF_COMPLETED).length;
+    const completedCount = filteredRequisitions.filter(r => r.status === RequisitionStatus.BURF_COMPLETED).length;
 
     const openDrawer = (req: Requisition) => {
         setSelectedBurf(req);
@@ -414,6 +434,39 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 </div>
             </div>
 
+            {/* Tab Navigation */}
+            <div className="flex gap-1 border-b border-slate-700">
+                <button
+                    onClick={() => setActiveTab('active')}
+                    className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${activeTab === 'active'
+                        ? 'text-purple-400 border-b-2 border-purple-500 -mb-px'
+                        : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                >
+                    Active Requests
+                    {activeCount > 0 && (
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded-full">
+                            {activeCount}
+                        </span>
+                    )}
+                </button>
+                <button
+                    onClick={() => setActiveTab('completed')}
+                    className={`px-4 py-2.5 text-sm font-medium transition-colors relative flex items-center gap-1.5 ${activeTab === 'completed'
+                        ? 'text-sky-400 border-b-2 border-sky-500 -mb-px'
+                        : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                >
+                    <ArrowRightCircle size={14} />
+                    Converted to PRF
+                    {completedCount > 0 && (
+                        <span className="ml-1 px-2 py-0.5 text-xs bg-sky-500/20 text-sky-300 rounded-full">
+                            {completedCount}
+                        </span>
+                    )}
+                </button>
+            </div>
+
             <Card className="overflow-hidden !p-0">
                 <table className="w-full text-left text-sm">
                     <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
@@ -472,7 +525,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700">
-                        {filteredRequisitions.map(req => {
+                        {tabbedRequisitions.map(req => {
                             // Use denormalized requesterName, fallback to lookup for legacy data
                             const requesterName = req.requesterName || allUsers.find(u => u.id === req.requesterId)?.name || 'Unknown';
                             const business = businesses.find(b => b.id === req.businessId);
@@ -565,8 +618,20 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                 </tr>
                             );
                         })}
-                        {filteredRequisitions.length === 0 && (
-                            <tr><td colSpan={8} className="px-6 py-8 text-center text-slate-400 italic">No requisitions found.</td></tr>
+                        {tabbedRequisitions.length === 0 && (
+                            <tr>
+                                <td colSpan={9} className="px-6 py-12 text-center">
+                                    {activeTab === 'completed' ? (
+                                        <div className="flex flex-col items-center gap-2 text-slate-500">
+                                            <ArrowRightCircle size={32} className="text-slate-600" />
+                                            <p className="text-sm">No BURFs converted to PRF yet.</p>
+                                            <p className="text-xs">BURFs appear here once all items have been converted to PRFs.</p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-slate-400 italic">No active requisitions found.</p>
+                                    )}
+                                </td>
+                            </tr>
                         )}
                     </tbody>
                 </table>

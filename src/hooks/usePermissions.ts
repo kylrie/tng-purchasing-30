@@ -13,6 +13,11 @@ export const usePermissions = () => {
       return false;
     }
 
+    // SUPER_ADMIN always has all permissions (bypass Firestore sync issues)
+    if (currentUser.role === 'SUPER_ADMIN') {
+      return true;
+    }
+
     const userPermissions = permissions[currentUser.role];
     if (!userPermissions) {
       return false;

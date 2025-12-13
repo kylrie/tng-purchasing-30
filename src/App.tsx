@@ -16,6 +16,7 @@ import LiquidationView from './features/finance/views/LiquidationView';
 import PCFView from './features/finance/views/PCFView';
 import PCFApprovalView from './features/finance/views/PCFApprovalView';
 import SuppliersView from './features/inventory/views/SuppliersView';
+import ChartOfAccountsView from './features/admin/views/ChartOfAccountsView';
 import { SettingsView } from './features/admin/views/SettingsView';
 import type { NotificationItem } from './shared/types';
 import { UserRole, UserStatus, COLLECTIONS } from './shared/types/firebase.types';
@@ -75,38 +76,56 @@ function ProtectedApp() {
 
 
   const getStatusBadge = (status: RequisitionStatus) => {
-    // Modern pill styling with distinct colors
-    const styles = {
+    // Modern pill styling with distinct colors - Complete status coverage
+    const styles: Record<RequisitionStatus, string> = {
       [RequisitionStatus.DRAFT]: 'bg-slate-600/50 text-slate-300',
-      // PENDING statuses - Orange tones
+      // BURF statuses
       [RequisitionStatus.BURF_PENDING_MANAGER]: 'bg-orange-500/20 text-orange-400',
       [RequisitionStatus.BURF_PENDING_CIC]: 'bg-amber-500/20 text-amber-400',
-      [RequisitionStatus.PRF_PENDING_MANAGER]: 'bg-orange-500/20 text-orange-400',
-      // APPROVED/READY statuses - Blue tones
       [RequisitionStatus.READY_FOR_PRF]: 'bg-blue-500/20 text-blue-400',
+      [RequisitionStatus.BURF_PARTIALLY_PROCESSED]: 'bg-lime-500/20 text-lime-400',
       [RequisitionStatus.BURF_COMPLETED]: 'bg-sky-500/20 text-sky-400',
+      // PRF 7-Stage Workflow
+      [RequisitionStatus.PRF_PENDING_MANAGER]: 'bg-orange-500/20 text-orange-400',
+      [RequisitionStatus.PENDING_GM_PRF_APPROVAL]: 'bg-yellow-500/20 text-yellow-400',
+      [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'bg-indigo-500/20 text-indigo-400',
+      [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'bg-violet-500/20 text-violet-400',
+      [RequisitionStatus.PENDING_CFO_APPROVAL]: 'bg-purple-500/20 text-purple-400',
+      [RequisitionStatus.PENDING_BOD_APPROVAL]: 'bg-fuchsia-500/20 text-fuchsia-400',
+      [RequisitionStatus.FOR_FUND_RELEASE]: 'bg-cyan-500/20 text-cyan-400',
       [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'bg-cyan-500/20 text-cyan-400',
-      // RELEASED/SUCCESS statuses - Green tones  
+      // Post-Approval
       [RequisitionStatus.FUNDS_RELEASED]: 'bg-emerald-500/20 text-emerald-400',
       [RequisitionStatus.LIQUIDATION_FILED]: 'bg-teal-500/20 text-teal-400',
-      [RequisitionStatus.AUDITED_CLEARED]: 'bg-green-500/20 text-green-400',
-      // REJECTED statuses - Red tones
       [RequisitionStatus.LIQUIDATION_REJECTED]: 'bg-red-500/20 text-red-400',
+      [RequisitionStatus.AUDITED_CLEARED]: 'bg-green-500/20 text-green-400',
+      // Terminal
       [RequisitionStatus.REJECTED]: 'bg-red-500/20 text-red-400',
       [RequisitionStatus.CANCELLED]: 'bg-gray-600/50 text-gray-400',
     };
-    const labels = {
+    const labels: Record<RequisitionStatus, string> = {
       [RequisitionStatus.DRAFT]: 'Draft',
+      // BURF statuses
       [RequisitionStatus.BURF_PENDING_MANAGER]: 'Pending BUM',
       [RequisitionStatus.BURF_PENDING_CIC]: 'Pending CIC',
       [RequisitionStatus.READY_FOR_PRF]: 'Ready for PRF',
-      [RequisitionStatus.BURF_COMPLETED]: 'BURF Complete',
-      [RequisitionStatus.PRF_PENDING_MANAGER]: 'Pending Review',
+      [RequisitionStatus.BURF_PARTIALLY_PROCESSED]: 'Partial PRF',
+      [RequisitionStatus.BURF_COMPLETED]: 'Converted to PRF',
+      // PRF 7-Stage Workflow
+      [RequisitionStatus.PRF_PENDING_MANAGER]: 'Pending Approval',
+      [RequisitionStatus.PENDING_GM_PRF_APPROVAL]: 'Pending GM PRF',
+      [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'Pending Finance Head',
+      [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'Pending GM Budget',
+      [RequisitionStatus.PENDING_CFO_APPROVAL]: 'Pending CFO',
+      [RequisitionStatus.PENDING_BOD_APPROVAL]: 'Pending BOD',
+      [RequisitionStatus.FOR_FUND_RELEASE]: 'For Release',
       [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'For Release',
+      // Post-Approval
       [RequisitionStatus.FUNDS_RELEASED]: 'Released',
       [RequisitionStatus.LIQUIDATION_FILED]: 'Liquidated',
       [RequisitionStatus.LIQUIDATION_REJECTED]: 'Liq. Rejected',
       [RequisitionStatus.AUDITED_CLEARED]: 'Cleared',
+      // Terminal
       [RequisitionStatus.REJECTED]: 'Rejected',
       [RequisitionStatus.CANCELLED]: 'Cancelled',
     };
@@ -265,6 +284,12 @@ function ProtectedApp() {
               currentUser={currentUser}
               businesses={businesses}
             />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/chart-of-accounts" element={
+          <ProtectedRoute permission="module:view:coa">
+            <ChartOfAccountsView />
           </ProtectedRoute>
         } />
 

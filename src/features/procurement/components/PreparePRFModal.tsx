@@ -57,7 +57,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     // Submission loading state to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Determine if this is a BURF→PRF conversion (not a Direct PRF or PRF edit)
+    const isFromBurf = requisition.status === RequisitionStatus.READY_FOR_PRF;
+
     // Filter list of eligible approvers by business unit (STRICT MATCH)
+    // For BURF→PRF: Only show BUM (Business Unit Manager) approvers
     const eligibleApprovers = users.filter(u => {
         // 1. Must be an approver
         if (!u.isApprover) return false;
@@ -73,6 +77,21 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         // Fallback: Check legacy single businessId field
         return u.businessId === targetBusinessUnitId;
     });
+
+    // For BURF→PRF: Find the MANAGER for this Business Unit and auto-select
+    const bumApprover = useMemo(() => {
+        if (!isFromBurf) return null;
+        // Look for users with exact role 'MANAGER' in the eligible approvers
+        // The MANAGER must be in the same Business Unit as the BURF (already filtered by eligibleApprovers)
+        return eligibleApprovers.find(u => u.role === 'MANAGER') || null;
+    }, [isFromBurf, eligibleApprovers]);
+
+    // Auto-set BUM as designated approver when converting from BURF
+    React.useEffect(() => {
+        if (isFromBurf && bumApprover && !designatedApproverId) {
+            setDesignatedApproverId(bumApprover.id);
+        }
+    }, [isFromBurf, bumApprover, designatedApproverId]);
 
 
 
@@ -274,12 +293,18 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
                         {/* Approver Selection */}
                         <div className="bg-purple-900/20 p-4 rounded-lg border border-purple-500/30">
-                            <label className="block text-sm font-medium text-purple-300 mb-1">Select Approver</label>
+                            <label className="block text-sm font-medium text-purple-300 mb-1">
+                                {isFromBurf ? 'Approver (Manager)' : 'Select Approver'}
+                            </label>
                             {eligibleApprovers.length > 0 ? (
                                 <select
                                     value={designatedApproverId}
                                     onChange={(e) => setDesignatedApproverId(e.target.value)}
-                                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                                    disabled={isFromBurf} // Disable for BURF→PRF conversions
+                                    className={`w-full px-3 py-2 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white ${isFromBurf
+                                        ? 'bg-slate-800 cursor-not-allowed opacity-75'
+                                        : 'bg-slate-900/50'
+                                        }`}
                                 >
                                     <option value="">-- Choose Approver --</option>
                                     {eligibleApprovers.map(approver => (
@@ -294,7 +319,10 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                 </div>
                             )}
                             <p className="text-xs text-purple-400 mt-1">
-                                Designate who will approve this PRF.
+                                {isFromBurf
+                                    ? 'BURFs converted to PRF are automatically routed to the Manager.'
+                                    : 'Designate who will approve this PRF.'
+                                }
                             </p>
                         </div>
                     </div>

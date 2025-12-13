@@ -10,7 +10,8 @@ import {
     CheckCircle2,
     Users,
     Wallet,
-    Coins
+    Coins,
+    ShieldCheck
 } from 'lucide-react';
 import DashboardCard from '../components/DashboardCard';
 import type { Requisition, Supplier } from '../../procurement/types';
@@ -22,6 +23,7 @@ import ReleaseFundModal from '../../finance/components/ReleaseFundModal';
 import LiquidationAuditModal from '../../finance/components/LiquidationAuditModal';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import RejectionModal from '../../../shared/components/RejectionModal';
+import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
 
@@ -42,7 +44,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const [releaseFundReq, setReleaseFundReq] = React.useState<Requisition | null>(null);
     const [auditReq, setAuditReq] = React.useState<Requisition | null>(null);
     const [rejectingReq, setRejectingReq] = React.useState<Requisition | null>(null);
+    const [drawerReq, setDrawerReq] = React.useState<Requisition | null>(null);
     const [selectedBU, setSelectedBU] = React.useState<string>('all');
+    const [pendingApprovalTab, setPendingApprovalTab] = React.useState<'burf' | 'cic' | 'prf' | 'gmprf'>('burf');
 
     // Workflow Approver Assignments for filtering
     const [approverAssignments, setApproverAssignments] = React.useState<ApproverAssignments>({});
@@ -116,9 +120,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
         // Existing permission-based checks
         if (hasPermission('approval:manager:burf') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
-        if (hasPermission('approval:manager:prf') && r.status === RequisitionStatus.PRF_PENDING_MANAGER) return true;
         if (hasPermission('approval:cic:burf') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
         if (hasPermission('finance:release_funds') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
+
+        // PRF_PENDING_MANAGER: Check based on source type
+        if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) {
+            // BURF→PRF conversions: Use BUM role-based approval
+            if (r.parentBurfId) {
+                return hasPermission('approval:manager:prf');
+            } else {
+                // Direct PRF: Use designated approver
+                return r.prfDetails?.designatedApproverId === currentUser.id;
+            }
+        }
 
         // New workflow - check assigned approver
         if (isAssignedApprover(r)) return true;
@@ -210,7 +224,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         .slice(0, 5)
         .map(([id, data]) => ({ id, ...data }));
 
-    // Pending Approvals - Show items that need the current user's approval
     const pendingApprovals = [...requisitions]
         .filter(r => {
             // Super Admin / Global View - see all pending
@@ -231,9 +244,19 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
             // Permission-based checks
             if (hasPermission('approval:manager:burf') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
-            if (hasPermission('approval:manager:prf') && r.status === RequisitionStatus.PRF_PENDING_MANAGER) return true;
             if (hasPermission('approval:cic:burf') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
             if (hasPermission('finance:release_funds') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
+
+            // PRF_PENDING_MANAGER: Check based on source type
+            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) {
+                // BURF→PRF conversions: Use BUM role-based approval
+                if (r.parentBurfId) {
+                    return hasPermission('approval:manager:prf');
+                } else {
+                    // Direct PRF: Use designated approver
+                    return r.prfDetails?.designatedApproverId === currentUser.id;
+                }
+            }
 
             // New workflow - check assigned approver
             if (isAssignedApprover(r)) return true;
@@ -246,7 +269,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             let action = 'needs approval';
             if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'submitted BURF';
             if (r.status === RequisitionStatus.BURF_PENDING_CIC) action = 'approved BURF';
-            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'PRF for BUM Approval';
+            if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) action = 'PRF for Approval';
             if (r.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL) action = 'PRF for GM (≥50k)';
             if (r.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL) action = 'PRF for Finance Head';
             if (r.status === RequisitionStatus.PENDING_GM_BR_APPROVAL) action = 'PRF for GM Budget';
@@ -269,6 +292,50 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 rawRequisition: r // Pass the full object for actions
             };
         });
+
+    // === SECONDARY TABS: Split pending approvals into categories ===
+    // Tab 1: BURF Approvals (BURF_PENDING_MANAGER only)
+    const burfApprovals = pendingApprovals.filter(item =>
+        item.status === RequisitionStatus.BURF_PENDING_MANAGER
+    );
+
+    // Tab 2: CIC Reviews (Check Prep tasks)
+    const cicReviews = pendingApprovals.filter(item =>
+        item.status === RequisitionStatus.BURF_PENDING_CIC
+    );
+
+    // Tab 3: PRF Approvals (PRF Step 1 - Manager/Designated Approver ONLY)
+    const prfApprovals = pendingApprovals.filter(item =>
+        item.status === RequisitionStatus.PRF_PENDING_MANAGER
+    );
+
+    // Tab 4: GM PRF Approvals (Step 2 - General Manager for items >= 50k)
+    const gmPrfApprovals = pendingApprovals.filter(item =>
+        item.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL
+    );
+
+    // BR (Budget Request) - Steps 3-5: Finance Head, GM Budget, CFO
+    const brApprovals = pendingApprovals.filter(item =>
+        item.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL ||
+        item.status === RequisitionStatus.PENDING_GM_BR_APPROVAL ||
+        item.status === RequisitionStatus.PENDING_CFO_APPROVAL
+    );
+
+    // Check Authorization (BOD Approval - Step 6)
+    const checkAuthApprovals = pendingApprovals.filter(item =>
+        item.status === RequisitionStatus.PENDING_BOD_APPROVAL
+    );
+
+    // Get current tab's data
+    const getActiveTabItems = () => {
+        switch (pendingApprovalTab) {
+            case 'burf': return burfApprovals;
+            case 'cic': return cicReviews;
+            case 'prf': return prfApprovals;
+            case 'gmprf': return gmPrfApprovals;
+            default: return burfApprovals;
+        }
+    };
 
 
 
@@ -551,16 +618,83 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         {/* Pending Approvals - Only visible with permission */}
                         {hasPermission('dashboard:section:pending_list') && (
                             <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                                {/* Header with View All */}
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white">Pending Approvals</h2>
                                     <button onClick={() => navigate('/procurement-approvals')} className="text-xs font-medium bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full text-white transition-colors">View All</button>
                                 </div>
+
+                                {/* Secondary Tab Bar */}
+                                <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-slate-700/30">
+                                    <button
+                                        onClick={() => setPendingApprovalTab('burf')}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'burf'
+                                            ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                            }`}
+                                    >
+                                        BURF Approvals
+                                        {burfApprovals.length > 0 && (
+                                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                }`}>
+                                                {burfApprovals.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setPendingApprovalTab('cic')}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'cic'
+                                            ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                            }`}
+                                    >
+                                        CIC Reviews
+                                        {cicReviews.length > 0 && (
+                                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                }`}>
+                                                {cicReviews.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setPendingApprovalTab('prf')}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'prf'
+                                            ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                            }`}
+                                    >
+                                        PRF
+                                        {prfApprovals.length > 0 && (
+                                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                }`}>
+                                                {prfApprovals.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
+                                        onClick={() => setPendingApprovalTab('gmprf')}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'gmprf'
+                                            ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                            }`}
+                                    >
+                                        GM PRF
+                                        {gmPrfApprovals.length > 0 && (
+                                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                }`}>
+                                                {gmPrfApprovals.length}
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
+
+                                {/* Tab Content */}
                                 <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
                                     <div className="space-y-4">
-                                        {pendingApprovals.map(activity => (
+                                        {getActiveTabItems().map(activity => (
                                             <div
                                                 key={activity.id}
-                                                onClick={() => navigate('/procurement-approvals')}
+                                                onClick={() => setDrawerReq(activity.rawRequisition)}
                                                 className="flex gap-4 items-center p-3 rounded-xl hover:bg-slate-700/30 transition-colors border border-transparent hover:border-slate-700 cursor-pointer group"
                                             >
                                                 <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm flex-shrink-0 group-hover:bg-slate-600 transition-colors">
@@ -597,10 +731,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 </div>
                                             </div>
                                         ))}
-                                        {pendingApprovals.length === 0 && (
+                                        {/* Tab-specific empty states */}
+                                        {getActiveTabItems().length === 0 && (
                                             <div className="flex flex-col items-center justify-center py-12 text-slate-500">
                                                 <Clock size={48} className="mb-4 opacity-20" />
-                                                <p className="text-sm">You're all caught up! No pending approvals.</p>
+                                                <p className="text-sm">
+                                                    {pendingApprovalTab === 'burf' && 'No pending BURF approvals found.'}
+                                                    {pendingApprovalTab === 'cic' && 'No pending CIC reviews found.'}
+                                                    {pendingApprovalTab === 'prf' && 'No pending PRF approvals found.'}
+                                                    {pendingApprovalTab === 'gmprf' && 'No pending GM PRF approvals (≥₱50k) found.'}
+                                                </p>
                                             </div>
                                         )}
                                     </div>
@@ -678,6 +818,116 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                     <span className="text-slate-300 font-medium">₱{req.totalAmount.toLocaleString()}</span>
                                                 </div>
                                             </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* BR (Budget Request) Widget - Steps 3-5 */}
+                        {brApprovals.length > 0 && (
+                            <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
+                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <FileText className="text-emerald-400" size={20} />
+                                        Budget Request
+                                    </h2>
+                                    <span className="text-xs font-medium bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20">
+                                        {brApprovals.length} Pending
+                                    </span>
+                                </div>
+                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
+                                    <div className="space-y-3">
+                                        {brApprovals.map(activity => (
+                                            <div
+                                                key={activity.id}
+                                                onClick={() => navigate('/finance')}
+                                                className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer group"
+                                            >
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <span className="text-xs font-mono text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/10">{activity.rawRequisition.id}</span>
+                                                        <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{activity.target}</h4>
+                                                    </div>
+                                                    <span className="text-xs text-slate-500">{activity.time}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className={`font-semibold px-2 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-500/20`}>
+                                                        {activity.status.replace(/_/g, ' ').replace('PENDING ', '')}
+                                                    </span>
+                                                    <span className="text-slate-300 font-medium">₱{activity.rawRequisition.totalAmount?.toLocaleString()}</span>
+                                                </div>
+                                                {/* Quick Actions */}
+                                                <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                                                    <button
+                                                        onClick={(e) => handleApprove(activity.rawRequisition, e)}
+                                                        className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                    >
+                                                        <CheckCircle size={14} /> Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleRejectClick(activity.rawRequisition, e)}
+                                                        className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                    >
+                                                        <XCircle size={14} /> Reject
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Check Authorization Widget - BOD Step 6 */}
+                        {checkAuthApprovals.length > 0 && (
+                            <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
+                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <ShieldCheck className="text-amber-400" size={20} />
+                                        Check Authorization
+                                    </h2>
+                                    <span className="text-xs font-medium bg-amber-900/30 text-amber-400 px-2 py-1 rounded-full border border-amber-500/20">
+                                        {checkAuthApprovals.length} Pending
+                                    </span>
+                                </div>
+                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
+                                    <div className="space-y-3">
+                                        {checkAuthApprovals.map(activity => (
+                                            <div
+                                                key={activity.id}
+                                                onClick={() => navigate('/finance')}
+                                                className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-amber-500/30 transition-all cursor-pointer group"
+                                            >
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <span className="text-xs font-mono text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-500/10">{activity.rawRequisition.id}</span>
+                                                        <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{activity.target}</h4>
+                                                    </div>
+                                                    <span className="text-xs text-slate-500">{activity.time}</span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-xs">
+                                                    <span className={`font-semibold px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-500/20`}>
+                                                        BOD APPROVAL
+                                                    </span>
+                                                    <span className="text-slate-300 font-medium">₱{activity.rawRequisition.totalAmount?.toLocaleString()}</span>
+                                                </div>
+                                                {/* Quick Actions */}
+                                                <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                                                    <button
+                                                        onClick={(e) => handleApprove(activity.rawRequisition, e)}
+                                                        className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                    >
+                                                        <CheckCircle size={14} /> Approve
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleRejectClick(activity.rawRequisition, e)}
+                                                        className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                    >
+                                                        <XCircle size={14} /> Reject
+                                                    </button>
+                                                </div>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
@@ -801,6 +1051,37 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     />
                 )
             }
+
+            {/* Quick Peek Drawer for Dashboard Lists */}
+            <RequisitionDrawer
+                requisition={drawerReq}
+                isOpen={!!drawerReq}
+                onClose={() => setDrawerReq(null)}
+                variant="BURF"
+                onApprove={async () => {
+                    if (drawerReq && confirm(`Are you sure you want to approve ${drawerReq.id}?`)) {
+                        try {
+                            await RequisitionService.approveRequisition(
+                                drawerReq.id,
+                                currentUser.id,
+                                currentUser.name
+                            );
+                            setDrawerReq(null);
+                        } catch (error: any) {
+                            console.error('Error approving:', error);
+                            alert(`Failed to approve: ${error.message || 'Unknown error'}`);
+                        }
+                    }
+                }}
+                onReject={() => {
+                    if (drawerReq) {
+                        setRejectingReq(drawerReq);
+                        setDrawerReq(null);
+                    }
+                }}
+                canApprove={!!drawerReq}
+                canReject={!!drawerReq}
+            />
 
             <RejectionModal
                 isOpen={!!rejectingReq}

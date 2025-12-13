@@ -5,9 +5,11 @@ import type { User, Business } from '../../../shared/types';
 import Card from '../../../shared/components/Card';
 import ReleaseFundModal from '../components/ReleaseFundModal';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
-import { ExternalLink, Search, Wallet } from 'lucide-react';
+import RejectionModal from '../../../shared/components/RejectionModal';
+import { ExternalLink, Search, Wallet, CheckCircle, XCircle } from 'lucide-react';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
+import { RequisitionService } from '../../procurement/services/requisitions.service';
 
 interface FinanceViewProps {
     currentUser: User;
@@ -19,6 +21,7 @@ interface FinanceViewProps {
 }
 
 export const FinanceView: React.FC<FinanceViewProps> = ({
+    currentUser,
     requisitions,
     getStatusBadge,
     handleReleaseFunds,
@@ -27,11 +30,52 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 }) => {
     const [isReleaseModalOpen, setReleaseModalOpen] = useState(false);
     const [selectedReq, setSelectedReq] = useState<Requisition | null>(null);
-    const [activeTab, setActiveTab] = useState<'prf_pending' | 'prf_released' | 'pcf_pending' | 'pcf_released'>('prf_pending');
+    const [activeTab, setActiveTab] = useState<'prf_pending' | 'prf_released' | 'pcf_pending' | 'pcf_released' | 'br_pending' | 'check_pending'>('br_pending');
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [pcfLiquidations, setPcfLiquidations] = useState<PCFLiquidation[]>([]);
+    const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const { hasPermission } = usePermissions();
+
+    // Approve handler for BR and Check Auth items
+    const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (confirm(`Are you sure you want to approve ${req.id}?`)) {
+            try {
+                await RequisitionService.approveRequisition(
+                    req.id,
+                    currentUser.id,
+                    currentUser.name
+                );
+            } catch (error: any) {
+                console.error('Error approving:', error);
+                alert(`Failed to approve: ${error.message || 'Unknown error'}`);
+            }
+        }
+    };
+
+    // Reject handler for BR and Check Auth items
+    const handleRejectClick = (req: Requisition, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setRejectingReq(req);
+    };
+
+    const handleRejectConfirm = async (reason: string) => {
+        if (rejectingReq) {
+            try {
+                await RequisitionService.rejectRequisition(
+                    rejectingReq.id,
+                    currentUser.id,
+                    currentUser.name,
+                    reason
+                );
+                setRejectingReq(null);
+            } catch (error: any) {
+                console.error('Error rejecting:', error);
+                alert(`Failed to reject: ${error.message || 'Unknown error'}`);
+            }
+        }
+    };
 
     // Allow Super Admin AND Finance role (or anyone with finance:release_funds implicitly via role check)
     // In types.ts, hasGlobalAccess is strict to Super Admin.
@@ -73,8 +117,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     }, [activeTab, hasPermission]);
 
     // Filter for approved requisitions awaiting fund release
+    // Includes both new workflow (FOR_FUND_RELEASE) and legacy (APPROVED_FOR_PAYMENT)
     const pendingReleaseReqs = requisitions.filter(
-        req => req.status === RequisitionStatus.APPROVED_FOR_PAYMENT
+        req => req.status === RequisitionStatus.FOR_FUND_RELEASE ||
+            req.status === RequisitionStatus.APPROVED_FOR_PAYMENT
     );
 
     // Filter for released requisitions
@@ -93,6 +139,18 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const pcfPending = pcfLiquidations.filter(liq => liq.status === PCFStatus.APPROVED_WAITING_RELEASE);
     const pcfReleased = pcfLiquidations.filter(liq =>
         [PCFStatus.APPROVED, PCFStatus.REPLENISHED].includes(liq.status)
+    );
+
+    // BR (Budget Request) - Finance Head, GM Budget, CFO approvals (Steps 3-5)
+    const brPendingReqs = requisitions.filter(req =>
+        req.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL ||
+        req.status === RequisitionStatus.PENDING_GM_BR_APPROVAL ||
+        req.status === RequisitionStatus.PENDING_CFO_APPROVAL
+    );
+
+    // Check Authorization - BOD Approval (Step 6)
+    const checkAuthReqs = requisitions.filter(req =>
+        req.status === RequisitionStatus.PENDING_BOD_APPROVAL
     );
 
     // Filter requisitions based on search term
@@ -129,31 +187,35 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 </div>
 
                 <div className="flex border-b border-slate-700 mb-4 overflow-x-auto">
-                    {/* PRF Section */}
+                    {/* 1. BR (Budget Request) Section - Steps 3-5 */}
                     <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
-                        <span className="text-xs text-slate-500 px-2">PRF</span>
+                        <span className="text-xs text-slate-500 px-2">BR</span>
                         <button
-                            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'prf_pending'
-                                ? 'border-b-2 border-purple-500 text-purple-400'
+                            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'br_pending'
+                                ? 'border-b-2 border-emerald-500 text-emerald-400'
                                 : 'text-slate-400 hover:text-slate-300'
                                 }`}
-                            onClick={() => setActiveTab('prf_pending')}
+                            onClick={() => setActiveTab('br_pending')}
                         >
-                            Pending ({pendingReleaseReqs.length})
-                        </button>
-                        <button
-                            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'prf_released'
-                                ? 'border-b-2 border-purple-500 text-purple-400'
-                                : 'text-slate-400 hover:text-slate-300'
-                                }`}
-                            onClick={() => setActiveTab('prf_released')}
-                        >
-                            Released
+                            Pending ({brPendingReqs.length})
                         </button>
                     </div>
-                    {/* PCF Section */}
+                    {/* 2. Check Authorization Section - Step 6 */}
+                    <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
+                        <span className="text-xs text-slate-500 px-2">Check Auth</span>
+                        <button
+                            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'check_pending'
+                                ? 'border-b-2 border-amber-500 text-amber-400'
+                                : 'text-slate-400 hover:text-slate-300'
+                                }`}
+                            onClick={() => setActiveTab('check_pending')}
+                        >
+                            Pending ({checkAuthReqs.length})
+                        </button>
+                    </div>
+                    {/* 3. PCF Section */}
                     {hasPermission('module:view:pcf') && (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
                             <span className="text-xs text-slate-500 px-2"><Wallet size={12} className="inline mr-1" />PCF</span>
                             <button
                                 className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'pcf_pending'
@@ -175,6 +237,28 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                             </button>
                         </div>
                     )}
+                    {/* 4. PRF Fund Release Section */}
+                    <div className="flex items-center gap-1">
+                        <span className="text-xs text-slate-500 px-2">Fund Release</span>
+                        <button
+                            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'prf_pending'
+                                ? 'border-b-2 border-purple-500 text-purple-400'
+                                : 'text-slate-400 hover:text-slate-300'
+                                }`}
+                            onClick={() => setActiveTab('prf_pending')}
+                        >
+                            Pending ({pendingReleaseReqs.length})
+                        </button>
+                        <button
+                            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'prf_released'
+                                ? 'border-b-2 border-purple-500 text-purple-400'
+                                : 'text-slate-400 hover:text-slate-300'
+                                }`}
+                            onClick={() => setActiveTab('prf_released')}
+                        >
+                            Released
+                        </button>
+                    </div>
                 </div>
 
                 {/* PRF Content */}
@@ -390,8 +474,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${liq.status === PCFStatus.REPLENISHED
-                                                            ? 'bg-emerald-600/20 text-emerald-400'
-                                                            : 'bg-green-600/20 text-green-400'
+                                                        ? 'bg-emerald-600/20 text-emerald-400'
+                                                        : 'bg-green-600/20 text-green-400'
                                                         }`}>
                                                         {liq.status.replace(/_/g, ' ')}
                                                     </span>
@@ -412,6 +496,162 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <tr>
                                             <td colSpan={7} className="px-6 py-12 text-center text-slate-500 italic">
                                                 No PCF releases found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                )}
+
+                {/* BR Content - Budget Request Approvals */}
+                {activeTab === 'br_pending' && (
+                    <Card className="!p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm text-white">
+                                <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
+                                    <tr>
+                                        <th className="px-6 py-4">PRF ID</th>
+                                        <th className="px-6 py-4">Business Unit</th>
+                                        <th className="px-6 py-4">Requester</th>
+                                        <th className="px-6 py-4">Description</th>
+                                        <th className="px-6 py-4">Amount</th>
+                                        <th className="px-6 py-4">Date Created</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700">
+                                    {brPendingReqs.map(req => (
+                                        <tr
+                                            key={req.id}
+                                            className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                            onClick={() => setDrawerReq(req)}
+                                        >
+                                            <td className="px-6 py-4 font-medium">{req.id}</td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                <div className="truncate max-w-[200px]" title={req.description}>
+                                                    {req.description}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                                ₱{req.totalAmount?.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-400 text-xs">
+                                                {new Date(req.dateCreated).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {getStatusBadge(req.status)}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={(e) => handleApprove(req, e)}
+                                                        className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors"
+                                                        title="Approve"
+                                                    >
+                                                        <CheckCircle size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleRejectClick(req, e)}
+                                                        className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
+                                                        title="Reject"
+                                                    >
+                                                        <XCircle size={18} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {brPendingReqs.length === 0 && (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
+                                                No pending Budget Request approvals found.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                )}
+
+                {/* Check Authorization Content - BOD Approval */}
+                {activeTab === 'check_pending' && (
+                    <Card className="!p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm text-white">
+                                <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
+                                    <tr>
+                                        <th className="px-6 py-4">PRF ID</th>
+                                        <th className="px-6 py-4">Business Unit</th>
+                                        <th className="px-6 py-4">Requester</th>
+                                        <th className="px-6 py-4">Description</th>
+                                        <th className="px-6 py-4">Amount</th>
+                                        <th className="px-6 py-4">Date Created</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700">
+                                    {checkAuthReqs.map(req => (
+                                        <tr
+                                            key={req.id}
+                                            className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                            onClick={() => setDrawerReq(req)}
+                                        >
+                                            <td className="px-6 py-4 font-medium">{req.id}</td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                <div className="truncate max-w-[200px]" title={req.description}>
+                                                    {req.description}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                                ₱{req.totalAmount?.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-400 text-xs">
+                                                {new Date(req.dateCreated).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {getStatusBadge(req.status)}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={(e) => handleApprove(req, e)}
+                                                        className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors"
+                                                        title="Approve"
+                                                    >
+                                                        <CheckCircle size={18} />
+                                                    </button>
+                                                    <button
+                                                        onClick={(e) => handleRejectClick(req, e)}
+                                                        className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
+                                                        title="Reject"
+                                                    >
+                                                        <XCircle size={18} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {checkAuthReqs.length === 0 && (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
+                                                No pending Check Authorization (BOD) items found.
                                             </td>
                                         </tr>
                                     )}
@@ -443,6 +683,37 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     }
                 }}
                 canReleaseFund={activeTab === 'prf_pending' && hasPermission('finance:release_funds')}
+                onApprove={async () => {
+                    if (drawerReq && confirm(`Are you sure you want to approve ${drawerReq.id}?`)) {
+                        try {
+                            await RequisitionService.approveRequisition(
+                                drawerReq.id,
+                                currentUser.id,
+                                currentUser.name
+                            );
+                            setDrawerReq(null);
+                        } catch (error: any) {
+                            console.error('Error approving:', error);
+                            alert(`Failed to approve: ${error.message || 'Unknown error'}`);
+                        }
+                    }
+                }}
+                onReject={() => {
+                    if (drawerReq) {
+                        setRejectingReq(drawerReq);
+                        setDrawerReq(null);
+                    }
+                }}
+                canApprove={(activeTab === 'br_pending' || activeTab === 'check_pending') && !!drawerReq}
+                canReject={(activeTab === 'br_pending' || activeTab === 'check_pending') && !!drawerReq}
+            />
+
+            {/* Rejection Modal for BR and Check Auth */}
+            <RejectionModal
+                isOpen={!!rejectingReq}
+                onClose={() => setRejectingReq(null)}
+                onConfirm={handleRejectConfirm}
+                title={`Reject ${rejectingReq?.id || 'Request'}`}
             />
         </>
     );

@@ -152,6 +152,11 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
 
   // Inventory Management
   'inventory:manage:uom': { label: 'Manage Units of Measure', category: 'Admin Functions' },
+
+  // Chart of Accounts
+  'coa:view': { label: 'View Chart of Accounts', category: 'Chart of Accounts' },
+  'coa:manage': { label: 'Manage COA (Add/Edit/Import)', category: 'Chart of Accounts' },
+  'module:view:coa': { label: 'Access COA Module', category: 'Chart of Accounts' },
 };
 
 // Default roles that cannot be deleted (system + original business roles)

@@ -136,7 +136,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     // Check if any actions should be shown
     const showActions = (variant === 'BURF' && (canApprove || canReject || canPreparePrf)) ||
         (variant === 'PRF' && (canApprove || canReject)) ||
-        (variant === 'FINANCE' && canReleaseFund);
+        (variant === 'FINANCE' && (canReleaseFund || canApprove || canReject));
 
     return (
         <>
@@ -725,8 +725,8 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                 {/* Actions Footer */}
                 {showActions && (
                     <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
-                        {/* BURF / PRF: Reject Button */}
-                        {(variant === 'BURF' || variant === 'PRF') && canReject && (
+                        {/* BURF / PRF / FINANCE: Reject Button */}
+                        {(variant === 'BURF' || variant === 'PRF' || variant === 'FINANCE') && canReject && (
                             <button
                                 onClick={onReject}
                                 disabled={isLoading}
@@ -736,8 +736,8 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                             </button>
                         )}
 
-                        {/* BURF / PRF: Approve Button */}
-                        {(variant === 'BURF' || variant === 'PRF') && canApprove && (
+                        {/* BURF / PRF / FINANCE: Approve Button */}
+                        {(variant === 'BURF' || variant === 'PRF' || variant === 'FINANCE') && canApprove && (
                             <button
                                 onClick={onApprove}
                                 disabled={isLoading}

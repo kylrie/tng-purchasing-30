@@ -46,7 +46,10 @@ export interface PCFExpenseItem {
     tin: string;                          // Column 3: TIN (optional)
     orNo: string;                         // Column 4: OR No. (required)
     completeAddress: string;              // Column 5: Complete Address
-    classification: ExpenseClassification; // Column 6: Classification dropdown
+    // COA Fields (new) - replaces classification
+    coaCode?: string;                     // Column 6: COA Account Code
+    coaName?: string;                     // Column 6: COA Account Name
+    classification?: ExpenseClassification; // Column 6: Legacy classification (deprecated)
     itemDescription: string;              // Column 7: Item Description
     vat: number;                          // Column 8: VAT Amount
     ewt: number;                          // Column 9: EWT Amount

@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Receipt, FileText, Link as LinkIcon, AlertTriangle, CheckCircle, Edit3, Clock } from 'lucide-react';
-import type { PCFExpenseItem, ExpenseClassification } from '../services/pcf.service';
-import { EXPENSE_CLASSIFICATIONS } from '../services/pcf.service';
+import type { PCFExpenseItem } from '../services/pcf.service';
 import { SettingsService } from '../../../shared/services/settings.service';
+import AccountSelector, { type SelectedAccount } from '../../../shared/components/AccountSelector';
 
 interface PCFLiquidationDrawerProps {
     isOpen: boolean;
@@ -43,7 +43,8 @@ const createEmptyExpense = (): PCFExpenseItem => ({
     tin: '',
     orNo: '',
     completeAddress: '',
-    classification: 'Others',
+    coaCode: '',
+    coaName: '',
     itemDescription: '',
     vat: 0,
     ewt: 0,
@@ -227,8 +228,8 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                 onClick={onClose}
             />
 
-            {/* Drawer */}
-            <div className="fixed inset-y-0 right-0 w-full max-w-7xl bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col">
+            {/* Drawer - Expanded width for 10-column table */}
+            <div className="fixed inset-y-0 right-0 w-[95vw] max-w-[1600px] bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
                     <div>
@@ -275,7 +276,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                         <th className="px-3 py-3 text-left" style={{ width: '100px' }}>TIN</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '100px' }}>OR No.*</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '160px' }}>Address</th>
-                                        <th className="px-3 py-3 text-left" style={{ width: '140px' }}>Classification</th>
+                                        <th className="px-3 py-3 text-left" style={{ width: '140px' }}>COA/Account</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '160px' }}>Description</th>
                                         <th className="px-3 py-3 text-right" style={{ width: '90px' }}>VAT</th>
                                         <th className="px-3 py-3 text-right" style={{ width: '90px' }}>EWT</th>
@@ -350,17 +351,21 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                 />
                                             </td>
 
-                                            {/* Classification Dropdown */}
+                                            {/* COA Account Selector */}
                                             <td className="px-3 py-2">
-                                                <select
-                                                    value={expense.classification}
-                                                    onChange={(e) => updateExpense(index, 'classification', e.target.value as ExpenseClassification)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
-                                                >
-                                                    {EXPENSE_CLASSIFICATIONS.map((cls) => (
-                                                        <option key={cls} value={cls}>{cls}</option>
-                                                    ))}
-                                                </select>
+                                                <AccountSelector
+                                                    value={expense.coaCode ? { code: expense.coaCode, name: expense.coaName || '' } : null}
+                                                    onChange={(account: SelectedAccount | null) => {
+                                                        const updated = [...expenses];
+                                                        updated[index] = {
+                                                            ...updated[index],
+                                                            coaCode: account?.code || '',
+                                                            coaName: account?.name || '',
+                                                        };
+                                                        setExpenses(updated);
+                                                    }}
+                                                    placeholder="Select COA..."
+                                                />
                                             </td>
 
                                             {/* Description */}

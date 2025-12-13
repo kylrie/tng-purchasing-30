@@ -16,7 +16,8 @@ import {
     Briefcase,
     GitBranch,
     Wallet,
-    Database
+    Database,
+    FileSpreadsheet
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -81,9 +82,10 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Master Data',
             icon: Database,
-            canView: hasPermission('module:view:suppliers'),
+            canView: hasPermission('module:view:suppliers') || hasPermission('module:view:coa'),
             subItems: [
-                { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('module:view:suppliers') }
+                { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('module:view:suppliers') },
+                { path: '/chart-of-accounts', label: 'Chart of Accounts', icon: FileSpreadsheet, canView: hasPermission('module:view:coa') }
             ]
         },
         {

@@ -534,5 +534,46 @@ service cloud.firestore {
       // No deletion allowed - audit trail required
       allow delete: if false;
     }
+    // =====================================================
+    // CHART OF ACCOUNTS COLLECTION
+    // Stores COA codes for expense classification
+    // =====================================================
+    match /chart_of_accounts/{accountId} {
+      // All authenticated users can read COA for dropdowns
+      allow read: if isSignedIn();
+      
+      // Only admins can create/update/delete COA entries
+      allow create, update, delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+    
+    // =====================================================
+    // SETTINGS COLLECTION
+    // Stores system configuration like PCF settings
+    // =====================================================
+    match /settings/{document} {
+      // All authenticated users can read settings
+      allow read: if isSignedIn();
+      
+      // Only admins can write settings
+      allow write: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+    
+    // =====================================================
+    // NOTIFICATIONS COLLECTION
+    // Stores user notifications for approval workflow
+    // =====================================================
+    match /notifications/{notificationId} {
+      // Users can read their own notifications (targetRoles contains their UID)
+      allow read: if isSignedIn();
+      
+      // Any authenticated user can create notifications (for approval workflow)
+      allow create: if isSignedIn();
+      
+      // Users can update their own notifications (e.g., mark as read)
+      allow update: if isSignedIn();
+      
+      // Only admins can delete notifications
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
   }
 }

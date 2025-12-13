@@ -101,10 +101,11 @@ export const hasGlobalAccess = (role: RoleType): boolean => {
 export enum RequisitionStatus {
   DRAFT = 'DRAFT', // Initial draft state
 
-  // BURF Workflow (unchanged)
+  // BURF Workflow
   BURF_PENDING_MANAGER = 'BURF_PENDING_MANAGER',
   BURF_PENDING_CIC = 'BURF_PENDING_CIC',
   READY_FOR_PRF = 'READY_FOR_PRF',
+  BURF_PARTIALLY_PROCESSED = 'BURF_PARTIALLY_PROCESSED', // Some items converted to PRF, some remaining
 
   // PRF 7-Stage Approval Workflow
   PRF_PENDING_MANAGER = 'PRF_PENDING_MANAGER', // Step 1: BUM (Business Unit Manager) Approval
@@ -235,6 +236,18 @@ export interface LiquidationDetails {
   remarks?: string;
   attachmentLink?: string; // Link to liquidation attachments
 
+  // Dynamic expense rows with COA (new structure)
+  expenses?: Array<{
+    id: string;
+    date: string;
+    supplier: string;
+    invoiceNo: string;
+    coaCode: string;
+    coaName: string;
+    amount: number;
+    description: string;
+  }>;
+
   // Audit
   auditNotes?: string;
   auditedBy?: string;
@@ -300,6 +313,10 @@ export interface Requisition {
 
   // Workflow Assignment - UID of the currently assigned approver (for dashboard filtering)
   currentApproverId?: string;
+
+  // BURF Processing - Track which items have been converted to PRFs
+  convertedItemIds?: string[]; // IDs of items already converted to PRF (preserves original items array)
+  batchCounter?: number; // Counter for generating batch PRF IDs
 
   // New Enhancements
   history?: RequisitionHistory[];

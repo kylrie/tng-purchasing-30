@@ -130,8 +130,8 @@ const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, bus
                                 <tbody>
                                     {liquidation.expenses.map((expense, index) => (
                                         <tr key={index}>
-                                            <td className="border border-slate-900 px-2 py-1 text-center">{expense.classification.substring(0, 12)}</td>
-                                            <td className="border border-slate-900 px-2 py-1">{expense.classification}: {expense.itemDescription || expense.payeeVendor}</td>
+                                            <td className="border border-slate-900 px-2 py-1 text-center">{(expense.classification || '').substring(0, 12)}</td>
+                                            <td className="border border-slate-900 px-2 py-1">{expense.classification || 'N/A'}: {expense.itemDescription || expense.payeeVendor}</td>
                                             <td className="border border-slate-900 px-2 py-1 text-center">1</td>
                                             <td className="border border-slate-900 px-2 py-1 text-center">lot</td>
                                             <td className="border border-slate-900 px-2 py-1 text-right">₱{expense.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>

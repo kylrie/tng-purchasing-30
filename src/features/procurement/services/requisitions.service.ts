@@ -6,6 +6,7 @@ import { RequisitionStatus, UserRole, hasGlobalAccess } from '../types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 import { removeUndefinedFields } from '../../../shared/utils/firestore.utils';
 import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
+import { NotificationsService } from '../../../shared/services/notifications.service';
 
 const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
 
@@ -189,9 +190,13 @@ export class RequisitionService {
 
         const sourceBurf = { id: sourceBurfSnap.id, ...sourceBurfSnap.data() } as Requisition;
 
-        // Validate source BURF is in the correct status
-        if (sourceBurf.status !== RequisitionStatus.READY_FOR_PRF) {
-          throw new Error(`Cannot create PRF from BURF in status: ${sourceBurf.status}. Expected READY_FOR_PRF.`);
+        // Validate source BURF is in a status that allows PRF creation
+        const allowedStatuses = [
+          RequisitionStatus.READY_FOR_PRF,
+          RequisitionStatus.BURF_PARTIALLY_PROCESSED
+        ];
+        if (!allowedStatuses.includes(sourceBurf.status)) {
+          throw new Error(`Cannot create PRF from BURF in status: ${sourceBurf.status}. Expected READY_FOR_PRF or BURF_PARTIALLY_PROCESSED.`);
         }
 
         // FIX: Atomic Batch ID Generation
@@ -204,22 +209,37 @@ export class RequisitionService {
         // FIX: Double Spend Prevention (Item Verification)
         // Verify that ALL selected items still exist in the source BURF
         const sourceItemMap = new Map(sourceBurf.items.map(i => [i.itemId, i]));
-        const missingItems = selectedItems.filter(item => !sourceItemMap.has(item.itemId));
 
-        if (missingItems.length > 0) {
-          const missingNames = missingItems.map(i => i.name).join(', ');
-          throw new Error(`Critical Error: Some items have already been processed or removed: ${missingNames}. Please refresh and try again.`);
+        // FIX: Check against already converted items, not removed items
+        const alreadyConverted = (sourceBurf as any).convertedItemIds || [];
+        const alreadyConvertedSet = new Set(alreadyConverted);
+
+        // Validate selected items exist and are not already converted
+        const invalidItems = selectedItems.filter(item =>
+          !sourceItemMap.has(item.itemId) || alreadyConvertedSet.has(item.itemId)
+        );
+
+        if (invalidItems.length > 0) {
+          const invalidNames = invalidItems.map(i => i.name).join(', ');
+          throw new Error(`Critical Error: Some items have already been converted or don't exist: ${invalidNames}. Please refresh and try again.`);
         }
 
-        // Step B: Split items
+        // Step B: Track converted items (don't remove from array - preserve for history)
         const selectedItemIds = new Set(selectedItems.map(item => item.itemId));
-        const remainingItems = sourceBurf.items.filter(item => !selectedItemIds.has(item.itemId));
-        remainingItemsCount = remainingItems.length;
+        const newConvertedItemIds = [...alreadyConverted, ...selectedItems.map(i => i.itemId)];
+
+        // Calculate remaining (unconverted) items count
+        const unconvertedItems = sourceBurf.items.filter(item =>
+          !selectedItemIds.has(item.itemId) && !alreadyConvertedSet.has(item.itemId)
+        );
+        remainingItemsCount = unconvertedItems.length;
 
         // Determine new status for source BURF
-        sourceBurfNewStatus = remainingItems.length === 0
+        // BURF_COMPLETED if all items consumed, BURF_PARTIALLY_PROCESSED if items remain
+        const isFullyConsumed = remainingItemsCount === 0;
+        sourceBurfNewStatus = isFullyConsumed
           ? RequisitionStatus.BURF_COMPLETED
-          : RequisitionStatus.READY_FOR_PRF;
+          : RequisitionStatus.BURF_PARTIALLY_PROCESSED;
 
         // Step C: Create new PRF document
         const newPrf: Requisition = {
@@ -265,9 +285,9 @@ export class RequisitionService {
           date: new Date().toISOString(),
           actorId: userId,
           actorName: userName,
-          action: remainingItems.length === 0 ? 'Fully Converted to PRF' : 'Partial PRF Created',
+          action: isFullyConsumed ? 'Fully Converted to PRF' : 'Partial PRF Created',
           stage: sourceBurfNewStatus,
-          comments: `${selectedItems.length} items moved to ${newPrfId}. ${remainingItems.length} items remaining.`,
+          comments: `${selectedItems.length} items moved to ${newPrfId}. ${remainingItemsCount} items remaining.`,
         };
         const updatedBurfHistory = [burfHistoryEntry, ...(sourceBurf.history || [])];
 
@@ -278,10 +298,11 @@ export class RequisitionService {
         // 1. Create new PRF
         transaction.set(newPrfRef, sanitizedPrf);
 
-        // 2. Update Source BURF (Items, Status, History, AND BatchCounter)
+        // 2. Update Source BURF - PRESERVE items array, only update convertedItemIds
+        // This keeps the original items for historical viewing
         transaction.update(sourceBurfRef, {
-          items: remainingItems,
-          totalAmount: remainingItems.reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0),
+          // items: DO NOT UPDATE - preserve original items for history
+          convertedItemIds: newConvertedItemIds, // Track which items have been converted
           status: sourceBurfNewStatus,
           history: updatedBurfHistory,
           updatedAt: serverTimestamp(),
@@ -509,7 +530,7 @@ export class RequisitionService {
     const approverAssignments = await SettingsService.getApproverAssignments();
 
     // FIX H2: Use transaction for atomic read-modify-write (was separate read/write causing race conditions)
-    await runTransaction(db, async (transaction) => {
+    const transactionResult = await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(docRef);
       if (!snap.exists()) throw new Error('Requisition not found');
 
@@ -578,8 +599,44 @@ export class RequisitionService {
 
         // Atomic update within transaction
         transaction.update(docRef, updateData);
+
+        // Return data needed for notification (can't call async inside transaction)
+        return {
+          nextStatus,
+          currentApproverId,
+          requisitionId,
+          description: requisition.description || requisition.projectName || 'Requisition',
+          totalAmount: requisition.totalAmount,
+        };
       }
+      return null;
     });
+
+    // Create notification AFTER transaction completes (for next approver)
+    if (transactionResult && transactionResult.currentApproverId) {
+      const statusLabels: Record<RequisitionStatus, string> = {
+        [RequisitionStatus.PENDING_GM_PRF_APPROVAL]: 'GM PRF Review (≥₱50k)',
+        [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'Finance Head Budget Review',
+        [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'GM Budget Approval',
+        [RequisitionStatus.PENDING_CFO_APPROVAL]: 'CFO Approval',
+        [RequisitionStatus.PENDING_BOD_APPROVAL]: 'BOD Approval',
+        [RequisitionStatus.FOR_FUND_RELEASE]: 'Fund Release',
+      } as Record<RequisitionStatus, string>;
+
+      const label = statusLabels[transactionResult.nextStatus] || transactionResult.nextStatus.replace(/_/g, ' ');
+
+      try {
+        await NotificationsService.createNotification({
+          type: 'PRF',
+          message: `${transactionResult.requisitionId} requires your ${label}. Amount: ₱${transactionResult.totalAmount?.toLocaleString()}`,
+          requisitionId: transactionResult.requisitionId,
+          targetRoles: [transactionResult.currentApproverId], // Target the specific approver's UID
+        });
+      } catch (notificationError) {
+        console.error('Failed to create notification:', notificationError);
+        // Don't throw - approval succeeded, notification failed is non-critical
+      }
+    }
   }
 
   /**

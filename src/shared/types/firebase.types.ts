@@ -91,6 +91,18 @@ export interface FirestoreNotification extends FirestoreDocument {
   read: boolean;
 }
 
+// Chart of Accounts document
+export interface ChartOfAccount {
+  code: string;           // Account No (used as doc ID)
+  name: string;           // Account Name
+  parentId: string;       // Parent ID for hierarchy
+  classification: string; // Account Classification
+  financialStatement: string; // Balance Sheet, Income Statement, etc.
+  accountType: string;    // Assets, Liabilities, Equity, Revenue, Expenses
+  cashFlowClassification?: string; // General C Cash Flow Classification
+  isActive: boolean;      // Default true
+}
+
 // Collection names as constants
 export const COLLECTIONS = {
   USERS: 'users',
@@ -99,6 +111,7 @@ export const COLLECTIONS = {
   SUPPLIERS: 'suppliers',
   NOTIFICATIONS: 'notifications',
   SETTINGS: 'settings',
+  CHART_OF_ACCOUNTS: 'chart_of_accounts',
 } as const;
 
 // Query constraints type
