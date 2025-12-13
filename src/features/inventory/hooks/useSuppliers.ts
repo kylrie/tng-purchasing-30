@@ -33,18 +33,29 @@ export const useSuppliers = () => {
     const createSupplier = async (supplierData: Omit<Supplier, 'id'>) => {
         try {
             // Task 1: Prevent Duplicates
-            // Check for existing name
-            const nameQuery = query(suppliersCollection, where('name', '==', supplierData.name), where('status', '!=', 'ARCHIVED'));
+            // Use simple single-field queries to avoid composite index requirements
+            // Then filter client-side for non-archived suppliers
+
+            // Check for existing name (simple query, filter client-side)
+            const nameQuery = query(suppliersCollection, where('name', '==', supplierData.name));
             const nameSnapshot = await getDocs(nameQuery);
-            if (!nameSnapshot.empty) {
+            const activeNameMatch = nameSnapshot.docs.find(doc => {
+                const data = doc.data();
+                return data.status !== 'ARCHIVED';
+            });
+            if (activeNameMatch) {
                 throw new Error("Supplier with this Name already exists.");
             }
 
             // Check for existing TIN if provided
             if (supplierData.tin) {
-                const tinQuery = query(suppliersCollection, where('tin', '==', supplierData.tin), where('status', '!=', 'ARCHIVED'));
+                const tinQuery = query(suppliersCollection, where('tin', '==', supplierData.tin));
                 const tinSnapshot = await getDocs(tinQuery);
-                if (!tinSnapshot.empty) {
+                const activeTinMatch = tinSnapshot.docs.find(doc => {
+                    const data = doc.data();
+                    return data.status !== 'ARCHIVED';
+                });
+                if (activeTinMatch) {
                     throw new Error("Supplier with this TIN already exists.");
                 }
             }
