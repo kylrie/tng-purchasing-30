@@ -84,6 +84,7 @@ export const ALL_PERMISSIONS = [
   'module:view:settings',
   'module:view:coa',          // View Chart of Accounts module
   'module:view:prf_tracker',  // View PRF Tracker (Kanban view for requisition flow)
+  'prf_tracker:view:all',      // Toggle to view all PRFs in tracker (within assigned BUs)
 
   // UI Component Visibility (deprecated, use module:view instead)
   'ui:view:approvals_page',
@@ -162,6 +163,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'coa:view',
     'coa:manage',
     'module:view:coa',
+    // PRF Tracker
+    'prf_tracker:view:all',
   ],
 
   // High-level approver, global view
@@ -204,6 +207,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:section:ready_for_prf_list',
     'dashboard:section:pending_fund_release',
     'dashboard:section:pending_audit_list',
+    // PRF Tracker
+    'module:view:prf_tracker',
+    'prf_tracker:view:all',
   ],
 
   // View-only global role + BOD approval capability
@@ -261,6 +267,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:completed_month',
     'dashboard:widget:top_requesters',
     'dashboard:section:pending_list',
+    // PRF Tracker
+    'module:view:prf_tracker',
+    'prf_tracker:view:all',
   ],
 
   // Basic user, can only create requests and see their own
@@ -301,6 +310,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:pending_approvals',
     'dashboard:widget:active_prfs',
     'dashboard:section:pending_list',
+    // PRF Tracker
+    'module:view:prf_tracker',
+    'prf_tracker:view:all',
   ],
 
   // Creates PRFs and manages suppliers
@@ -330,6 +342,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:total_spend',
     'dashboard:widget:pending_audit',
     'dashboard:section:ready_for_prf_list',
+    // PRF Tracker
+    'prf_tracker:view:all',
   ],
 
   // Handles money, releases funds
@@ -361,6 +375,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     // Chart of Accounts (Finance can view for liquidation classification)
     'coa:view',
     'module:view:coa',
+    // PRF Tracker
+    'module:view:prf_tracker',
+    'prf_tracker:view:all',
   ],
 
   // Audits liquidations

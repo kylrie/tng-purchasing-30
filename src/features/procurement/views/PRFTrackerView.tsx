@@ -3,6 +3,7 @@ import { Search, RefreshCw, AlertTriangle, Building2 } from 'lucide-react';
 import type { Requisition, User, Business } from '../types';
 import { RequisitionStatus } from '../types';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 interface PRFTrackerViewProps {
     currentUser: User;
@@ -38,14 +39,26 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
     businesses,
     // allUsers available for future use (e.g., showing requester names)
 }) => {
+    const { hasPermission } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
     const [businessFilter, setBusinessFilter] = useState<string>('all');
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
+    const [viewMode, setViewMode] = useState<'mine' | 'all'>('mine');
 
     // Check if user is admin
     const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
 
-    // Filter requisitions: Show PRFs in trackable statuses where user is requester or preparer
+    // Compute user's accessible business units
+    const userBusinessUnitIds = useMemo(() => {
+        const buIds = new Set<string>();
+        if (currentUser.businessId) buIds.add(currentUser.businessId);
+        if (Array.isArray(currentUser.businessUnitIds)) {
+            currentUser.businessUnitIds.forEach(id => buIds.add(id));
+        }
+        return buIds;
+    }, [currentUser.businessId, currentUser.businessUnitIds]);
+
+    // Filter requisitions based on view mode and permissions
     const myRequisitions = useMemo(() => {
         return requisitions.filter(req => {
             // Must be in a trackable status
@@ -54,15 +67,18 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
             // Admins see all
             if (isAdmin) return true;
 
-            // User is the requester
-            if (req.requesterId === currentUser.id) return true;
+            // "View All" mode - show all within user's assigned BUs
+            if (viewMode === 'all' && hasPermission('prf_tracker:view:all')) {
+                return userBusinessUnitIds.has(req.businessId);
+            }
 
-            // User prepared the PRF
+            // "My Requests" mode - user is requester or preparer
+            if (req.requesterId === currentUser.id) return true;
             if (req.prfDetails?.preparedBy === currentUser.id) return true;
 
             return false;
         });
-    }, [requisitions, currentUser.id, isAdmin]);
+    }, [requisitions, currentUser.id, isAdmin, viewMode, hasPermission, userBusinessUnitIds]);
 
     // Apply search and business filter
     const filteredReqs = useMemo(() => {
@@ -126,6 +142,29 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                                 ))}
                             </select>
                         </div>
+                        {/* View Mode Toggle */}
+                        {hasPermission('prf_tracker:view:all') && (
+                            <div className="flex items-center gap-1 p-1 bg-slate-800 rounded-lg border border-slate-700">
+                                <button
+                                    onClick={() => setViewMode('mine')}
+                                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${viewMode === 'mine'
+                                        ? 'bg-purple-600 text-white'
+                                        : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    My Requests
+                                </button>
+                                <button
+                                    onClick={() => setViewMode('all')}
+                                    className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${viewMode === 'all'
+                                        ? 'bg-purple-600 text-white'
+                                        : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    View All
+                                </button>
+                            </div>
+                        )}
                         {/* Search */}
                         <div className="relative w-full md:w-64">
                             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
