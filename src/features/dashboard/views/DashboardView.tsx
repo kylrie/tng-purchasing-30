@@ -332,6 +332,28 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         return isAssignedApprover(r);
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
+    // Finance Head BR Items - BU-specific filtering
+    const financeHeadBRItems = requisitions.filter(r => {
+        if (r.status !== RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL) return false;
+
+        // Check if current user is a Finance Head for this requisition's BU
+        if (approverAssignments.financeHeads) {
+            return approverAssignments.financeHeads.some(fh =>
+                fh.userId === currentUser.id &&
+                fh.businessUnitIds.includes(r.businessId)
+            );
+        }
+        return false;
+    }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
+
+    // GM BR Items - GM Budget Review approval
+    const gmBRItems = requisitions.filter(r => {
+        if (r.status !== RequisitionStatus.PENDING_GM_BR_APPROVAL) return false;
+
+        // Only the assigned GM can see these
+        return currentUser.id === approverAssignments.gmUid;
+    }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
+
     // Check Authorization Items - Filter by BOD role assignment
     const checkAuthItems = requisitions.filter(r => {
         if (r.status !== RequisitionStatus.PENDING_CHECK_AUTH_BOD) return false;
@@ -952,6 +974,128 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         </span>
                                                     </div>
                                                     {/* Quick Actions - Always shown since brPendingItems is already filtered by role */}
+                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                                                        <button
+                                                            onClick={(e) => handleApprove(req, e)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <CheckCircle size={14} /> Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleRejectClick(req, e)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <XCircle size={14} /> Reject
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Finance Head BR Approvals Widget - BU-specific */}
+                        {financeHeadBRItems.length > 0 && (
+                            <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
+                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <FileText className="text-indigo-400" size={20} />
+                                        Finance Head BR
+                                    </h2>
+                                    <span className="text-xs font-medium bg-indigo-900/30 text-indigo-400 px-2 py-1 rounded-full border border-indigo-500/20">
+                                        {financeHeadBRItems.length} Pending
+                                    </span>
+                                </div>
+                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
+                                    <div className="space-y-3">
+                                        {financeHeadBRItems.map(req => {
+                                            const requester = allUsers.find(u => u.id === req.requesterId);
+                                            const business = businesses.find(b => b.id === req.businessId);
+                                            return (
+                                                <div
+                                                    key={req.id}
+                                                    onClick={() => setDrawerReq(req)}
+                                                    className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-indigo-500/30 transition-all cursor-pointer group"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <span className="text-xs font-mono text-indigo-400 bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-500/10">{req.id}</span>
+                                                            <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{req.description}</h4>
+                                                        </div>
+                                                        <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs mb-2">
+                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-indigo-900/30 text-indigo-400 border border-indigo-500/20">
+                                                            {business?.name || 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                                                        <button
+                                                            onClick={(e) => handleApprove(req, e)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <CheckCircle size={14} /> Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleRejectClick(req, e)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <XCircle size={14} /> Reject
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* GM Budget Review Widget */}
+                        {gmBRItems.length > 0 && (
+                            <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
+                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <FileText className="text-violet-400" size={20} />
+                                        GM Budget Review
+                                    </h2>
+                                    <span className="text-xs font-medium bg-violet-900/30 text-violet-400 px-2 py-1 rounded-full border border-violet-500/20">
+                                        {gmBRItems.length} Pending
+                                    </span>
+                                </div>
+                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
+                                    <div className="space-y-3">
+                                        {gmBRItems.map(req => {
+                                            const requester = allUsers.find(u => u.id === req.requesterId);
+                                            const business = businesses.find(b => b.id === req.businessId);
+                                            return (
+                                                <div
+                                                    key={req.id}
+                                                    onClick={() => setDrawerReq(req)}
+                                                    className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-violet-500/30 transition-all cursor-pointer group"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <span className="text-xs font-mono text-violet-400 bg-violet-900/20 px-1.5 py-0.5 rounded border border-violet-500/10">{req.id}</span>
+                                                            <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{req.description}</h4>
+                                                        </div>
+                                                        <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs mb-2">
+                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-violet-900/30 text-violet-400 border border-violet-500/20">
+                                                            {business?.name || 'N/A'}
+                                                        </span>
+                                                    </div>
                                                     <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
                                                         <button
                                                             onClick={(e) => handleApprove(req, e)}
