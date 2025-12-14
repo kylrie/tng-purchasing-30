@@ -318,17 +318,23 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         hasPermission('finance:release_funds')
     );
 
-    // Finance Head BR Items - BU-specific filtering
+    // Finance Head BR Items - BU-specific filtering with permission fallback
     const financeHeadBRItems = requisitions.filter(r => {
         if (r.status !== RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL) return false;
 
-        // Check if current user is a Finance Head for this requisition's BU
+        // Option 1: Check if current user is a Finance Head for this requisition's BU
         if (approverAssignments.financeHeads) {
-            return approverAssignments.financeHeads.some(fh =>
+            const isAssignedForBU = approverAssignments.financeHeads.some(fh =>
                 fh.userId === currentUser.id &&
                 fh.businessUnitIds.includes(r.businessId)
             );
+            if (isAssignedForBU) return true;
         }
+
+        // Option 2: Fallback - if user has Finance Head BR permission, show all Finance Head BR items
+        // This handles cases where BU assignments aren't fully configured
+        if (hasPermission('approval:finance_head:br')) return true;
+
         return false;
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
