@@ -768,7 +768,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                             )}
                                         </button>
                                     )}
-                                    {hasPermission('approval:manager:prf') && (
+                                    {/* Show PRF tab if user has permission OR is a designated approver for any Direct PRF */}
+                                    {(hasPermission('approval:manager:prf') || prfApprovals.length > 0) && (
                                         <button
                                             onClick={() => setPendingApprovalTab('prf')}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'prf'
