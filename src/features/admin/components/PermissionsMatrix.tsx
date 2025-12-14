@@ -81,6 +81,7 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'approval:cic:burf': { label: 'CIC Approval', category: 'Approval Workflow' },
   'approval:manager:prf': { label: 'Manager Approval (PRF)', category: 'Approval Workflow' },
   'approval:finance_head:br': { label: 'Finance Head BR Approval', category: 'Approval Workflow' },
+  'approval:gm:br': { label: 'GM Budget Review Approval', category: 'Approval Workflow' },
   'approval:cfo': { label: 'CFO Approval', category: 'Approval Workflow' },
   'approval:bod': { label: 'BOD Approval', category: 'Approval Workflow' },
 

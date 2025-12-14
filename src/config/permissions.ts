@@ -21,6 +21,7 @@ export const ALL_PERMISSIONS = [
   'approval:cic:burf',
   'approval:manager:prf',
   'approval:finance_head:br',  // 7-Stage: Finance Head Budget Review
+  'approval:gm:br',            // 7-Stage: GM Budget Review
   'approval:cfo',              // 7-Stage: CFO Approval
   'approval:bod',              // 7-Stage: BOD Approval
   'approval:view:history',

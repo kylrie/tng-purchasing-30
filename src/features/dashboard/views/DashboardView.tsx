@@ -318,6 +318,27 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         hasPermission('finance:release_funds')
     );
 
+    // BR Pending Items - Same filter as Finance module (brPendingReqs)
+    // Filter by user's role permissions
+    const brPendingItems = requisitions.filter(r => {
+        const isBRStatus =
+            r.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL ||
+            r.status === RequisitionStatus.PENDING_GM_BR_APPROVAL ||
+            r.status === RequisitionStatus.PENDING_BOD_APPROVAL ||
+            r.status === RequisitionStatus.PENDING_CFO_APPROVAL;
+
+        if (!isBRStatus) return false;
+
+        // Only show if user has permission for this specific status
+        const canApprove =
+            (r.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
+            (r.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
+            (r.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
+            (r.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo'));
+
+        return canApprove;
+    }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
+
     // Pending Audit (Auditor)
     const pendingAuditItems = requisitions.filter(r =>
         r.status === RequisitionStatus.LIQUIDATION_FILED &&
@@ -879,56 +900,67 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                             </div>
                         )}
 
-                        {/* BR (Budget Request) Widget - Steps 3-5 */}
-                        {brApprovals.length > 0 && (
+                        {/* BR (Budget Request) Widget - Separate from Pending Approvals */}
+                        {/* Uses same filter as Finance module - role-based */}
+                        {brPendingItems.length > 0 && (
                             <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                         <FileText className="text-emerald-400" size={20} />
-                                        Budget Request
+                                        BR Approvals
                                     </h2>
                                     <span className="text-xs font-medium bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20">
-                                        {brApprovals.length} Pending
+                                        {brPendingItems.length} Pending
                                     </span>
                                 </div>
                                 <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
                                     <div className="space-y-3">
-                                        {brApprovals.map(activity => (
-                                            <div
-                                                key={activity.id}
-                                                onClick={() => navigate('/finance')}
-                                                className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer group"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <span className="text-xs font-mono text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/10">{activity.rawRequisition.id}</span>
-                                                        <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{activity.target}</h4>
+                                        {brPendingItems.map(req => {
+                                            const requester = allUsers.find(u => u.id === req.requesterId);
+                                            const statusLabel = req.status
+                                                .replace(/_/g, ' ')
+                                                .replace('PENDING ', '');
+
+                                            return (
+                                                <div
+                                                    key={req.id}
+                                                    onClick={() => setDrawerReq(req)}
+                                                    className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer group"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <span className="text-xs font-mono text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/10">{req.id}</span>
+                                                            <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{req.description}</h4>
+                                                        </div>
+                                                        <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                     </div>
-                                                    <span className="text-xs text-slate-500">{activity.time}</span>
+                                                    <div className="flex items-center justify-between text-xs mb-2">
+                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-500/20">
+                                                            {statusLabel}
+                                                        </span>
+                                                    </div>
+                                                    {/* Quick Actions - Always shown since brPendingItems is already filtered by role */}
+                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                                                        <button
+                                                            onClick={(e) => handleApprove(req, e)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <CheckCircle size={14} /> Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleRejectClick(req, e)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <XCircle size={14} /> Reject
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className={`font-semibold px-2 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-500/20`}>
-                                                        {activity.status.replace(/_/g, ' ').replace('PENDING ', '')}
-                                                    </span>
-                                                    <span className="text-slate-300 font-medium">₱{activity.rawRequisition.totalAmount?.toLocaleString()}</span>
-                                                </div>
-                                                {/* Quick Actions */}
-                                                <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
-                                                    <button
-                                                        onClick={(e) => handleApprove(activity.rawRequisition, e)}
-                                                        className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                    >
-                                                        <CheckCircle size={14} /> Approve
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleRejectClick(activity.rawRequisition, e)}
-                                                        className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                    >
-                                                        <XCircle size={14} /> Reject
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>

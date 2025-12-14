@@ -289,9 +289,9 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
             };
 
             if (initialData && onUpdate) {
-                onUpdate({ ...initialData, ...baseReq });
+                await onUpdate({ ...initialData, ...baseReq });
             } else if (onCreateRequisition) {
-                onCreateRequisition(baseReq);
+                await onCreateRequisition(baseReq);
             }
             onCancel();
         } catch (error: any) {
@@ -835,8 +835,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // Tab 0: "Drafts" - Saved drafts not yet submitted
     const draftReqs = useMemo(() => {
         return visibleRequisitions.filter(r =>
-            r.status === RequisitionStatus.DRAFT &&
-            r.prfDetails // Only PRFs (drafts with prfDetails)
+            r.status === RequisitionStatus.DRAFT
         );
     }, [visibleRequisitions]);
 

@@ -586,22 +586,48 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 {getStatusBadge(req.status)}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <button
-                                                        onClick={(e) => handleApprove(req, e)}
-                                                        className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors"
-                                                        title="Approve"
-                                                    >
-                                                        <CheckCircle size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleRejectClick(req, e)}
-                                                        className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
-                                                        title="Reject"
-                                                    >
-                                                        <XCircle size={18} />
-                                                    </button>
-                                                </div>
+                                                {/* Role-based action visibility: Only show actions if user can approve this status */}
+                                                {(() => {
+                                                    // Determine if current user can approve based on the item's current status
+                                                    const canApproveThisStatus =
+                                                        (req.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
+                                                        (req.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
+                                                        (req.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
+                                                        (req.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo'));
+
+                                                    if (canApproveThisStatus) {
+                                                        return (
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <button
+                                                                    onClick={(e) => handleApprove(req, e)}
+                                                                    className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors"
+                                                                    title="Approve"
+                                                                >
+                                                                    <CheckCircle size={18} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => handleRejectClick(req, e)}
+                                                                    className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
+                                                                    title="Reject"
+                                                                >
+                                                                    <XCircle size={18} />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    } else {
+                                                        // Show the required approver role for transparency
+                                                        const requiredRole =
+                                                            req.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL ? 'Finance Head' :
+                                                                req.status === RequisitionStatus.PENDING_GM_BR_APPROVAL ? 'GM' :
+                                                                    req.status === RequisitionStatus.PENDING_BOD_APPROVAL ? 'BOD' :
+                                                                        req.status === RequisitionStatus.PENDING_CFO_APPROVAL ? 'CFO' : 'Unknown';
+                                                        return (
+                                                            <span className="text-slate-500 text-xs italic">
+                                                                Awaiting {requiredRole}
+                                                            </span>
+                                                        );
+                                                    }
+                                                })()}
                                             </td>
                                         </tr>
                                     ))}
