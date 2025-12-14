@@ -110,7 +110,7 @@ function ProtectedApp() {
     const labels: Record<RequisitionStatus, string> = {
       [RequisitionStatus.DRAFT]: 'Draft',
       // BURF statuses
-      [RequisitionStatus.BURF_PENDING_MANAGER]: 'Pending BUM',
+      [RequisitionStatus.BURF_PENDING_MANAGER]: 'Pending Manager',
       [RequisitionStatus.BURF_PENDING_CIC]: 'Pending CIC',
       [RequisitionStatus.READY_FOR_PRF]: 'Ready for PRF',
       [RequisitionStatus.BURF_PARTIALLY_PROCESSED]: 'Partial PRF',

@@ -15,7 +15,7 @@ interface PRFTrackerViewProps {
 
 // Define workflow columns
 const WORKFLOW_COLUMNS = [
-    { id: 'step1', label: 'Pending BUM', statuses: [RequisitionStatus.PRF_PENDING_MANAGER], color: 'orange' },
+    { id: 'step1', label: 'Pending Manager', statuses: [RequisitionStatus.PRF_PENDING_MANAGER], color: 'orange' },
     { id: 'step2', label: 'Pending GM PRF', statuses: [RequisitionStatus.PENDING_GM_PRF_APPROVAL], color: 'yellow' },
     { id: 'step3', label: 'Finance Head BR', statuses: [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL], color: 'indigo' },
     { id: 'step4', label: 'GM Budget', statuses: [RequisitionStatus.PENDING_GM_BR_APPROVAL], color: 'violet' },

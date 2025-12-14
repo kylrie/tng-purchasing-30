@@ -442,7 +442,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                                             })()}
                                                         </span>
                                                     </div>
-                                                    {/* BUM Approved */}
+                                                    {/* Manager Approved */}
                                                     {(() => {
                                                         const bumEntry = parentBurf.history.find(h =>
                                                             h.stage === RequisitionStatus.BURF_PENDING_CIC
@@ -452,7 +452,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                                                 <div className="flex items-center justify-between mb-1">
                                                                     <span className="text-sm text-slate-400 flex items-center gap-2">
                                                                         <CheckCircle2 size={14} className="text-purple-400" />
-                                                                        BUM Approved
+                                                                        Manager Approved
                                                                     </span>
                                                                     <span className="text-sm text-white font-medium">
                                                                         {bumEntry.actorName || 'Unknown'}
