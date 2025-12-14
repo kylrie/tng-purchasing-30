@@ -43,16 +43,17 @@ interface CreateBatchPrfResult {
 
 /**
  * Determines the next workflow status based on current status and amount
- * Implements the 7-stage PRF approval chain with 50k conditional logic
+ * Implements the 8-stage PRF approval chain with 50k conditional logic
  * 
  * PRF Workflow:
  * Step 1: PRF_PENDING_MANAGER (BUM Approval - permission based)
  * Step 2: PENDING_GM_PRF_APPROVAL (if amount >= 50k, GM checks PRF details)
  * Step 3: PENDING_FINANCE_HEAD_BR_APPROVAL (Finance Head Budget Review - BU-specific)
  * Step 4: PENDING_GM_BR_APPROVAL (GM Final Budget Approval)
- * Step 5: PENDING_CFO_APPROVAL (CFO Approval)
- * Step 6: PENDING_BOD_APPROVAL (BOD Approval - multiple approvers)
- * Step 7: FOR_FUND_RELEASE (Ready for Fund Release)
+ * Step 5: PENDING_BOD_APPROVAL (BOD Approval - Any BOD approver)
+ * Step 6: FOR_CHECK_PREPARATION (Finance uploads check number + link)
+ * Step 7: PENDING_CHECK_AUTH_BOD (BOD Check Authorization)
+ * Step 8: FOR_FUND_RELEASE (Ready for Fund Release)
  * Final: FUNDS_RELEASED
  * 
  * @param currentStatus - The current status of the requisition
@@ -78,25 +79,33 @@ function determineNextPrfStatus(
     case RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL:
       return RequisitionStatus.PENDING_GM_BR_APPROVAL;
 
-    // Step 4 → Step 5 (CFO)
+    // Step 4 → Step 5 (BOD Approval)
     case RequisitionStatus.PENDING_GM_BR_APPROVAL:
-      return RequisitionStatus.PENDING_CFO_APPROVAL;
-
-    // Step 5 → Step 6 (BOD)
-    case RequisitionStatus.PENDING_CFO_APPROVAL:
       return RequisitionStatus.PENDING_BOD_APPROVAL;
 
-    // Step 6 → Step 7
+    // Step 5 → Step 6 (Check Preparation by Finance)
     case RequisitionStatus.PENDING_BOD_APPROVAL:
+      return RequisitionStatus.FOR_CHECK_PREPARATION;
+
+    // Step 6 → Step 7 (BOD Check Authorization)
+    case RequisitionStatus.FOR_CHECK_PREPARATION:
+      return RequisitionStatus.PENDING_CHECK_AUTH_BOD;
+
+    // Step 7 → Step 8 (Fund Release)
+    case RequisitionStatus.PENDING_CHECK_AUTH_BOD:
       return RequisitionStatus.FOR_FUND_RELEASE;
 
-    // Step 7 → Complete
+    // Step 8 → Complete
     case RequisitionStatus.FOR_FUND_RELEASE:
       return RequisitionStatus.FUNDS_RELEASED;
 
-    // Legacy status - treat like FOR_FUND_RELEASE
+    // Legacy statuses - handle gracefully
     case RequisitionStatus.APPROVED_FOR_PAYMENT:
       return RequisitionStatus.FUNDS_RELEASED;
+
+    // Legacy CFO approval - skip to BOD approval
+    case RequisitionStatus.PENDING_CFO_APPROVAL:
+      return RequisitionStatus.PENDING_BOD_APPROVAL;
 
     default:
       return null;
@@ -134,18 +143,29 @@ function getApproverIdForStatus(
     case RequisitionStatus.PENDING_GM_BR_APPROVAL:
       return assignments.gmUid;
 
+    // Legacy CFO status - return CFO UID for backward compatibility
     case RequisitionStatus.PENDING_CFO_APPROVAL:
       return assignments.cfoUid;
 
+    // Step 5: BOD Approval (any BOD approver)
     case RequisitionStatus.PENDING_BOD_APPROVAL:
       // Multiple approvers - return first one for currentApproverId
       // Dashboard filtering will check if current user is in the array
+      return assignments.bodApprovers?.[0]?.userId;
+
+    // Step 6: Check Preparation - permission-based (Finance role)
+    case RequisitionStatus.FOR_CHECK_PREPARATION:
+      return undefined; // Finance users see this via permission, not assignment
+
+    // Step 7: BOD Check Authorization (any BOD approver)
+    case RequisitionStatus.PENDING_CHECK_AUTH_BOD:
       return assignments.bodApprovers?.[0]?.userId;
 
     // For permission-based statuses, return undefined
     case RequisitionStatus.PRF_PENDING_MANAGER:
     case RequisitionStatus.BURF_PENDING_MANAGER:
     case RequisitionStatus.BURF_PENDING_CIC:
+    case RequisitionStatus.FOR_FUND_RELEASE:
     default:
       return undefined;
   }
@@ -167,11 +187,6 @@ export class RequisitionService {
   static async createBatchPrfFromBurf(params: CreateBatchPrfParams): Promise<CreateBatchPrfResult> {
     const { sourceBurfId, selectedItems, prfDetails, userId, userName } = params;
 
-    console.log(`[createBatchPrfFromBurf] Starting for BURF: ${sourceBurfId}`);
-    console.log(`[createBatchPrfFromBurf] Selected items count: ${selectedItems.length}`);
-
-    console.log(`[createBatchPrfFromBurf] Selected items count: ${selectedItems.length}`);
-
     try {
       const sourceBurfRef = doc(db, REQUISITIONS_COLLECTION, sourceBurfId);
 
@@ -180,7 +195,6 @@ export class RequisitionService {
       let remainingItemsCount = 0;
       let newPrfId = '';
 
-      console.log('[createBatchPrfFromBurf] Starting transaction...');
       await runTransaction(db, async (transaction) => {
         // Step A: Read the current state of the source BURF
         const sourceBurfSnap = await transaction.get(sourceBurfRef);
@@ -309,8 +323,6 @@ export class RequisitionService {
           batchCounter: nextBatchCount // Increment atomic counter
         });
       });
-
-      console.log(`[createBatchPrfFromBurf] SUCCESS: Created ${newPrfId} from ${sourceBurfId}. Remaining items: ${remainingItemsCount}`);
 
       return {
         newPrfId,
@@ -549,14 +561,16 @@ export class RequisitionService {
           nextStatus = RequisitionStatus.READY_FOR_PRF;
           break;
 
-        // PRF 7-Stage Workflow - use helper function
+        // PRF 8-Stage Workflow - use helper function
         case RequisitionStatus.PRF_PENDING_MANAGER:
         case RequisitionStatus.PENDING_GM_PRF_APPROVAL:
         case RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL:
         case RequisitionStatus.PENDING_GM_BR_APPROVAL:
-        case RequisitionStatus.PENDING_CFO_APPROVAL:
         case RequisitionStatus.PENDING_BOD_APPROVAL:
+        case RequisitionStatus.FOR_CHECK_PREPARATION:
+        case RequisitionStatus.PENDING_CHECK_AUTH_BOD:
         case RequisitionStatus.FOR_FUND_RELEASE:
+        case RequisitionStatus.PENDING_CFO_APPROVAL: // Legacy support
         case RequisitionStatus.APPROVED_FOR_PAYMENT: // Legacy support
           nextStatus = determineNextPrfStatus(requisition.status, requisition.totalAmount);
           break;
@@ -618,8 +632,10 @@ export class RequisitionService {
         [RequisitionStatus.PENDING_GM_PRF_APPROVAL]: 'GM PRF Review (≥₱50k)',
         [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'Finance Head Budget Review',
         [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'GM Budget Approval',
-        [RequisitionStatus.PENDING_CFO_APPROVAL]: 'CFO Approval',
+        [RequisitionStatus.PENDING_CFO_APPROVAL]: 'CFO Approval', // Legacy
         [RequisitionStatus.PENDING_BOD_APPROVAL]: 'BOD Approval',
+        [RequisitionStatus.FOR_CHECK_PREPARATION]: 'Check Preparation',
+        [RequisitionStatus.PENDING_CHECK_AUTH_BOD]: 'Check Authorization',
         [RequisitionStatus.FOR_FUND_RELEASE]: 'Fund Release',
       } as Record<RequisitionStatus, string>;
 
@@ -850,6 +866,68 @@ export class RequisitionService {
           dateReplenished: new Date().toISOString(),
         });
       }
+    });
+  }
+
+  /**
+   * Upload check details for Check Preparation step (Step 6)
+   * Finance uploads check number and Google Drive link
+   * Advances workflow to PENDING_CHECK_AUTH_BOD
+   */
+  static async uploadCheckForPreparation(
+    requisitionId: string,
+    chequeNumber: string,
+    chequeImageUrl: string,
+    userId: string,
+    userName: string
+  ): Promise<void> {
+    const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
+
+    // Fetch approver assignments for routing to BOD
+    const approverAssignments = await SettingsService.getApproverAssignments();
+
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) throw new Error('Requisition not found');
+
+      const requisition = { id: snap.id, ...snap.data() } as Requisition;
+
+      // Verify status is FOR_CHECK_PREPARATION
+      if (requisition.status !== RequisitionStatus.FOR_CHECK_PREPARATION) {
+        throw new Error(`Cannot upload check for requisition in status: ${requisition.status}. Expected FOR_CHECK_PREPARATION.`);
+      }
+
+      const nextStatus = RequisitionStatus.PENDING_CHECK_AUTH_BOD;
+
+      // Get BOD approver for routing
+      const currentApproverId = getApproverIdForStatus(nextStatus, approverAssignments, requisition.businessId);
+
+      // Create history entry
+      const historyEntry: RequisitionHistory = {
+        date: new Date().toISOString(),
+        actorId: userId,
+        actorName: userName,
+        action: 'Check Uploaded',
+        stage: nextStatus,
+        comments: `Check #${chequeNumber} uploaded for authorization`,
+      };
+
+      const updatedHistory = [historyEntry, ...(requisition.history || [])];
+
+      // Update requisition with check details and advance status
+      const updateData: Record<string, unknown> = {
+        status: nextStatus,
+        chequeNumber: chequeNumber,
+        chequeImageUrl: chequeImageUrl,
+        history: updatedHistory,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (currentApproverId) {
+        updateData.currentApproverId = currentApproverId;
+      }
+
+      transaction.update(docRef, updateData);
     });
   }
 }

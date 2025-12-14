@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, CheckCircle, XCircle, Printer, ChevronDown } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
 import { RequisitionStatus } from '../types';
@@ -20,6 +21,9 @@ interface ProcurementApprovalsViewProps {
     getStatusBadge: (status: RequisitionStatus) => React.ReactNode;
 }
 
+// Valid sub-tab values
+type PendingSubTab = 'burf' | 'cic' | 'prf' | 'gmprf';
+
 export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> = ({
     currentUser,
     requisitions,
@@ -28,6 +32,9 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     onUpdateRequisition,
     getStatusBadge
 }) => {
+    const [searchParams] = useSearchParams();
+    const initialTab = (searchParams.get('tab') as PendingSubTab) || 'burf';
+
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
@@ -35,7 +42,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
     const [drawerLoading, setDrawerLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
-    const [pendingSubTab, setPendingSubTab] = useState<'burf' | 'cic' | 'prf' | 'gmprf'>('burf');
+    const [pendingSubTab, setPendingSubTab] = useState<PendingSubTab>(initialTab);
     const { hasPermission } = usePermissions();
 
     // Workflow Approver Assignments for GM PRF filtering
@@ -315,69 +322,77 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                         </div>
                     )}
 
-                    {/* Secondary Tabs - Only show for Pending tab */}
+                    {/* Secondary Tabs - Only show for Pending tab, filtered by permission */}
                     {activeTab === 'pending' && (
-                        <div className="flex gap-2">
-                            <button
-                                onClick={() => setPendingSubTab('burf')}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'burf'
-                                    ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
-                                    }`}
-                            >
-                                BURF
-                                {burfApprovals.length > 0 && (
-                                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-600 text-slate-300'
-                                        }`}>
-                                        {burfApprovals.length}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setPendingSubTab('cic')}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'cic'
-                                    ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
-                                    }`}
-                            >
-                                CIC
-                                {cicReviews.length > 0 && (
-                                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-slate-300'
-                                        }`}>
-                                        {cicReviews.length}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setPendingSubTab('prf')}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'prf'
-                                    ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
-                                    }`}
-                            >
-                                PRF
-                                {prfApprovals.length > 0 && (
-                                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-600 text-slate-300'
-                                        }`}>
-                                        {prfApprovals.length}
-                                    </span>
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setPendingSubTab('gmprf')}
-                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'gmprf'
-                                    ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
-                                    }`}
-                            >
-                                GM PRF
-                                {gmPrfApprovals.length > 0 && (
-                                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-600 text-slate-300'
-                                        }`}>
-                                        {gmPrfApprovals.length}
-                                    </span>
-                                )}
-                            </button>
+                        <div className="flex gap-2 flex-wrap">
+                            {hasPermission('approval:manager:burf') && (
+                                <button
+                                    onClick={() => setPendingSubTab('burf')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'burf'
+                                        ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                        }`}
+                                >
+                                    BURF
+                                    {burfApprovals.length > 0 && (
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-600 text-slate-300'
+                                            }`}>
+                                            {burfApprovals.length}
+                                        </span>
+                                    )}
+                                </button>
+                            )}
+                            {hasPermission('approval:cic:burf') && (
+                                <button
+                                    onClick={() => setPendingSubTab('cic')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'cic'
+                                        ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                        }`}
+                                >
+                                    CIC
+                                    {cicReviews.length > 0 && (
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-slate-300'
+                                            }`}>
+                                            {cicReviews.length}
+                                        </span>
+                                    )}
+                                </button>
+                            )}
+                            {hasPermission('approval:manager:prf') && (
+                                <button
+                                    onClick={() => setPendingSubTab('prf')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'prf'
+                                        ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                        }`}
+                                >
+                                    PRF
+                                    {prfApprovals.length > 0 && (
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-600 text-slate-300'
+                                            }`}>
+                                            {prfApprovals.length}
+                                        </span>
+                                    )}
+                                </button>
+                            )}
+                            {isAssignedGM && (
+                                <button
+                                    onClick={() => setPendingSubTab('gmprf')}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'gmprf'
+                                        ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                        }`}
+                                >
+                                    GM PRF
+                                    {gmPrfApprovals.length > 0 && (
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-600 text-slate-300'
+                                            }`}>
+                                            {gmPrfApprovals.length}
+                                        </span>
+                                    )}
+                                </button>
+                            )}
                         </div>
                     )}
 

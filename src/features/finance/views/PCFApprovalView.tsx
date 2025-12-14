@@ -49,10 +49,22 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
     };
 
     // Fetch history liquidations (approved, replenished, rejected, cancelled)
+    // Only show own history unless user has pcf:view:all or pcf:view:history:all
+    const canViewAllHistory = hasPermission('pcf:view:all') || hasPermission('pcf:view:history:all');
+
     const loadHistoryLiquidations = async () => {
         setLoading(true);
         try {
-            const allLiquidations = await PCFService.getAllLiquidations();
+            let allLiquidations: PCFLiquidation[];
+
+            if (canViewAllHistory) {
+                // User can view all - fetch all liquidations
+                allLiquidations = await PCFService.getAllLiquidations();
+            } else {
+                // User can only view their own - fetch only their liquidations
+                allLiquidations = await PCFService.getUserLiquidations(currentUser.id);
+            }
+
             // Filter to show only completed/processed liquidations
             const history = allLiquidations.filter(l =>
                 l.status === PCFStatus.APPROVED ||

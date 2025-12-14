@@ -91,7 +91,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const filteredRequisitions = useMemo(() => {
         const userHasGlobalAccess = hasPermission('requisition:view:all');
 
-        let filtered = visibleRequisitions
+        const filtered = visibleRequisitions
             .filter(req => {
                 // FIX: Only show root BURF records in BURF view
                 // - ID must start with "BURF-" (excludes PRF-xxxx, etc.)

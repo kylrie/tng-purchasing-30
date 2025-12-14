@@ -76,9 +76,15 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
 
     const [designatedApproverId, setDesignatedApproverId] = useState(initialData?.prfDetails?.designatedApproverId || '');
     const [description, setDescription] = useState(initialData?.description || '');
-    const [remarks] = useState(initialData?.remarks || '');
+    const [remarks, setRemarks] = useState(initialData?.remarks || '');
     const [attachmentLink, setAttachmentLink] = useState(initialData?.attachments?.[0] || '');
     const [customId, setCustomId] = useState('');
+
+    // VAT/EWT Tax State
+    const [applyVat, setApplyVat] = useState(initialData?.applyVat ?? false);
+    const [vatPercentage, setVatPercentage] = useState(initialData?.vatPercentage ?? 12);
+    const [applyEwt, setApplyEwt] = useState(initialData?.applyEwt ?? false);
+    const [ewtPercentage, setEwtPercentage] = useState(initialData?.ewtPercentage ?? 2);
 
     // Submission loading state to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -176,6 +182,28 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
         }
     };
 
+    // Computed total amount
+    const totalAmount = useMemo(() =>
+        newItems.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 0)), 0),
+        [newItems]
+    );
+
+    // Computed tax amounts
+    const vatAmount = useMemo(() =>
+        applyVat ? totalAmount * (vatPercentage / 100) : 0,
+        [totalAmount, applyVat, vatPercentage]
+    );
+
+    const ewtAmount = useMemo(() =>
+        applyEwt ? totalAmount * (ewtPercentage / 100) : 0,
+        [totalAmount, applyEwt, ewtPercentage]
+    );
+
+    const netAmount = useMemo(() =>
+        totalAmount - ewtAmount,
+        [totalAmount, ewtAmount]
+    );
+
     // removeItem is now handled by EditableItemTable component
 
     const handleSubmit = async (isDraft: boolean = false) => {
@@ -234,12 +262,15 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                 businessId: selectedBusinessId,
                 externalLink: attachmentLink && isValidUrl(attachmentLink) ? attachmentLink : undefined, // Store as dedicated field
                 items: sanitizeItems(newItems), // FIX C6: Sanitize item names/remarks
-                totalAmount: newItems.reduce((sum, item) => {
-                    // FIX: Edge case - prevent NaN from undefined/null prices
-                    const qty = item.quantity || 0;
-                    const price = item.price || 0;
-                    return sum + (qty * price);
-                }, 0),
+                totalAmount, // Use computed value
+                // VAT/EWT Tax fields
+                applyVat,
+                vatPercentage: applyVat ? vatPercentage : undefined,
+                vatAmount: applyVat ? vatAmount : undefined,
+                applyEwt,
+                ewtPercentage: applyEwt ? ewtPercentage : undefined,
+                ewtAmount: applyEwt ? ewtAmount : undefined,
+                netAmount: applyEwt ? netAmount : totalAmount,
                 status: status,
                 dateCreated: new Date().toISOString().split('T')[0],
                 description: sanitizeText(description), // FIX C6: Sanitize
@@ -314,6 +345,16 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                         <div className="col-span-2">
                             <label className="block text-sm text-slate-400 mb-1">Description</label>
                             <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Purchase of materials" />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="block text-sm text-slate-400 mb-1">Remarks (Optional)</label>
+                            <textarea
+                                className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white placeholder-slate-500 resize-none"
+                                rows={2}
+                                value={remarks}
+                                onChange={e => setRemarks(e.target.value)}
+                                placeholder="Additional notes or justifications..."
+                            />
                         </div>
                         <div className="col-span-2">
                             <div className="bg-purple-900/20 p-4 rounded-lg border border-purple-500/30 mb-4">
@@ -471,6 +512,91 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                             showDelete={true}
                             readOnly={false}
                         />
+
+                        {/* VAT/EWT Tax Section */}
+                        <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700 mt-4">
+                            <h4 className="text-sm font-bold text-slate-300 mb-3">Tax Calculations</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* VAT Toggle */}
+                                <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-600">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div>
+                                            <span className="text-sm font-medium text-slate-300">Apply VAT</span>
+                                            <p className="text-xs text-slate-500">Value-Added Tax</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setApplyVat(!applyVat)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${applyVat ? 'bg-emerald-600' : 'bg-slate-700'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${applyVat ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                    {applyVat && (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                value={vatPercentage}
+                                                onChange={(e) => setVatPercentage(parseFloat(e.target.value) || 0)}
+                                                min="0"
+                                                max="100"
+                                                step="0.5"
+                                                className="w-16 px-2 py-1 bg-slate-900 border border-slate-600 rounded text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                            />
+                                            <span className="text-slate-400 text-sm">%</span>
+                                            <span className="ml-auto text-emerald-400 font-medium text-sm">₱{vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* EWT Toggle */}
+                                <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-600">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <div>
+                                            <span className="text-sm font-medium text-slate-300">Apply EWT</span>
+                                            <p className="text-xs text-slate-500">Expanded Withholding Tax</p>
+                                        </div>
+                                        <button
+                                            onClick={() => setApplyEwt(!applyEwt)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${applyEwt ? 'bg-amber-600' : 'bg-slate-700'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${applyEwt ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                    {applyEwt && (
+                                        <div className="flex items-center gap-2">
+                                            <select
+                                                value={ewtPercentage}
+                                                onChange={(e) => setEwtPercentage(parseFloat(e.target.value))}
+                                                className="w-16 px-2 py-1 bg-slate-900 border border-slate-600 rounded text-white text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                                            >
+                                                <option value="1">1%</option>
+                                                <option value="2">2%</option>
+                                                <option value="5">5%</option>
+                                                <option value="10">10%</option>
+                                                <option value="15">15%</option>
+                                            </select>
+                                            <span className="text-slate-400 text-sm">%</span>
+                                            <span className="ml-auto text-amber-400 font-medium text-sm">₱{ewtAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Summary Row */}
+                            {(applyVat || applyEwt) && (
+                                <div className="mt-3 pt-3 border-t border-slate-700 flex justify-between items-center">
+                                    <div className="text-slate-400 text-xs">
+                                        <span>Total: ₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                        {applyVat && <span className="ml-2">+ VAT: ₱{vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>}
+                                        {applyEwt && <span className="ml-2">- EWT: ₱{ewtAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>}
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-xs text-slate-500 block">Net Payable</span>
+                                        <span className="text-lg font-bold text-green-400">₱{netAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -519,7 +645,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [isDirectOpen, setIsDirectOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
-    const [activeTab, setActiveTab] = useState<'processing' | 'pending' | 'liquidation' | 'history'>('processing');
+    const [activeTab, setActiveTab] = useState<'drafts' | 'processing' | 'liquidation' | 'history'>('processing');
     const [preparePRFReq, setPreparePRFReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
     const [pcfPrintData, setPcfPrintData] = useState<PCFLiquidation | null>(null);
@@ -706,6 +832,14 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // FILTER LOGIC: 4 Workflow Tab Buckets
     // ============================================================================
 
+    // Tab 0: "Drafts" - Saved drafts not yet submitted
+    const draftReqs = useMemo(() => {
+        return visibleRequisitions.filter(r =>
+            r.status === RequisitionStatus.DRAFT &&
+            r.prfDetails // Only PRFs (drafts with prfDetails)
+        );
+    }, [visibleRequisitions]);
+
     // Tab 1: "For Processing" - Parent BURFs waiting to become PRFs
     const processingReqs = useMemo(() => {
         return visibleRequisitions.filter(r =>
@@ -714,20 +848,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
         );
     }, [visibleRequisitions]);
 
-    // Tab 2: "Pending Approval" - PRFs in approval/payment chain
-    const pendingApprovalStatuses = [
-        RequisitionStatus.DRAFT,
-        RequisitionStatus.PRF_PENDING_MANAGER,
-        RequisitionStatus.APPROVED_FOR_PAYMENT,
-    ];
-    const pendingReqs = useMemo(() => {
-        return visibleRequisitions.filter(r =>
-            pendingApprovalStatuses.includes(r.status) &&
-            r.prfDetails // Only PRFs, not BURFs
-        );
-    }, [visibleRequisitions]);
-
-    // Tab 3: "For Liquidation" - Funds released, awaiting liquidation docs
+    // Tab 2: "For Liquidation" - Funds released, awaiting liquidation docs
     // PCF Replenishments (identified by linkedPcfId) are EXCLUDED - they don't need liquidation
     const liquidationReqs = useMemo(() => {
         return visibleRequisitions.filter(r =>
@@ -737,7 +858,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
         );
     }, [visibleRequisitions]);
 
-    // Tab 4: "History" - Completed/Rejected/Liquidated items
+    // Tab 3: "History" - Completed/Rejected/Liquidated items
     const historyStatuses = [
         RequisitionStatus.LIQUIDATION_FILED,
         RequisitionStatus.AUDITED_CLEARED,
@@ -755,8 +876,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // Get current tab's data
     const getTabData = () => {
         switch (activeTab) {
+            case 'drafts': return draftReqs;
             case 'processing': return processingReqs;
-            case 'pending': return pendingReqs;
             case 'liquidation': return liquidationReqs;
             case 'history': return historyReqs;
             default: return [];
@@ -879,8 +1000,20 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 </div>
             </div>
 
-            {/* 4-Tab Workflow Navigation */}
+            {/* Workflow Tab Navigation */}
             <div className="flex border-b border-slate-700 mb-4 overflow-x-auto">
+                <button
+                    className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'drafts'
+                        ? 'border-b-2 border-amber-500 text-amber-400'
+                        : 'text-slate-400 hover:text-slate-300'
+                        }`}
+                    onClick={() => setActiveTab('drafts')}
+                >
+                    Drafts
+                    {draftReqs.length > 0 && (
+                        <span className="px-2 py-0.5 bg-amber-900/50 text-amber-300 rounded-full text-xs">{draftReqs.length}</span>
+                    )}
+                </button>
                 <button
                     className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'processing'
                         ? 'border-b-2 border-purple-500 text-purple-400'
@@ -890,16 +1023,6 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 >
                     For Processing
                     <span className="px-2 py-0.5 bg-slate-700 rounded-full text-xs">{processingReqs.length}</span>
-                </button>
-                <button
-                    className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'pending'
-                        ? 'border-b-2 border-purple-500 text-purple-400'
-                        : 'text-slate-400 hover:text-slate-300'
-                        }`}
-                    onClick={() => setActiveTab('pending')}
-                >
-                    Pending Approval
-                    <span className="px-2 py-0.5 bg-slate-700 rounded-full text-xs">{pendingReqs.length}</span>
                 </button>
                 <button
                     className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'liquidation'

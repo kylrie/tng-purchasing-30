@@ -49,8 +49,6 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                 address: '',
                 paymentMode: '',
                 terms: '',
-                isVatable: false,
-                ewtRate: 0,
                 businessUnitIds: [], // Default to empty
                 bankDetails: {
                     bankName: '',
@@ -78,8 +76,6 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                 address: '',
                 paymentMode: '',
                 terms: '',
-                isVatable: false,
-                ewtRate: 0,
                 businessUnitIds: [],
                 bankDetails: {
                     bankName: '',
@@ -126,8 +122,6 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
             address: formData.address || '',
             paymentMode: formData.paymentMode || '',
             terms: formData.terms || '',
-            isVatable: formData.isVatable || false,
-            ewtRate: formData.ewtRate || 0,
             businessUnitIds: formData.businessUnitIds || [],
             // Only save bank details if the toggle is on
             ...(formData.hasBankDetails && {
@@ -307,62 +301,6 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                         <p className="text-xs text-slate-500 mt-1">Select which Business Units can access this supplier.</p>
                     </div>
 
-                    {/* New Section: Tax Information */}
-                    <div className="border-t border-slate-700 pt-4">
-                        <h4 className="text-md font-semibold text-white mb-3">Tax Information</h4>
-                        <div className="flex items-center gap-3">
-                            <div className="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
-                                <input
-                                    type="checkbox"
-                                    name="isVatable"
-                                    id="isVatable"
-                                    className="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer"
-                                    checked={formData.isVatable}
-                                    onChange={e => setFormData({ ...formData, isVatable: e.target.checked })}
-                                    style={{
-                                        right: formData.isVatable ? '0' : 'auto',
-                                        left: formData.isVatable ? 'auto' : '0',
-                                        borderColor: formData.isVatable ? '#9333ea' : '#4b5563'
-                                    }}
-                                />
-                                <label
-                                    htmlFor="isVatable"
-                                    className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer ${formData.isVatable ? 'bg-purple-600' : 'bg-slate-600'}`}
-                                ></label>
-                            </div>
-                            <label htmlFor="isVatable" className="text-sm text-slate-300 cursor-pointer">
-                                Is Supplier Vatable?
-                            </label>
-                        </div>
-
-                        {/* EWT Rate Input */}
-                        <div className="mt-4">
-                            <label htmlFor="ewtRate" className="block text-sm font-medium text-slate-300 mb-1">
-                                EWT Rate (%)
-                            </label>
-                            <input
-                                type="number"
-                                id="ewtRate"
-                                name="ewtRate"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                className="w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500"
-                                value={formData.ewtRate || ''}
-                                onChange={e => {
-                                    const value = parseFloat(e.target.value);
-                                    if (!isNaN(value) && value >= 0 && value <= 100) {
-                                        setFormData({ ...formData, ewtRate: value });
-                                    } else if (e.target.value === '') {
-                                        setFormData({ ...formData, ewtRate: 0 });
-                                    }
-                                }}
-                                placeholder="e.g., 2.0"
-                            />
-                            <p className="text-xs text-slate-500 mt-1">Specify the withholding tax rate for this supplier (0-100%).</p>
-                        </div>
-                    </div>
-
                     {/* New Section: Bank Details with Switch */}
                     <div className="border-t border-slate-700 pt-4">
                         <div className="flex items-center justify-between mb-4">
@@ -445,7 +383,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
                     </div>
                 </form>
             </Card>
-        </div>
+        </div >
     );
 };
 
@@ -575,7 +513,6 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                                 <th className="px-6 py-4">Business Units</th>
                                 <th className="px-6 py-4">Details</th>
                                 <th className="px-6 py-4">Rating</th>
-                                <th className="px-6 py-4">VAT</th>
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -618,11 +555,6 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                                             <Star size={14} fill="currentColor" />
                                             <span className="text-slate-300 font-medium">{supplier.rating}</span>
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded text-xs font-medium ${supplier.isVatable ? 'bg-green-900/50 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
-                                            {supplier.isVatable ? 'Vatable' : 'Non-Vat'}
-                                        </span>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">

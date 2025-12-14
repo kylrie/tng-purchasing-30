@@ -99,49 +99,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         }
     };
 
-    // Calculate Stats
-    // Pending Count: Only count items that SPECIFICALLY need THIS user's approval
-    const pendingCount = requisitions.filter(r => {
-        // Super Admin / Global View
-        if (hasPermission('requisition:view:all') && hasPermission('admin:manage:users')) {
-            return [
-                RequisitionStatus.BURF_PENDING_MANAGER,
-                RequisitionStatus.BURF_PENDING_CIC,
-                RequisitionStatus.PRF_PENDING_MANAGER,
-                RequisitionStatus.PENDING_GM_PRF_APPROVAL,
-                RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL,
-                RequisitionStatus.PENDING_GM_BR_APPROVAL,
-                RequisitionStatus.PENDING_CFO_APPROVAL,
-                RequisitionStatus.PENDING_BOD_APPROVAL,
-                RequisitionStatus.FOR_FUND_RELEASE,
-                RequisitionStatus.APPROVED_FOR_PAYMENT // Legacy
-            ].includes(r.status);
-        }
-
-        // Existing permission-based checks
-        if (hasPermission('approval:manager:burf') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
-        if (hasPermission('approval:cic:burf') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
-        if (hasPermission('finance:release_funds') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
-
-        // PRF_PENDING_MANAGER: Check based on source type
-        if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) {
-            // BURF→PRF conversions: Use BUM role-based approval
-            if (r.parentBurfId) {
-                return hasPermission('approval:manager:prf');
-            } else {
-                // Direct PRF: Use designated approver
-                return r.prfDetails?.designatedApproverId === currentUser.id;
-            }
-        }
-
-        // New workflow - check assigned approver
-        if (isAssignedApprover(r)) return true;
-
-        return false;
-    }).length;
-
-
-
+    // Note: pendingCount removed - now using individual counts per approval type
     const totalSpend = requisitions
         .filter(r => [RequisitionStatus.APPROVED_FOR_PAYMENT, RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.LIQUIDATION_FILED, RequisitionStatus.AUDITED_CLEARED].includes(r.status))
         .filter(r => selectedBU === 'all' || r.businessId === selectedBU)
@@ -442,35 +400,124 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             <div className="flex flex-col-reverse lg:flex-row lg:items-start gap-6 lg:gap-8">
                 {/* Main Content Area */}
                 <div className="flex-1 space-y-8 w-full">
-                    {/* Stats Grid - Enhanced DashboardCard Components */}
+                    {/* Stats Grid - Role-Specific Approval Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                        {/* For Approvals Card */}
-                        {hasPermission('dashboard:widget:pending_approvals') && (
+                        {/* BURF Manager Approval Card */}
+                        {hasPermission('approval:manager:burf') && (
                             <DashboardCard
-                                id="for-approvals"
-                                label="For Approvals"
-                                value={pendingCount.toString()}
-                                route="/procurement-approvals"
+                                id="burf-manager"
+                                label="BURF Mgr"
+                                value={burfApprovals.length.toString()}
+                                route="/procurement-approvals?tab=burf"
                                 icon={Clock}
-                                progress={Math.min(pendingCount * 10, 100)}
-                                sparklineData={[5, 12, 8, 15, 10, pendingCount]}
+                                progress={Math.min(burfApprovals.length * 15, 100)}
+                                sparklineData={[2, 4, 3, 5, 4, burfApprovals.length]}
                                 gradientColors={['#f97316', '#eab308']}
                                 iconColor="text-orange-400"
                                 sparklineColor="#f97316"
-                                urgency={pendingCount > 5 ? 'critical' : pendingCount > 2 ? 'warning' : 'normal'}
-                                trendPercent={pendingCount > 0 ? 15 : 0}
-                                trend={pendingCount > 3 ? 'up' : 'neutral'}
-                                previewItems={pendingApprovals.slice(0, 3).map(r => ({
-                                    id: r.id,
-                                    title: r.id,
-                                    subtitle: `₱${r.rawRequisition.totalAmount.toLocaleString()}`
-                                }))}
-                                breakdown={[
-                                    { label: 'Mgr BURF', count: requisitions.filter(r => r.status === RequisitionStatus.BURF_PENDING_MANAGER).length, color: 'text-orange-400' },
-                                    { label: 'CIC BURF', count: requisitions.filter(r => r.status === RequisitionStatus.BURF_PENDING_CIC).length, color: 'text-amber-400' },
-                                    { label: 'Mgr PRF', count: requisitions.filter(r => r.status === RequisitionStatus.PRF_PENDING_MANAGER).length, color: 'text-blue-400' },
-                                    ...(hasPermission('finance:release_funds') ? [{ label: 'Fund Rel', count: requisitions.filter(r => r.status === RequisitionStatus.APPROVED_FOR_PAYMENT).length, color: 'text-emerald-400' }] : [])
-                                ]}
+                                urgency={burfApprovals.length > 3 ? 'critical' : burfApprovals.length > 0 ? 'warning' : 'normal'}
+                            />
+                        )}
+
+                        {/* CIC Review Card */}
+                        {hasPermission('approval:cic:burf') && (
+                            <DashboardCard
+                                id="cic-review"
+                                label="CIC Review"
+                                value={cicReviews.length.toString()}
+                                route="/procurement-approvals?tab=cic"
+                                icon={ShieldCheck}
+                                progress={Math.min(cicReviews.length * 15, 100)}
+                                sparklineData={[1, 2, 1, 3, 2, cicReviews.length]}
+                                gradientColors={['#06b6d4', '#0891b2']}
+                                iconColor="text-cyan-400"
+                                sparklineColor="#06b6d4"
+                                urgency={cicReviews.length > 2 ? 'warning' : 'normal'}
+                            />
+                        )}
+
+                        {/* PRF Manager Approval Card */}
+                        {hasPermission('approval:manager:prf') && (
+                            <DashboardCard
+                                id="prf-manager"
+                                label="PRF Mgr"
+                                value={prfApprovals.length.toString()}
+                                route="/procurement-approvals?tab=prf"
+                                icon={FileText}
+                                progress={Math.min(prfApprovals.length * 15, 100)}
+                                sparklineData={[2, 3, 2, 4, 3, prfApprovals.length]}
+                                gradientColors={['#a855f7', '#8b5cf6']}
+                                iconColor="text-purple-400"
+                                sparklineColor="#a855f7"
+                                urgency={prfApprovals.length > 3 ? 'critical' : prfApprovals.length > 0 ? 'warning' : 'normal'}
+                            />
+                        )}
+
+                        {/* GM PRF Approval Card - Only for assigned GM */}
+                        {currentUser.id === approverAssignments.gmUid && gmPrfApprovals.length > 0 && (
+                            <DashboardCard
+                                id="gm-prf"
+                                label="GM PRF"
+                                value={gmPrfApprovals.length.toString()}
+                                route="/procurement-approvals?tab=gmprf"
+                                icon={Users}
+                                progress={Math.min(gmPrfApprovals.length * 20, 100)}
+                                sparklineData={[1, 2, 1, 2, 1, gmPrfApprovals.length]}
+                                gradientColors={['#6366f1', '#4f46e5']}
+                                iconColor="text-indigo-400"
+                                sparklineColor="#6366f1"
+                                urgency={gmPrfApprovals.length > 0 ? 'warning' : 'normal'}
+                            />
+                        )}
+
+                        {/* Finance Head BR Card - Only for assigned Finance Heads */}
+                        {approverAssignments.financeHeads?.some(fh => fh.userId === currentUser.id) && brApprovals.length > 0 && (
+                            <DashboardCard
+                                id="finance-br"
+                                label="Finance BR"
+                                value={brApprovals.length.toString()}
+                                route="/finance?tab=br_pending"
+                                icon={Receipt}
+                                progress={Math.min(brApprovals.length * 20, 100)}
+                                sparklineData={[1, 1, 2, 1, 2, brApprovals.length]}
+                                gradientColors={['#22c55e', '#16a34a']}
+                                iconColor="text-emerald-400"
+                                sparklineColor="#22c55e"
+                                urgency={brApprovals.length > 0 ? 'warning' : 'normal'}
+                            />
+                        )}
+
+                        {/* BOD Approval Card */}
+                        {(hasPermission('approval:bod') || approverAssignments.bodApprovers?.some(b => b.userId === currentUser.id)) && checkAuthApprovals.length > 0 && (
+                            <DashboardCard
+                                id="bod-approval"
+                                label="BOD Auth"
+                                value={checkAuthApprovals.length.toString()}
+                                route="/finance?tab=check_pending"
+                                icon={ShieldCheck}
+                                progress={Math.min(checkAuthApprovals.length * 20, 100)}
+                                sparklineData={[0, 1, 0, 1, 1, checkAuthApprovals.length]}
+                                gradientColors={['#f59e0b', '#d97706']}
+                                iconColor="text-amber-400"
+                                sparklineColor="#f59e0b"
+                                urgency={checkAuthApprovals.length > 0 ? 'warning' : 'normal'}
+                            />
+                        )}
+
+                        {/* Fund Release Card */}
+                        {hasPermission('finance:release_funds') && pendingFundReleaseItems.length > 0 && (
+                            <DashboardCard
+                                id="fund-release"
+                                label="Fund Release"
+                                value={pendingFundReleaseItems.length.toString()}
+                                route="/finance?tab=prf_pending"
+                                icon={DollarSign}
+                                progress={Math.min(pendingFundReleaseItems.length * 15, 100)}
+                                sparklineData={[2, 3, 2, 4, 3, pendingFundReleaseItems.length]}
+                                gradientColors={['#10b981', '#059669']}
+                                iconColor="text-emerald-400"
+                                sparklineColor="#10b981"
+                                urgency={pendingFundReleaseItems.length > 3 ? 'critical' : pendingFundReleaseItems.length > 0 ? 'warning' : 'normal'}
                             />
                         )}
 
@@ -624,68 +671,76 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                     <button onClick={() => navigate('/procurement-approvals')} className="text-xs font-medium bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full text-white transition-colors">View All</button>
                                 </div>
 
-                                {/* Secondary Tab Bar */}
-                                <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-slate-700/30">
-                                    <button
-                                        onClick={() => setPendingApprovalTab('burf')}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'burf'
-                                            ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                                            }`}
-                                    >
-                                        BURF Approvals
-                                        {burfApprovals.length > 0 && (
-                                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-600 text-slate-300'
-                                                }`}>
-                                                {burfApprovals.length}
-                                            </span>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setPendingApprovalTab('cic')}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'cic'
-                                            ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                                            }`}
-                                    >
-                                        CIC Reviews
-                                        {cicReviews.length > 0 && (
-                                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-slate-300'
-                                                }`}>
-                                                {cicReviews.length}
-                                            </span>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setPendingApprovalTab('prf')}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'prf'
-                                            ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                                            }`}
-                                    >
-                                        PRF
-                                        {prfApprovals.length > 0 && (
-                                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-600 text-slate-300'
-                                                }`}>
-                                                {prfApprovals.length}
-                                            </span>
-                                        )}
-                                    </button>
-                                    <button
-                                        onClick={() => setPendingApprovalTab('gmprf')}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'gmprf'
-                                            ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
-                                            : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-                                            }`}
-                                    >
-                                        GM PRF
-                                        {gmPrfApprovals.length > 0 && (
-                                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-600 text-slate-300'
-                                                }`}>
-                                                {gmPrfApprovals.length}
-                                            </span>
-                                        )}
-                                    </button>
+                                {/* Secondary Tab Bar - Filtered by Permission */}
+                                <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-slate-700/30 flex-wrap">
+                                    {hasPermission('approval:manager:burf') && (
+                                        <button
+                                            onClick={() => setPendingApprovalTab('burf')}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'burf'
+                                                ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
+                                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                                }`}
+                                        >
+                                            BURF
+                                            {burfApprovals.length > 0 && (
+                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                    }`}>
+                                                    {burfApprovals.length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    )}
+                                    {hasPermission('approval:cic:burf') && (
+                                        <button
+                                            onClick={() => setPendingApprovalTab('cic')}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'cic'
+                                                ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
+                                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                                }`}
+                                        >
+                                            CIC
+                                            {cicReviews.length > 0 && (
+                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                    }`}>
+                                                    {cicReviews.length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    )}
+                                    {hasPermission('approval:manager:prf') && (
+                                        <button
+                                            onClick={() => setPendingApprovalTab('prf')}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'prf'
+                                                ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                                }`}
+                                        >
+                                            PRF
+                                            {prfApprovals.length > 0 && (
+                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                    }`}>
+                                                    {prfApprovals.length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    )}
+                                    {currentUser.id === approverAssignments.gmUid && (
+                                        <button
+                                            onClick={() => setPendingApprovalTab('gmprf')}
+                                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'gmprf'
+                                                ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
+                                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                                }`}
+                                        >
+                                            GM PRF
+                                            {gmPrfApprovals.length > 0 && (
+                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                    }`}>
+                                                    {gmPrfApprovals.length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
 
                                 {/* Tab Content */}
@@ -997,13 +1052,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         requisition={releaseFundReq}
                         isOpen={!!releaseFundReq}
                         onClose={() => setReleaseFundReq(null)}
-                        onConfirm={(chequeNumber, chequeImageUrl) => {
+                        onConfirm={() => {
+                            // Use existing cheque data from check prep step
                             const updatedReq = {
                                 ...releaseFundReq,
                                 status: RequisitionStatus.FUNDS_RELEASED,
-                                fundReleaseDate: new Date().toISOString(),
-                                chequeNumber,
-                                chequeImageUrl
+                                fundReleaseDate: new Date().toISOString()
                             };
                             onUpdateRequisition(updatedReq);
                             setReleaseFundReq(null);

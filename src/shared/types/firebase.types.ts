@@ -17,6 +17,7 @@ export interface FirestoreUser extends FirestoreDocument {
   businessUnitIds?: string[];
   status: UserStatus;
   avatar?: string;
+  permissions?: string[]; // User-level permission overrides
 }
 
 // Main User type for the application - Re-export from single source of truth

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Check, ArrowLeft, Loader2 } from 'lucide-react';
+import { Check, ArrowLeft, Loader2, Save } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails, User } from '../types';
 import { RequisitionStatus } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
@@ -54,8 +54,18 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     const [prfIdentifier, setPrfIdentifier] = useState(requisition.prfIdentifier || '');
     const [designatedApproverId, setDesignatedApproverId] = useState(requisition.prfDetails?.designatedApproverId || '');
 
-    // Submission loading state to prevent double-clicks
+    // VAT/EWT Tax State
+    const [applyVat, setApplyVat] = useState(requisition.applyVat ?? false);
+    const [vatPercentage, setVatPercentage] = useState(requisition.vatPercentage ?? 12);
+    const [applyEwt, setApplyEwt] = useState(requisition.applyEwt ?? false);
+    const [ewtPercentage, setEwtPercentage] = useState(requisition.ewtPercentage ?? 2);
+
+    // Remarks state
+    const [remarks, setRemarks] = useState(requisition.remarks || '');
+
+    // Submission loading states to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
 
     // Determine if this is a BURF→PRF conversion (not a Direct PRF or PRF edit)
     const isFromBurf = requisition.status === RequisitionStatus.READY_FOR_PRF;
@@ -101,6 +111,22 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             .filter(item => selectedItemIds.has(item.itemId))
             .reduce((sum, item) => sum + ((item.price || 0) * item.quantity), 0),
         [items, selectedItemIds]
+    );
+
+    // Computed tax amounts
+    const vatAmount = useMemo(() =>
+        applyVat ? totalAmount * (vatPercentage / 100) : 0,
+        [totalAmount, applyVat, vatPercentage]
+    );
+
+    const ewtAmount = useMemo(() =>
+        applyEwt ? totalAmount * (ewtPercentage / 100) : 0,
+        [totalAmount, applyEwt, ewtPercentage]
+    );
+
+    const netAmount = useMemo(() =>
+        totalAmount - ewtAmount,
+        [totalAmount, ewtAmount]
     );
 
     const isValid = () => {
@@ -155,6 +181,53 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         }
     };
 
+    // Save as Draft handler - saves work without starting approval
+    const handleSaveDraft = async () => {
+        if (isSavingDraft || isSubmitting) return;
+        setIsSavingDraft(true);
+
+        try {
+            const selectedItems = items.filter(item => selectedItemIds.has(item.itemId));
+            const preparer = users.find(u => u.id === currentUserId);
+            const preparedByName = preparer?.name || 'Unknown';
+
+            // Create draft requisition
+            const draftRequisition: Requisition = {
+                ...requisition,
+                items: selectedItems.length > 0 ? selectedItems : items,
+                totalAmount,
+                remarks,
+                applyVat,
+                vatPercentage: applyVat ? vatPercentage : undefined,
+                vatAmount: applyVat ? vatAmount : undefined,
+                applyEwt,
+                ewtPercentage: applyEwt ? ewtPercentage : undefined,
+                ewtAmount: applyEwt ? ewtAmount : undefined,
+                netAmount: applyEwt ? netAmount : totalAmount,
+                prfDetails: supplierDetails.name ? {
+                    supplier: supplierDetails,
+                    preparedBy: currentUserId,
+                    preparedByName: preparedByName,
+                    datePrepared: new Date().toISOString(),
+                    requisitionId: requisition.prfDetails?.requisitionId || requisition.id,
+                    timestamp: new Date().toISOString(),
+                    designatedApproverId: designatedApproverId
+                } : requisition.prfDetails,
+                status: RequisitionStatus.DRAFT, // Keep as draft
+                prfIdentifier,
+            };
+
+            // Use onSubmit callback but with DRAFT status
+            onSubmit(draftRequisition);
+            alert('✅ Draft saved successfully! You can continue editing later.');
+        } catch (error: any) {
+            console.error('Error saving draft:', error);
+            alert(`Failed to save draft: ${error?.message || 'Unknown error'}`);
+        } finally {
+            setIsSavingDraft(false);
+        }
+    };
+
     const handleSubmit = async () => {
         // Prevent duplicate submissions
         if (isSubmitting) return;
@@ -171,7 +244,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             // BURF-to-PRF Conversion with splitting: Use transactional service
             if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length > 0) {
                 // Use the new transactional service for atomic PRF creation + BURF update
-                const result = await RequisitionService.createBatchPrfFromBurf({
+                await RequisitionService.createBatchPrfFromBurf({
                     sourceBurfId: requisition.id,
                     sourceBusinessId: requisition.businessId, // Required for query permissions
                     selectedItems: selectedItems,
@@ -184,14 +257,12 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     userId: currentUserId,
                     userName: preparedByName,
                 });
-
-                console.log(`PRF ${result.newPrfId} created. BURF status: ${result.sourceBurfNewStatus}, remaining items: ${result.remainingItemsCount}`);
 
                 // Close modal - parent will refresh from Firestore subscription
                 onClose();
             } else if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length === 0) {
                 // ALL items selected for conversion - use transactional service
-                const result = await RequisitionService.createBatchPrfFromBurf({
+                await RequisitionService.createBatchPrfFromBurf({
                     sourceBurfId: requisition.id,
                     sourceBusinessId: requisition.businessId, // Required for query permissions
                     selectedItems: selectedItems,
@@ -204,8 +275,6 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     userId: currentUserId,
                     userName: preparedByName,
                 });
-
-                console.log(`PRF ${result.newPrfId} created (full conversion). BURF status: ${result.sourceBurfNewStatus}`);
 
                 // Close modal - parent will refresh from Firestore subscription
                 onClose();
@@ -215,6 +284,15 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     ...requisition,
                     items: selectedItems,
                     totalAmount,
+                    remarks, // Add remarks to submission
+                    // VAT/EWT Tax fields
+                    applyVat,
+                    vatPercentage: applyVat ? vatPercentage : undefined,
+                    vatAmount: applyVat ? vatAmount : undefined,
+                    applyEwt,
+                    ewtPercentage: applyEwt ? ewtPercentage : undefined,
+                    ewtAmount: applyEwt ? ewtAmount : undefined,
+                    netAmount: applyEwt ? netAmount : totalAmount,
                     prfDetails: {
                         supplier: supplierDetails,
                         preparedBy: currentUserId,
@@ -234,7 +312,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             console.error("=== PRF SUBMISSION ERROR ===");
             console.error("Firestore Error Code:", error?.code);
             console.error("Firestore Error Message:", error?.message);
-            console.log("Full Error Object:", error);
+            console.error("Full Error:", error);
             console.error("===========================");
 
             // Show user-friendly message with actual error detail
@@ -325,6 +403,18 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                 }
                             </p>
                         </div>
+                    </div>
+
+                    {/* Remarks Section */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Remarks (Optional)</label>
+                        <textarea
+                            value={remarks}
+                            onChange={(e) => setRemarks(e.target.value)}
+                            placeholder="Additional notes or justifications..."
+                            rows={2}
+                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500 resize-none"
+                        />
                     </div>
 
                     {/* Item Specification & Costing */}
@@ -445,6 +535,91 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                         </div>
                     </div>
 
+                    {/* VAT/EWT Tax Section */}
+                    <div className="bg-slate-900/50 rounded-lg p-4 border border-slate-700">
+                        <h3 className="text-lg font-semibold text-white mb-4">Tax Calculations</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* VAT Toggle */}
+                            <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-600">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                        <span className="text-sm font-medium text-slate-300">Apply VAT</span>
+                                        <p className="text-xs text-slate-500">Value-Added Tax</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setApplyVat(!applyVat)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${applyVat ? 'bg-emerald-600' : 'bg-slate-700'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${applyVat ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                                {applyVat && (
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            value={vatPercentage}
+                                            onChange={(e) => setVatPercentage(parseFloat(e.target.value) || 0)}
+                                            min="0"
+                                            max="100"
+                                            step="0.5"
+                                            className="w-20 px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                        />
+                                        <span className="text-slate-400">%</span>
+                                        <span className="ml-auto text-emerald-400 font-medium">₱{vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* EWT Toggle */}
+                            <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-600">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                        <span className="text-sm font-medium text-slate-300">Apply EWT</span>
+                                        <p className="text-xs text-slate-500">Expanded Withholding Tax</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setApplyEwt(!applyEwt)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${applyEwt ? 'bg-amber-600' : 'bg-slate-700'}`}
+                                    >
+                                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${applyEwt ? 'translate-x-6' : 'translate-x-1'}`} />
+                                    </button>
+                                </div>
+                                {applyEwt && (
+                                    <div className="flex items-center gap-2">
+                                        <select
+                                            value={ewtPercentage}
+                                            onChange={(e) => setEwtPercentage(parseFloat(e.target.value))}
+                                            className="w-20 px-3 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                                        >
+                                            <option value="1">1%</option>
+                                            <option value="2">2%</option>
+                                            <option value="5">5%</option>
+                                            <option value="10">10%</option>
+                                            <option value="15">15%</option>
+                                        </select>
+                                        <span className="text-slate-400">%</span>
+                                        <span className="ml-auto text-amber-400 font-medium">₱{ewtAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Summary Row */}
+                        {(applyVat || applyEwt) && (
+                            <div className="mt-4 pt-4 border-t border-slate-700 flex justify-between items-center">
+                                <div className="text-slate-400 text-sm">
+                                    <span>Total: ₱{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                    {applyVat && <span className="ml-3">+ VAT: ₱{vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>}
+                                    {applyEwt && <span className="ml-3">- EWT: ₱{ewtAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>}
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-xs text-slate-500 block">Net Amount Payable</span>
+                                    <span className="text-xl font-bold text-green-400">₱{netAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
                     {/* Ready to Submit Section */}
                     <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4">
                         <div className="flex items-start gap-3">
@@ -463,20 +638,42 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                     }
                                 </div>
                             </div>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={!isValid() || isSubmitting}
-                                className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${isValid() && !isSubmitting
-                                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                                    }`}
-                            >
-                                {isSubmitting ? (
-                                    <><Loader2 size={18} className="animate-spin" /> Processing...</>
-                                ) : (
-                                    <><Check size={18} /> {requisition.prfDetails ? 'Update PRF' : 'Submit PRF'}</>
+                            <div className="flex items-center gap-3">
+                                {/* Save Draft Button - Only show for non-BURF conversions */}
+                                {!isFromBurf && (
+                                    <button
+                                        onClick={handleSaveDraft}
+                                        disabled={isSavingDraft || isSubmitting}
+                                        className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${!isSavingDraft && !isSubmitting
+                                            ? 'bg-slate-600 text-white hover:bg-slate-500 border border-slate-500'
+                                            : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                            }`}
+                                        title="Save your progress without submitting for approval"
+                                    >
+                                        {isSavingDraft ? (
+                                            <><Loader2 size={18} className="animate-spin" /> Saving...</>
+                                        ) : (
+                                            <><Save size={18} /> Save Draft</>
+                                        )}
+                                    </button>
                                 )}
-                            </button>
+
+                                {/* Submit Button */}
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={!isValid() || isSubmitting || isSavingDraft}
+                                    className={`px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${isValid() && !isSubmitting && !isSavingDraft
+                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                        : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                        }`}
+                                >
+                                    {isSubmitting ? (
+                                        <><Loader2 size={18} className="animate-spin" /> Processing...</>
+                                    ) : (
+                                        <><Check size={18} /> {requisition.prfDetails ? 'Update PRF' : 'Submit PRF'}</>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -45,9 +45,7 @@ const AccountSelector: React.FC<AccountSelectorProps> = ({
         const loadAccounts = async () => {
             try {
                 setError(null);
-                console.log('[AccountSelector] Fetching accounts...');
                 const data = await CoaService.getActiveAccounts();
-                console.log('[AccountSelector] Loaded', data.length, 'accounts');
                 setAccounts(data);
             } catch (err) {
                 console.error('[AccountSelector] Failed to load accounts:', err);

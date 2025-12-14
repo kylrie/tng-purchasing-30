@@ -4,12 +4,14 @@ import { RequisitionStatus } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
 import Card from '../../../shared/components/Card';
 import ReleaseFundModal from '../components/ReleaseFundModal';
+import CheckPrepModal from '../components/CheckPrepModal';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import RejectionModal from '../../../shared/components/RejectionModal';
-import { ExternalLink, Search, Wallet, CheckCircle, XCircle } from 'lucide-react';
+import { ExternalLink, Search, Wallet, CheckCircle, XCircle, FileText, Printer } from 'lucide-react';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
+import PRFPrintModal from '../../procurement/components/PRFPrintModal';
 
 interface FinanceViewProps {
     currentUser: User;
@@ -29,12 +31,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     allUsers
 }) => {
     const [isReleaseModalOpen, setReleaseModalOpen] = useState(false);
+    const [isCheckPrepModalOpen, setCheckPrepModalOpen] = useState(false);
     const [selectedReq, setSelectedReq] = useState<Requisition | null>(null);
-    const [activeTab, setActiveTab] = useState<'prf_pending' | 'prf_released' | 'pcf_pending' | 'pcf_released' | 'br_pending' | 'check_pending'>('br_pending');
+    const [activeTab, setActiveTab] = useState<'prf_pending' | 'prf_released' | 'pcf_pending' | 'pcf_released' | 'br_pending' | 'check_prep' | 'check_pending'>('br_pending');
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [pcfLiquidations, setPcfLiquidations] = useState<PCFLiquidation[]>([]);
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
+    const [printReq, setPrintReq] = useState<Requisition | null>(null);
     const { hasPermission } = usePermissions();
 
     // Approve handler for BR and Check Auth items
@@ -92,9 +96,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         setReleaseModalOpen(true);
     };
 
-    const confirmRelease = (chequeNumber: string, chequeImageUrl: string) => {
+    const confirmRelease = () => {
         if (selectedReq) {
-            handleReleaseFunds(selectedReq.id, chequeNumber, chequeImageUrl);
+            // Use existing cheque data from check prep step
+            handleReleaseFunds(selectedReq.id, selectedReq.chequeNumber || '', selectedReq.chequeImageUrl || '');
             setReleaseModalOpen(false);
             setSelectedReq(null);
             setDrawerReq(null); // Close drawer after release
@@ -141,16 +146,23 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         [PCFStatus.APPROVED, PCFStatus.REPLENISHED].includes(liq.status)
     );
 
-    // BR (Budget Request) - Finance Head, GM Budget, CFO approvals (Steps 3-5)
+    // BR (Budget Request) - Finance Head, GM Budget (Steps 3-4)
+    // Note: Step 5 (BOD) now feeds into Check Preparation, not directly to Fund Release
     const brPendingReqs = requisitions.filter(req =>
         req.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL ||
         req.status === RequisitionStatus.PENDING_GM_BR_APPROVAL ||
-        req.status === RequisitionStatus.PENDING_CFO_APPROVAL
+        req.status === RequisitionStatus.PENDING_BOD_APPROVAL || // Step 5: BOD Approval
+        req.status === RequisitionStatus.PENDING_CFO_APPROVAL // Legacy support
     );
 
-    // Check Authorization - BOD Approval (Step 6)
+    // Check Preparation - Finance uploads check (Step 6)
+    const checkPrepReqs = requisitions.filter(req =>
+        req.status === RequisitionStatus.FOR_CHECK_PREPARATION
+    );
+
+    // Check Authorization - BOD Check Auth (Step 7)
     const checkAuthReqs = requisitions.filter(req =>
-        req.status === RequisitionStatus.PENDING_BOD_APPROVAL
+        req.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD
     );
 
     // Filter requisitions based on search term
@@ -200,7 +212,22 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                             Pending ({brPendingReqs.length})
                         </button>
                     </div>
-                    {/* 2. Check Authorization Section - Step 6 */}
+                    {/* 2. Check Preparation Section - Step 6 (Finance uploads check) */}
+                    {hasPermission('finance:upload_check') && (
+                        <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
+                            <span className="text-xs text-slate-500 px-2"><FileText size={12} className="inline mr-1" />Check Prep</span>
+                            <button
+                                className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'check_prep'
+                                    ? 'border-b-2 border-cyan-500 text-cyan-400'
+                                    : 'text-slate-400 hover:text-slate-300'
+                                    }`}
+                                onClick={() => setActiveTab('check_prep')}
+                            >
+                                Pending ({checkPrepReqs.length})
+                            </button>
+                        </div>
+                    )}
+                    {/* 3. Check Authorization Section - Step 7 (BOD authorizes check) */}
                     <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
                         <span className="text-xs text-slate-500 px-2">Check Auth</span>
                         <button
@@ -318,30 +345,38 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                {activeTab === 'prf_pending' ? (
-                                                    hasPermission('finance:release_funds') ? (
+                                                <div className="flex justify-end gap-2 items-center">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); setPrintReq(req); }}
+                                                        className="p-1.5 text-blue-400 hover:bg-blue-900/20 rounded transition-colors"
+                                                        title="Print Preview"
+                                                    >
+                                                        <Printer size={16} />
+                                                    </button>
+                                                    {activeTab === 'prf_pending' && hasPermission('finance:release_funds') && (
                                                         <button
                                                             onClick={() => handleRelease(req)}
                                                             className="bg-purple-600 text-white px-3 py-1 rounded text-xs hover:bg-purple-700 font-medium"
                                                         >
                                                             Release Fund
                                                         </button>
-                                                    ) : null
-                                                ) : (
-                                                    <div className="flex flex-col items-end gap-1">
-                                                        <span className="text-xs text-slate-400">Cheque: <span className="text-white font-mono">{req.chequeNumber || '-'}</span></span>
-                                                        {req.chequeImageUrl && (
-                                                            <a
-                                                                href={req.chequeImageUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1 underline"
-                                                            >
-                                                                <ExternalLink size={10} /> View Cheque
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                    )}
+                                                    {activeTab === 'prf_released' && (
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <span className="text-xs text-slate-400">Cheque: <span className="text-white font-mono">{req.chequeNumber || '-'}</span></span>
+                                                            {req.chequeImageUrl && (
+                                                                <a
+                                                                    href={req.chequeImageUrl}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1 underline"
+                                                                >
+                                                                    <ExternalLink size={10} /> View Cheque
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -583,6 +618,82 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     </Card>
                 )}
 
+                {/* Check Preparation Content - Finance uploads check */}
+                {activeTab === 'check_prep' && (
+                    <Card className="!p-0">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm text-white">
+                                <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
+                                    <tr>
+                                        <th className="px-6 py-4">PRF ID</th>
+                                        <th className="px-6 py-4">Business Unit</th>
+                                        <th className="px-6 py-4">Requester</th>
+                                        <th className="px-6 py-4">Description</th>
+                                        <th className="px-6 py-4">Amount</th>
+                                        <th className="px-6 py-4">Date Created</th>
+                                        <th className="px-6 py-4">Status</th>
+                                        <th className="px-6 py-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700">
+                                    {checkPrepReqs.map(req => (
+                                        <tr
+                                            key={req.id}
+                                            className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                            onClick={(e) => {
+                                                if ((e.target as HTMLElement).closest('button')) return;
+                                                setDrawerReq(req);
+                                            }}
+                                        >
+                                            <td className="px-6 py-4 font-medium">{req.id}</td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                <div className="truncate max-w-[200px]" title={req.description}>
+                                                    {req.description}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                                ₱{req.totalAmount?.toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-400 text-xs">
+                                                {new Date(req.dateCreated).toLocaleDateString()}
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                {getStatusBadge(req.status)}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setSelectedReq(req);
+                                                        setCheckPrepModalOpen(true);
+                                                    }}
+                                                    className="bg-cyan-600 text-white px-3 py-1 rounded text-xs hover:bg-cyan-700 font-medium flex items-center gap-1 ml-auto"
+                                                >
+                                                    <FileText size={14} />
+                                                    Upload Check
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {checkPrepReqs.length === 0 && (
+                                        <tr>
+                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
+                                                No requisitions pending check preparation.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </Card>
+                )}
+
                 {/* Check Authorization Content - BOD Approval */}
                 {activeTab === 'check_pending' && (
                     <Card className="!p-0">
@@ -595,7 +706,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4">Requester</th>
                                         <th className="px-6 py-4">Description</th>
                                         <th className="px-6 py-4">Amount</th>
-                                        <th className="px-6 py-4">Date Created</th>
+                                        <th className="px-6 py-4">Check #</th>
                                         <th className="px-6 py-4">Status</th>
                                         <th className="px-6 py-4 text-center">Actions</th>
                                     </tr>
@@ -622,8 +733,21 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             <td className="px-6 py-4 text-emerald-400 font-semibold">
                                                 ₱{req.totalAmount?.toLocaleString()}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-400 text-xs">
-                                                {new Date(req.dateCreated).toLocaleDateString()}
+                                            <td className="px-6 py-4">
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-white font-mono">{req.chequeNumber || '-'}</span>
+                                                    {req.chequeImageUrl && (
+                                                        <a
+                                                            href={req.chequeImageUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <ExternalLink size={10} /> View
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 {getStatusBadge(req.status)}
@@ -633,7 +757,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                     <button
                                                         onClick={(e) => handleApprove(req, e)}
                                                         className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors"
-                                                        title="Approve"
+                                                        title="Authorize Check"
                                                     >
                                                         <CheckCircle size={18} />
                                                     </button>
@@ -651,7 +775,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     {checkAuthReqs.length === 0 && (
                                         <tr>
                                             <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
-                                                No pending Check Authorization (BOD) items found.
+                                                No pending Check Authorization items found.
                                             </td>
                                         </tr>
                                     )}
@@ -706,6 +830,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 }}
                 canApprove={(activeTab === 'br_pending' || activeTab === 'check_pending') && !!drawerReq}
                 canReject={(activeTab === 'br_pending' || activeTab === 'check_pending') && !!drawerReq}
+                onPrint={() => {
+                    if (drawerReq) {
+                        setPrintReq(drawerReq);
+                        setDrawerReq(null); // Close drawer when opening print modal
+                    }
+                }}
             />
 
             {/* Rejection Modal for BR and Check Auth */}
@@ -715,6 +845,44 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 onConfirm={handleRejectConfirm}
                 title={`Reject ${rejectingReq?.id || 'Request'}`}
             />
+
+            {/* Check Preparation Modal */}
+            {selectedReq && (
+                <CheckPrepModal
+                    isOpen={isCheckPrepModalOpen}
+                    onClose={() => {
+                        setCheckPrepModalOpen(false);
+                        setSelectedReq(null);
+                    }}
+                    onConfirm={async (chequeNumber, chequeImageUrl) => {
+                        try {
+                            await RequisitionService.uploadCheckForPreparation(
+                                selectedReq.id,
+                                chequeNumber,
+                                chequeImageUrl,
+                                currentUser.id,
+                                currentUser.name
+                            );
+                            setCheckPrepModalOpen(false);
+                            setSelectedReq(null);
+                        } catch (error: any) {
+                            console.error('Error uploading check:', error);
+                            alert(`Failed to upload check: ${error.message || 'Unknown error'}`);
+                        }
+                    }}
+                    requisition={selectedReq}
+                />
+            )}
+
+            {/* Print Modal - Always use PRFPrintModal since Finance handles PRFs */}
+            {printReq && (
+                <PRFPrintModal
+                    req={printReq}
+                    onClose={() => setPrintReq(null)}
+                    business={businesses.find(b => b.id === printReq.businessId)}
+                    preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)}
+                />
+            )}
         </>
     );
 };

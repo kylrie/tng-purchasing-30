@@ -107,14 +107,18 @@ export enum RequisitionStatus {
   READY_FOR_PRF = 'READY_FOR_PRF',
   BURF_PARTIALLY_PROCESSED = 'BURF_PARTIALLY_PROCESSED', // Some items converted to PRF, some remaining
 
-  // PRF 7-Stage Approval Workflow
+  // PRF 8-Stage Approval Workflow
   PRF_PENDING_MANAGER = 'PRF_PENDING_MANAGER', // Step 1: BUM (Business Unit Manager) Approval
   PENDING_GM_PRF_APPROVAL = 'PENDING_GM_PRF_APPROVAL', // Step 2 (if amount >= 50k): GM checks PRF details
   PENDING_FINANCE_HEAD_BR_APPROVAL = 'PENDING_FINANCE_HEAD_BR_APPROVAL', // Step 3: Finance Head Budget Review (BU-specific)
   PENDING_GM_BR_APPROVAL = 'PENDING_GM_BR_APPROVAL', // Step 4: GM Final Budget Approval
-  PENDING_CFO_APPROVAL = 'PENDING_CFO_APPROVAL', // Step 5: CFO Approval
-  PENDING_BOD_APPROVAL = 'PENDING_BOD_APPROVAL', // Step 6: BOD Approval (multiple approvers)
-  FOR_FUND_RELEASE = 'FOR_FUND_RELEASE', // Step 7: Ready for Fund Release
+  PENDING_BOD_APPROVAL = 'PENDING_BOD_APPROVAL', // Step 5: BOD Approval (Any BOD approver)
+  FOR_CHECK_PREPARATION = 'FOR_CHECK_PREPARATION', // Step 6: Finance uploads check number + link
+  PENDING_CHECK_AUTH_BOD = 'PENDING_CHECK_AUTH_BOD', // Step 7: BOD Check Authorization
+  FOR_FUND_RELEASE = 'FOR_FUND_RELEASE', // Step 8: Ready for Fund Release
+
+  // Legacy status (kept for backward compatibility with existing data)
+  PENDING_CFO_APPROVAL = 'PENDING_CFO_APPROVAL', // Deprecated: Old CFO approval step
 
   // Legacy status (mapped to FOR_FUND_RELEASE in new workflow)
   APPROVED_FOR_PAYMENT = 'APPROVED_FOR_PAYMENT',
@@ -153,6 +157,7 @@ export interface User {
   isApprover?: boolean; // New field to designate if user is an eligible approver for PRFs
   pcfCeiling?: number; // Petty Cash Fund ceiling amount for the user
   status: UserStatus;
+  permissions?: string[]; // User-level permission overrides (takes precedence over role permissions)
 }
 
 export interface BankDetails {
@@ -174,8 +179,7 @@ export interface Supplier {
   paymentMode?: string;
   terms?: string;
   bankDetails?: BankDetails;
-  isVatable?: boolean; // Vatable or Non-Vat
-  ewtRate?: number; // Expanded Withholding Tax rate (e.g., 1, 2, 5, 10)
+  isVatable?: boolean; // Informational: Indicates if supplier is VAT-registered (VAT/EWT now set at PRF level)
   businessUnitIds?: string[]; // Multi-tenancy: List of Business Units this supplier belongs to
   status?: 'ACTIVE' | 'ARCHIVED';
 }
@@ -275,6 +279,16 @@ export interface Requisition {
   externalLink?: string; // External reference link (Google Drive, etc.)
   items: RequisitionItem[];
   totalAmount: number;
+
+  // VAT/EWT Tax Calculations (optional)
+  applyVat?: boolean;           // Whether VAT is applied
+  vatPercentage?: number;       // VAT percentage (e.g., 12)
+  vatAmount?: number;           // Computed VAT amount
+  applyEwt?: boolean;           // Whether EWT is applied
+  ewtPercentage?: number;       // EWT percentage (e.g., 1, 2, 5, 10)
+  ewtAmount?: number;           // Computed EWT amount
+  netAmount?: number;           // Total - EWT (what is actually paid)
+
   status: RequisitionStatus;
   dateCreated: string;
   description: string; // General description for the whole batch

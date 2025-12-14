@@ -9,6 +9,7 @@ import DashboardView from './features/dashboard/views/DashboardView';
 
 import BurfView from './features/procurement/views/BURFView';
 import PrfView from './features/procurement/views/PRFView';
+import PRFTrackerView from './features/procurement/views/PRFTrackerView';
 import ProcurementApprovalsView from './features/procurement/views/ProcurementApprovalsView';
 import ApprovedView from './features/procurement/views/ApprovedView';
 import FinanceView from './features/finance/views/FinanceView';
@@ -85,15 +86,18 @@ function ProtectedApp() {
       [RequisitionStatus.READY_FOR_PRF]: 'bg-blue-500/20 text-blue-400',
       [RequisitionStatus.BURF_PARTIALLY_PROCESSED]: 'bg-lime-500/20 text-lime-400',
       [RequisitionStatus.BURF_COMPLETED]: 'bg-sky-500/20 text-sky-400',
-      // PRF 7-Stage Workflow
+      // PRF 8-Stage Workflow
       [RequisitionStatus.PRF_PENDING_MANAGER]: 'bg-orange-500/20 text-orange-400',
       [RequisitionStatus.PENDING_GM_PRF_APPROVAL]: 'bg-yellow-500/20 text-yellow-400',
       [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'bg-indigo-500/20 text-indigo-400',
       [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'bg-violet-500/20 text-violet-400',
-      [RequisitionStatus.PENDING_CFO_APPROVAL]: 'bg-purple-500/20 text-purple-400',
       [RequisitionStatus.PENDING_BOD_APPROVAL]: 'bg-fuchsia-500/20 text-fuchsia-400',
-      [RequisitionStatus.FOR_FUND_RELEASE]: 'bg-cyan-500/20 text-cyan-400',
-      [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'bg-cyan-500/20 text-cyan-400',
+      [RequisitionStatus.FOR_CHECK_PREPARATION]: 'bg-cyan-500/20 text-cyan-400',
+      [RequisitionStatus.PENDING_CHECK_AUTH_BOD]: 'bg-amber-500/20 text-amber-400',
+      [RequisitionStatus.FOR_FUND_RELEASE]: 'bg-teal-500/20 text-teal-400',
+      // Legacy
+      [RequisitionStatus.PENDING_CFO_APPROVAL]: 'bg-purple-500/20 text-purple-400',
+      [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'bg-teal-500/20 text-teal-400',
       // Post-Approval
       [RequisitionStatus.FUNDS_RELEASED]: 'bg-emerald-500/20 text-emerald-400',
       [RequisitionStatus.LIQUIDATION_FILED]: 'bg-teal-500/20 text-teal-400',
@@ -111,14 +115,17 @@ function ProtectedApp() {
       [RequisitionStatus.READY_FOR_PRF]: 'Ready for PRF',
       [RequisitionStatus.BURF_PARTIALLY_PROCESSED]: 'Partial PRF',
       [RequisitionStatus.BURF_COMPLETED]: 'Converted to PRF',
-      // PRF 7-Stage Workflow
+      // PRF 8-Stage Workflow
       [RequisitionStatus.PRF_PENDING_MANAGER]: 'Pending Approval',
       [RequisitionStatus.PENDING_GM_PRF_APPROVAL]: 'Pending GM PRF',
       [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'Pending Finance Head',
       [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'Pending GM Budget',
-      [RequisitionStatus.PENDING_CFO_APPROVAL]: 'Pending CFO',
       [RequisitionStatus.PENDING_BOD_APPROVAL]: 'Pending BOD',
+      [RequisitionStatus.FOR_CHECK_PREPARATION]: 'Check Preparation',
+      [RequisitionStatus.PENDING_CHECK_AUTH_BOD]: 'Check Auth',
       [RequisitionStatus.FOR_FUND_RELEASE]: 'For Release',
+      // Legacy
+      [RequisitionStatus.PENDING_CFO_APPROVAL]: 'Pending CFO',
       [RequisitionStatus.APPROVED_FOR_PAYMENT]: 'For Release',
       // Post-Approval
       [RequisitionStatus.FUNDS_RELEASED]: 'Released',
@@ -198,6 +205,18 @@ function ProtectedApp() {
               onUpdateRequisition={updateRequisition}
               suppliers={suppliers}
               uomOptions={uomOptions}
+            />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/prf-tracker" element={
+          <ProtectedRoute permission="module:view:prf_tracker">
+            <PRFTrackerView
+              currentUser={currentUser}
+              requisitions={requisitions}
+              getStatusBadge={getStatusBadge}
+              businesses={businesses}
+              allUsers={users}
             />
           </ProtectedRoute>
         } />

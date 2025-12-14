@@ -80,6 +80,9 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'approval:manager:burf': { label: 'Manager Approval (BURF)', category: 'Approval Workflow' },
   'approval:cic:burf': { label: 'CIC Approval', category: 'Approval Workflow' },
   'approval:manager:prf': { label: 'Manager Approval (PRF)', category: 'Approval Workflow' },
+  'approval:finance_head:br': { label: 'Finance Head BR Approval', category: 'Approval Workflow' },
+  'approval:cfo': { label: 'CFO Approval', category: 'Approval Workflow' },
+  'approval:bod': { label: 'BOD Approval', category: 'Approval Workflow' },
 
   // Finance Workflow
   'finance:release_funds': { label: 'Release Funds', category: 'Finance Workflow' },
@@ -89,10 +92,12 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'liquidation:file:all': { label: 'File All Liquidations', category: 'Finance Workflow' },
   'liquidation:audit': { label: 'Audit Liquidations', category: 'Finance Workflow' },
   'liquidation:print': { label: 'Print Liquidation', category: 'Finance Workflow' },
+  'finance:upload_check': { label: 'Upload Check Attachments', category: 'Finance Workflow' },
 
   // PCF (Petty Cash Fund)
   'pcf:view:own': { label: 'View Own PCF', category: 'Petty Cash Fund' },
   'pcf:view:all': { label: 'View All PCF Records', category: 'Petty Cash Fund' },
+  'pcf:view:history:all': { label: 'View All PCF History (Per-User)', category: 'Petty Cash Fund' },
   'pcf:create': { label: 'Create PCF Liquidation', category: 'Petty Cash Fund' },
   'pcf:approve': { label: 'Approve PCF Liquidations', category: 'Petty Cash Fund' },
   'pcf:cancel': { label: 'Cancel PCF Liquidation', category: 'Petty Cash Fund' },
@@ -126,6 +131,9 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'module:view:pcf_approvals': { label: 'View PCF Approvals', category: 'Module Access' },
   'module:view:suppliers': { label: 'View Suppliers', category: 'Module Access' },
   'module:view:settings': { label: 'View Settings', category: 'Module Access' },
+  'module:view:finance:br': { label: 'View Finance BR Tab', category: 'Module Access' },
+  'module:view:finance:check_auth': { label: 'View Check Authorization Tab', category: 'Module Access' },
+  'module:view:prf_tracker': { label: 'View PRF Tracker', category: 'Module Access' },
 
   // Deprecated / UI
   'ui:view:approvals_page': { label: 'View Approvals Page (Legacy)', category: 'Legacy / UI' },
@@ -330,7 +338,7 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
   const getCellClass = (role: string, permission: string) => {
     const isHovered = hoveredCell.role === role || hoveredCell.permission === permission;
     const isSuperAdmin = role === UserRole.SUPER_ADMIN;
-    let baseClass = "px-4 py-3 text-center border-r border-slate-700/50 last:border-r-0 transition-colors cursor-pointer ";
+    const baseClass = "px-4 py-3 text-center border-r border-slate-700/50 last:border-r-0 transition-colors cursor-pointer ";
     if (isSuperAdmin) return baseClass + "bg-slate-900/40 opacity-70 cursor-not-allowed";
     if (isHovered) return baseClass + "bg-slate-800/80";
     return baseClass;

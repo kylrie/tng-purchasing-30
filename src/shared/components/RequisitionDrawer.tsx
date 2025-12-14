@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, DollarSign, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt } from 'lucide-react';
+import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, DollarSign, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard } from 'lucide-react';
 import type { Requisition, RequisitionHistory, RequisitionItem } from '../../features/procurement/types';
 import { RequisitionStatus } from '../../features/procurement/types';
 import LiquidationForm from '../../features/procurement/components/LiquidationForm';
@@ -20,6 +20,7 @@ interface RequisitionDrawerProps {
     onReleaseFund?: () => void;
     onPreparePrf?: () => void; // BURF only - when status is READY_FOR_PRF
     onSubmitLiquidation?: (payload: any) => Promise<void>; // Liquidation callback
+    onPrint?: () => void; // Print preview callback
     // Permission flags
     canApprove?: boolean;
     canReject?: boolean;
@@ -80,6 +81,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     onReleaseFund,
     onPreparePrf,
     onSubmitLiquidation,
+    onPrint,
     canApprove = false,
     canReject = false,
     canReleaseFund = false,
@@ -162,12 +164,23 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                         <p className="text-sm text-slate-400 mt-1 truncate">{requisition.description || 'No description'}</p>
                         <p className="text-xs text-slate-500 mt-1">{getTitle()}</p>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors ml-4"
-                    >
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-2 ml-4">
+                        {onPrint && (
+                            <button
+                                onClick={onPrint}
+                                className="p-2 text-blue-400 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-colors"
+                                title="Print Preview"
+                            >
+                                <Printer size={20} />
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Tabs */}
@@ -242,6 +255,14 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                 </div>
                             )}
 
+                            {/* Remarks Section */}
+                            {requisition.remarks && (
+                                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                                    <h3 className="text-sm font-semibold text-slate-300 mb-2 uppercase tracking-wider">Remarks</h3>
+                                    <p className="text-white text-sm whitespace-pre-wrap">{requisition.remarks}</p>
+                                </div>
+                            )}
+
                             {/* Items Table */}
                             <div>
                                 <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Items ({requisition.items.length})</h3>
@@ -294,9 +315,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                             </div>
                                             <div>
                                                 <h3 className="text-lg font-bold text-white">{requisition.prfDetails.supplier.name}</h3>
-                                                <p className="text-sm text-slate-400">
-                                                    {requisition.prfDetails.supplier.isVatable ? 'VAT Registered' : 'Non-VAT'}
-                                                </p>
+                                                <p className="text-sm text-slate-400">Supplier</p>
                                             </div>
                                         </div>
 
@@ -316,10 +335,13 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Terms</p>
                                                 <p className="text-white font-medium">{requisition.prfDetails.supplier.terms || '-'}</p>
                                             </div>
-                                            {/* VAT Status */}
+                                            {/* Tax Settings (PRF-level) */}
                                             <div className="bg-slate-900/50 rounded-lg p-3">
-                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">VAT Status</p>
-                                                <p className="text-white font-medium">{requisition.prfDetails.supplier.isVatable ? 'VAT Registered' : 'Non-VAT'}</p>
+                                                <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">Tax Settings</p>
+                                                <p className="text-white font-medium">
+                                                    {requisition.applyVat ? `VAT ${requisition.vatPercentage ?? 12}%` : 'No VAT'}
+                                                    {requisition.applyEwt && ` • EWT ${requisition.ewtPercentage ?? 2}%`}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
@@ -679,7 +701,40 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
 
                     {/* Attachments Tab */}
                     {activeTab === 'attachments' && (
-                        <div>
+                        <div className="space-y-4">
+                            {/* Check Attachment Section - Shows prominently when check info exists */}
+                            {(requisition.chequeNumber || requisition.chequeImageUrl) && (
+                                <div className="bg-gradient-to-br from-emerald-900/30 to-slate-800/50 rounded-lg p-4 border border-emerald-700/50">
+                                    <h4 className="text-xs uppercase tracking-wider text-emerald-400 mb-3 flex items-center gap-2">
+                                        <CreditCard size={14} />
+                                        Check/Payment Attachment
+                                    </h4>
+                                    <div className="space-y-3">
+                                        {requisition.chequeNumber && (
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-sm text-slate-400">Cheque Number</span>
+                                                <span className="text-white font-mono font-medium">{requisition.chequeNumber}</span>
+                                            </div>
+                                        )}
+                                        {requisition.chequeImageUrl && (
+                                            <a
+                                                href={requisition.chequeImageUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-emerald-500/50 transition-colors group"
+                                            >
+                                                <ExternalLink size={18} className="text-emerald-400" />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm text-white group-hover:text-emerald-400 truncate">View Check Image</p>
+                                                    <p className="text-xs text-slate-500 truncate">{requisition.chequeImageUrl}</p>
+                                                </div>
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Other Attachments */}
                             {(requisition.externalLink || (requisition.attachments && requisition.attachments.length > 0)) ? (
                                 <div className="space-y-3">
                                     {requisition.externalLink && (
@@ -712,7 +767,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                         </a>
                                     ))}
                                 </div>
-                            ) : (
+                            ) : !requisition.chequeNumber && !requisition.chequeImageUrl && (
                                 <div className="text-center py-12">
                                     <Paperclip size={48} className="mx-auto text-slate-600 mb-3" />
                                     <p className="text-slate-500">No attachments</p>

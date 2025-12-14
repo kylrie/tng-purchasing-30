@@ -125,6 +125,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     status: newUser.status || UserStatus.ACTIVE,
                     isApprover: newUser.isApprover || false,
                     pcfCeiling: newUser.pcfCeiling || 0,
+                    permissions: newUser.permissions || [], // Per-user permission overrides
                 };
 
                 if (editingUserId) {
@@ -672,6 +673,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                                     placeholder="e.g., 10000"
                                                 />
                                                 <p className="text-xs text-slate-500 mt-1">Petty Cash Fund limit for this user. Leave 0 or empty to disable PCF.</p>
+                                            </div>
+                                            <div className="md:col-span-2">
+                                                <label className={labelClass}>User-Level Permissions</label>
+                                                <div className="bg-slate-900/50 border border-slate-600 rounded-lg p-3">
+                                                    <label className="flex items-center gap-3 cursor-pointer select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={(newUser.permissions || []).includes('pcf:view:history:all')}
+                                                            onChange={(e) => {
+                                                                const currentPerms = newUser.permissions || [];
+                                                                if (e.target.checked) {
+                                                                    setNewUser({ ...newUser, permissions: [...currentPerms, 'pcf:view:history:all'] });
+                                                                } else {
+                                                                    setNewUser({ ...newUser, permissions: currentPerms.filter(p => p !== 'pcf:view:history:all') });
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
+                                                        />
+                                                        <div>
+                                                            <span className="text-sm text-white font-medium">View All PCF History</span>
+                                                            <p className="text-xs text-slate-500">Allow this user to see all PCF liquidation history (not just their own).</p>
+                                                        </div>
+                                                    </label>
+                                                </div>
                                             </div>
                                             {!editingUserId && (
                                                 <div className="md:col-span-2">

@@ -1,0 +1,245 @@
+import React, { useState, useMemo } from 'react';
+import { Search, RefreshCw, AlertTriangle, Building2 } from 'lucide-react';
+import type { Requisition, User, Business } from '../types';
+import { RequisitionStatus } from '../types';
+import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
+
+interface PRFTrackerViewProps {
+    currentUser: User;
+    requisitions: Requisition[];
+    getStatusBadge: (status: RequisitionStatus) => React.ReactNode;
+    businesses: Business[];
+    allUsers: User[];
+}
+
+// Define workflow columns
+const WORKFLOW_COLUMNS = [
+    { id: 'step1', label: 'Pending BUM', statuses: [RequisitionStatus.PRF_PENDING_MANAGER], color: 'orange' },
+    { id: 'step2', label: 'Pending GM PRF', statuses: [RequisitionStatus.PENDING_GM_PRF_APPROVAL], color: 'yellow' },
+    { id: 'step3', label: 'Finance Head BR', statuses: [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL], color: 'indigo' },
+    { id: 'step4', label: 'GM Budget', statuses: [RequisitionStatus.PENDING_GM_BR_APPROVAL], color: 'violet' },
+    { id: 'step5', label: 'BOD Approval', statuses: [RequisitionStatus.PENDING_BOD_APPROVAL], color: 'fuchsia' },
+    { id: 'step6', label: 'Check Prep', statuses: [RequisitionStatus.FOR_CHECK_PREPARATION], color: 'cyan' },
+    { id: 'step7', label: 'Check Auth', statuses: [RequisitionStatus.PENDING_CHECK_AUTH_BOD], color: 'amber' },
+    { id: 'step8', label: 'For Release', statuses: [RequisitionStatus.FOR_FUND_RELEASE, RequisitionStatus.APPROVED_FOR_PAYMENT], color: 'teal' },
+    { id: 'completed', label: 'Completed', statuses: [RequisitionStatus.FUNDS_RELEASED, RequisitionStatus.LIQUIDATION_FILED, RequisitionStatus.AUDITED_CLEARED], color: 'emerald' },
+];
+
+// All trackable statuses (PRF workflow + Legacy + Completed)
+const TRACKABLE_STATUSES = WORKFLOW_COLUMNS.flatMap(col => col.statuses);
+
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(amount);
+
+const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
+    currentUser,
+    requisitions,
+    getStatusBadge,
+    businesses,
+    // allUsers available for future use (e.g., showing requester names)
+}) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [businessFilter, setBusinessFilter] = useState<string>('all');
+    const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
+
+    // Check if user is admin
+    const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
+
+    // Filter requisitions: Show PRFs in trackable statuses where user is requester or preparer
+    const myRequisitions = useMemo(() => {
+        return requisitions.filter(req => {
+            // Must be in a trackable status
+            if (!TRACKABLE_STATUSES.includes(req.status)) return false;
+
+            // Admins see all
+            if (isAdmin) return true;
+
+            // User is the requester
+            if (req.requesterId === currentUser.id) return true;
+
+            // User prepared the PRF
+            if (req.prfDetails?.preparedBy === currentUser.id) return true;
+
+            return false;
+        });
+    }, [requisitions, currentUser.id, isAdmin]);
+
+    // Apply search and business filter
+    const filteredReqs = useMemo(() => {
+        let result = myRequisitions;
+
+        // Apply business filter
+        if (businessFilter !== 'all') {
+            result = result.filter(req => req.businessId === businessFilter);
+        }
+
+        // Apply search filter
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            result = result.filter(req =>
+                req.id.toLowerCase().includes(term) ||
+                req.description?.toLowerCase().includes(term) ||
+                businesses.find(b => b.id === req.businessId)?.name.toLowerCase().includes(term)
+            );
+        }
+
+        return result;
+    }, [myRequisitions, searchTerm, businessFilter, businesses]);
+
+    // Get businesses that have requisitions (for filter dropdown)
+    const availableBusinesses = useMemo(() => {
+        const businessIds = new Set(myRequisitions.map(r => r.businessId));
+        return businesses.filter(b => businessIds.has(b.id));
+    }, [myRequisitions, businesses]);
+
+    // Group by column
+    const columnData = useMemo(() => {
+        return WORKFLOW_COLUMNS.map(col => ({
+            ...col,
+            items: filteredReqs.filter(req => col.statuses.includes(req.status))
+        }));
+    }, [filteredReqs]);
+
+    return (
+        <>
+            <div className="space-y-6">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-white">PRF Tracker</h1>
+                        <p className="text-slate-400 text-sm">
+                            Track your requisitions through the 8-stage approval workflow
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                        {/* Business Unit Filter */}
+                        <div className="relative">
+                            <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <select
+                                value={businessFilter}
+                                onChange={(e) => setBusinessFilter(e.target.value)}
+                                className="pl-9 pr-8 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none cursor-pointer min-w-[160px]"
+                            >
+                                <option value="all">All Business Units</option>
+                                {availableBusinesses.map(b => (
+                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        {/* Search */}
+                        <div className="relative w-full md:w-64">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by ID, description..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                            />
+                        </div>
+                        {/* Stats */}
+                        <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
+                            <RefreshCw size={14} className="text-slate-400" />
+                            <span className="text-sm text-slate-300">
+                                <span className="font-semibold text-white">{filteredReqs.length}</span> items
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Kanban Board */}
+                <div className="overflow-x-auto pb-4">
+                    <div className="flex gap-4 min-w-max">
+                        {columnData.map(column => (
+                            <div
+                                key={column.id}
+                                className="flex-shrink-0 w-72 bg-slate-800/30 rounded-xl border border-slate-700/50 flex flex-col max-h-[calc(100vh-220px)]"
+                            >
+                                {/* Column Header */}
+                                <div className={`p-4 border-b border-slate-700/50 bg-${column.color}-900/20 rounded-t-xl`}>
+                                    <div className="flex items-center justify-between">
+                                        <h3 className={`text-sm font-semibold text-${column.color}-400`}>
+                                            {column.label}
+                                        </h3>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium bg-${column.color}-500/20 text-${column.color}-300`}>
+                                            {column.items.length}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Column Content */}
+                                <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                                    {column.items.length === 0 ? (
+                                        <div className="text-center py-8 text-slate-500 text-sm">
+                                            No items
+                                        </div>
+                                    ) : (
+                                        column.items.map(req => (
+                                            <div
+                                                key={req.id}
+                                                onClick={() => setDrawerReq(req)}
+                                                className="bg-slate-900/60 rounded-lg p-3 border border-slate-700/50 hover:border-purple-500/50 hover:bg-slate-800/60 cursor-pointer transition-all group"
+                                            >
+                                                {/* Card Header */}
+                                                <div className="flex items-start justify-between gap-2 mb-2">
+                                                    <span className="text-sm font-mono font-medium text-white group-hover:text-purple-300">
+                                                        {req.id}
+                                                    </span>
+                                                    {(req.isUrgent || req.priority === 'URGENT') && (
+                                                        <AlertTriangle size={14} className="text-red-400 flex-shrink-0" />
+                                                    )}
+                                                </div>
+
+                                                {/* Description */}
+                                                <p className="text-xs text-slate-400 line-clamp-2 mb-2">
+                                                    {req.description || 'No description'}
+                                                </p>
+
+                                                {/* Amount */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className="text-xs text-slate-500">
+                                                        {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
+                                                    </span>
+                                                    <span className="text-sm font-semibold text-emerald-400">
+                                                        {formatCurrency(req.totalAmount || 0)}
+                                                    </span>
+                                                </div>
+
+                                                {/* Status Badge */}
+                                                <div className="mt-2">
+                                                    {getStatusBadge(req.status)}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Empty State */}
+                {filteredReqs.length === 0 && (
+                    <div className="text-center py-16 bg-slate-800/30 rounded-xl border border-slate-700/50">
+                        <Search size={48} className="mx-auto text-slate-600 mb-4" />
+                        <h3 className="text-lg font-medium text-slate-400 mb-2">No requisitions found</h3>
+                        <p className="text-sm text-slate-500">
+                            {searchTerm ? 'Try adjusting your search terms' : 'Your submitted requisitions will appear here'}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Requisition Drawer */}
+            <RequisitionDrawer
+                requisition={drawerReq}
+                isOpen={!!drawerReq}
+                onClose={() => setDrawerReq(null)}
+                variant="PRF"
+                getStatusBadge={getStatusBadge}
+            />
+        </>
+    );
+};
+
+export default PRFTrackerView;

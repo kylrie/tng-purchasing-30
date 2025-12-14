@@ -17,7 +17,8 @@ import {
     GitBranch,
     Wallet,
     Database,
-    FileSpreadsheet
+    FileSpreadsheet,
+    ListChecks
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -57,7 +58,8 @@ const Layout: React.FC<LayoutProps> = ({
             canView: true,
             subItems: [
                 { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: hasPermission('module:view:burf') },
-                { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('module:view:prf') }
+                { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('module:view:prf') },
+                { path: '/prf-tracker', label: 'PRF Tracker', icon: ListChecks, canView: hasPermission('module:view:prf_tracker') }
             ]
         },
         {

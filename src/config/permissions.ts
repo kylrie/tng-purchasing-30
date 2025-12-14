@@ -20,11 +20,15 @@ export const ALL_PERMISSIONS = [
   'approval:manager:burf',
   'approval:cic:burf',
   'approval:manager:prf',
+  'approval:finance_head:br',  // 7-Stage: Finance Head Budget Review
+  'approval:cfo',              // 7-Stage: CFO Approval
+  'approval:bod',              // 7-Stage: BOD Approval
   'approval:view:history',
 
   // Finance Workflow
   'finance:release_funds',
   'finance:view_cheque',
+  'finance:upload_check',  // Upload check number + link for Check Preparation step
   'liquidation:view',
   'liquidation:file:own',
   'liquidation:file:all',
@@ -34,6 +38,7 @@ export const ALL_PERMISSIONS = [
   // PCF (Petty Cash Fund)
   'pcf:view:own',
   'pcf:view:all',
+  'pcf:view:history:all',  // Per-user: View all PCF history (not just own)
   'pcf:create',
   'pcf:approve',
   'pcf:cancel',       // Cancel PCF liquidations (returns balance)
@@ -77,6 +82,7 @@ export const ALL_PERMISSIONS = [
   'module:view:suppliers',
   'module:view:settings',
   'module:view:coa',          // View Chart of Accounts module
+  'module:view:prf_tracker',  // View PRF Tracker (Kanban view for requisition flow)
 
   // UI Component Visibility (deprecated, use module:view instead)
   'ui:view:approvals_page',
@@ -163,6 +169,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'requisition:print',
     'approval:manager:burf',
     'approval:manager:prf',
+    'approval:finance_head:br',  // Finance Head BR
+    'approval:cfo',              // CFO Approval
+    'approval:bod',              // BOD Approval
     'approval:view:history',
     'ui:view:approvals_page',
     'liquidation:view',
@@ -196,7 +205,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:section:pending_audit_list',
   ],
 
-  // View-only global role
+  // View-only global role + BOD approval capability
   [UserRole.BOARD_OF_DIRECTOR]: [
     'requisition:view:all',
     'requisition:print',
@@ -204,14 +213,18 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'liquidation:print',
     'finance:view_cheque',
     'approval:view:history',
+    'approval:bod',  // 7-Stage: BOD can approve at final stage
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',
     'module:view:approved',
     'module:view:liquidation',
+    'module:view:approvals',  // Need to see approvals queue
     // Dashboard Widgets
     'dashboard:widget:active_prfs',
     'dashboard:widget:total_spend',
+    'dashboard:widget:pending_approvals',
+    'dashboard:section:pending_list',
   ],
 
   // Approver for their specific business unit
@@ -261,6 +274,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:burf',
     'module:view:liquidation',
     'module:view:pcf',
+    'module:view:prf_tracker',  // Track own requisitions
     'pcf:view:own',
     'pcf:create',
     // Dashboard Widgets (limited)
@@ -307,6 +321,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approved',
     'module:view:liquidation',
     'module:view:suppliers',
+    'module:view:prf_tracker',  // Track PRFs they prepared
     'inventory:manage:uom',
     // Dashboard Widgets
     'dashboard:widget:active_prfs',
@@ -322,6 +337,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'requisition:print',
     'finance:release_funds',
     'finance:view_cheque',
+    'finance:upload_check',  // Check Preparation step
     'liquidation:view',
     'liquidation:file:all',
     'liquidation:print',

@@ -37,7 +37,8 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     const [viewAll, setViewAll] = useState(false);
 
     const { hasPermission } = usePermissions();
-    const canViewAll = hasPermission('pcf:view:all');
+    // Can view all: Either role-based pcf:view:all OR per-user pcf:view:history:all
+    const canViewAll = hasPermission('pcf:view:all') || hasPermission('pcf:view:history:all');
     const pcfCeiling = currentUser.pcfCeiling || 0;
 
     // Get username from allUsers list

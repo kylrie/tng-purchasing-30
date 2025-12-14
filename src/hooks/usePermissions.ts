@@ -18,12 +18,18 @@ export const usePermissions = () => {
       return true;
     }
 
-    const userPermissions = permissions[currentUser.role];
-    if (!userPermissions) {
-      return false;
+    // 1. Check user-level permissions first (per-user overrides)
+    if (currentUser.permissions && currentUser.permissions.includes(permission)) {
+      return true;
     }
 
-    return userPermissions.includes(permission);
+    // 2. Fall back to role-based permissions
+    const rolePermissions = permissions[currentUser.role];
+    if (rolePermissions && rolePermissions.includes(permission)) {
+      return true;
+    }
+
+    return false;
   };
 
   /**

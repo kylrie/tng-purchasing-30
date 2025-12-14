@@ -114,6 +114,18 @@ service cloud.firestore {
         'BURF_PENDING_CIC',
         'READY_FOR_PRF',
         'PRF_PENDING_MANAGER',
+        // 8-Stage PRF Workflow Statuses
+        'PENDING_GM_PRF_APPROVAL',
+        'PENDING_FINANCE_HEAD_BR_APPROVAL',
+        'PENDING_GM_BR_APPROVAL',
+        'PENDING_BOD_APPROVAL',
+        'FOR_CHECK_PREPARATION',
+        'PENDING_CHECK_AUTH_BOD',
+        'FOR_FUND_RELEASE',
+        // Legacy statuses
+        'PENDING_CFO_APPROVAL',
+        'BURF_PARTIALLY_PROCESSED',
+        // Post-approval statuses
         'APPROVED_FOR_PAYMENT',
         'FUNDS_RELEASED',
         'LIQUIDATION_FILED',
@@ -187,9 +199,25 @@ service cloud.firestore {
         'rejectedAt',
         'rejectedBy',
         'cancelledAt',
-        'cancelledBy'
+        'cancelledBy',
+        'currentApproverId'  // FIX: Allow approval routing field
       ].toSet();
       
+      return affectedKeys.hasOnly(allowedFields);
+    }
+    
+    // Check Preparation update validation
+    // Allows chequeNumber and chequeImageUrl in addition to workflow fields
+    function isValidCheckPrepUpdate() {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let allowedFields = [
+        'status',
+        'history', 
+        'updatedAt',
+        'currentApproverId',
+        'chequeNumber',
+        'chequeImageUrl'
+      ].toSet();
       return affectedKeys.hasOnly(allowedFields);
     }
     
@@ -216,6 +244,18 @@ service cloud.firestore {
       return role == 'MANAGER' || 
              role == 'GENERAL_MANAGER' || 
              hasPermission('approval:manager:prf');
+    }
+    
+    function canApproveFinanceHeadBR() {
+      return hasPermission('approval:finance_head:br');
+    }
+    
+    function canApproveCFO() {
+      return hasPermission('approval:cfo');
+    }
+    
+    function canApproveBOD() {
+      return hasPermission('approval:bod');
     }
     
     // =====================================================
@@ -320,7 +360,85 @@ service cloud.firestore {
           )
         ) ||
         
-        // APPROVE PRF: Role-based OR Permission-based + same BU + field restriction
+        // =====================================================
+        // 7-STAGE PRF APPROVAL WORKFLOW
+        // =====================================================
+        
+        // APPROVE PRF Stage 1: Manager → GM PRF (if >= 50k) or Finance Head (if < 50k)
+        (
+          resource.data.status == 'PRF_PENDING_MANAGER' &&
+          (request.resource.data.status == 'PENDING_GM_PRF_APPROVAL' ||
+           request.resource.data.status == 'PENDING_FINANCE_HEAD_BR_APPROVAL') &&
+          canApprovePRF() &&
+          belongsToSameBU(resource) &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // APPROVE PRF Stage 2: GM PRF → Finance Head BR
+        (
+          resource.data.status == 'PENDING_GM_PRF_APPROVAL' &&
+          request.resource.data.status == 'PENDING_FINANCE_HEAD_BR_APPROVAL' &&
+          canApprovePRF() &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // APPROVE PRF Stage 3: Finance Head BR → GM Budget
+        (
+          resource.data.status == 'PENDING_FINANCE_HEAD_BR_APPROVAL' &&
+          request.resource.data.status == 'PENDING_GM_BR_APPROVAL' &&
+          canApproveFinanceHeadBR() &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // APPROVE PRF Stage 4: GM Budget → BOD Approval
+        (
+          resource.data.status == 'PENDING_GM_BR_APPROVAL' &&
+          request.resource.data.status == 'PENDING_BOD_APPROVAL' &&
+          canApprovePRF() &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // APPROVE PRF Stage 5: BOD Approval → Check Preparation
+        (
+          resource.data.status == 'PENDING_BOD_APPROVAL' &&
+          request.resource.data.status == 'FOR_CHECK_PREPARATION' &&
+          canApproveBOD() &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // APPROVE PRF Stage 6: Check Preparation → Check Auth BOD (Finance uploads check)
+        (
+          resource.data.status == 'FOR_CHECK_PREPARATION' &&
+          request.resource.data.status == 'PENDING_CHECK_AUTH_BOD' &&
+          hasPermission('finance:upload_check') &&
+          isValidCheckPrepUpdate()
+        ) ||
+        
+        // APPROVE PRF Stage 7: Check Auth BOD → Fund Release
+        (
+          resource.data.status == 'PENDING_CHECK_AUTH_BOD' &&
+          request.resource.data.status == 'FOR_FUND_RELEASE' &&
+          canApproveBOD() &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // APPROVE PRF Stage 8: For Fund Release → Funds Released (Finance)
+        (
+          resource.data.status == 'FOR_FUND_RELEASE' &&
+          request.resource.data.status == 'FUNDS_RELEASED' &&
+          hasPermission('finance:release_funds') &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // LEGACY: CFO → BOD (for existing data in old workflow)
+        (
+          resource.data.status == 'PENDING_CFO_APPROVAL' &&
+          request.resource.data.status == 'PENDING_BOD_APPROVAL' &&
+          canApproveCFO() &&
+          isValidWorkflowUpdate()
+        ) ||
+        
+        // LEGACY: APPROVE PRF (old workflow - kept for backward compatibility)
         (
           resource.data.status == 'PRF_PENDING_MANAGER' &&
           request.resource.data.status == 'APPROVED_FOR_PAYMENT' &&
@@ -330,9 +448,12 @@ service cloud.firestore {
         ) ||
 
         // REJECT: Any approver role OR permission + same BU + field restriction
+        // Includes all 8-stage workflow approvers
         (
           request.resource.data.status == 'REJECTED' &&
-          (canApproveAsManager() || canApproveAsCIC() || canApprovePRF()) &&
+          (canApproveAsManager() || canApproveAsCIC() || canApprovePRF() || 
+           canApproveFinanceHeadBR() || canApproveCFO() || canApproveBOD() ||
+           hasPermission('finance:upload_check')) &&
           belongsToSameBU(resource) &&
           isValidWorkflowUpdate()
         ) ||
