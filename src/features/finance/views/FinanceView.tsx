@@ -693,17 +693,21 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 {getStatusBadge(req.status)}
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setSelectedReq(req);
-                                                        setCheckPrepModalOpen(true);
-                                                    }}
-                                                    className="bg-cyan-600 text-white px-3 py-1 rounded text-xs hover:bg-cyan-700 font-medium flex items-center gap-1 ml-auto"
-                                                >
-                                                    <FileText size={14} />
-                                                    Upload Check
-                                                </button>
+                                                {hasPermission('finance:upload_check') ? (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedReq(req);
+                                                            setCheckPrepModalOpen(true);
+                                                        }}
+                                                        className="bg-cyan-600 text-white px-3 py-1 rounded text-xs hover:bg-cyan-700 font-medium flex items-center gap-1 ml-auto"
+                                                    >
+                                                        <FileText size={14} />
+                                                        Upload Check
+                                                    </button>
+                                                ) : (
+                                                    <span className="text-slate-500 text-xs italic">No permission</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

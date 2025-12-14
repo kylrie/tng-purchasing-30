@@ -105,6 +105,8 @@ export const ALL_PERMISSIONS = [
   'dashboard:section:ready_for_prf_list',
   'dashboard:section:pending_fund_release',
   'dashboard:section:pending_audit_list',
+  'dashboard:section:br_list',         // BR Approvals widget on Dashboard
+  'dashboard:section:check_auth',      // Check Authorization widget on Dashboard
 
 ] as const;
 
@@ -159,6 +161,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:section:ready_for_prf_list',
     'dashboard:section:pending_fund_release',
     'dashboard:section:pending_audit_list',
+    'dashboard:section:br_list',
+    'dashboard:section:check_auth',
     // Chart of Accounts
     'coa:view',
     'coa:manage',
@@ -207,6 +211,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:section:ready_for_prf_list',
     'dashboard:section:pending_fund_release',
     'dashboard:section:pending_audit_list',
+    'dashboard:section:br_list',
+    'dashboard:section:check_auth',
     // PRF Tracker
     'module:view:prf_tracker',
     'prf_tracker:view:all',
@@ -232,6 +238,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:total_spend',
     'dashboard:widget:pending_approvals',
     'dashboard:section:pending_list',
+    'dashboard:section:check_auth',
   ],
 
   // Approver for their specific business unit
@@ -372,6 +379,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:pending_audit',
     'dashboard:section:pending_list',
     'dashboard:section:pending_fund_release',
+    'dashboard:section:br_list',
+    'dashboard:section:check_auth',
     // Chart of Accounts (Finance can view for liquidation classification)
     'coa:view',
     'module:view:coa',

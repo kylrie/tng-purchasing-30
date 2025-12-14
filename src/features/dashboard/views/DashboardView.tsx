@@ -902,7 +902,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                         {/* BR (Budget Request) Widget - Separate from Pending Approvals */}
                         {/* Uses same filter as Finance module - role-based */}
-                        {brPendingItems.length > 0 && (
+                        {hasPermission('dashboard:section:br_list') && brPendingItems.length > 0 && (
                             <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -967,7 +967,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Check Authorization Widget - BOD Step 6 */}
-                        {checkAuthApprovals.length > 0 && (
+                        {hasPermission('dashboard:section:check_auth') && checkAuthApprovals.length > 0 && (
                             <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">

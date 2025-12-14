@@ -155,6 +155,11 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'dashboard:section:ready_for_prf_list': { label: 'Ready for PRF List', category: 'Dashboard Widgets' },
   'dashboard:section:pending_fund_release': { label: 'Pending Fund Release List', category: 'Dashboard Widgets' },
   'dashboard:section:pending_audit_list': { label: 'Pending Audit List', category: 'Dashboard Widgets' },
+  'dashboard:section:br_list': { label: 'BR Approvals Widget', category: 'Dashboard Widgets', description: 'Shows Budget Request approvals on Dashboard' },
+  'dashboard:section:check_auth': { label: 'Check Authorization Widget', category: 'Dashboard Widgets', description: 'Shows Check Authorization items on Dashboard' },
+
+  // PRF Tracker
+  'prf_tracker:view:all': { label: 'View All Requests in Tracker', category: 'PRF Tracker', description: 'Toggle to view all BU requests in PRF Tracker' },
 
   // Approval History
   'approval:view:history': { label: 'View Approval History', category: 'Approval Workflow' },
