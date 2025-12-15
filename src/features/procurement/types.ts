@@ -261,7 +261,8 @@ export interface LiquidationDetails {
 }
 
 export interface RequisitionHistory {
-  date: string;
+  date: string; // Legacy: date only (YYYY-MM-DD)
+  timestamp?: string; // New: ISO 8601 with time (e.g., "2024-12-15T17:30:00Z")
   actorId: string;
   actorName?: string;
   action: string; // 'CREATED', 'SUBMITTED', 'APPROVED', 'REJECTED', 'UPDATED'

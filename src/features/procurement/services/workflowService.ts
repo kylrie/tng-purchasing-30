@@ -50,11 +50,14 @@ export const executeWorkflowAction = async ({
 
     const currentHistoryLength = Array.isArray(data.history) ? data.history.length : 0;
 
+    const nowISO = new Date().toISOString();
+
     const auditEntry: RequisitionHistory = {
       action,
       actorId: user.uid,
       actorName: user.displayName,
-      date: new Date().toISOString(), // Client timestamp for display
+      date: nowISO.split('T')[0], // Legacy: date only (YYYY-MM-DD)
+      timestamp: nowISO, // New: Full ISO timestamp with time
       stage: currentStatus,
       comments: reason || undefined,
       actionIndex: currentHistoryLength // FIX BUG 6: Sequential index for server timestamp correlation

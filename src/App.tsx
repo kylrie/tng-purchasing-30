@@ -19,6 +19,7 @@ import PCFApprovalView from './features/finance/views/PCFApprovalView';
 import SuppliersView from './features/inventory/views/SuppliersView';
 import ChartOfAccountsView from './features/admin/views/ChartOfAccountsView';
 import { SettingsView } from './features/admin/views/SettingsView';
+import ActivityLogView from './features/admin/views/ActivityLogView';
 import type { NotificationItem } from './shared/types';
 import { UserRole, UserStatus, COLLECTIONS } from './shared/types/firebase.types';
 import { RequisitionStatus } from './features/procurement/types';
@@ -332,7 +333,16 @@ function ProtectedApp() {
           </ProtectedRoute>
         } />
 
-
+        {/* Activity Log - SuperAdmin Only (hardcoded) */}
+        {currentUser.role === UserRole.SUPER_ADMIN && (
+          <Route path="/activity-log" element={
+            <ActivityLogView
+              requisitions={requisitions}
+              allUsers={users}
+              businesses={businesses}
+            />
+          } />
+        )}
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -43,7 +43,7 @@ const formatCurrency = (amount: number): string => {
     }).format(amount);
 };
 
-// Helper: Format date nicely
+// Helper: Format date nicely (date only)
 const formatDate = (dateValue: string | Date | any): string => {
     if (!dateValue) return '-';
     if (dateValue?.toDate && typeof dateValue.toDate === 'function') {
@@ -51,6 +51,38 @@ const formatDate = (dateValue: string | Date | any): string => {
     }
     const parsed = new Date(dateValue);
     return isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+};
+
+// Helper: Format timestamp with date AND time for history entries
+const formatDateTime = (timestamp: string | undefined, legacyDate: string): string => {
+    // If new timestamp with time exists, use it
+    if (timestamp) {
+        const parsed = new Date(timestamp);
+        if (!isNaN(parsed.getTime())) {
+            return parsed.toLocaleString('en-US', {
+                month: 'short', day: '2-digit', year: 'numeric',
+                hour: 'numeric', minute: '2-digit', hour12: true
+            });
+        }
+    }
+
+    // Fallback to legacy date (without time)
+    if (legacyDate) {
+        const parsed = new Date(legacyDate);
+        if (!isNaN(parsed.getTime())) {
+            // Check if legacyDate has time info (old ISO strings may have had time)
+            if (legacyDate.includes('T')) {
+                return parsed.toLocaleString('en-US', {
+                    month: 'short', day: '2-digit', year: 'numeric',
+                    hour: 'numeric', minute: '2-digit', hour12: true
+                });
+            }
+            // Date only - indicate time unavailable
+            return parsed.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' (Time not available)';
+        }
+    }
+
+    return '-';
 };
 
 // Helper: Get timeline icon based on action
@@ -655,7 +687,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                                 <div className="bg-purple-900/20 rounded-lg p-3 border border-purple-700/30">
                                                     <div className="flex items-center justify-between mb-1">
                                                         <span className="text-sm font-medium text-purple-300">{entry.action}</span>
-                                                        <span className="text-xs text-slate-500">{formatDate(entry.date)}</span>
+                                                        <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp, entry.date)}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2 text-xs text-slate-400">
                                                         <User size={12} />
@@ -680,7 +712,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                                 <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
                                                     <div className="flex items-center justify-between mb-1">
                                                         <span className="text-sm font-medium text-white">{entry.action}</span>
-                                                        <span className="text-xs text-slate-500">{formatDate(entry.date)}</span>
+                                                        <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp, entry.date)}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2 text-xs text-slate-400">
                                                         <User size={12} />

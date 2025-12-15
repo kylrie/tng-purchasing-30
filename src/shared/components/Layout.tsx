@@ -18,10 +18,12 @@ import {
     Wallet,
     Database,
     FileSpreadsheet,
-    ListChecks
+    ListChecks,
+    Activity
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
+import { UserRole } from '../../shared/types/firebase.types';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -93,9 +95,10 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Settings',
             icon: Settings,
-            canView: hasPermission('module:view:settings'),
+            canView: hasPermission('module:view:settings') || currentUser.role === UserRole.SUPER_ADMIN,
             subItems: [
-                { path: '/settings', label: 'System Settings', icon: Settings, canView: hasPermission('module:view:settings') }
+                { path: '/settings', label: 'System Settings', icon: Settings, canView: hasPermission('module:view:settings') },
+                { path: '/activity-log', label: 'Activity Log', icon: Activity, canView: currentUser.role === UserRole.SUPER_ADMIN }
             ]
         }
     ];

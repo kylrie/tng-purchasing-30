@@ -295,8 +295,10 @@ export class RequisitionService {
         };
 
         // Step D: Create history entry for source BURF update
+        const burfNowISO = new Date().toISOString();
         const burfHistoryEntry: RequisitionHistory = {
-          date: new Date().toISOString(),
+          date: burfNowISO.split('T')[0], // Legacy: date only
+          timestamp: burfNowISO, // Full ISO timestamp with time
           actorId: userId,
           actorName: userName,
           action: isFullyConsumed ? 'Fully Converted to PRF' : 'Partial PRF Created',
@@ -511,8 +513,10 @@ export class RequisitionService {
     const currentRequisition = await this.getRequisitionById(requisitionId);
     if (!currentRequisition) throw new Error('Requisition not found');
 
+    const nowISO = new Date().toISOString();
     const newHistoryEntry: RequisitionHistory = {
-      date: new Date().toISOString(),
+      date: nowISO.split('T')[0], // Legacy: date only (YYYY-MM-DD)
+      timestamp: nowISO, // New: Full ISO timestamp with time
       actorId,
       actorName,
       action,
@@ -585,8 +589,10 @@ export class RequisitionService {
         currentApproverId = getApproverIdForStatus(nextStatus, approverAssignments, requisition.businessId);
 
         // Create history entry inline (can't call async methods in transaction)
+        const approveNowISO = new Date().toISOString();
         const historyEntry: RequisitionHistory = {
-          date: new Date().toISOString(),
+          date: approveNowISO.split('T')[0], // Legacy: date only
+          timestamp: approveNowISO, // Full ISO timestamp with time
           actorId: userId,
           actorName: userName,
           action: approvalAction,
@@ -676,8 +682,10 @@ export class RequisitionService {
       const requisition = { id: snap.id, ...snap.data() } as Requisition;
 
       // Create history entry inline (can't call async methods in transaction)
+      const nowISO = new Date().toISOString();
       const historyEntry: RequisitionHistory = {
-        date: new Date().toISOString(),
+        date: nowISO.split('T')[0], // Legacy: date only
+        timestamp: nowISO, // Full ISO timestamp with time
         actorId: userId,
         actorName: userName,
         action: 'Rejected',
@@ -768,8 +776,10 @@ export class RequisitionService {
       }
 
       // Create history entry
+      const liquidationNowISO = new Date().toISOString();
       const historyEntry: RequisitionHistory = {
-        date: new Date().toISOString(),
+        date: liquidationNowISO.split('T')[0], // Legacy: date only
+        timestamp: liquidationNowISO, // Full ISO timestamp with time
         actorId: userId,
         actorName: userName,
         action: 'Liquidation Filed',
@@ -835,8 +845,10 @@ export class RequisitionService {
         : RequisitionStatus.FUNDS_RELEASED;
 
       // Build history entry
+      const fundReleaseNowISO = new Date().toISOString();
       const historyEntry: RequisitionHistory = {
-        date: new Date().toISOString(),
+        date: fundReleaseNowISO.split('T')[0], // Legacy: date only
+        timestamp: fundReleaseNowISO, // Full ISO timestamp with time
         actorId: userId || 'system',
         actorName: userName || 'Finance',
         action: isPcfReplenishment ? 'AUDITED_CLEARED' : 'FUNDS_RELEASED',
@@ -903,8 +915,10 @@ export class RequisitionService {
       const currentApproverId = getApproverIdForStatus(nextStatus, approverAssignments, requisition.businessId);
 
       // Create history entry
+      const checkUploadNowISO = new Date().toISOString();
       const historyEntry: RequisitionHistory = {
-        date: new Date().toISOString(),
+        date: checkUploadNowISO.split('T')[0], // Legacy: date only
+        timestamp: checkUploadNowISO, // Full ISO timestamp with time
         actorId: userId,
         actorName: userName,
         action: 'Check Uploaded',
