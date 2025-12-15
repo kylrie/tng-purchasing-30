@@ -57,10 +57,13 @@ service cloud.firestore {
     function hasPermission(permission) {
       // Super Admin always has all permissions, otherwise check permissions doc
       // Note: Frontend stores role->permissions mapping under 'permissions' key (not 'roles')
+      // FIX: Use hasAny() instead of 'in' operator because 'in' fails for arrays with >10 elements
+      let permDoc = getPermissionsDoc();
+      let userRole = getUserRole();
       return isSuperAdmin() || (
-        getPermissionsDoc().permissions != null && 
-        getPermissionsDoc().permissions[getUserRole()] != null && 
-        permission in getPermissionsDoc().permissions[getUserRole()]
+        permDoc.permissions != null && 
+        permDoc.permissions[userRole] != null &&
+        permDoc.permissions[userRole].hasAny([permission])
       );
     }
     
