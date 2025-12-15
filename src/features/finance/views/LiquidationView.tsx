@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Requisition } from '../../procurement/types';
-import { RequisitionStatus } from '../../procurement/types';
+import { RequisitionStatus, isSuperAdmin } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
@@ -8,6 +8,7 @@ import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import LiquidationPrintModal from '../components/LiquidationPrintModal';
 import LiquidationModal from '../components/LiquidationModal';
 import LiquidationAuditModal from '../components/LiquidationAuditModal';
+import { executeWorkflowAction } from '../../procurement/services/workflowService';
 import { Printer, Edit, FileText, RefreshCw, CheckCircle } from 'lucide-react';
 
 interface LiquidationViewProps {
@@ -273,6 +274,27 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
         onClose={() => setDrawerReq(null)}
         variant="FINANCE"
         getStatusBadge={getStatusBadge}
+        onCancel={async () => {
+          if (drawerReq && confirm(`Are you sure you want to CANCEL ${drawerReq.id}? This action cannot be undone.`)) {
+            try {
+              await executeWorkflowAction({
+                requisitionId: drawerReq.id,
+                action: 'CANCEL',
+                user: {
+                  uid: currentUser.id,
+                  displayName: currentUser.name,
+                  email: currentUser.email
+                },
+                reason: 'Cancelled by SuperAdmin'
+              });
+              setDrawerReq(null);
+            } catch (error: any) {
+              console.error('Error cancelling:', error);
+              alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
+            }
+          }
+        }}
+        canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}
       />
     </>
   );

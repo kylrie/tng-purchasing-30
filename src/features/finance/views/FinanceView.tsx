@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { Requisition } from '../../procurement/types';
-import { RequisitionStatus } from '../../procurement/types';
+import { RequisitionStatus, isSuperAdmin } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
 import Card from '../../../shared/components/Card';
 import ReleaseFundModal from '../components/ReleaseFundModal';
@@ -11,6 +11,7 @@ import { ExternalLink, Search, Wallet, CheckCircle, XCircle, FileText, Printer }
 import { usePermissions } from '../../../hooks/usePermissions';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
+import { executeWorkflowAction } from '../../procurement/services/workflowService';
 import PRFPrintModal from '../../procurement/components/PRFPrintModal';
 
 interface FinanceViewProps {
@@ -858,8 +859,29 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         setDrawerReq(null);
                     }
                 }}
+                onCancel={async () => {
+                    if (drawerReq && confirm(`Are you sure you want to CANCEL ${drawerReq.id}? This action cannot be undone.`)) {
+                        try {
+                            await executeWorkflowAction({
+                                requisitionId: drawerReq.id,
+                                action: 'CANCEL',
+                                user: {
+                                    uid: currentUser.id,
+                                    displayName: currentUser.name,
+                                    email: currentUser.email
+                                },
+                                reason: 'Cancelled by SuperAdmin'
+                            });
+                            setDrawerReq(null);
+                        } catch (error: any) {
+                            console.error('Error cancelling:', error);
+                            alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
+                        }
+                    }
+                }}
                 canApprove={(activeTab === 'br_pending' || activeTab === 'check_pending') && !!drawerReq}
                 canReject={(activeTab === 'br_pending' || activeTab === 'check_pending') && !!drawerReq}
+                canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}
                 onPrint={() => {
                     if (drawerReq) {
                         setPrintReq(drawerReq);

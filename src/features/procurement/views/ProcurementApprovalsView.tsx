@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, CheckCircle, XCircle, Printer, ChevronDown } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
-import { RequisitionStatus } from '../types';
+import { RequisitionStatus, isSuperAdmin } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
+import { executeWorkflowAction } from '../services/workflowService';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
 import Card from '../../../shared/components/Card';
@@ -265,6 +266,32 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         } catch (error: any) {
             console.error("Error rejecting requisition:", error);
             alert(`Failed to reject requisition: ${error.message || 'Unknown error'}`);
+        } finally {
+            setDrawerLoading(false);
+        }
+    };
+
+    // SuperAdmin Cancel Handler
+    const handleDrawerCancel = async () => {
+        if (!drawerReq) return;
+        if (!confirm(`Are you sure you want to CANCEL ${drawerReq.id}? This action cannot be undone.`)) return;
+
+        setDrawerLoading(true);
+        try {
+            await executeWorkflowAction({
+                requisitionId: drawerReq.id,
+                action: 'CANCEL',
+                user: {
+                    uid: currentUser.id,
+                    displayName: currentUser.name,
+                    email: currentUser.email
+                },
+                reason: 'Cancelled by SuperAdmin'
+            });
+            setDrawerReq(null);
+        } catch (error: any) {
+            console.error("Error cancelling requisition:", error);
+            alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
         } finally {
             setDrawerLoading(false);
         }
@@ -549,8 +576,10 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 getStatusBadge={getStatusBadge}
                 onApprove={handleDrawerApprove}
                 onReject={handleDrawerReject}
+                onCancel={handleDrawerCancel}
                 canApprove={activeTab === 'pending' && !!drawerReq && userApprovalStatuses.includes(drawerReq.status)}
                 canReject={activeTab === 'pending' && !!drawerReq && userApprovalStatuses.includes(drawerReq.status)}
+                canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}
                 isLoading={drawerLoading}
             />
         </div >

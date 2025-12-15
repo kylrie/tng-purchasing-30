@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil, Loader2 } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
-import { RequisitionStatus } from '../types';
+import { RequisitionStatus, isSuperAdmin } from '../types';
 import type { User, Business } from '../../../shared/types';
+import { executeWorkflowAction } from '../services/workflowService';
 import { usePermissions } from '../../../hooks/usePermissions';
 import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
@@ -762,6 +763,32 @@ export const PrfView: React.FC<PrfViewProps> = ({
         }
     };
 
+    // SuperAdmin Cancel Handler
+    const handleDrawerCancel = async () => {
+        if (!selectedReq) return;
+        if (!confirm(`Are you sure you want to CANCEL ${selectedReq.id}? This action cannot be undone.`)) return;
+
+        setDrawerLoading(true);
+        try {
+            await executeWorkflowAction({
+                requisitionId: selectedReq.id,
+                action: 'CANCEL',
+                user: {
+                    uid: currentUser.id,
+                    displayName: currentUser.name,
+                    email: currentUser.email
+                },
+                reason: 'Cancelled by SuperAdmin'
+            });
+            setSelectedReq(null);
+        } catch (error: any) {
+            console.error('Error cancelling requisition:', error);
+            alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
+        } finally {
+            setDrawerLoading(false);
+        }
+    };
+
     // Sorting state
     const [sortField, setSortField] = useState<SortField>('dateCreated');
     const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -1322,9 +1349,11 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 getStatusBadge={getStatusBadge}
                 onApprove={handleDrawerApprove}
                 onReject={handleDrawerReject}
+                onCancel={handleDrawerCancel}
                 onSubmitLiquidation={handleDrawerSubmitLiquidation}
                 canApprove={!!canApproveSelectedPrf}
                 canReject={!!canApproveSelectedPrf}
+                canCancel={!!selectedReq && isSuperAdmin(currentUser.role) && selectedReq.status !== RequisitionStatus.CANCELLED}
                 canSubmitLiquidation={!!canSubmitLiquidation}
                 isLoading={drawerLoading}
             />

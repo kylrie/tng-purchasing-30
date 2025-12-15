@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, DollarSign, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard } from 'lucide-react';
+import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, DollarSign, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban } from 'lucide-react';
 import type { Requisition, RequisitionHistory, RequisitionItem } from '../../features/procurement/types';
 import { RequisitionStatus } from '../../features/procurement/types';
 import LiquidationForm from '../../features/procurement/components/LiquidationForm';
@@ -21,12 +21,14 @@ interface RequisitionDrawerProps {
     onPreparePrf?: () => void; // BURF only - when status is READY_FOR_PRF
     onSubmitLiquidation?: (payload: any) => Promise<void>; // Liquidation callback
     onPrint?: () => void; // Print preview callback
+    onCancel?: () => void; // Cancel requisition callback (SuperAdmin only)
     // Permission flags
     canApprove?: boolean;
     canReject?: boolean;
     canReleaseFund?: boolean;
     canPreparePrf?: boolean; // BURF only
     canSubmitLiquidation?: boolean; // For liquidation tab
+    canCancel?: boolean; // SuperAdmin only: can cancel requisition
     isLoading?: boolean;
     // Optional: status badge renderer
     getStatusBadge?: (status: RequisitionStatus) => React.ReactNode;
@@ -82,11 +84,13 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     onPreparePrf,
     onSubmitLiquidation,
     onPrint,
+    onCancel,
     canApprove = false,
     canReject = false,
     canReleaseFund = false,
     canPreparePrf = false,
     canSubmitLiquidation = false,
+    canCancel = false,
     isLoading = false,
     getStatusBadge,
 }) => {
@@ -136,9 +140,9 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     };
 
     // Check if any actions should be shown
-    const showActions = (variant === 'BURF' && (canApprove || canReject || canPreparePrf)) ||
-        (variant === 'PRF' && (canApprove || canReject)) ||
-        (variant === 'FINANCE' && (canReleaseFund || canApprove || canReject));
+    const showActions = (variant === 'BURF' && (canApprove || canReject || canPreparePrf || canCancel)) ||
+        (variant === 'PRF' && (canApprove || canReject || canCancel)) ||
+        (variant === 'FINANCE' && (canReleaseFund || canApprove || canReject || canCancel));
 
     return (
         <>
@@ -779,50 +783,67 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
 
                 {/* Actions Footer */}
                 {showActions && (
-                    <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
-                        {/* BURF / PRF / FINANCE: Reject Button */}
-                        {(variant === 'BURF' || variant === 'PRF' || variant === 'FINANCE') && canReject && (
-                            <button
-                                onClick={onReject}
-                                disabled={isLoading}
-                                className="px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/50 rounded-lg font-medium hover:bg-red-600/30 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <XCircle size={16} /> Reject
-                            </button>
-                        )}
+                    <div className="p-6 border-t border-slate-700 flex justify-between gap-3">
+                        {/* Left side: SuperAdmin Cancel Button */}
+                        <div>
+                            {canCancel && requisition.status !== RequisitionStatus.CANCELLED && (
+                                <button
+                                    onClick={onCancel}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-orange-600/20 text-orange-400 border border-orange-500/50 rounded-lg font-medium hover:bg-orange-600/30 disabled:opacity-50 flex items-center gap-2"
+                                    title="SuperAdmin: Cancel Requisition"
+                                >
+                                    <Ban size={16} /> Cancel
+                                </button>
+                            )}
+                        </div>
 
-                        {/* BURF / PRF / FINANCE: Approve Button */}
-                        {(variant === 'BURF' || variant === 'PRF' || variant === 'FINANCE') && canApprove && (
-                            <button
-                                onClick={onApprove}
-                                disabled={isLoading}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <CheckCircle2 size={16} /> Approve
-                            </button>
-                        )}
+                        {/* Right side: Other Actions */}
+                        <div className="flex gap-3">
+                            {/* BURF / PRF / FINANCE: Reject Button */}
+                            {(variant === 'BURF' || variant === 'PRF' || variant === 'FINANCE') && canReject && (
+                                <button
+                                    onClick={onReject}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/50 rounded-lg font-medium hover:bg-red-600/30 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <XCircle size={16} /> Reject
+                                </button>
+                            )}
 
-                        {/* FINANCE: Release Fund Button */}
-                        {variant === 'FINANCE' && canReleaseFund && (
-                            <button
-                                onClick={onReleaseFund}
-                                disabled={isLoading}
-                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <DollarSign size={16} /> Release Fund
-                            </button>
-                        )}
+                            {/* BURF / PRF / FINANCE: Approve Button */}
+                            {(variant === 'BURF' || variant === 'PRF' || variant === 'FINANCE') && canApprove && (
+                                <button
+                                    onClick={onApprove}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <CheckCircle2 size={16} /> Approve
+                                </button>
+                            )}
 
-                        {/* BURF Only: Prepare PRF Button */}
-                        {variant === 'BURF' && canPreparePrf && (
-                            <button
-                                onClick={onPreparePrf}
-                                disabled={isLoading}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <FileText size={16} /> Prepare PRF
-                            </button>
-                        )}
+                            {/* FINANCE: Release Fund Button */}
+                            {variant === 'FINANCE' && canReleaseFund && (
+                                <button
+                                    onClick={onReleaseFund}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <DollarSign size={16} /> Release Fund
+                                </button>
+                            )}
+
+                            {/* BURF Only: Prepare PRF Button */}
+                            {variant === 'BURF' && canPreparePrf && (
+                                <button
+                                    onClick={onPreparePrf}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <FileText size={16} /> Prepare PRF
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

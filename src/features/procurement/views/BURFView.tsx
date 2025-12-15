@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Trash2, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Loader2, ArrowRightCircle } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
-import { RequisitionStatus } from '../types';
+import { RequisitionStatus, isSuperAdmin } from '../types';
 import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import BURFPrintModal from '../components/BURFPrintModal';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import { CounterService } from '../../../shared/services/counter.service';
+import { executeWorkflowAction } from '../services/workflowService';
 // FIX C6: Import sanitization utility to prevent XSS/injection
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
 
@@ -646,6 +647,27 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 onClose={() => setSelectedBurf(null)}
                 variant="BURF"
                 getStatusBadge={getStatusBadge}
+                onCancel={async () => {
+                    if (selectedBurf && confirm(`Are you sure you want to CANCEL ${selectedBurf.id}? This action cannot be undone.`)) {
+                        try {
+                            await executeWorkflowAction({
+                                requisitionId: selectedBurf.id,
+                                action: 'CANCEL',
+                                user: {
+                                    uid: currentUser.id,
+                                    displayName: currentUser.name,
+                                    email: currentUser.email
+                                },
+                                reason: 'Cancelled by SuperAdmin'
+                            });
+                            setSelectedBurf(null);
+                        } catch (error: any) {
+                            console.error('Error cancelling:', error);
+                            alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
+                        }
+                    }
+                }}
+                canCancel={!!selectedBurf && isSuperAdmin(currentUser.role) && selectedBurf.status !== RequisitionStatus.CANCELLED}
             />
         </div>
     );

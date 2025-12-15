@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Clock, CheckCircle2, XCircle, ChevronRight, User } from 'lucide-react';
+import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, Ban } from 'lucide-react';
 import type { Requisition, RequisitionHistory } from '../types';
 import { RequisitionStatus } from '../types';
 import Card from '../../../shared/components/Card';
@@ -10,8 +10,10 @@ interface PRFDetailsDrawerProps {
     onClose: () => void;
     onApprove?: () => void;
     onReject?: () => void;
+    onCancel?: () => void; // SuperAdmin only: cancel requisition
     canApprove?: boolean;
     canReject?: boolean;
+    canCancel?: boolean; // SuperAdmin only
     isLoading?: boolean;
 }
 
@@ -55,8 +57,10 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
     onClose,
     onApprove,
     onReject,
+    onCancel,
     canApprove = false,
     canReject = false,
+    canCancel = false,
     isLoading = false,
 }) => {
     if (!isOpen || !requisition) return null;
@@ -178,26 +182,43 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
                 </div>
 
                 {/* Actions Footer */}
-                {(canApprove || canReject) && (
-                    <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
-                        {canReject && (
-                            <button
-                                onClick={onReject}
-                                disabled={isLoading}
-                                className="px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/50 rounded-lg font-medium hover:bg-red-600/30 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <XCircle size={16} /> Reject
-                            </button>
-                        )}
-                        {canApprove && (
-                            <button
-                                onClick={onApprove}
-                                disabled={isLoading}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                            >
-                                <CheckCircle2 size={16} /> Approve
-                            </button>
-                        )}
+                {(canApprove || canReject || canCancel) && (
+                    <div className="p-6 border-t border-slate-700 flex justify-between gap-3">
+                        {/* Left side: SuperAdmin Cancel Button */}
+                        <div>
+                            {canCancel && requisition.status !== RequisitionStatus.CANCELLED && (
+                                <button
+                                    onClick={onCancel}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-orange-600/20 text-orange-400 border border-orange-500/50 rounded-lg font-medium hover:bg-orange-600/30 disabled:opacity-50 flex items-center gap-2"
+                                    title="SuperAdmin: Cancel Requisition"
+                                >
+                                    <Ban size={16} /> Cancel
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Right side: Other Actions */}
+                        <div className="flex gap-3">
+                            {canReject && (
+                                <button
+                                    onClick={onReject}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/50 rounded-lg font-medium hover:bg-red-600/30 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <XCircle size={16} /> Reject
+                                </button>
+                            )}
+                            {canApprove && (
+                                <button
+                                    onClick={onApprove}
+                                    disabled={isLoading}
+                                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                                >
+                                    <CheckCircle2 size={16} /> Approve
+                                </button>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
