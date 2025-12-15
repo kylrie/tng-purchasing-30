@@ -291,7 +291,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {/* PRF Content */}
                 {(activeTab === 'prf_pending' || activeTab === 'prf_released') && (
                     <Card className="!p-0">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                             <table className="w-full text-left text-sm text-white">
                                 <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
@@ -395,7 +395,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {/* PCF Pending Content */}
                 {activeTab === 'pcf_pending' && (
                     <Card className="!p-0">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                             <table className="w-full text-left text-sm text-white">
                                 <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
@@ -472,7 +472,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {/* PCF Released Content */}
                 {activeTab === 'pcf_released' && (
                     <Card className="!p-0">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                             <table className="w-full text-left text-sm text-white">
                                 <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
@@ -543,7 +543,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {/* BR Content - Budget Request Approvals */}
                 {activeTab === 'br_pending' && (
                     <Card className="!p-0">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                             <table className="w-full text-left text-sm text-white">
                                 <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
@@ -647,7 +647,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {/* Check Preparation Content - Finance uploads check */}
                 {activeTab === 'check_prep' && (
                     <Card className="!p-0">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                             <table className="w-full text-left text-sm text-white">
                                 <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
@@ -727,7 +727,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {/* Check Authorization Content - BOD Approval */}
                 {activeTab === 'check_pending' && (
                     <Card className="!p-0">
-                        <div className="overflow-x-auto">
+                        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                             <table className="w-full text-left text-sm text-white">
                                 <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>

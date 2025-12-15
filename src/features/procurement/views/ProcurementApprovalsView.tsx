@@ -438,107 +438,109 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             </div>
 
             <Card className="overflow-hidden !p-0">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
-                        <tr>
-                            <th className="px-6 py-4">ID</th>
-                            <th className="px-6 py-4">Type</th>
-                            <th className="px-6 py-4">Description</th>
-                            <th className="px-6 py-4">Amount</th>
-                            <th className="px-6 py-4">Business Unit</th>
-                            <th className="px-6 py-4">Requester</th>
-                            <th className="px-6 py-4">Date</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                        {displayRequisitions.map(req => {
-                            const requester = allUsers.find(u => u.id === req.requesterId);
-                            const business = businesses.find(b => b.id === req.businessId);
-                            const isPrf = req.id.startsWith('PRF') || req.status === RequisitionStatus.PRF_PENDING_MANAGER;
+                <div className="max-h-[600px] overflow-y-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
+                            <tr>
+                                <th className="px-6 py-4">ID</th>
+                                <th className="px-6 py-4">Type</th>
+                                <th className="px-6 py-4">Description</th>
+                                <th className="px-6 py-4">Amount</th>
+                                <th className="px-6 py-4">Business Unit</th>
+                                <th className="px-6 py-4">Requester</th>
+                                <th className="px-6 py-4">Date</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700">
+                            {displayRequisitions.map(req => {
+                                const requester = allUsers.find(u => u.id === req.requesterId);
+                                const business = businesses.find(b => b.id === req.businessId);
+                                const isPrf = req.id.startsWith('PRF') || req.status === RequisitionStatus.PRF_PENDING_MANAGER;
 
-                            return (
-                                <tr
-                                    key={req.id}
-                                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
-                                    onClick={(e) => {
-                                        // Don't open drawer if clicking action buttons
-                                        if ((e.target as HTMLElement).closest('button, a')) return;
-                                        setDrawerReq(req);
-                                    }}
-                                >
-                                    <td className="px-6 py-4 font-medium text-white">{req.id}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded text-[10px] font-bold ${isPrf ? 'bg-purple-500/20 text-purple-300' : 'bg-orange-500/20 text-orange-300'}`}>
-                                            {isPrf ? 'PRF' : 'BURF'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-300">
-                                        <div className="truncate max-w-[200px]" title={req.description}>{req.description}</div>
-                                        {req.priority === 'URGENT' && <span className="text-[10px] text-orange-400 font-bold block mt-1">URGENT</span>}
-                                    </td>
-                                    <td className="px-6 py-4 font-medium text-emerald-400">
-                                        {business?.currency} {req.totalAmount?.toLocaleString()}
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-400 text-xs">{business?.name || 'N/A'}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
-                                                {(requester?.name || '?').charAt(0)}
+                                return (
+                                    <tr
+                                        key={req.id}
+                                        className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                                        onClick={(e) => {
+                                            // Don't open drawer if clicking action buttons
+                                            if ((e.target as HTMLElement).closest('button, a')) return;
+                                            setDrawerReq(req);
+                                        }}
+                                    >
+                                        <td className="px-6 py-4 font-medium text-white">{req.id}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${isPrf ? 'bg-purple-500/20 text-purple-300' : 'bg-orange-500/20 text-orange-300'}`}>
+                                                {isPrf ? 'PRF' : 'BURF'}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-300">
+                                            <div className="truncate max-w-[200px]" title={req.description}>{req.description}</div>
+                                            {req.priority === 'URGENT' && <span className="text-[10px] text-orange-400 font-bold block mt-1">URGENT</span>}
+                                        </td>
+                                        <td className="px-6 py-4 font-medium text-emerald-400">
+                                            {business?.currency} {req.totalAmount?.toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-400 text-xs">{business?.name || 'N/A'}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                                    {(requester?.name || '?').charAt(0)}
+                                                </div>
+                                                <span className="text-slate-300 text-xs">{requester?.name || 'Unknown'}</span>
                                             </div>
-                                            <span className="text-slate-300 text-xs">{requester?.name || 'Unknown'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-400 text-xs">
-                                        {new Date(req.dateCreated).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {getStatusBadge(req.status)}
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button
-                                                onClick={(e) => handlePrintClick(req, e)}
-                                                className="p-2 text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
-                                                title="View Details / Print"
-                                            >
-                                                <Printer size={18} />
-                                            </button>
-                                            {activeTab === 'pending' && (
-                                                <>
-                                                    <button
-                                                        onClick={(e) => handleRejectClick(req, e)}
-                                                        className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
-                                                        title="Reject"
-                                                    >
-                                                        <XCircle size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleApprove(req, e)}
-                                                        className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
-                                                        title="Approve"
-                                                    >
-                                                        <CheckCircle size={18} />
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-400 text-xs">
+                                            {new Date(req.dateCreated).toLocaleDateString()}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {getStatusBadge(req.status)}
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={(e) => handlePrintClick(req, e)}
+                                                    className="p-2 text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                    title="View Details / Print"
+                                                >
+                                                    <Printer size={18} />
+                                                </button>
+                                                {activeTab === 'pending' && (
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => handleRejectClick(req, e)}
+                                                            className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+                                                            title="Reject"
+                                                        >
+                                                            <XCircle size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleApprove(req, e)}
+                                                            className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
+                                                            title="Approve"
+                                                        >
+                                                            <CheckCircle size={18} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {filteredRequisitions.length === 0 && (
+                                <tr>
+                                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500 italic">
+                                        {activeTab === 'pending'
+                                            ? 'No pending approvals found matching your filters.'
+                                            : 'No approved requisitions found matching your filters.'}
                                     </td>
                                 </tr>
-                            );
-                        })}
-                        {filteredRequisitions.length === 0 && (
-                            <tr>
-                                <td colSpan={9} className="px-6 py-12 text-center text-slate-500 italic">
-                                    {activeTab === 'pending'
-                                        ? 'No pending approvals found matching your filters.'
-                                        : 'No approved requisitions found matching your filters.'}
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </Card>
 
             <RejectionModal

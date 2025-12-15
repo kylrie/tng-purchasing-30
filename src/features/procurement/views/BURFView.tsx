@@ -469,173 +469,175 @@ export const BurfView: React.FC<BurfViewProps> = ({
             </div>
 
             <Card className="overflow-hidden !p-0">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
-                        <tr>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('id')}
-                            >
-                                <div className="flex items-center">
-                                    ID {renderSortIcon('id')}
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('description')}
-                            >
-                                <div className="flex items-center">
-                                    Description {renderSortIcon('description')}
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('businessId')}
-                            >
-                                <div className="flex items-center">
-                                    Business Unit {renderSortIcon('businessId')}
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('requesterId')}
-                            >
-                                <div className="flex items-center">
-                                    Requested By {renderSortIcon('requesterId')}
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('dateNeeded')}
-                            >
-                                <div className="flex items-center">
-                                    Date Needed {renderSortIcon('dateNeeded')}
-                                </div>
-                            </th>
-                            <th
-                                className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
-                                onClick={() => handleSort('status')}
-                            >
-                                <div className="flex items-center">
-                                    Status {renderSortIcon('status')}
-                                </div>
-                            </th>
-                            <th className="px-6 py-4">Link</th>
-                            <th className="px-6 py-4">Rejection Reason</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                        {tabbedRequisitions.map(req => {
-                            // Use denormalized requesterName, fallback to lookup for legacy data
-                            const requesterName = req.requesterName || allUsers.find(u => u.id === req.requesterId)?.name || 'Unknown';
-                            const business = businesses.find(b => b.id === req.businessId);
-                            const isOwner = req.requesterId === currentUser.id;
-                            const canEdit = (isOwner && (req.status === RequisitionStatus.DRAFT || req.status === RequisitionStatus.REJECTED));
-
-                            return (
-                                <tr
-                                    key={req.id}
-                                    className="hover:bg-slate-800/60 cursor-pointer transition-colors"
-                                    onClick={(e) => {
-                                        // Don't open drawer if clicking action buttons
-                                        if ((e.target as HTMLElement).closest('button, a')) return;
-                                        openDrawer(req);
-                                    }}
+                <div className="max-h-[600px] overflow-y-auto">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                            <tr>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('id')}
                                 >
-                                    <td className="px-6 py-4 font-medium text-slate-200">{req.id}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="font-medium text-slate-200">{req.description}</div>
-                                        <div className="text-xs text-slate-400">{req.items.length} items</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-300 font-medium text-xs">{business?.name || 'N/A'}</td>
-                                    {/* FIXED: Use denormalized requesterName directly */}
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 overflow-hidden">
-                                                {req.requesterPhotoUrl ? (
-                                                    <img src={req.requesterPhotoUrl} alt={requesterName} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    requesterName.charAt(0).toUpperCase()
+                                    <div className="flex items-center">
+                                        ID {renderSortIcon('id')}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('description')}
+                                >
+                                    <div className="flex items-center">
+                                        Description {renderSortIcon('description')}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('businessId')}
+                                >
+                                    <div className="flex items-center">
+                                        Business Unit {renderSortIcon('businessId')}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('requesterId')}
+                                >
+                                    <div className="flex items-center">
+                                        Requested By {renderSortIcon('requesterId')}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('dateNeeded')}
+                                >
+                                    <div className="flex items-center">
+                                        Date Needed {renderSortIcon('dateNeeded')}
+                                    </div>
+                                </th>
+                                <th
+                                    className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
+                                    onClick={() => handleSort('status')}
+                                >
+                                    <div className="flex items-center">
+                                        Status {renderSortIcon('status')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-4">Link</th>
+                                <th className="px-6 py-4">Rejection Reason</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-700">
+                            {tabbedRequisitions.map(req => {
+                                // Use denormalized requesterName, fallback to lookup for legacy data
+                                const requesterName = req.requesterName || allUsers.find(u => u.id === req.requesterId)?.name || 'Unknown';
+                                const business = businesses.find(b => b.id === req.businessId);
+                                const isOwner = req.requesterId === currentUser.id;
+                                const canEdit = (isOwner && (req.status === RequisitionStatus.DRAFT || req.status === RequisitionStatus.REJECTED));
+
+                                return (
+                                    <tr
+                                        key={req.id}
+                                        className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                        onClick={(e) => {
+                                            // Don't open drawer if clicking action buttons
+                                            if ((e.target as HTMLElement).closest('button, a')) return;
+                                            openDrawer(req);
+                                        }}
+                                    >
+                                        <td className="px-6 py-4 font-medium text-slate-200">{req.id}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="font-medium text-slate-200">{req.description}</div>
+                                            <div className="text-xs text-slate-400">{req.items.length} items</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-300 font-medium text-xs">{business?.name || 'N/A'}</td>
+                                        {/* FIXED: Use denormalized requesterName directly */}
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 overflow-hidden">
+                                                    {req.requesterPhotoUrl ? (
+                                                        <img src={req.requesterPhotoUrl} alt={requesterName} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        requesterName.charAt(0).toUpperCase()
+                                                    )}
+                                                </div>
+                                                <span className="text-slate-200">{requesterName}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-300 text-xs">
+                                            <div className="flex items-center gap-2">
+                                                <span>{req.dateNeeded ? new Date(req.dateNeeded).toLocaleDateString() : '-'}</span>
+                                                {req.priority === 'URGENT' && (
+                                                    <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-1.5 py-0.5 rounded-full uppercase">Urgent</span>
                                                 )}
                                             </div>
-                                            <span className="text-slate-200">{requesterName}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-slate-300 text-xs">
-                                        <div className="flex items-center gap-2">
-                                            <span>{req.dateNeeded ? new Date(req.dateNeeded).toLocaleDateString() : '-'}</span>
-                                            {req.priority === 'URGENT' && (
-                                                <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-1.5 py-0.5 rounded-full uppercase">Urgent</span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 cursor-pointer hover:opacity-80" onClick={(e) => { e.stopPropagation(); /* setTrackingReq(req) */ }}>
-                                        {getStatusBadge(req.status)}
-                                    </td>
-                                    {/* External Link - paperclip icon that opens externalLink or first attachment */}
-                                    <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                                        {(req.externalLink || req.attachments?.[0]) ? (
-                                            <a
-                                                href={req.externalLink || req.attachments?.[0]}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-blue-400 hover:text-blue-300 p-1"
-                                                title="Open Reference Link"
-                                            >
-                                                <Paperclip size={16} />
-                                            </a>
-                                        ) : (
-                                            <span className="text-slate-600">-</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-red-400">
-                                        {req.status === RequisitionStatus.REJECTED && req.remarks ? (
-                                            <span className="flex items-center gap-1">
-                                                <AlertTriangle size={14} />
-                                                {req.remarks.split('[REJECTED]:').pop()?.trim() || 'No reason provided'}
-                                            </span>
-                                        ) : (
-                                            <span className="text-slate-600">-</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
-                                        <div className="flex justify-end gap-2 items-center">
-                                            <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-white p-1" title="Print BURF">
-                                                <Printer size={16} />
-                                            </button>
-
-                                            {canEdit && (
-                                                <button
-                                                    onClick={() => editRequisition(req)}
+                                        </td>
+                                        <td className="px-6 py-4 cursor-pointer hover:opacity-80" onClick={(e) => { e.stopPropagation(); /* setTrackingReq(req) */ }}>
+                                            {getStatusBadge(req.status)}
+                                        </td>
+                                        {/* External Link - paperclip icon that opens externalLink or first attachment */}
+                                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                                            {(req.externalLink || req.attachments?.[0]) ? (
+                                                <a
+                                                    href={req.externalLink || req.attachments?.[0]}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
                                                     className="text-blue-400 hover:text-blue-300 p-1"
-                                                    title={req.status === RequisitionStatus.REJECTED ? "Re-file" : "Edit"}
+                                                    title="Open Reference Link"
                                                 >
-                                                    {req.status === RequisitionStatus.REJECTED ? <RefreshCw size={16} /> : <Edit size={16} />}
-                                                </button>
+                                                    <Paperclip size={16} />
+                                                </a>
+                                            ) : (
+                                                <span className="text-slate-600">-</span>
                                             )}
-                                        </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-red-400">
+                                            {req.status === RequisitionStatus.REJECTED && req.remarks ? (
+                                                <span className="flex items-center gap-1">
+                                                    <AlertTriangle size={14} />
+                                                    {req.remarks.split('[REJECTED]:').pop()?.trim() || 'No reason provided'}
+                                                </span>
+                                            ) : (
+                                                <span className="text-slate-600">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
+                                            <div className="flex justify-end gap-2 items-center">
+                                                <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-white p-1" title="Print BURF">
+                                                    <Printer size={16} />
+                                                </button>
+
+                                                {canEdit && (
+                                                    <button
+                                                        onClick={() => editRequisition(req)}
+                                                        className="text-blue-400 hover:text-blue-300 p-1"
+                                                        title={req.status === RequisitionStatus.REJECTED ? "Re-file" : "Edit"}
+                                                    >
+                                                        {req.status === RequisitionStatus.REJECTED ? <RefreshCw size={16} /> : <Edit size={16} />}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                            {tabbedRequisitions.length === 0 && (
+                                <tr>
+                                    <td colSpan={9} className="px-6 py-12 text-center">
+                                        {activeTab === 'completed' ? (
+                                            <div className="flex flex-col items-center gap-2 text-slate-500">
+                                                <ArrowRightCircle size={32} className="text-slate-600" />
+                                                <p className="text-sm">No BURFs converted to PRF yet.</p>
+                                                <p className="text-xs">BURFs appear here once all items have been converted to PRFs.</p>
+                                            </div>
+                                        ) : (
+                                            <p className="text-slate-400 italic">No active requisitions found.</p>
+                                        )}
                                     </td>
                                 </tr>
-                            );
-                        })}
-                        {tabbedRequisitions.length === 0 && (
-                            <tr>
-                                <td colSpan={9} className="px-6 py-12 text-center">
-                                    {activeTab === 'completed' ? (
-                                        <div className="flex flex-col items-center gap-2 text-slate-500">
-                                            <ArrowRightCircle size={32} className="text-slate-600" />
-                                            <p className="text-sm">No BURFs converted to PRF yet.</p>
-                                            <p className="text-xs">BURFs appear here once all items have been converted to PRFs.</p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-slate-400 italic">No active requisitions found.</p>
-                                    )}
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </Card>
 
             {printReq && <BURFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} />}
