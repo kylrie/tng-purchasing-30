@@ -297,10 +297,11 @@ service cloud.firestore {
             request.resource.data.status == 'BURF_PENDING_MANAGER' || 
             request.resource.data.status == 'PRF_PENDING_MANAGER'))
           ||
-          // PRF created from BURF: prfDetails.preparedBy is the current user
+          // PRF created from BURF: user has permission to prepare PRF
+          // FIX: Allow if user has requisition:prepare:prf permission (regardless of preparedBy)
           (request.resource.data.parentBurfId is string &&
-           request.resource.data.prfDetails.preparedBy == request.auth.uid &&
-           request.resource.data.status == 'PRF_PENDING_MANAGER')
+           request.resource.data.status == 'PRF_PENDING_MANAGER' &&
+           hasPermission('requisition:prepare:prf'))
           ||
           // PCF Replenishment: Manager with approval permission can create PRF at APPROVED_FOR_PAYMENT
           // This happens when approving a PCF liquidation (Fast Track auto-PRF)
