@@ -68,7 +68,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     const [isSavingDraft, setIsSavingDraft] = useState(false);
 
     // Determine if this is a BURF→PRF conversion (not a Direct PRF or PRF edit)
-    const isFromBurf = requisition.status === RequisitionStatus.READY_FOR_PRF;
+    // Includes BURF_PARTIALLY_PROCESSED for multi-batch PRF creation
+    const isFromBurf = requisition.status === RequisitionStatus.READY_FOR_PRF ||
+        requisition.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED;
 
     // Filter list of eligible approvers by business unit (STRICT MATCH)
     // For BURF→PRF: Only show BUM (Business Unit Manager) approvers
@@ -242,7 +244,10 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             const preparedByName = preparer?.name || 'Unknown';
 
             // BURF-to-PRF Conversion with splitting: Use transactional service
-            if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length > 0) {
+            // Includes BURF_PARTIALLY_PROCESSED for multi-batch PRF creation
+            const isBurfConversion = requisition.status === RequisitionStatus.READY_FOR_PRF ||
+                requisition.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED;
+            if (isBurfConversion && unselectedItems.length > 0) {
                 // Use the new transactional service for atomic PRF creation + BURF update
                 await RequisitionService.createBatchPrfFromBurf({
                     sourceBurfId: requisition.id,
@@ -260,7 +265,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
                 // Close modal - parent will refresh from Firestore subscription
                 onClose();
-            } else if (requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedItems.length === 0) {
+            } else if (isBurfConversion && unselectedItems.length === 0) {
                 // ALL items selected for conversion - use transactional service
                 await RequisitionService.createBatchPrfFromBurf({
                     sourceBurfId: requisition.id,
@@ -325,7 +330,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
     // Computed values for UI hints (using selectedItemIds)
     const unselectedCount = items.filter(i => !selectedItemIds.has(i.itemId)).length;
-    const isSplitting = requisition.status === RequisitionStatus.READY_FOR_PRF && unselectedCount > 0;
+    const isBurfStatus = requisition.status === RequisitionStatus.READY_FOR_PRF ||
+        requisition.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED;
+    const isSplitting = isBurfStatus && unselectedCount > 0;
 
     return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">

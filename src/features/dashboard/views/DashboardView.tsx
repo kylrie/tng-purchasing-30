@@ -112,9 +112,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         ...businesses.map(b => ({ value: b.id, label: b.name }))
     ];
 
-    // For PRF Count
+    // For PRF Count (includes BURF_PARTIALLY_PROCESSED for multi-batch PRF creation)
     const forPrfCount = requisitions.filter(r =>
-        r.status === RequisitionStatus.READY_FOR_PRF
+        r.status === RequisitionStatus.READY_FOR_PRF ||
+        r.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED
     ).length;
 
     // === NEW METRICS FOR MANAGERS ===
@@ -302,8 +303,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
 
     // Ready for PRF Items (Purchasing Officer View)
+    // Includes both READY_FOR_PRF and BURF_PARTIALLY_PROCESSED (for multi-batch PRF creation)
     const readyForPrfItems = requisitions.filter(r => {
-        if (r.status !== RequisitionStatus.READY_FOR_PRF) return false;
+        if (r.status !== RequisitionStatus.READY_FOR_PRF &&
+            r.status !== RequisitionStatus.BURF_PARTIALLY_PROCESSED) return false;
         if (!hasPermission('requisition:create:prf')) return false;
 
         // Filter by Business Unit

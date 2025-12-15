@@ -867,9 +867,11 @@ export const PrfView: React.FC<PrfViewProps> = ({
     }, [visibleRequisitions]);
 
     // Tab 1: "For Processing" - Parent BURFs waiting to become PRFs
+    // Includes BURF_PARTIALLY_PROCESSED for multi-batch PRF creation
     const processingReqs = useMemo(() => {
         return visibleRequisitions.filter(r =>
-            r.status === RequisitionStatus.READY_FOR_PRF &&
+            (r.status === RequisitionStatus.READY_FOR_PRF ||
+                r.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED) &&
             !r.id.includes('-Batch') // Exclude child batches
         );
     }, [visibleRequisitions]);
@@ -1285,7 +1287,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                     </button>
                                                 )}
 
-                                                {req.status === RequisitionStatus.READY_FOR_PRF && hasPermission('requisition:prepare:prf') && (
+                                                {(req.status === RequisitionStatus.READY_FOR_PRF || req.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED) && hasPermission('requisition:prepare:prf') && (
                                                     <button onClick={() => setPreparePRFReq(req)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium">Prepare PRF</button>
                                                 )}
 
