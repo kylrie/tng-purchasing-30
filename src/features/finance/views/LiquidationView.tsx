@@ -122,17 +122,16 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           >
             My Liquidations
           </button>
-          {hasPermission('liquidation:audit') && (
-            <button
-              className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'for_audit'
-                ? 'border-b-2 border-cyan-500 text-cyan-400'
-                : 'text-slate-400 hover:text-slate-300'
-                }`}
-              onClick={() => setActiveTab('for_audit')}
-            >
-              For Audit ({auditingReqs.length})
-            </button>
-          )}
+          {/* Show For Audit tab to users with liquidation:view - the Audit button itself requires liquidation:audit */}
+          <button
+            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'for_audit'
+              ? 'border-b-2 border-cyan-500 text-cyan-400'
+              : 'text-slate-400 hover:text-slate-300'
+              }`}
+            onClick={() => setActiveTab('for_audit')}
+          >
+            For Audit ({auditingReqs.length})
+          </button>
         </div>
 
         <Card className="!p-0">
