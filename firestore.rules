@@ -355,9 +355,12 @@ service cloud.firestore {
         // BURF-to-PRF Conversion: Update BURF when creating PRF batch
         // Allows updating items/totalAmount/status when converting BURF to PRF
         // FIX: Allow users with requisition:prepare:prf permission (e.g., PURCHASING_OFFICER) to prepare PRFs across all BUs
+        // FIX: Allow BURF_PARTIALLY_PROCESSED as source (for subsequent batches) and target (when items remain)
         (
-          resource.data.status == 'READY_FOR_PRF' &&
-          (request.resource.data.status == 'READY_FOR_PRF' || request.resource.data.status == 'BURF_COMPLETED') &&
+          (resource.data.status == 'READY_FOR_PRF' || resource.data.status == 'BURF_PARTIALLY_PROCESSED') &&
+          (request.resource.data.status == 'READY_FOR_PRF' || 
+           request.resource.data.status == 'BURF_PARTIALLY_PROCESSED' || 
+           request.resource.data.status == 'BURF_COMPLETED') &&
           (belongsToSameBU(resource) || hasPermission('requisition:prepare:prf')) &&
            // FIX C1: Restrict updates to only allow system logic changes (items, status, etc.)
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
