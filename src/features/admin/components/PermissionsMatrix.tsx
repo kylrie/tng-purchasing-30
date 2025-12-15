@@ -310,21 +310,26 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     }
   };
 
-  const handleAddRole = () => {
+  const handleAddRole = async () => {
     if (newRole && !(roles || []).includes(newRole as UserRole)) {
       const newRoleKey = newRole.toUpperCase().replace(/\s/g, '_') as UserRole;
       const newRoles = [...(roles || []), newRoleKey];
       const newPermissions = { ...permissions, [newRoleKey]: [] };
       setRoles(newRoles);
       setPermissions(newPermissions);
-      onSave({ permissions: newPermissions, roles: newRoles });
-      setNewRole('');
-      setIsDirty(false);
-      alert('Role added and permissions saved.');
+      try {
+        await onSave({ permissions: newPermissions, roles: newRoles });
+        setNewRole('');
+        setIsDirty(false);
+        alert('Role added and permissions saved.');
+      } catch (error) {
+        console.error('Error saving new role:', error);
+        alert('Failed to save new role. Please try again.');
+      }
     }
   };
 
-  const handleDeleteRole = (roleToDelete: UserRole) => {
+  const handleDeleteRole = async (roleToDelete: UserRole) => {
     if (DEFAULT_ROLES.includes(roleToDelete)) {
       alert("Cannot delete default system roles.");
       return;
@@ -335,9 +340,14 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
       delete updated[roleToDelete];
       setRoles(newRoles);
       setPermissions(updated);
-      onSave({ permissions: updated, roles: newRoles });
-      setIsDirty(false);
-      alert('Role deleted and permissions saved.');
+      try {
+        await onSave({ permissions: updated, roles: newRoles });
+        setIsDirty(false);
+        alert('Role deleted and permissions saved.');
+      } catch (error) {
+        console.error('Error deleting role:', error);
+        alert('Failed to delete role. Please try again.');
+      }
     }
   };
 
