@@ -767,7 +767,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                                 <div className="overflow-x-auto border border-slate-700 rounded-lg">
                                     <table className="w-full text-left text-sm text-slate-300">
-                                        <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
+                                        <thead className="bg-slate-900/80 text-slate-400 uppercase text-xs sticky top-0 z-20 backdrop-blur-sm">
                                             <tr><th className="p-3">User</th><th className="p-3">Role</th><th className="p-3">Business Units</th><th className="p-3 text-right">Actions</th></tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-700">

@@ -269,7 +269,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
 
                         <div className="overflow-x-auto border border-slate-700 rounded-lg">
                             <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
-                                <thead className="bg-slate-800 text-xs uppercase text-slate-400">
+                                <thead className="bg-slate-800 text-xs uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-3 py-3 text-left" style={{ width: '130px' }}>Date</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '160px' }}>Payee/Vendor</th>

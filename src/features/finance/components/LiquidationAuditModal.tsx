@@ -18,7 +18,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
 }) => {
     // Hooks
     const { hasPermission } = usePermissions();
-    
+
     // State
     const [notes, setNotes] = useState('');
     const [rejectionReason, setRejectionReason] = useState('');
@@ -42,13 +42,13 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
     const isRefund = difference >= 0;
 
     // Determine the attachment link
-    const attachmentLink = liquidation.attachmentLink || 
+    const attachmentLink = liquidation.attachmentLink ||
         (requisition.attachments && requisition.attachments.length > 0 ? requisition.attachments[0] : null);
 
     // Handlers
     const handleSubmit = async () => {
         if (!action) return;
-        
+
         setError(null);
         setLoading(true);
 
@@ -88,7 +88,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-            <div 
+            <div
                 className="bg-slate-800/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 max-w-4xl w-full max-h-[90vh] overflow-y-auto flex flex-col"
                 role="dialog"
                 aria-modal="true"
@@ -138,13 +138,13 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                     {liquidation.dateFiled ? new Date(liquidation.dateFiled).toLocaleDateString(undefined, { dateStyle: 'medium' }) : 'N/A'}
                                 </span>
                             </div>
-                            
+
                             {/* Supporting Documents */}
                             {attachmentLink && (
                                 <div className="md:col-span-2 mt-2">
-                                    <a 
-                                        href={attachmentLink} 
-                                        target="_blank" 
+                                    <a
+                                        href={attachmentLink}
+                                        target="_blank"
                                         rel="noopener noreferrer"
                                         className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-500/30 rounded-lg transition-colors group"
                                     >
@@ -158,26 +158,26 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
 
                     {/* Financial Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <FinancialCard 
-                            label="PRF Budget" 
-                            amount={prfTotal} 
-                            colorClass="bg-blue-900/20" 
-                            borderClass="border-blue-700/30" 
-                            textClass="text-blue-300" 
+                        <FinancialCard
+                            label="PRF Budget"
+                            amount={prfTotal}
+                            colorClass="bg-blue-900/20"
+                            borderClass="border-blue-700/30"
+                            textClass="text-blue-300"
                         />
-                        <FinancialCard 
-                            label="Actual Expenses" 
-                            amount={actualTotal} 
-                            colorClass="bg-purple-900/20" 
-                            borderClass="border-purple-700/30" 
-                            textClass="text-purple-300" 
+                        <FinancialCard
+                            label="Actual Expenses"
+                            amount={actualTotal}
+                            colorClass="bg-purple-900/20"
+                            borderClass="border-purple-700/30"
+                            textClass="text-purple-300"
                         />
-                        <FinancialCard 
-                            label={isRefund ? 'To Refund (Company)' : 'To Reimburse (Employee)'} 
-                            amount={Math.abs(difference)} 
-                            colorClass={isRefund ? 'bg-green-900/20' : 'bg-red-900/20'} 
-                            borderClass={isRefund ? 'border-green-700/30' : 'border-red-700/30'} 
-                            textClass={isRefund ? 'text-green-300' : 'text-red-300'} 
+                        <FinancialCard
+                            label={isRefund ? 'To Refund (Company)' : 'To Reimburse (Employee)'}
+                            amount={Math.abs(difference)}
+                            colorClass={isRefund ? 'bg-green-900/20' : 'bg-red-900/20'}
+                            borderClass={isRefund ? 'border-green-700/30' : 'border-red-700/30'}
+                            textClass={isRefund ? 'text-green-300' : 'text-red-300'}
                         />
                     </div>
 
@@ -187,7 +187,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                         <div className="border border-slate-700 rounded-lg overflow-hidden bg-slate-900/30">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
-                                    <thead className="bg-slate-900/80 border-b border-slate-700">
+                                    <thead className="bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
                                         <tr>
                                             <th className="px-4 py-3 text-left font-semibold text-slate-400">Item</th>
                                             <th className="px-4 py-3 text-right font-semibold text-slate-400">Qty</th>
@@ -240,7 +240,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                     {/* Action Area */}
                     <div className="pt-4 border-t border-slate-700/50">
                         {!canAudit ? (
-                             <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4 flex items-center gap-3 text-yellow-200">
+                            <div className="bg-yellow-900/20 border border-yellow-700/30 rounded-lg p-4 flex items-center gap-3 text-yellow-200">
                                 <AlertCircle size={20} />
                                 <span>You do not have permission to audit liquidations.</span>
                             </div>
@@ -262,18 +262,16 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                 </button>
                             </div>
                         ) : (
-                            <div className={`rounded-xl p-6 border animate-in slide-in-from-bottom-2 ${
-                                action === 'approve' 
-                                    ? 'bg-green-950/30 border-green-500/30' 
+                            <div className={`rounded-xl p-6 border animate-in slide-in-from-bottom-2 ${action === 'approve'
+                                    ? 'bg-green-950/30 border-green-500/30'
                                     : 'bg-red-950/30 border-red-500/30'
-                            }`}>
-                                <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${
-                                    action === 'approve' ? 'text-green-400' : 'text-red-400'
                                 }`}>
-                                    {action === 'approve' ? <CheckCircle size={20}/> : <XCircle size={20}/>}
+                                <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${action === 'approve' ? 'text-green-400' : 'text-red-400'
+                                    }`}>
+                                    {action === 'approve' ? <CheckCircle size={20} /> : <XCircle size={20} />}
                                     {action === 'approve' ? 'Confirm Approval' : 'Reject Liquidation'}
                                 </h3>
-                                
+
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -293,11 +291,10 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                         <button
                                             onClick={handleSubmit}
                                             disabled={loading || (action === 'reject' && !rejectionReason.trim())}
-                                            className={`flex-1 px-6 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2 transition-all ${
-                                                action === 'approve' 
-                                                    ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-900' 
+                                            className={`flex-1 px-6 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2 transition-all ${action === 'approve'
+                                                    ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-900'
                                                     : 'bg-red-600 hover:bg-red-500 disabled:bg-red-900'
-                                            } disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                } disabled:opacity-50 disabled:cursor-not-allowed`}
                                         >
                                             {loading ? (
                                                 <>

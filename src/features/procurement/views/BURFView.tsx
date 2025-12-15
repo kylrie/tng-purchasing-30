@@ -337,7 +337,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                         {newItems.length > 0 && (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-slate-900/50 text-xs text-slate-400">
+                                    <thead className="bg-slate-900/80 text-xs text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                         <tr>
                                             <th className="px-4 py-2">Item</th>
                                             <th className="px-4 py-2">Qty</th>
@@ -470,7 +470,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
             <Card className="overflow-hidden !p-0">
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
+                    <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                         <tr>
                             <th
                                 className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"

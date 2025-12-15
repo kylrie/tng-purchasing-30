@@ -98,7 +98,7 @@ const EditableItemTable: React.FC<EditableItemTableProps> = ({
     return (
         <div className="border border-slate-700 rounded-lg overflow-hidden">
             <table className="w-full text-sm">
-                <thead className="bg-slate-900/50 border-b border-slate-700">
+                <thead className="bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
                     <tr>
                         {showSelection && (
                             <th className="px-4 py-3 text-left font-semibold text-slate-400 w-8">

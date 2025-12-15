@@ -516,7 +516,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                 </h3>
                                 <div className="overflow-x-auto border border-slate-700 rounded-lg">
                                     <table className="w-full text-xs">
-                                        <thead className="bg-slate-800 text-slate-400 uppercase">
+                                        <thead className="bg-slate-800 text-slate-400 uppercase sticky top-0 z-20 backdrop-blur-sm">
                                             <tr>
                                                 <th className="px-3 py-2 text-left">Date</th>
                                                 <th className="px-3 py-2 text-left">Payee/Vendor</th>

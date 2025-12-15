@@ -634,7 +634,7 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left text-slate-300">
-                            <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
+                            <thead className="bg-slate-900/80 text-slate-400 uppercase text-xs sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-4 py-3">Code</th>
                                     <th className="px-4 py-3">Name</th>

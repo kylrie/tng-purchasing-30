@@ -124,7 +124,7 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                 </h3>
                 <div className="bg-slate-800/50 rounded-lg border border-slate-700 overflow-x-auto">
                     <table className="w-full text-xs min-w-[400px]">
-                        <thead className="bg-slate-900/50 text-[10px] uppercase text-slate-400">
+                        <thead className="bg-slate-900/80 text-[10px] uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
                                 <th className="px-2 py-2 text-left w-[30%]">Item</th>
                                 <th className="px-1 py-2 text-center w-[8%]">Qty</th>

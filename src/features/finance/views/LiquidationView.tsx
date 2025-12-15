@@ -197,7 +197,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
         <Card className="!p-0">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-white">
-              <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400">
+              <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                 <tr>
                   <th className="px-6 py-4">PRF ID</th>
                   <th className="px-6 py-4">Business Unit</th>

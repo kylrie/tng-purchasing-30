@@ -134,7 +134,7 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
 
             <Card className="overflow-hidden !p-0">
                 <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-900/50 text-xs uppercase font-semibold text-slate-400 border-b border-slate-700">
+                    <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
                         <tr>
                             <th className="px-6 py-4">ID</th>
                             <th className="px-6 py-4">Type</th>

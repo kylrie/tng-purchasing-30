@@ -214,7 +214,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
 
                         <div className="overflow-x-auto border border-slate-700 rounded-lg">
                             <table className="w-full text-sm" style={{ minWidth: '900px' }}>
-                                <thead className="bg-slate-900/50 text-xs uppercase text-slate-400">
+                                <thead className="bg-slate-900/80 text-xs uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-3 py-3 text-left" style={{ width: '120px' }}>Date</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '150px' }}>Supplier</th>

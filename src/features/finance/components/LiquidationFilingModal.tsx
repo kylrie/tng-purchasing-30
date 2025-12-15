@@ -148,7 +148,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                         <h3 className="text-lg font-semibold text-white mb-4">Itemized Costs & Receipts</h3>
                         <div className="border border-slate-700 rounded-lg overflow-hidden">
                             <table className="w-full text-sm">
-                                <thead className="bg-slate-900/50 border-b border-slate-700">
+                                <thead className="bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-400">ITEM</th>
                                         <th className="px-4 py-3 text-left font-semibold text-slate-400">QTY</th>
@@ -241,8 +241,8 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                         onClick={handleSubmit}
                         disabled={!isValid() || loading}
                         className={`px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all ${isValid() && !loading
-                                ? 'bg-green-600 text-white hover:bg-green-700'
-                                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                            ? 'bg-green-600 text-white hover:bg-green-700'
+                            : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                             }`}
                     >
                         <DollarSign size={20} />

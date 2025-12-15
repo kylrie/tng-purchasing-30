@@ -112,7 +112,7 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
                         <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Items ({requisition.items.length})</h3>
                         <Card className="!p-0 overflow-hidden">
                             <table className="w-full text-sm">
-                                <thead className="bg-slate-800/80 text-xs uppercase text-slate-400">
+                                <thead className="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-4 py-3 text-left">Item</th>
                                         <th className="px-4 py-3 text-center">Qty</th>

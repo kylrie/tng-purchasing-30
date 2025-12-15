@@ -370,7 +370,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left text-slate-300">
-                            <thead className="text-xs uppercase text-slate-400 bg-slate-800/50">
+                            <thead className="text-xs uppercase text-slate-400 bg-slate-800/80 sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-4 py-3">Date</th>
                                     {viewAll && <th className="px-4 py-3">Custodian</th>}
@@ -580,7 +580,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                 </h3>
                                 <div className="overflow-x-auto border border-slate-700 rounded-lg">
                                     <table className="w-full text-xs">
-                                        <thead className="bg-slate-800 text-slate-400 uppercase">
+                                        <thead className="bg-slate-800 text-slate-400 uppercase sticky top-0 z-20 backdrop-blur-sm">
                                             <tr>
                                                 <th className="px-3 py-2 text-left">Date</th>
                                                 <th className="px-3 py-2 text-left">Payee/Vendor</th>
