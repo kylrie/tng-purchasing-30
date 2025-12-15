@@ -24,11 +24,15 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     users = [] // Default to empty array if not provided
 }) => {
     // Items state - store as pure RequisitionItem[] with separate selection Set
+    // Filter out items that have already been converted to PRF (tracked in convertedItemIds)
+    const convertedItemIdsSet = new Set(requisition.convertedItemIds || []);
+    const availableItems = requisition.items.filter(item => !convertedItemIdsSet.has(item.itemId));
+
     const [items, setItems] = useState<RequisitionItem[]>(
-        requisition.items.map(item => ({ ...item, price: item.price ?? 0 }))
+        availableItems.map(item => ({ ...item, price: item.price ?? 0 }))
     );
     const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(
-        new Set(requisition.items.map(item => item.itemId))
+        new Set(availableItems.map(item => item.itemId))
     );
 
     const existingSupplier = requisition.prfDetails?.supplier;
