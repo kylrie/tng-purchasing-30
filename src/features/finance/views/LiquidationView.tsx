@@ -33,7 +33,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const [editingLiquidationReq, setEditingLiquidationReq] = useState<Requisition | null>(null);
   const [auditReq, setAuditReq] = useState<Requisition | null>(null);
   const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
-  const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit'>('liquidations');
+  const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit' | 'my_history'>('liquidations');
   const { hasPermission } = usePermissions();
 
   const canView = hasPermission('liquidation:view');
@@ -102,7 +102,58 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     req => req.status === RequisitionStatus.LIQUIDATION_FILED
   );
 
-  const displayedReqs = activeTab === 'liquidations' ? liquidationReqs : auditingReqs;
+  // My History: All liquidations filed by current user (pending, approved, or rejected)
+  const myHistoryReqs = requisitions.filter(
+    req => {
+      // Must be filed by current user OR user is the preparer (for BURF-converted PRFs)
+      const isMyLiquidation =
+        req.liquidationDetails?.submittedBy === currentUser.id ||
+        (req.prfDetails?.preparedBy === currentUser.id && req.liquidationDetails);
+
+      if (!isMyLiquidation) return false;
+
+      // Include pending audit, approved, or rejected
+      return [
+        RequisitionStatus.LIQUIDATION_FILED,
+        RequisitionStatus.AUDITED_CLEARED,
+        RequisitionStatus.LIQUIDATION_REJECTED
+      ].includes(req.status);
+    }
+  ).sort((a, b) => {
+    // Sort by date filed, most recent first
+    const dateA = a.liquidationDetails?.dateFiled || a.dateCreated;
+    const dateB = b.liquidationDetails?.dateFiled || b.dateCreated;
+    return new Date(dateB).getTime() - new Date(dateA).getTime();
+  });
+
+  // Custom liquidation status badge function
+  const getLiquidationStatusBadge = (req: Requisition) => {
+    if (req.status === RequisitionStatus.LIQUIDATION_FILED) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
+          Pending Audit
+        </span>
+      );
+    }
+    if (req.status === RequisitionStatus.AUDITED_CLEARED) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+          Approved
+        </span>
+      );
+    }
+    if (req.status === RequisitionStatus.LIQUIDATION_REJECTED) {
+      return (
+        <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+          Rejected
+        </span>
+      );
+    }
+    return getStatusBadge(req.status);
+  };
+
+  const displayedReqs = activeTab === 'liquidations' ? liquidationReqs :
+    activeTab === 'for_audit' ? auditingReqs : myHistoryReqs;
 
   return (
     <>
@@ -121,6 +172,15 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
             onClick={() => setActiveTab('liquidations')}
           >
             My Liquidations
+          </button>
+          <button
+            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'my_history'
+              ? 'border-b-2 border-cyan-500 text-cyan-400'
+              : 'text-slate-400 hover:text-slate-300'
+              }`}
+            onClick={() => setActiveTab('my_history')}
+          >
+            My History ({myHistoryReqs.length})
           </button>
           {/* Show For Audit tab to users with liquidation:view - the Audit button itself requires liquidation:audit */}
           <button
@@ -169,7 +229,9 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                     </td>
                     <td className="px-6 py-4">₱{req.totalAmount?.toLocaleString()}</td>
                     <td className="px-6 py-4 text-purple-400 font-medium">{req.chequeNumber || '-'}</td>
-                    <td className="px-6 py-4">{getStatusBadge(req.status)}</td>
+                    <td className="px-6 py-4">
+                      {activeTab === 'my_history' ? getLiquidationStatusBadge(req) : getStatusBadge(req.status)}
+                    </td>
                     <td className="px-6 py-4 text-sm text-red-400">
                       {(req.status === RequisitionStatus.LIQUIDATION_REJECTED || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)) ? (
                         <span className="flex items-center gap-1">
