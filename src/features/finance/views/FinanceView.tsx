@@ -97,10 +97,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         setReleaseModalOpen(true);
     };
 
-    const confirmRelease = () => {
+    const confirmRelease = (chequeNumber: string, chequeImageUrl: string) => {
         if (selectedReq) {
-            // Use existing cheque data from check prep step
-            handleReleaseFunds(selectedReq.id, selectedReq.chequeNumber || '', selectedReq.chequeImageUrl || '');
+            handleReleaseFunds(selectedReq.id, chequeNumber, chequeImageUrl);
             setReleaseModalOpen(false);
             setSelectedReq(null);
             setDrawerReq(null); // Close drawer after release

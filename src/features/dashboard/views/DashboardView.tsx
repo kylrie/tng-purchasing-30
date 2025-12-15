@@ -1254,12 +1254,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         requisition={releaseFundReq}
                         isOpen={!!releaseFundReq}
                         onClose={() => setReleaseFundReq(null)}
-                        onConfirm={() => {
-                            // Use existing cheque data from check prep step
+                        onConfirm={(chequeNumber, chequeImageUrl) => {
                             const updatedReq = {
                                 ...releaseFundReq,
                                 status: RequisitionStatus.FUNDS_RELEASED,
-                                fundReleaseDate: new Date().toISOString()
+                                fundReleaseDate: new Date().toISOString(),
+                                chequeNumber: chequeNumber,
+                                chequeImageUrl: chequeImageUrl
                             };
                             onUpdateRequisition(updatedReq);
                             setReleaseFundReq(null);

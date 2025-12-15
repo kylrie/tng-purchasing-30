@@ -3,6 +3,7 @@ import { Search, RefreshCw, AlertTriangle, Building2 } from 'lucide-react';
 import type { Requisition, User, Business } from '../types';
 import { RequisitionStatus } from '../types';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
+import PRFPrintModal from '../components/PRFPrintModal';
 import { usePermissions } from '../../../hooks/usePermissions';
 
 interface PRFTrackerViewProps {
@@ -44,6 +45,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
     const [businessFilter, setBusinessFilter] = useState<string>('all');
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
     const [viewMode, setViewMode] = useState<'mine' | 'all'>('mine');
+    const [printReq, setPrintReq] = useState<Requisition | null>(null);
 
     // Check if user is admin
     const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
@@ -276,7 +278,17 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                 onClose={() => setDrawerReq(null)}
                 variant="PRF"
                 getStatusBadge={getStatusBadge}
+                onPrint={() => drawerReq && setPrintReq(drawerReq)}
             />
+
+            {/* PRF Print Modal */}
+            {printReq && (
+                <PRFPrintModal
+                    req={printReq}
+                    onClose={() => setPrintReq(null)}
+                    business={businesses.find(b => b.id === printReq.businessId)}
+                />
+            )}
         </>
     );
 };
