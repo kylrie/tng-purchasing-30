@@ -1359,8 +1359,36 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         }
                     }
                 }}
-                canApprove={!!drawerReq}
-                canReject={!!drawerReq}
+                canApprove={
+                    !!drawerReq && (
+                        // BURF Workflow
+                        (drawerReq.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('approval:manager:burf')) ||
+                        (drawerReq.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('approval:cic:burf')) ||
+                        // PRF Workflow
+                        (drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER && hasPermission('approval:manager:prf')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL && hasPermission('approval:gm:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD && hasPermission('approval:bod'))
+                    )
+                }
+                canReject={
+                    !!drawerReq && (
+                        // BURF Workflow
+                        (drawerReq.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('approval:manager:burf')) ||
+                        (drawerReq.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('approval:cic:burf')) ||
+                        // PRF Workflow
+                        (drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER && hasPermission('approval:manager:prf')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL && hasPermission('approval:gm:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD && hasPermission('approval:bod'))
+                    )
+                }
                 canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}
             />
 

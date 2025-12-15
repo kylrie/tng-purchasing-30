@@ -783,22 +783,27 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 {getStatusBadge(req.status)}
                                             </td>
                                             <td className="px-6 py-4">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <button
-                                                        onClick={(e) => handleApprove(req, e)}
-                                                        className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors"
-                                                        title="Authorize Check"
-                                                    >
-                                                        <CheckCircle size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleRejectClick(req, e)}
-                                                        className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
-                                                        title="Reject"
-                                                    >
-                                                        <XCircle size={18} />
-                                                    </button>
-                                                </div>
+                                                {/* BOD Check Authorization - permission-based visibility */}
+                                                {hasPermission('approval:bod') ? (
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <button
+                                                            onClick={(e) => handleApprove(req, e)}
+                                                            className="p-2 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 transition-colors"
+                                                            title="Authorize Check"
+                                                        >
+                                                            <CheckCircle size={18} />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleRejectClick(req, e)}
+                                                            className="p-2 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-colors"
+                                                            title="Reject"
+                                                        >
+                                                            <XCircle size={18} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-500 text-xs italic">BOD Only</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -878,8 +883,24 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         }
                     }
                 }}
-                canApprove={(activeTab === 'br_pending' || activeTab === 'check_pending') && !!drawerReq}
-                canReject={(activeTab === 'br_pending' || activeTab === 'check_pending') && !!drawerReq}
+                canApprove={
+                    !!drawerReq && (
+                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD && hasPermission('approval:bod'))
+                    )
+                }
+                canReject={
+                    !!drawerReq && (
+                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo')) ||
+                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD && hasPermission('approval:bod'))
+                    )
+                }
                 canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}
                 onPrint={() => {
                     if (drawerReq) {
