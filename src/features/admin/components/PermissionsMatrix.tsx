@@ -165,7 +165,13 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'approval:view:history': { label: 'View Approval History', category: 'Approval Workflow' },
 
   // Inventory Management
-  'inventory:manage:uom': { label: 'Manage Units of Measure', category: 'Admin Functions' },
+  'module:view:inventory': { label: 'Access Inventory Module', category: 'Inventory Management' },
+  'inventory:view:items': { label: 'View Inventory Items', category: 'Inventory Management' },
+  'inventory:manage:items': { label: 'Manage Inventory (Add/Edit/Delete)', category: 'Inventory Management' },
+  'inventory:manage:assets': { label: 'Manage Fixed Assets', category: 'Inventory Management', description: 'Add, edit, decommission equipment and machinery' },
+  'inventory:manage:storage_areas': { label: 'Manage Storage Areas', category: 'Inventory Management', description: 'Configure storage locations in Settings' },
+  'inventory:view:reports': { label: 'View Variance Reports', category: 'Inventory Management' },
+  'inventory:manage:uom': { label: 'Manage Units of Measure', category: 'Inventory Management' },
 
   // Chart of Accounts
   'coa:view': { label: 'View Chart of Accounts', category: 'Chart of Accounts' },

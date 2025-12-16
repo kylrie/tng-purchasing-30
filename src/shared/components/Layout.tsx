@@ -253,35 +253,35 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Inventory',
             icon: Warehouse,
-            canView: true,
+            canView: hasPermission('module:view:inventory'),
             children: [
-                { path: '/inventory', label: 'Dashboard', icon: LayoutDashboard, canView: true },
+                { path: '/inventory', label: 'Dashboard', icon: LayoutDashboard, canView: hasPermission('module:view:inventory') },
                 {
                     label: 'Stock Management',
                     icon: Boxes,
-                    canView: true,
+                    canView: hasPermission('inventory:view:items'),
                     children: [
-                        { path: '/inventory/items', label: 'All Items', icon: Package, canView: true },
-                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: true }
+                        { path: '/inventory/items', label: 'All Items', icon: Package, canView: hasPermission('inventory:view:items') },
+                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:view:items') }
                     ]
                 },
-                { path: '/inventory/fixed-assets', label: 'Fixed Assets', icon: Monitor, canView: true },
-                { path: '/inventory/receiving', label: 'Receiving', icon: Truck, canView: true },
+                { path: '/inventory/fixed-assets', label: 'Fixed Assets', icon: Monitor, canView: hasPermission('inventory:manage:assets') },
+                { path: '/inventory/receiving', label: 'Receiving', icon: Truck, canView: hasPermission('inventory:manage:items') },
                 {
                     label: 'Menu Engineering',
                     icon: ChefHat,
-                    canView: true,
+                    canView: hasPermission('inventory:manage:items'),
                     children: [
-                        { path: '/menu/finished-goods', label: 'Finished Goods', icon: ShoppingBag, canView: true },
-                        { path: '/menu/production-recipes', label: 'Production Recipes', icon: Factory, canView: true }
+                        { path: '/menu/finished-goods', label: 'Finished Goods', icon: ShoppingBag, canView: hasPermission('inventory:manage:items') },
+                        { path: '/menu/production-recipes', label: 'Production Recipes', icon: Factory, canView: hasPermission('inventory:manage:items') }
                     ]
                 },
                 {
                     label: 'Reports',
                     icon: BarChart3,
-                    canView: true,
+                    canView: hasPermission('inventory:view:reports'),
                     children: [
-                        { path: '/inventory/variance', label: 'Variance Report', icon: BarChart3, canView: true }
+                        { path: '/inventory/variance', label: 'Variance Report', icon: BarChart3, canView: hasPermission('inventory:view:reports') }
                     ]
                 }
             ]

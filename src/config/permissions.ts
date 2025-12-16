@@ -62,6 +62,12 @@ export const ALL_PERMISSIONS = [
   'admin:view:user_approvals',
 
   // Inventory Management
+  'module:view:inventory',        // Access Inventory module
+  'inventory:view:items',         // View inventory items/stock
+  'inventory:manage:items',       // Create, edit, delete inventory items
+  'inventory:manage:assets',      // Manage Fixed Assets (equipment, machinery)
+  'inventory:manage:storage_areas', // Manage storage area settings
+  'inventory:view:reports',       // View Variance Reports
   'inventory:manage:uom',
 
   // Chart of Accounts
@@ -128,6 +134,13 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'admin:manage:users',
     'admin:manage:businesses',
     'admin:view:user_approvals',
+    // Inventory (Full access for Admin)
+    'module:view:inventory',
+    'inventory:view:items',
+    'inventory:manage:items',
+    'inventory:manage:assets',
+    'inventory:manage:storage_areas',
+    'inventory:view:reports',
     'inventory:manage:uom',
     'approval:view:history',
     'ui:view:settings_page',
@@ -277,6 +290,11 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     // PRF Tracker
     'module:view:prf_tracker',
     'prf_tracker:view:all',
+    // Inventory (Managers can view and manage stock for their BU)
+    'module:view:inventory',
+    'inventory:view:items',
+    'inventory:manage:items',
+    'inventory:view:reports',
   ],
 
   // Basic user, can only create requests and see their own
@@ -296,6 +314,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'pcf:create',
     // Dashboard Widgets (limited)
     'dashboard:widget:pending_audit',
+    // Inventory (Employees can view inventory for stock takes)
+    'module:view:inventory',
+    'inventory:view:items',
   ],
 
   // Specialist approver with global view
@@ -342,6 +363,13 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:liquidation',
     'module:view:suppliers',
     'module:view:prf_tracker',  // Track PRFs they prepared
+    // Inventory (Purchasing can manage inventory items)
+    'module:view:inventory',
+    'inventory:view:items',
+    'inventory:manage:items',
+    'inventory:manage:assets',
+    'inventory:manage:storage_areas',
+    'inventory:view:reports',
     'inventory:manage:uom',
     // Dashboard Widgets
     'dashboard:widget:active_prfs',
