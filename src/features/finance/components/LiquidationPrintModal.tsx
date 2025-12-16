@@ -181,117 +181,74 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             </div>
                         )}
 
-                        {/* Expense Breakdown Table - New Format */}
+                        {/* Expense Breakdown Table - New Format Only */}
                         <div className="mb-8">
                             <h3 className="text-sm font-bold text-slate-900 uppercase mb-2">Expense Breakdown</h3>
-                            {liquidation.items && liquidation.items.length > 0 ? (
-                                // New format with detailed line items
-                                <table className="w-full text-[9px] border-collapse border border-slate-300">
-                                    <thead className="bg-slate-100 print:bg-slate-100">
-                                        <tr>
-                                            <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Date</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Vendor/Payee</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">TIN</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">OR No.</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">COA</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Description</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">BU</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-16">VAT</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-16">EWT</th>
-                                            <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-20">Amount</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(liquidation.items as any[]).map((item: any, index: number) => {
-                                            const isShared = item.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && item.buName?.toUpperCase().includes('CORP');
-                                            return (
-                                                <tr key={item.id || index}>
-                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">
-                                                        {item.date ? new Date(item.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
-                                                    </td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900 font-medium">{item.vendorName || '-'}</td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.tin || '-'}</td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.orNo || '-'}</td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.coa || '-'}</td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.description || '-'}</td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">
-                                                        {item.buName || '-'}
-                                                        {isShared && <span className="ml-1 text-purple-700 font-bold">[SHARE]</span>}
-                                                    </td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                                        {(item.vat || 0) > 0 ? `₱${item.vat.toLocaleString()}` : '-'}
-                                                    </td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                                        {(item.ewt || 0) > 0 ? `₱${item.ewt.toLocaleString()}` : '-'}
-                                                    </td>
-                                                    <td className="border border-slate-300 px-2 py-1 text-right font-medium text-slate-900">
-                                                        ₱{(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                    <tfoot className="bg-slate-50 font-bold">
-                                        <tr>
-                                            <td colSpan={7} className="border border-slate-300 px-2 py-1 text-right text-slate-900">Totals</td>
-                                            <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                                ₱{(liquidation.items as any[]).reduce((sum: number, i: any) => sum + (i.vat || 0), 0).toLocaleString()}
-                                            </td>
-                                            <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                                ₱{(liquidation.items as any[]).reduce((sum: number, i: any) => sum + (i.ewt || 0), 0).toLocaleString()}
-                                            </td>
-                                            <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                                ₱{totalActual?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                            </td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            ) : (
-                                // Legacy format - item-based
-                                <table className="w-full text-sm border-collapse border border-slate-300">
-                                    <thead className="bg-slate-100 print:bg-slate-100">
-                                        <tr>
-                                            <th className="border border-slate-300 px-3 py-2 text-left text-slate-800 font-bold">Item Description</th>
-                                            <th className="border border-slate-300 px-3 py-2 text-center w-16 text-slate-800 font-bold">Qty</th>
-                                            <th className="border border-slate-300 px-3 py-2 text-right w-24 text-slate-800 font-bold">Est. Cost</th>
-                                            <th className="border border-slate-300 px-3 py-2 text-right w-24 text-slate-800 font-bold">Actual Cost</th>
-                                            <th className="border border-slate-300 px-3 py-2 text-left w-32 text-slate-800 font-bold">BU</th>
-                                            <th className="border border-slate-300 px-3 py-2 text-right w-24 text-slate-800 font-bold">Total</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(req.items || []).map((item, index) => {
-                                            const isShared = (item as any).buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && (item as any).buName?.toUpperCase().includes('CORP');
-                                            return (
-                                                <tr key={index}>
-                                                    <td className="border border-slate-300 px-3 py-2 font-medium text-slate-900">{item.name}</td>
-                                                    <td className="border border-slate-300 px-3 py-2 text-center text-slate-900">{item.quantity || 0}</td>
-                                                    <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{(item.price ?? 0)?.toLocaleString()}</td>
-                                                    <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{(item.actualCost ?? 0)?.toLocaleString()}</td>
-                                                    <td className="border border-slate-300 px-3 py-2 text-left text-slate-900">
-                                                        {(item as any).buName || '-'}
-                                                        {isShared && <span className="ml-1 text-purple-700 font-bold text-xs">[SHARE]</span>}
-                                                    </td>
-                                                    <td className="border border-slate-300 px-3 py-2 text-right font-medium text-slate-900">₱{((item.actualCost ?? 0) * (item.quantity || 0))?.toLocaleString()}</td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                    <tfoot className="bg-slate-50 font-bold">
-                                        <tr>
-                                            <td colSpan={5} className="border border-slate-300 px-3 py-2 text-right text-slate-900">Total Actual Expenses</td>
-                                            <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{totalActual?.toLocaleString()}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            )}
+                            <table className="w-full text-[9px] border-collapse border border-slate-300">
+                                <thead className="bg-slate-100 print:bg-slate-100">
+                                    <tr>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Date</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Vendor/Payee</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">TIN</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">OR No.</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">COA</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Description</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">BU</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-16">VAT</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-16">EWT</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-20">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(liquidation.items as any[]).map((item: any, index: number) => {
+                                        const isShared = item.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && item.buName?.toUpperCase().includes('CORP');
+                                        return (
+                                            <tr key={item.id || index}>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">
+                                                    {item.date ? new Date(item.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
+                                                </td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900 font-medium">{item.vendorName || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.tin || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.orNo || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.coa || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.description || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">
+                                                    {item.buName || '-'}
+                                                    {isShared && <span className="ml-1 text-purple-700 font-bold">[SHARE]</span>}
+                                                </td>
+                                                <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                                    {(item.vat || 0) > 0 ? `₱${item.vat.toLocaleString()}` : '-'}
+                                                </td>
+                                                <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                                    {(item.ewt || 0) > 0 ? `₱${item.ewt.toLocaleString()}` : '-'}
+                                                </td>
+                                                <td className="border border-slate-300 px-2 py-1 text-right font-medium text-slate-900">
+                                                    ₱{(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                                <tfoot className="bg-slate-50 font-bold">
+                                    <tr>
+                                        <td colSpan={7} className="border border-slate-300 px-2 py-1 text-right text-slate-900">Totals</td>
+                                        <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                            ₱{(liquidation.items as any[]).reduce((sum: number, i: any) => sum + (i.vat || 0), 0).toLocaleString()}
+                                        </td>
+                                        <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                            ₱{(liquidation.items as any[]).reduce((sum: number, i: any) => sum + (i.ewt || 0), 0).toLocaleString()}
+                                        </td>
+                                        <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                            ₱{totalActual?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
 
                         {/* BU Sharing Breakdown - Shows if any items have SHARE flag */}
                         {(() => {
-                            const items = liquidation.items && (liquidation.items as any[]).length > 0
-                                ? (liquidation.items as any[])
-                                : (req.items || []).map(item => ({ ...item, buName: (item as any).buName, amount: (item.actualCost ?? 0) * (item.quantity || 0) }));
+                            const items = (liquidation.items as any[]) || [];
                             const sharedItems = items.filter((item: any) =>
                                 item.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && item.buName?.toUpperCase().includes('CORP')
                             );
