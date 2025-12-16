@@ -190,7 +190,7 @@
 /* Print Styles */
 @media print {
   @page {
-    size: auto;
+    size: A4 portrait;
     margin: 10mm;
   }
 
@@ -211,7 +211,7 @@
   }
 
   #printable-content {
-    position: absolute;
+    position: relative;
     left: 0;
     top: 0;
     width: 100%;
@@ -226,10 +226,19 @@
     page-break-inside: auto;
   }
 
+  /* Page break support for multi-page documents */
+  .print-page {
+    page-break-after: always;
+    page-break-inside: avoid;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto;
+  }
+
   tr,
   td,
-  th,
-  div {
+  th {
     page-break-inside: avoid;
   }
 
@@ -238,5 +247,18 @@
     background: none !important;
     backdrop-filter: none !important;
     z-index: auto !important;
+  }
+
+  /* Ensure print modal container doesn't interfere */
+  .print\\:static {
+    position: static !important;
+  }
+
+  .print\\:block {
+    display: block !important;
+  }
+
+  .print\\:overflow-visible {
+    overflow: visible !important;
   }
 }

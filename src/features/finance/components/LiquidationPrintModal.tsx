@@ -25,17 +25,45 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
 
     return (
         <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:block text-slate-900">
+            {/* Print Styles */}
+            <style>
+                {`
+                    @media print {
+                        @page {
+                            size: A4 portrait;
+                            margin: 10mm;
+                        }
+                        body {
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        .print-page {
+                            page-break-after: always;
+                            width: 190mm;
+                            min-height: 277mm;
+                            box-sizing: border-box;
+                        }
+                        .print-page:last-child {
+                            page-break-after: auto;
+                        }
+                        .print-hidden {
+                            display: none !important;
+                        }
+                    }
+                `}
+            </style>
+
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:rounded-none">
 
                 {/* Modal Header - Hidden when printing */}
-                <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between print:hidden">
+                <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between print:hidden print-hidden">
                     <h2 className="text-lg font-bold text-slate-800">Liquidation Report Preview</h2>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={handlePrint}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium transition-colors"
                         >
-                            <Printer size={18} /> Print
+                            <Printer size={18} /> Print / Save PDF
                         </button>
                         <button
                             onClick={onClose}
@@ -48,7 +76,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
 
                 {/* Printable Content - Only this div and its children will be visible when printing */}
                 <div id="printable-content" className="p-8 print:p-0 [&_*]:text-slate-900">
-                    <div className="max-w-3xl mx-auto print:max-w-none">
+                    <div className="max-w-3xl mx-auto print:max-w-none print-page">
 
                         {/* Title */}
                         <div className="text-center mb-8 border-b-2 border-slate-800 pb-4">
