@@ -200,7 +200,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {(liquidation.items as any[]).map((item: any, index: number) => {
+                                    {((liquidation.items as any[]) || []).map((item: any, index: number) => {
                                         const isShared = item.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && item.buName?.toUpperCase().includes('CORP');
                                         return (
                                             <tr key={item.id || index}>
@@ -233,10 +233,10 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                     <tr>
                                         <td colSpan={7} className="border border-slate-300 px-2 py-1 text-right text-slate-900">Totals</td>
                                         <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                            ₱{(liquidation.items as any[]).reduce((sum: number, i: any) => sum + (i.vat || 0), 0).toLocaleString()}
+                                            ₱{((liquidation.items as any[]) || []).reduce((sum: number, i: any) => sum + (i.vat || 0), 0).toLocaleString()}
                                         </td>
                                         <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                            ₱{(liquidation.items as any[]).reduce((sum: number, i: any) => sum + (i.ewt || 0), 0).toLocaleString()}
+                                            ₱{((liquidation.items as any[]) || []).reduce((sum: number, i: any) => sum + (i.ewt || 0), 0).toLocaleString()}
                                         </td>
                                         <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
                                             ₱{totalActual?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
