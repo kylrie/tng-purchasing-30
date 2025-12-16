@@ -211,19 +211,17 @@
   }
 
   #printable-content {
-    position: relative;
+    position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+    height: auto;
     margin: 0;
     padding: 0;
     background-color: white;
     color: black !important;
     z-index: 9999;
-  }
-
-  #printable-content {
-    page-break-inside: auto;
+    overflow: visible;
   }
 
   /* Page break support for multi-page documents */
@@ -234,6 +232,13 @@
 
   .print-page:last-child {
     page-break-after: auto;
+  }
+
+  /* Critical for multi-page: container must allow overflow */
+  .print-container {
+    max-height: none !important;
+    overflow: visible !important;
+    height: auto !important;
   }
 
   tr,
@@ -249,16 +254,7 @@
     z-index: auto !important;
   }
 
-  /* Ensure print modal container doesn't interfere */
-  .print\\:static {
-    position: static !important;
-  }
-
-  .print\\:block {
-    display: block !important;
-  }
-
-  .print\\:overflow-visible {
-    overflow: visible !important;
+  .print-hidden {
+    display: none !important;
   }
 }
