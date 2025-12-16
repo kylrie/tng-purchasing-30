@@ -9,7 +9,7 @@ import LiquidationPrintModal from '../components/LiquidationPrintModal';
 import LiquidationModal from '../components/LiquidationModal';
 import LiquidationAuditModal from '../components/LiquidationAuditModal';
 import { executeWorkflowAction } from '../../procurement/services/workflowService';
-import { Printer, Edit, FileText, RefreshCw, CheckCircle } from 'lucide-react';
+import { Printer, Edit, FileText, RefreshCw, CheckCircle, Search } from 'lucide-react';
 
 interface LiquidationViewProps {
   currentUser: User;
@@ -34,6 +34,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const [auditReq, setAuditReq] = useState<Requisition | null>(null);
   const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
   const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit' | 'my_history'>('liquidations');
+  const [searchTerm, setSearchTerm] = useState('');
   const { hasPermission } = usePermissions();
 
   const canView = hasPermission('liquidation:view');
@@ -155,6 +156,21 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const displayedReqs = activeTab === 'liquidations' ? liquidationReqs :
     activeTab === 'for_audit' ? auditingReqs : myHistoryReqs;
 
+  // Apply search filter
+  const filteredReqs = displayedReqs.filter(req => {
+    if (!searchTerm.trim()) return true;
+    const search = searchTerm.toLowerCase();
+    const businessName = businesses.find(b => b.id === req.businessId)?.name || '';
+    const requesterName = allUsers.find(u => u.id === req.requesterId)?.name || '';
+    return (
+      req.id.toLowerCase().includes(search) ||
+      businessName.toLowerCase().includes(search) ||
+      requesterName.toLowerCase().includes(search) ||
+      req.description?.toLowerCase().includes(search) ||
+      req.chequeNumber?.toLowerCase().includes(search)
+    );
+  });
+
   return (
     <>
       <div className="space-y-6">
@@ -194,6 +210,20 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           </button>
         </div>
 
+        {/* Search Bar */}
+        <div className="mb-4">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by PRF ID, requester, business unit..."
+              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+
         <Card className="!p-0">
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
             <table className="w-full text-left text-sm text-white">
@@ -210,7 +240,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700">
-                {displayedReqs.map(req => (
+                {filteredReqs.map(req => (
                   <tr
                     key={req.id}
                     className="hover:bg-slate-800/60 cursor-pointer transition-colors"
@@ -291,10 +321,10 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                     </td>
                   </tr>
                 ))}
-                {displayedReqs.length === 0 && (
+                {filteredReqs.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500 italic">
-                      No liquidations to display.
+                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
+                      {searchTerm ? 'No matching liquidations found.' : 'No liquidations to display.'}
                     </td>
                   </tr>
                 )}
