@@ -193,12 +193,15 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 
                 {/* Expand Button - Top Left (if breakdown exists) */}
                 {breakdown.length > 0 && (
-                    <button
+                    <div
+                        role="button"
+                        tabIndex={0}
                         onClick={handleExpandClick}
-                        className="absolute top-2 left-2 p-0.5 rounded hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors"
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleExpandClick(e as unknown as React.MouseEvent); }}
+                        className="absolute top-2 left-2 p-0.5 rounded hover:bg-slate-700/50 text-slate-400 hover:text-white transition-colors cursor-pointer"
                     >
                         {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                    </button>
+                    </div>
                 )}
 
                 {/* Progress Ring with Icon */}

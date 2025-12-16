@@ -14,7 +14,7 @@ import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import Card from '../../../shared/components/Card';
 import { CounterService } from '../../../shared/services/counter.service';
 import SearchableDropdown from '../../../shared/components/SearchableDropdown';
-import { RequisitionService } from '../services/requisitions.service';
+import { RequisitionService, calculateExpenseAllocation } from '../services/requisitions.service';
 // FIX C6: Import sanitization utility to prevent XSS/injection attacks
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
 
@@ -251,6 +251,9 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                 bankDetails: supplierDetails.bankDetails
             };
 
+            // Calculate expense allocation for corporate expense sharing
+            const costAllocation = await calculateExpenseAllocation(selectedBusinessId, totalAmount);
+
             // Set status based on isDraft flag
             const status = isDraft ? RequisitionStatus.DRAFT : RequisitionStatus.PRF_PENDING_MANAGER;
 
@@ -287,6 +290,8 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                     designatedApproverId: designatedApproverId
                 },
                 timestamp: new Date().toISOString(),
+                // Corporate expense sharing (if applicable)
+                costAllocation: costAllocation || undefined,
             };
 
             if (initialData && onUpdate) {

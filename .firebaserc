@@ -1,17 +1,18 @@
 {
   "projects": {
-    "default": "tng-systems",
-    "Production": "tng-systems"
+    "default": "tng-systems"
   },
   "targets": {
     "tng-systems": {
       "hosting": {
-        "Production": [
+        "production": [
           "tng-systems"
+        ],
+        "staging": [
+          "tng-systems-staging"
         ]
       }
     }
   },
-  "etags": {},
-  "dataconnectEmulatorConfig": {}
+  "etags": {}
 }

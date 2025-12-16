@@ -13,10 +13,15 @@ import PRFTrackerView from './features/procurement/views/PRFTrackerView';
 import ProcurementApprovalsView from './features/procurement/views/ProcurementApprovalsView';
 import ApprovedView from './features/procurement/views/ApprovedView';
 import FinanceView from './features/finance/views/FinanceView';
+import FinanceOverview from './features/finance/views/FinanceOverview';
 import LiquidationView from './features/finance/views/LiquidationView';
 import PCFView from './features/finance/views/PCFView';
 import PCFApprovalView from './features/finance/views/PCFApprovalView';
 import SuppliersView from './features/inventory/views/SuppliersView';
+// StockTakeSession merged into InventoryDashboard
+import InventoryReports from './features/inventory/views/InventoryReports';
+import InventoryDashboard from './features/inventory/views/InventoryDashboard';
+import MenuDashboard from './features/menu/views/MenuDashboard';
 import ChartOfAccountsView from './features/admin/views/ChartOfAccountsView';
 import { SettingsView } from './features/admin/views/SettingsView';
 import ActivityLogView from './features/admin/views/ActivityLogView';
@@ -247,7 +252,16 @@ function ProtectedApp() {
           </ProtectedRoute>
         } />
 
-        <Route path="/finance" element={
+        {/* Finance Module - Restructured Routes */}
+        {/* Overview - Strategic Finance Dashboard */}
+        <Route path="/finance/overview" element={
+          <ProtectedRoute permission="module:view:finance">
+            <FinanceOverview businesses={businesses} />
+          </ProtectedRoute>
+        } />
+
+        {/* BR Flow - Existing FinanceView with Fund Release/Check Prep */}
+        <Route path="/finance/expenses/br-flow" element={
           <ProtectedRoute permission="module:view:finance">
             <FinanceView
               currentUser={currentUser}
@@ -257,6 +271,27 @@ function ProtectedApp() {
               businesses={businesses}
               allUsers={users}
             />
+          </ProtectedRoute>
+        } />
+
+        {/* Legacy /finance redirect to new BR Flow path */}
+        <Route path="/finance" element={<Navigate to="/finance/expenses/br-flow" replace />} />
+
+        {/* Income placeholders */}
+        <Route path="/finance/income/sales" element={
+          <ProtectedRoute permission="module:view:finance">
+            <div className="p-8">
+              <h1 className="text-2xl font-bold text-white mb-4">Sales</h1>
+              <p className="text-slate-400">Coming soon - Sales revenue tracking.</p>
+            </div>
+          </ProtectedRoute>
+        } />
+        <Route path="/finance/income/invoices" element={
+          <ProtectedRoute permission="module:view:finance">
+            <div className="p-8">
+              <h1 className="text-2xl font-bold text-white mb-4">Invoices</h1>
+              <p className="text-slate-400">Coming soon - Invoice management.</p>
+            </div>
           </ProtectedRoute>
         } />
 
@@ -311,6 +346,22 @@ function ProtectedApp() {
           <ProtectedRoute permission="module:view:coa">
             <ChartOfAccountsView />
           </ProtectedRoute>
+        } />
+
+        {/* Inventory Module */}
+        <Route path="/inventory" element={
+          <InventoryDashboard currentUser={currentUser} businesses={businesses} />
+        } />
+        <Route path="/inventory/stock-take" element={
+          <Navigate to="/inventory" replace />
+        } />
+        <Route path="/inventory/reports" element={
+          <InventoryReports currentUser={currentUser} />
+        } />
+
+        {/* Menu Engineering Module */}
+        <Route path="/menu" element={
+          <MenuDashboard businesses={businesses} currentUser={currentUser} />
         } />
 
         <Route path="/settings" element={

@@ -271,6 +271,16 @@ export interface RequisitionHistory {
   actionIndex?: number; // FIX BUG 6: Sequential index for server timestamp correlation
 }
 
+// ============================================================
+// COST ALLOCATION - Corporate Expense Sharing
+// ============================================================
+export interface CostAllocation {
+  buId: string;
+  buName: string;
+  amount: number;
+  percentage: number;
+}
+
 export interface Requisition {
   id: string;
   requesterId: string;
@@ -289,6 +299,9 @@ export interface Requisition {
   ewtPercentage?: number;       // EWT percentage (e.g., 1, 2, 5, 10)
   ewtAmount?: number;           // Computed EWT amount
   netAmount?: number;           // Total - EWT (what is actually paid)
+
+  // Corporate Expense Sharing - Cost allocation breakdown
+  costAllocation?: CostAllocation[];
 
   status: RequisitionStatus;
   dateCreated: string;
@@ -325,6 +338,8 @@ export interface Requisition {
 
   // PCF Replenishment link - used to update parent PCF status when funds are released
   linkedPcfId?: string;
+  // Flag to skip liquidation for PCF replenishments (already liquidated via PCF form)
+  isPcfReplenishment?: boolean;
 
   // Workflow Assignment - UID of the currently assigned approver (for dashboard filtering)
   currentApproverId?: string;

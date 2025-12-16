@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, DollarSign, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban } from 'lucide-react';
-import type { Requisition, RequisitionHistory, RequisitionItem } from '../../features/procurement/types';
+import type { Requisition, RequisitionHistory, RequisitionItem, Supplier } from '../../features/procurement/types';
 import { RequisitionStatus } from '../../features/procurement/types';
 import LiquidationForm from '../../features/procurement/components/LiquidationForm';
+import AllocationSummary from '../../features/procurement/components/AllocationSummary';
 import { RequisitionService } from '../../features/procurement/services/requisitions.service';
+import type { Business } from '../types';
 import Card from './Card';
 
 // Variant types for different contexts
@@ -30,6 +32,8 @@ interface RequisitionDrawerProps {
     canSubmitLiquidation?: boolean; // For liquidation tab
     canCancel?: boolean; // SuperAdmin only: can cancel requisition
     isLoading?: boolean;
+    businesses?: Business[]; // For BU dropdown in liquidation
+    suppliers?: Supplier[];  // For vendor dropdown in liquidation
     // Optional: status badge renderer
     getStatusBadge?: (status: RequisitionStatus) => React.ReactNode;
 }
@@ -102,8 +106,8 @@ const getTimelineIcon = (action: string, stage: RequisitionStatus) => {
     return <ChevronRight size={16} className="text-slate-400" />;
 };
 
-// Tab type - Supplier only for PRF, Liquidation for FUNDS_RELEASED
-type TabType = 'items' | 'supplier' | 'liquidation' | 'history' | 'attachments';
+// Tab type - Supplier only for PRF, Liquidation for FUNDS_RELEASED, Allocation for expense sharing
+type TabType = 'items' | 'supplier' | 'liquidation' | 'history' | 'attachments' | 'allocation';
 
 const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     requisition,
@@ -124,6 +128,8 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     canSubmitLiquidation = false,
     canCancel = false,
     isLoading = false,
+    businesses = [],
+    suppliers = [],
     getStatusBadge,
 }) => {
     const [activeTab, setActiveTab] = useState<TabType>('items');
@@ -272,6 +278,18 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                     >
                         <Paperclip size={16} /> Attachments
                     </button>
+                    {/* Allocation Tab - Show when costAllocation exists */}
+                    {requisition.costAllocation && requisition.costAllocation.length > 0 && (
+                        <button
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'allocation'
+                                ? 'border-b-2 border-purple-500 text-purple-400'
+                                : 'text-slate-400 hover:text-slate-300'
+                                }`}
+                            onClick={() => setActiveTab('allocation')}
+                        >
+                            <Building2 size={16} /> Sharing
+                        </button>
+                    )}
                 </div>
 
                 {/* Content */}
@@ -422,6 +440,8 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                     {activeTab === 'liquidation' && (
                         <LiquidationForm
                             requisition={requisition}
+                            businesses={businesses}
+                            suppliers={suppliers}
                             onSubmit={async (payload) => {
                                 if (onSubmitLiquidation) {
                                     await onSubmitLiquidation(payload);
@@ -810,6 +830,14 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                 </div>
                             )}
                         </div>
+                    )}
+
+                    {/* Allocation Tab - Expense Sharing Breakdown */}
+                    {activeTab === 'allocation' && requisition.costAllocation && (
+                        <AllocationSummary
+                            allocation={requisition.costAllocation}
+                            totalAmount={requisition.totalAmount || totalAmount}
+                        />
                     )}
                 </div>
 

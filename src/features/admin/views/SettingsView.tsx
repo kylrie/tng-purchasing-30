@@ -11,7 +11,8 @@ import { usePermissions } from '../../../hooks/usePermissions';
 // Import Layout Components
 import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search, Loader2, Calendar } from 'lucide-react';
 import { AuthService } from '../../../shared/services/auth.service';
-import { SettingsService, type PCFSettings, type ApproverAssignments } from '../../../shared/services/settings.service';
+import { SettingsService, type PCFSettings, type ApproverAssignments, type FoodCostSettings } from '../../../shared/services/settings.service';
+import ExpenseSharingSettings from '../components/ExpenseSharingSettings';
 
 interface SettingsViewProps {
     currentUser: User;
@@ -84,6 +85,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [approverAssignments, setApproverAssignments] = useState<ApproverAssignments>({});
     const [savingApproverAssignments, setSavingApproverAssignments] = useState(false);
 
+    // Food Cost Settings State
+    const [foodCostSettings, setFoodCostSettings] = useState<FoodCostSettings>({
+        excellent: 25, good: 30, warning: 35, danger: 40
+    });
+    const [foodCostForm, setFoodCostForm] = useState({ excellent: 25, good: 30, warning: 35, danger: 40 });
+    const [savingFoodCost, setSavingFoodCost] = useState(false);
+
     // Admin role check helper
     const isAdmin = currentUser.role === SystemRole.SUPER_ADMIN || currentUser.role === SystemRole.ADMIN;
     const isStaging = typeof window !== 'undefined' && (window.location.hostname.includes('staging') || window.location.hostname.includes('localhost'));
@@ -92,13 +100,21 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     useEffect(() => {
         const loadSettings = async () => {
             try {
-                const [pcf, approvers] = await Promise.all([
+                const [pcf, approvers, foodCost] = await Promise.all([
                     SettingsService.getPcfSettings(),
-                    SettingsService.getApproverAssignments()
+                    SettingsService.getApproverAssignments(),
+                    SettingsService.getFoodCostSettings()
                 ]);
                 setPcfSettings(pcf);
                 setPcfDeadlineDay(pcf.deadlineDay);
                 setApproverAssignments(approvers);
+                setFoodCostSettings(foodCost);
+                setFoodCostForm({
+                    excellent: foodCost.excellent,
+                    good: foodCost.good,
+                    warning: foodCost.warning,
+                    danger: foodCost.danger
+                });
             } catch (error) {
                 console.error('Error loading settings:', error);
             }
@@ -418,6 +434,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <button onClick={() => setActiveTab('approvers')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'approvers' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Approver Config</button>
                         <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
                         <button onClick={() => setActiveTab('pcf')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'pcf' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>PCF Settings</button>
+                        <button onClick={() => setActiveTab('expense-sharing')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'expense-sharing' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Expense Allocation</button>
                     </>
                 )}
                 {/* Inventory Tab - Uses permission check (supports dynamic roles) */}
@@ -1145,6 +1162,158 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     </div>
                                 )}
                             </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-slate-700 my-8"></div>
+
+                            {/* Food Cost Thresholds Section */}
+                            <div>
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white">
+                                    <Database size={20} className="text-amber-400" /> Food Cost Thresholds
+                                </h3>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    Configure food cost percentage thresholds for Menu Engineering. These values determine the color-coded profit badges on menu items.
+                                </p>
+
+                                <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700 mb-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                                        {/* Excellent Threshold */}
+                                        <div>
+                                            <label className="block text-xs font-semibold text-emerald-400 uppercase mb-1">
+                                                🟢 Excellent (Max %)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="1"
+                                                className={inputClass}
+                                                value={foodCostForm.excellent}
+                                                onChange={(e) => setFoodCostForm({ ...foodCostForm, excellent: parseInt(e.target.value) || 0 })}
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">≤ {foodCostForm.excellent}% food cost</p>
+                                        </div>
+
+                                        {/* Good Threshold */}
+                                        <div>
+                                            <label className="block text-xs font-semibold text-green-400 uppercase mb-1">
+                                                🟢 Good (Max %)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="1"
+                                                className={inputClass}
+                                                value={foodCostForm.good}
+                                                onChange={(e) => setFoodCostForm({ ...foodCostForm, good: parseInt(e.target.value) || 0 })}
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">≤ {foodCostForm.good}% food cost</p>
+                                        </div>
+
+                                        {/* Warning Threshold */}
+                                        <div>
+                                            <label className="block text-xs font-semibold text-amber-400 uppercase mb-1">
+                                                🟡 Warning (Max %)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="1"
+                                                className={inputClass}
+                                                value={foodCostForm.warning}
+                                                onChange={(e) => setFoodCostForm({ ...foodCostForm, warning: parseInt(e.target.value) || 0 })}
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">≤ {foodCostForm.warning}% food cost</p>
+                                        </div>
+
+                                        {/* Danger Threshold */}
+                                        <div>
+                                            <label className="block text-xs font-semibold text-red-400 uppercase mb-1">
+                                                🔴 Danger (Above %)
+                                            </label>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                step="1"
+                                                className={inputClass}
+                                                value={foodCostForm.danger}
+                                                onChange={(e) => setFoodCostForm({ ...foodCostForm, danger: parseInt(e.target.value) || 0 })}
+                                            />
+                                            <p className="text-xs text-slate-500 mt-1">&gt; {foodCostForm.warning}% food cost</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Save Button */}
+                                    <div className="flex items-center gap-4 mt-4">
+                                        <button
+                                            onClick={async () => {
+                                                setSavingFoodCost(true);
+                                                try {
+                                                    await SettingsService.updateFoodCostSettings(
+                                                        foodCostForm,
+                                                        currentUser.id,
+                                                        currentUser.name
+                                                    );
+                                                    setFoodCostSettings({ ...foodCostSettings, ...foodCostForm });
+                                                    alert('Food cost thresholds saved successfully!');
+                                                } catch (error) {
+                                                    console.error('Error saving food cost settings:', error);
+                                                    alert('Failed to save settings. Please try again.');
+                                                } finally {
+                                                    setSavingFoodCost(false);
+                                                }
+                                            }}
+                                            disabled={savingFoodCost || (
+                                                foodCostForm.excellent === foodCostSettings.excellent &&
+                                                foodCostForm.good === foodCostSettings.good &&
+                                                foodCostForm.warning === foodCostSettings.warning &&
+                                                foodCostForm.danger === foodCostSettings.danger
+                                            )}
+                                            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors"
+                                        >
+                                            {savingFoodCost ? (
+                                                <>
+                                                    <Loader2 size={16} className="animate-spin" />
+                                                    Saving...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Check size={16} />
+                                                    Save Changes
+                                                </>
+                                            )}
+                                        </button>
+                                        {(foodCostForm.excellent !== foodCostSettings.excellent ||
+                                            foodCostForm.good !== foodCostSettings.good ||
+                                            foodCostForm.warning !== foodCostSettings.warning ||
+                                            foodCostForm.danger !== foodCostSettings.danger) && (
+                                                <span className="text-yellow-400 text-xs">Unsaved changes</span>
+                                            )}
+                                    </div>
+                                </div>
+
+                                {/* Info Box */}
+                                <div className="p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg">
+                                    <h4 className="text-sm font-semibold text-blue-300 mb-2">How it works</h4>
+                                    <ul className="text-xs text-blue-200/70 space-y-1">
+                                        <li>• <strong>Excellent</strong>: Food cost ≤ {foodCostForm.excellent}% → Bright green badge</li>
+                                        <li>• <strong>Good</strong>: Food cost {foodCostForm.excellent + 1}-{foodCostForm.good}% → Green badge</li>
+                                        <li>• <strong>Warning</strong>: Food cost {foodCostForm.good + 1}-{foodCostForm.warning}% → Amber badge</li>
+                                        <li>• <strong>Danger</strong>: Food cost &gt; {foodCostForm.warning}% → Red badge (needs attention)</li>
+                                    </ul>
+                                </div>
+
+                                {/* Last Updated Info */}
+                                {foodCostSettings.lastUpdated && (
+                                    <div className="text-xs text-slate-500 mt-4">
+                                        Last updated: {new Date(foodCostSettings.lastUpdated).toLocaleString()}
+                                        {foodCostSettings.updatedByName && ` by ${foodCostSettings.updatedByName}`}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )
                 }
@@ -1243,6 +1412,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     </div>
                                 )}
                             </div>
+                        </div>
+                    )
+                }
+
+                {/* Expense Sharing Tab */}
+                {
+                    activeTab === 'expense-sharing' && isAdmin && (
+                        <div className={cardClass}>
+                            <ExpenseSharingSettings />
                         </div>
                     )
                 }

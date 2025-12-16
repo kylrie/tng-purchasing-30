@@ -688,6 +688,55 @@ service cloud.firestore {
     }
     
     // =====================================================
+    // INVENTORY ITEMS COLLECTION
+    // Multi-tenant inventory items scoped by businessUnitId
+    // =====================================================
+    match /inventory_items/{itemId} {
+      // All authenticated users can read inventory items
+      allow read: if isSignedIn();
+      
+      // Create/Update: Any authenticated user can manage inventory
+      // Delete: Admin only (to prevent accidental data loss)
+      allow create, update: if isSignedIn();
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+    
+    // =====================================================
+    // STOCK COUNTS COLLECTION
+    // Session-based stock counting records
+    // =====================================================
+    match /stock_counts/{countId} {
+      // All authenticated users can read stock counts
+      allow read: if isSignedIn();
+      
+      // Users can create stock count sessions
+      allow create: if isSignedIn();
+      
+      // Users can update their own sessions, admins can update any
+      allow update: if isSignedIn() && (
+        resource.data.performedBy == request.auth.uid ||
+        isSuperAdminOrAdmin()
+      );
+      
+      // Only admins can delete stock counts
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+    
+    // =====================================================
+    // MENU ITEMS COLLECTION (Menu Engineering)
+    // Multi-tenant menu items with recipes scoped by businessUnitId
+    // =====================================================
+    match /menu_items/{itemId} {
+      // All authenticated users can read menu items
+      allow read: if isSignedIn();
+      
+      // Create/Update: Any authenticated user can manage menu items
+      // Delete: Admin only (to prevent accidental data loss)
+      allow create, update: if isSignedIn();
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+    
+    // =====================================================
     // NOTIFICATIONS COLLECTION
     // Stores user notifications for approval workflow
     // =====================================================

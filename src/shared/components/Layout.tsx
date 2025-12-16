@@ -19,7 +19,14 @@ import {
     Database,
     FileSpreadsheet,
     ListChecks,
-    Activity
+    Activity,
+    Warehouse,
+    BarChart3,
+    TrendingUp,
+    TrendingDown,
+    CreditCard,
+    Receipt,
+    ChefHat
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -32,13 +39,139 @@ interface LayoutProps {
     pendingApprovalsCount?: number;
 }
 
+// ============================================================
+// RECURSIVE NAV ITEM INTERFACE - Supports unlimited nesting
+// ============================================================
+
 interface NavItem {
     path?: string;
     label: string;
     icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
     canView: boolean;
-    subItems?: NavItem[];
+    children?: NavItem[]; // Renamed from subItems for clarity
 }
+
+// ============================================================
+// SIDEBAR ITEM COMPONENT - Recursive rendering
+// ============================================================
+
+interface SidebarItemProps {
+    item: NavItem;
+    level: number;
+    currentPath: string;
+    expandedMenus: string[];
+    toggleMenu: (label: string) => void;
+    isCollapsed: boolean;
+    onNavigate: (path: string) => void;
+}
+
+const SidebarItem: React.FC<SidebarItemProps> = ({
+    item,
+    level,
+    currentPath,
+    expandedMenus,
+    toggleMenu,
+    isCollapsed,
+    onNavigate
+}) => {
+    const hasChildren = item.children && item.children.length > 0;
+    const visibleChildren = hasChildren ? item.children!.filter(child => child.canView) : [];
+    const hasVisibleChildren = visibleChildren.length > 0;
+
+    // Check if this item or any of its descendants is active
+    const isActiveRecursive = (navItem: NavItem): boolean => {
+        if (navItem.path) {
+            if (currentPath === navItem.path) return true;
+            if (navItem.path !== '/' && currentPath.startsWith(navItem.path)) return true;
+        }
+        if (navItem.children) {
+            return navItem.children.some(child => isActiveRecursive(child));
+        }
+        return false;
+    };
+
+    const isActive = item.path && (currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path)));
+    const hasActiveChild = hasVisibleChildren && visibleChildren.some(child => isActiveRecursive(child));
+    const isExpanded = expandedMenus.includes(item.label);
+
+    // Indentation based on level
+    const paddingLeft = level === 0 ? 'pl-4' : level === 1 ? 'pl-8' : level === 2 ? 'pl-12' : 'pl-16';
+    const iconSize = level === 0 ? 20 : level === 1 ? 18 : 16;
+    const textSize = level === 0 ? 'text-sm' : level === 1 ? 'text-sm' : 'text-xs';
+    const pyClass = level === 0 ? 'py-3' : level === 1 ? 'py-2.5' : 'py-2';
+
+    // If this is a group with children
+    if (hasVisibleChildren) {
+        return (
+            <div>
+                <button
+                    onClick={() => toggleMenu(item.label)}
+                    className={`w-full flex items-center ${isCollapsed && level === 0 ? 'lg:justify-center lg:px-2' : `justify-between pr-4 ${paddingLeft}`} gap-3 ${pyClass} rounded-xl transition-all duration-200 group ${hasActiveChild ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white font-semibold border border-purple-500/50' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'} relative`}
+                    title={isCollapsed ? item.label : ''}
+                >
+                    <div className={`flex items-center gap-3 ${isCollapsed && level === 0 ? 'lg:justify-center' : ''}`}>
+                        <item.icon
+                            size={iconSize}
+                            className={`transition-colors flex-shrink-0 ${hasActiveChild ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                            strokeWidth={hasActiveChild ? 2.5 : 2}
+                        />
+                        <span className={`${isCollapsed && level === 0 ? 'lg:hidden' : 'block'} ${textSize} whitespace-nowrap transition-all duration-300`}>
+                            {item.label}
+                        </span>
+                    </div>
+                    <ChevronDown
+                        size={14}
+                        className={`${isCollapsed && level === 0 ? 'lg:hidden' : 'block'} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                    />
+                </button>
+
+                {/* Children */}
+                <div
+                    className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+                >
+                    <div className="mt-1 space-y-1">
+                        {visibleChildren.map((child) => (
+                            <SidebarItem
+                                key={child.path || child.label}
+                                item={child}
+                                level={level + 1}
+                                currentPath={currentPath}
+                                expandedMenus={expandedMenus}
+                                toggleMenu={toggleMenu}
+                                isCollapsed={isCollapsed}
+                                onNavigate={onNavigate}
+                            />
+                        ))}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Leaf item (no children) - navigable
+    return (
+        <button
+            onClick={() => item.path && onNavigate(item.path)}
+            className={`w-full flex items-center ${isCollapsed && level === 0 ? 'lg:justify-center lg:px-2' : `${paddingLeft} pr-4`} gap-3 ${pyClass} rounded-xl transition-all duration-200 group ${isActive ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white font-semibold border border-purple-500/50' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'} relative`}
+            title={isCollapsed ? item.label : ''}
+        >
+            <div className={`flex items-center gap-3 ${isCollapsed && level === 0 ? 'lg:justify-center' : ''}`}>
+                <item.icon
+                    size={iconSize}
+                    className={`transition-colors flex-shrink-0 ${isActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                    strokeWidth={isActive ? 2.5 : 2}
+                />
+                <span className={`${isCollapsed && level === 0 ? 'lg:hidden' : 'block'} ${textSize} whitespace-nowrap transition-all duration-300`}>
+                    {item.label}
+                </span>
+            </div>
+        </button>
+    );
+};
+
+// ============================================================
+// MAIN LAYOUT COMPONENT
+// ============================================================
 
 const Layout: React.FC<LayoutProps> = ({
     children,
@@ -52,13 +185,17 @@ const Layout: React.FC<LayoutProps> = ({
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
 
+    // ============================================================
+    // NAVIGATION CONFIGURATION - Supports 3 levels
+    // ============================================================
+
     const navItems: NavItem[] = [
         { path: '/', label: 'Dashboard', icon: LayoutDashboard, canView: true },
         {
             label: 'Procurement',
             icon: Briefcase,
             canView: true,
-            subItems: [
+            children: [
                 { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: hasPermission('module:view:burf') },
                 { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('module:view:prf') },
                 { path: '/prf-tracker', label: 'PRF Tracker', icon: ListChecks, canView: hasPermission('module:view:prf_tracker') }
@@ -68,26 +205,60 @@ const Layout: React.FC<LayoutProps> = ({
             label: 'Action Center',
             icon: GitBranch,
             canView: hasPermission('module:view:approvals'),
-            subItems: [
+            children: [
                 { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('module:view:approvals') },
                 { path: '/pcf-approvals', label: 'PCF Approvals', icon: Wallet, canView: hasPermission('pcf:approve') }
             ]
         },
+        // ============================================================
+        // FINANCE MODULE - 3 Level Hierarchy
+        // ============================================================
         {
             label: 'Finance',
             icon: Wallet,
             canView: hasPermission('module:view:finance') || hasPermission('module:view:liquidation'),
-            subItems: [
-                { path: '/finance', label: 'Finance Dashboard', icon: Scale, canView: hasPermission('module:view:finance') },
-                { path: '/liquidation', label: 'Liquidations', icon: Scale, canView: hasPermission('module:view:liquidation') },
-                { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: hasPermission('module:view:pcf') }
+            children: [
+                // Overview - Generic Finance Dashboard (placeholder)
+                { path: '/finance/overview', label: 'Overview', icon: LayoutDashboard, canView: hasPermission('module:view:finance') },
+                // Income sub-group (Level 2 with Level 3 children)
+                {
+                    label: 'Income',
+                    icon: TrendingUp,
+                    canView: hasPermission('module:view:finance'),
+                    children: [
+                        { path: '/finance/income/sales', label: 'Sales', icon: Receipt, canView: hasPermission('module:view:finance') },
+                        { path: '/finance/income/invoices', label: 'Invoices', icon: FileSpreadsheet, canView: hasPermission('module:view:finance') }
+                    ]
+                },
+                // Expenses sub-group (Level 2 with Level 3 children)
+                {
+                    label: 'Expenses',
+                    icon: TrendingDown,
+                    canView: hasPermission('module:view:finance') || hasPermission('module:view:liquidation'),
+                    children: [
+                        // BR Flow - This is the existing FinanceView with Fund Release/Check Prep
+                        { path: '/finance/expenses/br-flow', label: 'BR Flow', icon: Scale, canView: hasPermission('module:view:finance') },
+                        { path: '/liquidation', label: 'Liquidations', icon: CreditCard, canView: hasPermission('module:view:liquidation') },
+                        { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: hasPermission('module:view:pcf') }
+                    ]
+                }
+            ]
+        },
+        {
+            label: 'Inventory',
+            icon: Warehouse,
+            canView: true,
+            children: [
+                { path: '/inventory', label: 'Stock Take', icon: Warehouse, canView: true },
+                { path: '/inventory/reports', label: 'Reports', icon: BarChart3, canView: true },
+                { path: '/menu', label: 'Menu Engineering', icon: ChefHat, canView: true }
             ]
         },
         {
             label: 'Master Data',
             icon: Database,
             canView: hasPermission('module:view:suppliers') || hasPermission('module:view:coa'),
-            subItems: [
+            children: [
                 { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('module:view:suppliers') },
                 { path: '/chart-of-accounts', label: 'Chart of Accounts', icon: FileSpreadsheet, canView: hasPermission('module:view:coa') }
             ]
@@ -96,7 +267,7 @@ const Layout: React.FC<LayoutProps> = ({
             label: 'Settings',
             icon: Settings,
             canView: hasPermission('module:view:settings') || currentUser.role === UserRole.SUPER_ADMIN,
-            subItems: [
+            children: [
                 { path: '/settings', label: 'System Settings', icon: Settings, canView: hasPermission('module:view:settings') },
                 { path: '/activity-log', label: 'Activity Log', icon: Activity, canView: currentUser.role === UserRole.SUPER_ADMIN }
             ]
@@ -111,11 +282,9 @@ const Layout: React.FC<LayoutProps> = ({
         );
     };
 
-    const isMenuExpanded = (label: string) => expandedMenus.includes(label);
-
-    const isParentActive = (item: NavItem) => {
-        if (!item.subItems) return false;
-        return item.subItems.some(sub => sub.path && (currentPath === sub.path || (sub.path !== '/' && currentPath.startsWith(sub.path))));
+    const handleNavigate = (path: string) => {
+        navigate(path);
+        setIsSidebarOpen(false);
     };
 
     return (
@@ -147,98 +316,20 @@ const Layout: React.FC<LayoutProps> = ({
                     </div>
                 </div>
 
+                {/* Navigation - Using recursive SidebarItem */}
                 <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-                    {navItems.filter(item => item.canView).map((item) => {
-                        // Check if this item has sub-items (parent menu)
-                        if (item.subItems && item.subItems.length > 0) {
-                            const visibleSubItems = item.subItems.filter(sub => sub.canView);
-                            if (visibleSubItems.length === 0) return null;
-
-                            const isExpanded = isMenuExpanded(item.label);
-                            const parentIsActive = isParentActive(item);
-
-                            return (
-                                <div key={item.label}>
-                                    <button
-                                        onClick={() => toggleMenu(item.label)}
-                                        className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-4'} gap-3 py-3 rounded-xl transition-all duration-200 group ${parentIsActive ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white font-semibold border border-purple-500/50' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'} relative`}
-                                        title={isCollapsed ? item.label : ''}
-                                    >
-                                        <div className={`flex items-center gap-3 ${isCollapsed ? 'lg:justify-center' : ''}`}>
-                                            <item.icon
-                                                size={20}
-                                                className={`transition-colors flex-shrink-0 ${parentIsActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
-                                                strokeWidth={parentIsActive ? 2.5 : 2}
-                                            />
-                                            <span className={`${isCollapsed ? 'lg:hidden' : 'block'} whitespace-nowrap transition-all duration-300`}>{item.label}</span>
-                                        </div>
-                                        <ChevronDown
-                                            size={16}
-                                            className={`${isCollapsed ? 'lg:hidden' : 'block'} transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                                        />
-                                    </button>
-
-                                    {/* Sub-items */}
-                                    <div
-                                        className={`overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}
-                                    >
-                                        <div className="pl-4 mt-1 space-y-1">
-                                            {visibleSubItems.map((subItem) => {
-                                                const isActive = subItem.path && (currentPath === subItem.path || (subItem.path !== '/' && currentPath.startsWith(subItem.path)));
-                                                return (
-                                                    <button
-                                                        key={subItem.path}
-                                                        onClick={() => {
-                                                            if (subItem.path) {
-                                                                navigate(subItem.path);
-                                                                setIsSidebarOpen(false);
-                                                            }
-                                                        }}
-                                                        className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'px-4'} gap-3 py-2 rounded-lg transition-all duration-200 group ${isActive ? 'bg-purple-500/30 text-white font-semibold' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'}`}
-                                                        title={isCollapsed ? subItem.label : ''}
-                                                    >
-                                                        <div className={`flex items-center gap-3 ${isCollapsed ? 'lg:justify-center' : ''}`}>
-                                                            <subItem.icon
-                                                                size={18}
-                                                                className={`transition-colors flex-shrink-0 ${isActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
-                                                                strokeWidth={isActive ? 2.5 : 2}
-                                                            />
-                                                            <span className={`${isCollapsed ? 'lg:hidden' : 'block'} text-sm whitespace-nowrap transition-all duration-300`}>{subItem.label}</span>
-                                                        </div>
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        }
-
-                        // Regular menu item (no sub-items)
-                        const isActive = item.path && (currentPath === item.path || (item.path !== '/' && currentPath.startsWith(item.path)));
-                        return (
-                            <button
-                                key={item.path}
-                                onClick={() => {
-                                    if (item.path) {
-                                        navigate(item.path);
-                                        setIsSidebarOpen(false);
-                                    }
-                                }}
-                                className={`w-full flex items-center ${isCollapsed ? 'lg:justify-center lg:px-2' : 'justify-between px-4'} gap-3 py-3 rounded-xl transition-all duration-200 group ${isActive ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white font-semibold border border-purple-500/50' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'} relative`}
-                                title={isCollapsed ? item.label : ''}
-                            >
-                                <div className={`flex items-center gap-3 ${isCollapsed ? 'lg:justify-center' : ''}`}>
-                                    <item.icon
-                                        size={20}
-                                        className={`transition-colors flex-shrink-0 ${isActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
-                                        strokeWidth={isActive ? 2.5 : 2}
-                                    />
-                                    <span className={`${isCollapsed ? 'lg:hidden' : 'block'} whitespace-nowrap transition-all duration-300`}>{item.label}</span>
-                                </div>
-                            </button>
-                        );
-                    })}
+                    {navItems.filter(item => item.canView).map((item) => (
+                        <SidebarItem
+                            key={item.path || item.label}
+                            item={item}
+                            level={0}
+                            currentPath={currentPath}
+                            expandedMenus={expandedMenus}
+                            toggleMenu={toggleMenu}
+                            isCollapsed={isCollapsed}
+                            onNavigate={handleNavigate}
+                        />
+                    ))}
                 </nav>
 
                 <div className="p-4 border-t border-slate-700/50">
@@ -279,7 +370,7 @@ const Layout: React.FC<LayoutProps> = ({
                         </button>
                     </div>
                 </div>
-            </aside >
+            </aside>
 
             <main className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
                 <div className="absolute top-4 left-4 z-30 lg:hidden">
@@ -292,7 +383,7 @@ const Layout: React.FC<LayoutProps> = ({
                     {children}
                 </div>
             </main>
-        </div >
+        </div>
     );
 };
 

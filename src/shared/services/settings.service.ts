@@ -68,6 +68,87 @@ const DEFAULT_APPROVER_ASSIGNMENTS: ApproverAssignments = {
     bodApprovers: [],
 };
 
+// =====================================================
+// FOOD COST SETTINGS INTERFACE
+// =====================================================
+export interface FoodCostSettings {
+    excellent: number;      // Green - Excellent margin (e.g., 25%)
+    good: number;           // Green - Good margin (e.g., 30%)
+    warning: number;        // Yellow - Warning (e.g., 35%)
+    danger: number;         // Red - Too high (e.g., 40%)
+    lastUpdated?: string;
+    updatedBy?: string;
+    updatedByName?: string;
+}
+
+const DEFAULT_FOOD_COST_SETTINGS: FoodCostSettings = {
+    excellent: 25,
+    good: 30,
+    warning: 35,
+    danger: 40,
+};
+
+const FOOD_COST_CONFIG_DOC = 'food_cost_config';
+
+// =====================================================
+// EXPENSE SHARING SETTINGS INTERFACE
+// =====================================================
+export interface ExpenseAllocation {
+    targetBuId: string;
+    targetBuName: string;
+    percentage: number;  // e.g., 40 = 40%
+}
+
+export interface AllocationRule {
+    sourceBuId: string;      // The "Head Office" BU that creates the expense
+    sourceBuName: string;    // Display name for UI
+    isEnabled: boolean;
+    allocations: ExpenseAllocation[];
+    lastUpdated?: string;
+    updatedBy?: string;
+    updatedByName?: string;
+}
+
+export interface ExpenseSharingSettings {
+    rules: AllocationRule[];
+    lastUpdated?: string;
+    updatedBy?: string;
+    updatedByName?: string;
+}
+
+const DEFAULT_EXPENSE_SHARING_SETTINGS: ExpenseSharingSettings = {
+    rules: []
+};
+
+const EXPENSE_SHARING_DOC = 'expense_sharing';
+
+// =====================================================
+// COA (CHART OF ACCOUNTS) SETTINGS INTERFACE
+// =====================================================
+export interface COASettings {
+    options: string[];      // List of COA options
+    lastUpdated?: string;
+    updatedBy?: string;
+    updatedByName?: string;
+}
+
+const DEFAULT_COA_SETTINGS: COASettings = {
+    options: [
+        'Food Supplies',
+        'Beverages',
+        'Office Supplies',
+        'Transportation',
+        'Utilities',
+        'Repairs & Maintenance',
+        'Professional Fees',
+        'Rent',
+        'Miscellaneous',
+        'Other'
+    ]
+};
+
+const COA_CONFIG_DOC = 'coa_config';
+
 
 // =====================================================
 // SETTINGS SERVICE
@@ -168,6 +249,172 @@ export class SettingsService {
         await FirestoreService.setDocument(
             SETTINGS_COLLECTION,
             APPROVER_ASSIGNMENTS_DOC,
+            updatePayload
+        );
+    }
+
+    // =====================================================
+    // FOOD COST SETTINGS METHODS
+    // =====================================================
+
+    /**
+     * Get food cost threshold settings
+     * Returns defaults if not configured
+     */
+    static async getFoodCostSettings(): Promise<FoodCostSettings> {
+        try {
+            const settings = await FirestoreService.getDocument<FoodCostSettings>(
+                SETTINGS_COLLECTION,
+                FOOD_COST_CONFIG_DOC
+            );
+
+            if (!settings) {
+                return { ...DEFAULT_FOOD_COST_SETTINGS };
+            }
+
+            return {
+                ...DEFAULT_FOOD_COST_SETTINGS,
+                ...settings,
+            };
+        } catch (error) {
+            console.error('[SettingsService] Error fetching food cost settings:', error);
+            return { ...DEFAULT_FOOD_COST_SETTINGS };
+        }
+    }
+
+    /**
+     * Update food cost threshold settings
+     */
+    static async updateFoodCostSettings(
+        settings: Partial<FoodCostSettings>,
+        userId?: string,
+        userName?: string
+    ): Promise<void> {
+        const updatePayload: Partial<FoodCostSettings> = {
+            ...settings,
+            lastUpdated: new Date().toISOString(),
+            updatedBy: userId,
+            updatedByName: userName,
+        };
+
+        await FirestoreService.setDocument(
+            SETTINGS_COLLECTION,
+            FOOD_COST_CONFIG_DOC,
+            updatePayload
+        );
+    }
+
+    // =====================================================
+    // EXPENSE SHARING METHODS
+    // =====================================================
+
+    /**
+     * Get expense sharing rules
+     * Returns empty rules array if not configured
+     */
+    static async getExpenseSharingRules(): Promise<ExpenseSharingSettings> {
+        try {
+            const settings = await FirestoreService.getDocument<ExpenseSharingSettings>(
+                SETTINGS_COLLECTION,
+                EXPENSE_SHARING_DOC
+            );
+
+            if (!settings) {
+                return { ...DEFAULT_EXPENSE_SHARING_SETTINGS };
+            }
+
+            return {
+                ...DEFAULT_EXPENSE_SHARING_SETTINGS,
+                ...settings,
+            };
+        } catch (error) {
+            console.error('[SettingsService] Error fetching expense sharing rules:', error);
+            return { ...DEFAULT_EXPENSE_SHARING_SETTINGS };
+        }
+    }
+
+    /**
+     * Update expense sharing rules
+     */
+    static async updateExpenseSharingRules(
+        settings: ExpenseSharingSettings,
+        userId?: string,
+        userName?: string
+    ): Promise<void> {
+        const updatePayload: ExpenseSharingSettings = {
+            ...settings,
+            lastUpdated: new Date().toISOString(),
+            updatedBy: userId,
+            updatedByName: userName,
+        };
+
+        await FirestoreService.setDocument(
+            SETTINGS_COLLECTION,
+            EXPENSE_SHARING_DOC,
+            updatePayload
+        );
+    }
+
+    /**
+     * Get allocation rule for a specific source BU
+     * Returns null if no rule exists or rule is disabled
+     */
+    static async getAllocationRuleForBu(sourceBuId: string): Promise<AllocationRule | null> {
+        try {
+            const settings = await this.getExpenseSharingRules();
+            const rule = settings.rules.find(r => r.sourceBuId === sourceBuId && r.isEnabled);
+            return rule || null;
+        } catch (error) {
+            console.error('[SettingsService] Error getting allocation rule for BU:', error);
+            return null;
+        }
+    }
+
+    // =====================================================
+    // COA (CHART OF ACCOUNTS) METHODS
+    // =====================================================
+
+    /**
+     * Get COA options
+     * Returns defaults if not configured
+     */
+    static async getCOAOptions(): Promise<COASettings> {
+        try {
+            const doc = await FirestoreService.getDocument<COASettings>(
+                SETTINGS_COLLECTION,
+                COA_CONFIG_DOC
+            );
+            // Handle null/undefined and spread defaults
+            if (!doc) return { ...DEFAULT_COA_SETTINGS };
+            // Ensure options array exists and has values
+            if (!doc.options || doc.options.length === 0) {
+                return { ...doc, options: DEFAULT_COA_SETTINGS.options };
+            }
+            return doc;
+        } catch (error) {
+            console.error('[SettingsService] Error getting COA options:', error);
+            return { ...DEFAULT_COA_SETTINGS };
+        }
+    }
+
+    /**
+     * Update COA options
+     */
+    static async updateCOAOptions(
+        options: string[],
+        userId?: string,
+        userName?: string
+    ): Promise<void> {
+        const updatePayload: COASettings = {
+            options,
+            lastUpdated: new Date().toISOString(),
+            updatedBy: userId,
+            updatedByName: userName,
+        };
+
+        await FirestoreService.setDocument(
+            SETTINGS_COLLECTION,
+            COA_CONFIG_DOC,
             updatePayload
         );
     }

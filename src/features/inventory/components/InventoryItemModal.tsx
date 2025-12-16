@@ -1,0 +1,470 @@
+import React, { useState, useEffect } from 'react';
+import { X, Save, Loader2, Package, AlertTriangle } from 'lucide-react';
+import type {
+    InventoryItem,
+    InventoryItemType,
+    InventoryCategory,
+    CreateInventoryItemInput,
+    UnitConversion
+} from '../types/InventoryItem';
+
+// ============================================================
+// TYPES
+// ============================================================
+
+interface InventoryItemModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (item: CreateInventoryItemInput) => Promise<void>;
+    item?: InventoryItem | null; // For editing
+    businessUnitId: string;
+    storageAreas: string[];
+}
+
+interface FormData {
+    name: string;
+    type: InventoryItemType;
+    category: InventoryCategory;
+    sku: string;
+    storageAreas: string[];
+    countUnit: string;
+    buyUnit: string;
+    conversion: number;
+    parLevel: number;
+    currentStock: number;
+    costPerUnit: number;
+    supplier: string;
+    notes: string;
+}
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+const ITEM_TYPES: { value: InventoryItemType; label: string }[] = [
+    { value: 'RAW_MATERIAL', label: 'Raw Material' },
+    { value: 'FINISHED_GOOD', label: 'Finished Good' },
+    { value: 'PRODUCTION', label: 'Production' },
+    { value: 'ASSET', label: 'Asset' }
+];
+
+const CATEGORIES: InventoryCategory[] = [
+    'Spirits', 'Wine', 'Beer', 'Mixers', 'Food',
+    'Dry Goods', 'Equipment', 'Furniture', 'Supplies', 'Glassware', 'Other'
+];
+
+const INITIAL_FORM_DATA: FormData = {
+    name: '',
+    type: 'RAW_MATERIAL',
+    category: 'Other',
+    sku: '',
+    storageAreas: [],
+    countUnit: 'piece',
+    buyUnit: 'piece',
+    conversion: 1,
+    parLevel: 0,
+    currentStock: 0,
+    costPerUnit: 0,
+    supplier: '',
+    notes: ''
+};
+
+// ============================================================
+// COMPONENT
+// ============================================================
+
+const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
+    isOpen,
+    onClose,
+    onSave,
+    item,
+    businessUnitId,
+    storageAreas
+}) => {
+    const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
+    const [saving, setSaving] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const isEditing = !!item;
+
+    // Populate form when editing
+    useEffect(() => {
+        if (item) {
+            setFormData({
+                name: item.name,
+                type: item.type,
+                category: item.category,
+                sku: item.sku || '',
+                storageAreas: item.storageAreas || [],
+                countUnit: item.units.countUnit,
+                buyUnit: item.units.buyUnit,
+                conversion: item.units.conversion,
+                parLevel: item.parLevel,
+                currentStock: item.currentStock,
+                costPerUnit: item.costPerUnit,
+                supplier: item.supplier || '',
+                notes: item.notes || ''
+            });
+        } else {
+            setFormData(INITIAL_FORM_DATA);
+        }
+        setErrors({});
+    }, [item, isOpen]);
+
+    // Validation
+    const validate = (): boolean => {
+        const newErrors: Record<string, string> = {};
+
+        if (!formData.name.trim()) {
+            newErrors.name = 'Name is required';
+        }
+
+        if (formData.conversion <= 0) {
+            newErrors.conversion = 'Conversion must be greater than 0';
+        }
+
+        if (formData.costPerUnit < 0) {
+            newErrors.costPerUnit = 'Cost cannot be negative';
+        }
+
+        if (formData.parLevel < 0) {
+            newErrors.parLevel = 'Par level cannot be negative';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    // Handle form submission
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!validate()) return;
+
+        setSaving(true);
+        try {
+            const units: UnitConversion = {
+                countUnit: formData.countUnit.trim() || 'piece',
+                buyUnit: formData.buyUnit.trim() || 'piece',
+                conversion: formData.conversion
+            };
+
+            const itemData: CreateInventoryItemInput = {
+                businessUnitId,
+                name: formData.name.trim(),
+                type: formData.type,
+                category: formData.category,
+                sku: formData.sku.trim() || undefined,
+                storageAreas: formData.storageAreas,
+                units,
+                parLevel: formData.parLevel,
+                currentStock: formData.currentStock,
+                costPerUnit: formData.costPerUnit,
+                supplier: formData.supplier.trim() || undefined,
+                notes: formData.notes.trim() || undefined
+            };
+
+            await onSave(itemData);
+            onClose();
+        } catch (error) {
+            console.error('Error saving item:', error);
+            setErrors({ submit: 'Failed to save item. Please try again.' });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // Handle storage area toggle
+    const handleStorageAreaToggle = (area: string) => {
+        setFormData(prev => ({
+            ...prev,
+            storageAreas: prev.storageAreas.includes(area)
+                ? prev.storageAreas.filter(a => a !== area)
+                : [...prev.storageAreas, area]
+        }));
+    };
+
+    if (!isOpen) return null;
+
+    const inputClass = "w-full p-2.5 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
+    const labelClass = "block text-sm font-medium text-slate-300 mb-1.5";
+    const errorClass = "text-xs text-red-400 mt-1";
+
+    return (
+        <>
+            {/* Backdrop */}
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={onClose} />
+
+            {/* Modal */}
+            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-4 border-b border-slate-700 sticky top-0 bg-slate-800 z-10">
+                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                            <Package size={20} className="text-purple-400" />
+                            {isEditing ? 'Edit Inventory Item' : 'Add New Item'}
+                        </h3>
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+
+                    {/* Form */}
+                    <form onSubmit={handleSubmit} className="p-4 space-y-6">
+                        {/* Global Error */}
+                        {errors.submit && (
+                            <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-red-300 text-sm flex items-center gap-2">
+                                <AlertTriangle size={16} />
+                                {errors.submit}
+                            </div>
+                        )}
+
+                        {/* Basic Info Section */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                                Basic Information
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* Name */}
+                                <div className="md:col-span-2">
+                                    <label className={labelClass}>Item Name *</label>
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        className={`${inputClass} ${errors.name ? 'border-red-500' : ''}`}
+                                        placeholder="e.g., Jameson Irish Whiskey"
+                                    />
+                                    {errors.name && <p className={errorClass}>{errors.name}</p>}
+                                </div>
+
+                                {/* Type */}
+                                <div>
+                                    <label className={labelClass}>Item Type</label>
+                                    <select
+                                        value={formData.type}
+                                        onChange={(e) => setFormData({ ...formData, type: e.target.value as InventoryItemType })}
+                                        className={inputClass}
+                                    >
+                                        {ITEM_TYPES.map(t => (
+                                            <option key={t.value} value={t.value}>{t.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Category */}
+                                <div>
+                                    <label className={labelClass}>Category</label>
+                                    <select
+                                        value={formData.category}
+                                        onChange={(e) => setFormData({ ...formData, category: e.target.value as InventoryCategory })}
+                                        className={inputClass}
+                                    >
+                                        {CATEGORIES.map(c => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* SKU */}
+                                <div>
+                                    <label className={labelClass}>SKU (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={formData.sku}
+                                        onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                                        className={inputClass}
+                                        placeholder="e.g., WHS-JAM-001"
+                                    />
+                                </div>
+
+                                {/* Supplier */}
+                                <div>
+                                    <label className={labelClass}>Supplier (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={formData.supplier}
+                                        onChange={(e) => setFormData({ ...formData, supplier: e.target.value })}
+                                        className={inputClass}
+                                        placeholder="e.g., ABC Distributors"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Storage Areas Section */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                                Storage Areas
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                                {storageAreas.map(area => (
+                                    <button
+                                        key={area}
+                                        type="button"
+                                        onClick={() => handleStorageAreaToggle(area)}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                                            formData.storageAreas.includes(area)
+                                                ? 'bg-purple-500 text-white'
+                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                        }`}
+                                    >
+                                        {area}
+                                    </button>
+                                ))}
+                                {storageAreas.length === 0 && (
+                                    <p className="text-slate-500 text-sm">No storage areas defined</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Unit Configuration Section */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                                Unit Configuration
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Count Unit */}
+                                <div>
+                                    <label className={labelClass}>Count Unit (Base)</label>
+                                    <input
+                                        type="text"
+                                        value={formData.countUnit}
+                                        onChange={(e) => setFormData({ ...formData, countUnit: e.target.value })}
+                                        className={inputClass}
+                                        placeholder="e.g., bottle"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">Unit used for counting</p>
+                                </div>
+
+                                {/* Buy Unit */}
+                                <div>
+                                    <label className={labelClass}>Buy Unit</label>
+                                    <input
+                                        type="text"
+                                        value={formData.buyUnit}
+                                        onChange={(e) => setFormData({ ...formData, buyUnit: e.target.value })}
+                                        className={inputClass}
+                                        placeholder="e.g., case"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">Unit for purchasing</p>
+                                </div>
+
+                                {/* Conversion */}
+                                <div>
+                                    <label className={labelClass}>Conversion Rate *</label>
+                                    <input
+                                        type="number"
+                                        min="0.01"
+                                        step="0.01"
+                                        value={formData.conversion}
+                                        onChange={(e) => setFormData({ ...formData, conversion: parseFloat(e.target.value) || 0 })}
+                                        className={`${inputClass} ${errors.conversion ? 'border-red-500' : ''}`}
+                                        placeholder="e.g., 12"
+                                    />
+                                    {errors.conversion && <p className={errorClass}>{errors.conversion}</p>}
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        {formData.conversion > 0 && formData.countUnit && formData.buyUnit
+                                            ? `${formData.conversion} ${formData.countUnit}(s) = 1 ${formData.buyUnit}`
+                                            : 'Count units per buy unit'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stock Settings Section */}
+                        <div>
+                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                                Stock Settings
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Par Level */}
+                                <div>
+                                    <label className={labelClass}>Par Level</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="1"
+                                        value={formData.parLevel}
+                                        onChange={(e) => setFormData({ ...formData, parLevel: parseInt(e.target.value) || 0 })}
+                                        className={`${inputClass} ${errors.parLevel ? 'border-red-500' : ''}`}
+                                        placeholder="Minimum stock"
+                                    />
+                                    {errors.parLevel && <p className={errorClass}>{errors.parLevel}</p>}
+                                </div>
+
+                                {/* Current Stock */}
+                                <div>
+                                    <label className={labelClass}>Current Stock</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.currentStock}
+                                        onChange={(e) => setFormData({ ...formData, currentStock: parseFloat(e.target.value) || 0 })}
+                                        className={inputClass}
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                {/* Cost Per Unit */}
+                                <div>
+                                    <label className={labelClass}>Cost Per Unit (₱)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.costPerUnit}
+                                        onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
+                                        className={`${inputClass} ${errors.costPerUnit ? 'border-red-500' : ''}`}
+                                        placeholder="0.00"
+                                    />
+                                    {errors.costPerUnit && <p className={errorClass}>{errors.costPerUnit}</p>}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Notes Section */}
+                        <div>
+                            <label className={labelClass}>Notes (Optional)</label>
+                            <textarea
+                                value={formData.notes}
+                                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                                className={`${inputClass} min-h-[80px] resize-y`}
+                                placeholder="Additional notes about this item..."
+                            />
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-cyan-500 hover:opacity-90 text-white rounded-lg flex items-center gap-2 transition-all disabled:opacity-50"
+                            >
+                                {saving ? (
+                                    <Loader2 size={18} className="animate-spin" />
+                                ) : (
+                                    <Save size={18} />
+                                )}
+                                {saving ? 'Saving...' : isEditing ? 'Update Item' : 'Add Item'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </>
+    );
+};
+
+export default InventoryItemModal;

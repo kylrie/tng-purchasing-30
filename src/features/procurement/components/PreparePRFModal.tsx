@@ -383,14 +383,14 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                         {/* Approver Selection */}
                         <div className="bg-purple-900/20 p-4 rounded-lg border border-purple-500/30">
                             <label className="block text-sm font-medium text-purple-300 mb-1">
-                                {isFromBurf ? 'Approver (Manager)' : 'Select Approver'}
+                                {isFromBurf && bumApprover ? 'Approver (Manager)' : 'Select Approver'}
                             </label>
                             {eligibleApprovers.length > 0 ? (
                                 <select
                                     value={designatedApproverId}
                                     onChange={(e) => setDesignatedApproverId(e.target.value)}
-                                    disabled={isFromBurf} // Disable for BURF→PRF conversions
-                                    className={`w-full px-3 py-2 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white ${isFromBurf
+                                    disabled={isFromBurf && !!bumApprover} // Only disable if BURF AND has a manager
+                                    className={`w-full px-3 py-2 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white ${isFromBurf && bumApprover
                                         ? 'bg-slate-800 cursor-not-allowed opacity-75'
                                         : 'bg-slate-900/50'
                                         }`}
@@ -408,9 +408,11 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                 </div>
                             )}
                             <p className="text-xs text-purple-400 mt-1">
-                                {isFromBurf
+                                {isFromBurf && bumApprover
                                     ? 'BURFs converted to PRF are automatically routed to the Manager.'
-                                    : 'Designate who will approve this PRF.'
+                                    : isFromBurf && !bumApprover
+                                        ? 'No Manager found for this BU. Please select an approver.'
+                                        : 'Designate who will approve this PRF.'
                                 }
                             </p>
                         </div>

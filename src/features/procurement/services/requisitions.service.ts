@@ -1,7 +1,7 @@
 import { FirestoreService, where } from '../../../shared/services/firestore.service';
 import { doc, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import type { Requisition, RequisitionHistory, RequisitionItem, SupplierDetails } from '../types';
+import type { Requisition, RequisitionHistory, RequisitionItem, SupplierDetails, CostAllocation } from '../types';
 import { RequisitionStatus, UserRole, hasGlobalAccess } from '../types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 import { removeUndefinedFields } from '../../../shared/utils/firestore.utils';
@@ -14,6 +14,40 @@ const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
  * Threshold amount for requiring GM PRF approval step
  */
 const GM_PRF_THRESHOLD = 50000;
+
+/**
+ * Calculate expense allocation for a given business unit and total amount
+ * Returns the allocation breakdown if a rule exists and is enabled, otherwise undefined
+ * 
+ * @param businessId - The source business unit ID (Head Office)
+ * @param totalAmount - The total amount to be allocated
+ * @returns Array of CostAllocation if rule exists, undefined otherwise
+ */
+export async function calculateExpenseAllocation(
+  businessId: string,
+  totalAmount: number
+): Promise<CostAllocation[] | undefined> {
+  try {
+    const rule = await SettingsService.getAllocationRuleForBu(businessId);
+
+    if (!rule || !rule.isEnabled || rule.allocations.length === 0) {
+      return undefined;
+    }
+
+    // Calculate allocation for each target BU
+    const allocations: CostAllocation[] = rule.allocations.map(alloc => ({
+      buId: alloc.targetBuId,
+      buName: alloc.targetBuName,
+      percentage: alloc.percentage,
+      amount: Math.round((totalAmount * alloc.percentage / 100) * 100) / 100 // Round to 2 decimal places
+    }));
+
+    return allocations;
+  } catch (error) {
+    console.error('[calculateExpenseAllocation] Error:', error);
+    return undefined;
+  }
+}
 
 /**
  * Parameters for creating a batch PRF from BURF
@@ -190,6 +224,17 @@ export class RequisitionService {
     try {
       const sourceBurfRef = doc(db, REQUISITIONS_COLLECTION, sourceBurfId);
 
+      // Pre-calculate values needed inside transaction
+      // Calculate total amount from selected items
+      const calculatedTotalAmount = selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+      // Step 0: Pre-fetch expense allocation rule (can't call async in transaction)
+      // Use sourceBusinessId from params if available, otherwise we'll get it from BURF inside transaction
+      let expenseAllocation: CostAllocation[] | undefined = undefined;
+      if (params.sourceBusinessId) {
+        expenseAllocation = await calculateExpenseAllocation(params.sourceBusinessId, calculatedTotalAmount);
+      }
+
       // Step 1: Run transaction for atomic create + update + ID generation
       let sourceBurfNewStatus: RequisitionStatus = RequisitionStatus.READY_FOR_PRF;
       let remainingItemsCount = 0;
@@ -274,6 +319,8 @@ export class RequisitionService {
           priority: sourceBurf.priority || 'NORMAL',
           attachments: sourceBurf.attachments || [],
           parentBurfId: sourceBurfId,
+          // Corporate Expense Sharing: Include allocation if rule exists
+          ...(expenseAllocation && { costAllocation: expenseAllocation }),
           prfDetails: {
             supplier: prfDetails.supplier,
             preparedBy: prfDetails.preparedBy,

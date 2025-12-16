@@ -264,9 +264,44 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
         </div>
     );
 
+    // Render expense/cost allocation section
+    const renderExpenseSharing = () => {
+        if (!req.costAllocation || req.costAllocation.length === 0) return null;
+
+        return (
+            <div className="border border-slate-900 mb-4 text-[10px]">
+                <div className="bg-slate-100 print:bg-transparent px-2 py-1 font-bold border-b border-slate-900">
+                    CORPORATE EXPENSE SHARING
+                </div>
+                <div className="p-2">
+                    <table className="w-full text-[9px]">
+                        <thead>
+                            <tr className="border-b border-slate-400">
+                                <th className="text-left py-1 px-2">Business Unit</th>
+                                <th className="text-right py-1 px-2 w-16">Share %</th>
+                                <th className="text-right py-1 px-2 w-24">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {req.costAllocation.map((alloc, idx) => (
+                                <tr key={idx} className="border-b border-slate-200">
+                                    <td className="py-1 px-2">{alloc.buName}</td>
+                                    <td className="text-right py-1 px-2">{alloc.percentage}%</td>
+                                    <td className="text-right py-1 px-2 font-medium">
+                                        ₱{alloc.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:block">
-            {/* Print Styles */}
+            {/* Print Styles - Enhanced for multi-page PDF */}
             <style>
                 {`
                     @media print {
@@ -278,8 +313,15 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
                             -webkit-print-color-adjust: exact !important;
                             print-color-adjust: exact !important;
                         }
+                        /* Critical: Remove overflow constraints for print */
+                        .print-container {
+                            max-height: none !important;
+                            overflow: visible !important;
+                            height: auto !important;
+                        }
                         .print-page {
                             page-break-after: always;
+                            page-break-inside: avoid;
                             width: 190mm;
                             min-height: 277mm;
                             box-sizing: border-box;
@@ -290,11 +332,15 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
                         .print-hidden {
                             display: none !important;
                         }
+                        /* Ensure images and tables don't break awkwardly */
+                        table, img, figure {
+                            page-break-inside: avoid;
+                        }
                     }
                 `}
             </style>
 
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:rounded-none">
+            <div className="print-container bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:rounded-none print:h-auto">
 
                 {/* Modal Header - Hidden when printing */}
                 <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between print-hidden print:hidden">
@@ -350,6 +396,7 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
                                 {pageIndex === totalPages - 1 && (
                                     <>
                                         {renderFooterTotals()}
+                                        {renderExpenseSharing()}
                                         {renderSignatures()}
 
                                         {/* Page indicator */}

@@ -336,10 +336,10 @@ export class PCFService {
 
             const newPrf: Partial<Requisition> = {
                 id: newPrfId,
-                status: RequisitionStatus.APPROVED_FOR_PAYMENT, // FAST TRACK: Skip approval queue
+                status: RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL, // Go through BR process
                 businessId: businessId,
                 description: `[PCF_REPLENISHMENT] PCF Replenishment for ${custodianName}`,
-                remarks: `Auto-generated from PCF Liquidation ${liquidationId}. Approved by ${approverName}.`,
+                remarks: `Auto-generated from PCF Liquidation ${liquidationId}. Approved by ${approverName}. Goes through BR process.`,
                 items: prfItems,
                 totalAmount: liquidation.totalAmount,
                 requesterId: liquidation.userId,
@@ -348,6 +348,8 @@ export class PCFService {
                 timestamp: new Date().toISOString(),
                 // Link to parent PCF for auto-update when funds are released
                 linkedPcfId: liquidationId,
+                // Flag to skip liquidation after fund release (already liquidated via PCF)
+                isPcfReplenishment: true,
                 prfDetails: {
                     supplier: supplierDetails,
                     preparedBy: approverId,
@@ -360,8 +362,8 @@ export class PCFService {
                     actorId: approverId,
                     actorName: approverName,
                     action: 'PCF_REPLENISHMENT_CREATED',
-                    comments: `Auto-created from PCF Liquidation approval. Skipped manager approval queue.`,
-                    stage: RequisitionStatus.APPROVED_FOR_PAYMENT,
+                    comments: `Auto-created from PCF Liquidation approval. Routed through BR workflow.`,
+                    stage: RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL,
                 }],
             };
 
