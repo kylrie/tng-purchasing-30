@@ -12,7 +12,82 @@ interface LiquidationPrintModalProps {
 const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onClose, business, requester }) => {
 
     const handlePrint = () => {
-        window.print();
+        const printContent = document.getElementById('printable-content');
+        if (!printContent) return;
+
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) {
+            alert('Please allow popups to print');
+            return;
+        }
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Liquidation Report - ${req.id}</title>
+                <style>
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body { 
+                        font-family: Georgia, 'Times New Roman', serif; 
+                        color: #1e293b;
+                        margin: 0;
+                        padding: 20px;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    * { box-sizing: border-box; }
+                    table { border-collapse: collapse; width: 100%; }
+                    th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+                    th { background-color: #f1f5f9; font-weight: bold; }
+                    .text-right { text-align: right; }
+                    .text-center { text-align: center; }
+                    .font-bold { font-weight: bold; }
+                    .mb-2 { margin-bottom: 8px; }
+                    .mb-4 { margin-bottom: 16px; }
+                    .mb-8 { margin-bottom: 32px; }
+                    .mt-12 { margin-top: 48px; }
+                    .border-b { border-bottom: 1px solid #e2e8f0; }
+                    .border-b-2 { border-bottom: 2px solid #1e293b; }
+                    .pb-4 { padding-bottom: 16px; }
+                    .grid { display: grid; }
+                    .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+                    .grid-cols-3 { grid-template-columns: repeat(3, 1fr); }
+                    .gap-8 { gap: 32px; }
+                    .gap-2 { gap: 8px; }
+                    .text-sm { font-size: 14px; }
+                    .text-xs { font-size: 12px; }
+                    .text-2xl { font-size: 24px; }
+                    .uppercase { text-transform: uppercase; }
+                    .text-green-700 { color: #15803d; }
+                    .text-red-700 { color: #b91c1c; }
+                    .text-purple-700 { color: #7c3aed; }
+                    .bg-slate-50 { background-color: #f8fafc; }
+                    .bg-purple-50 { background-color: #faf5ff; }
+                    .border-purple-300 { border-color: #d8b4fe; }
+                    .rounded { border-radius: 4px; }
+                    .p-3, .p-4 { padding: 12px; }
+                </style>
+            </head>
+            <body>
+                ${printContent.innerHTML}
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+
+        // Wait for content to load then print
+        printWindow.onload = () => {
+            printWindow.focus();
+            printWindow.print();
+        };
+
+        // Fallback for browsers that don't fire onload
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 500);
     };
 
     const liquidation = req.liquidationDetails;
@@ -24,36 +99,8 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
     const isRefund = difference > 0;
 
     return (
-        <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:block text-slate-900">
-            {/* Print Styles */}
-            <style>
-                {`
-                    @media print {
-                        @page {
-                            size: A4 portrait;
-                            margin: 10mm;
-                        }
-                        body {
-                            -webkit-print-color-adjust: exact !important;
-                            print-color-adjust: exact !important;
-                        }
-                        .print-page {
-                            page-break-after: always;
-                            width: 190mm;
-                            min-height: 277mm;
-                            box-sizing: border-box;
-                        }
-                        .print-page:last-child {
-                            page-break-after: auto;
-                        }
-                        .print-hidden {
-                            display: none !important;
-                        }
-                    }
-                `}
-            </style>
-
-            <div className="print-container bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:rounded-none">
+        <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 text-slate-900">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
 
                 {/* Modal Header - Hidden when printing */}
                 <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between print:hidden print-hidden">

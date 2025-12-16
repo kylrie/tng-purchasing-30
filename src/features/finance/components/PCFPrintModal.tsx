@@ -16,7 +16,83 @@ const ITEMS_PER_PAGE = 15;
 const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, business }) => {
 
     const handlePrint = () => {
-        window.print();
+        const printContent = document.getElementById('printable-content');
+        if (!printContent) return;
+
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+        if (!printWindow) {
+            alert('Please allow popups to print');
+            return;
+        }
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>PCF Replenishment - ${liquidation.replenishmentPrfId || liquidation.id}</title>
+                <style>
+                    @page { size: A4 portrait; margin: 10mm; }
+                    body { 
+                        font-family: Georgia, 'Times New Roman', serif; 
+                        color: #1e293b;
+                        margin: 0;
+                        padding: 20px;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
+                    }
+                    * { box-sizing: border-box; }
+                    table { border-collapse: collapse; width: 100%; }
+                    th, td { border: 1px solid #1e293b; padding: 6px 8px; text-align: left; font-size: 11px; }
+                    th { text-align: center; font-weight: bold; }
+                    .text-right { text-align: right; }
+                    .text-center { text-align: center; }
+                    .font-bold { font-weight: bold; }
+                    .text-red-700 { color: #b91c1c; }
+                    .border-b { border-bottom: 1px solid #1e293b; }
+                    .mb-0 { margin-bottom: 0; }
+                    .mb-1 { margin-bottom: 4px; }
+                    .mb-3 { margin-bottom: 12px; }
+                    .mb-4 { margin-bottom: 16px; }
+                    .mt-2 { margin-top: 8px; }
+                    .mt-4 { margin-top: 16px; }
+                    .p-1\.5 { padding: 6px; }
+                    .p-2 { padding: 8px; }
+                    .p-3 { padding: 12px; }
+                    .text-xs { font-size: 10px; }
+                    .text-sm { font-size: 12px; }
+                    .text-lg { font-size: 16px; }
+                    .text-xl { font-size: 18px; }
+                    .uppercase { text-transform: uppercase; }
+                    .italic { font-style: italic; }
+                    .underline { text-decoration: underline; }
+                    .grid { display: grid; }
+                    .flex { display: flex; }
+                    .inline-block { display: inline-block; }
+                    .border { border: 1px solid #1e293b; }
+                    .border-x { border-left: 1px solid #1e293b; border-right: 1px solid #1e293b; }
+                    .border-b { border-bottom: 1px solid #1e293b; }
+                    .border-r { border-right: 1px solid #1e293b; }
+                    .print-page { page-break-after: always; }
+                    .print-page:last-child { page-break-after: auto; }
+                </style>
+            </head>
+            <body>
+                ${printContent.innerHTML}
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+
+        printWindow.onload = () => {
+            printWindow.focus();
+            printWindow.print();
+        };
+
+        setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+        }, 500);
     };
 
     const totalAmount = liquidation.totalAmount;
@@ -225,36 +301,8 @@ const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, bus
     );
 
     return (
-        <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:block">
-            {/* Print Styles */}
-            <style>
-                {`
-                    @media print {
-                        @page {
-                            size: A4 portrait;
-                            margin: 10mm;
-                        }
-                        body {
-                            -webkit-print-color-adjust: exact !important;
-                            print-color-adjust: exact !important;
-                        }
-                        .print-page {
-                            page-break-after: always;
-                            width: 190mm;
-                            min-height: 277mm;
-                            box-sizing: border-box;
-                        }
-                        .print-page:last-child {
-                            page-break-after: auto;
-                        }
-                        .print-hidden {
-                            display: none !important;
-                        }
-                    }
-                `}
-            </style>
-
-            <div className="print-container bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:rounded-none">
+        <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
 
                 {/* Modal Header - Hidden when printing */}
                 <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between print-hidden print:hidden">
