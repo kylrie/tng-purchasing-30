@@ -26,7 +26,13 @@ import {
     TrendingDown,
     CreditCard,
     Receipt,
-    ChefHat
+    ChefHat,
+    Package,
+    Factory,
+    ShoppingBag,
+    Boxes,
+    Truck,
+    Monitor
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -249,9 +255,35 @@ const Layout: React.FC<LayoutProps> = ({
             icon: Warehouse,
             canView: true,
             children: [
-                { path: '/inventory', label: 'Stock Take', icon: Warehouse, canView: true },
-                { path: '/inventory/reports', label: 'Reports', icon: BarChart3, canView: true },
-                { path: '/menu', label: 'Menu Engineering', icon: ChefHat, canView: true }
+                { path: '/inventory', label: 'Dashboard', icon: LayoutDashboard, canView: true },
+                {
+                    label: 'Stock Management',
+                    icon: Boxes,
+                    canView: true,
+                    children: [
+                        { path: '/inventory/items', label: 'All Items', icon: Package, canView: true },
+                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: true }
+                    ]
+                },
+                { path: '/inventory/fixed-assets', label: 'Fixed Assets', icon: Monitor, canView: true },
+                { path: '/inventory/receiving', label: 'Receiving', icon: Truck, canView: true },
+                {
+                    label: 'Menu Engineering',
+                    icon: ChefHat,
+                    canView: true,
+                    children: [
+                        { path: '/menu/finished-goods', label: 'Finished Goods', icon: ShoppingBag, canView: true },
+                        { path: '/menu/production-recipes', label: 'Production Recipes', icon: Factory, canView: true }
+                    ]
+                },
+                {
+                    label: 'Reports',
+                    icon: BarChart3,
+                    canView: true,
+                    children: [
+                        { path: '/inventory/variance', label: 'Variance Report', icon: BarChart3, canView: true }
+                    ]
+                }
             ]
         },
         {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-    ChefHat, Plus, Search, DollarSign, TrendingUp, Loader2,
+    ChefHat, Plus, Search, TrendingUp, Loader2,
     Building2, Edit, Trash2, RefreshCw, Filter
 } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import type { MenuItem, MenuCategory } from '../types/menu.types';
 import {
     MENU_CATEGORIES,
@@ -89,7 +90,7 @@ const MenuItemCard: React.FC<{
             {/* Margin Badge */}
             <div className={`flex items-center justify-between p-2 rounded-lg border ${bgColor}`}>
                 <div className="flex items-center gap-2">
-                    <DollarSign size={14} className={textColor} />
+                    <PesoSign size={14} className={textColor} />
                     <span className="text-sm text-slate-300">Food Cost</span>
                 </div>
                 <span className={`font-bold ${textColor}`}>

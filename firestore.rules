@@ -306,11 +306,12 @@ service cloud.firestore {
            request.resource.data.status == 'PRF_PENDING_MANAGER' &&
            hasPermission('requisition:prepare:prf'))
           ||
-          // PCF Replenishment: Manager with approval permission can create PRF at APPROVED_FOR_PAYMENT
-          // This happens when approving a PCF liquidation (Fast Track auto-PRF)
+          // PCF Replenishment: Manager with approval permission can create PRF
+          // Supports both legacy (APPROVED_FOR_PAYMENT) and new BR workflow (PENDING_FINANCE_HEAD_BR_APPROVAL)
           (request.resource.data.description.matches('.*\\[PCF_REPLENISHMENT\\].*') &&
-           request.resource.data.status == 'APPROVED_FOR_PAYMENT' &&
-           hasPermission('approval:manager:prf'))
+           (request.resource.data.status == 'APPROVED_FOR_PAYMENT' ||
+            request.resource.data.status == 'PENDING_FINANCE_HEAD_BR_APPROVAL') &&
+           hasPermission('pcf:approve'))
         );
       
       allow update: if isSignedIn() && (

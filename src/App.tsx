@@ -21,7 +21,11 @@ import SuppliersView from './features/inventory/views/SuppliersView';
 // StockTakeSession merged into InventoryDashboard
 import InventoryReports from './features/inventory/views/InventoryReports';
 import InventoryDashboard from './features/inventory/views/InventoryDashboard';
+import InventoryItemsView from './features/inventory/views/InventoryItemsView';
+import FixedAssetsView from './features/inventory/views/FixedAssetsView';
+import VarianceReportView from './features/inventory/views/VarianceReportView';
 import MenuDashboard from './features/menu/views/MenuDashboard';
+import ProductionRecipeView from './features/menu/views/ProductionRecipeView';
 import ChartOfAccountsView from './features/admin/views/ChartOfAccountsView';
 import { SettingsView } from './features/admin/views/SettingsView';
 import ActivityLogView from './features/admin/views/ActivityLogView';
@@ -305,6 +309,7 @@ function ProtectedApp() {
               businesses={businesses}
               onUpdateRequisition={updateRequisition}
               allUsers={users}
+              suppliers={suppliers}
             />
           </ProtectedRoute>
         } />
@@ -350,7 +355,7 @@ function ProtectedApp() {
 
         {/* Inventory Module */}
         <Route path="/inventory" element={
-          <InventoryDashboard currentUser={currentUser} businesses={businesses} />
+          <InventoryDashboard currentUser={currentUser} businesses={businesses} uomOptions={uomOptions} />
         } />
         <Route path="/inventory/stock-take" element={
           <Navigate to="/inventory" replace />
@@ -358,11 +363,33 @@ function ProtectedApp() {
         <Route path="/inventory/reports" element={
           <InventoryReports currentUser={currentUser} />
         } />
+        <Route path="/inventory/items" element={
+          <InventoryItemsView businesses={businesses} uomOptions={uomOptions} />
+        } />
+        <Route path="/inventory/variance" element={
+          <VarianceReportView businesses={businesses} />
+        } />
+        <Route path="/inventory/fixed-assets" element={
+          <FixedAssetsView businesses={businesses} currentUser={currentUser} allUsers={users} />
+        } />
+        <Route path="/inventory/receiving" element={
+          <div className="text-center py-16">
+            <h2 className="text-2xl font-bold text-white mb-4">Goods Receiving</h2>
+            <p className="text-slate-400">Coming soon - Record incoming inventory from suppliers</p>
+          </div>
+        } />
 
         {/* Menu Engineering Module */}
         <Route path="/menu" element={
+          <Navigate to="/menu/finished-goods" replace />
+        } />
+        <Route path="/menu/finished-goods" element={
           <MenuDashboard businesses={businesses} currentUser={currentUser} />
         } />
+        <Route path="/menu/production-recipes" element={
+          <ProductionRecipeView businesses={businesses} currentUser={currentUser} />
+        } />
+
 
         <Route path="/settings" element={
           <ProtectedRoute permission="module:view:settings">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { CheckCircle, XCircle, Clock, Receipt, AlertTriangle, FileText, DollarSign, User, Building2, Wallet, Ban, Printer, History } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Receipt, AlertTriangle, FileText, User, Building2, Wallet, Ban, Printer, History } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import Card from '../../../shared/components/Card';
 import type { User as UserType, Business } from '../../../shared/types';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
@@ -255,7 +256,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                 <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center">
-                            <DollarSign size={24} className="text-slate-400" />
+                            <PesoSign size={24} className="text-slate-400" />
                         </div>
                         <div>
                             <p className="text-xs text-slate-400 uppercase tracking-wider">Total Pending Amount</p>

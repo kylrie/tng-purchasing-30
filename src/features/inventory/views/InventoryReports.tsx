@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import {
     TrendingUp,
     TrendingDown,
-    DollarSign,
     Package,
     AlertTriangle,
     Download,
     BarChart3,
     PieChart as PieChartIcon
 } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import {
     XAxis,
     YAxis,
@@ -117,7 +117,7 @@ const COGSCard: React.FC<{
         <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <DollarSign size={20} className="text-green-400" />
+                    <PesoSign size={20} className="text-green-400" />
                     Cost of Goods Sold (COGS)
                 </h3>
                 <span className="text-xs text-slate-500">
@@ -337,7 +337,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
                 <StatCard
                     title="Current Stock Value"
                     value={formatCurrency(currentStockValue)}
-                    icon={<DollarSign size={24} />}
+                    icon={<PesoSign size={24} />}
                     trend={{ value: 5.2, isPositive: true }}
                     color="cyan"
                 />

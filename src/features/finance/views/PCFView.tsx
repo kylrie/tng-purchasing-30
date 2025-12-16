@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Receipt, DollarSign, Building2, Eye, Users, User as UserIcon, Ban, Printer } from 'lucide-react';
+import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Receipt, Building2, Eye, Users, User as UserIcon, Ban, Printer } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import Card from '../../../shared/components/Card';
 import type { User as UserType, Business } from '../../../shared/types';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
@@ -35,6 +36,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
         activeLiquidationsCount: 0,
     });
     const [viewAll, setViewAll] = useState(false);
+    const [detailTab, setDetailTab] = useState<'details' | 'sharing'>('details');
 
     const { hasPermission } = usePermissions();
     // Can view all: Either role-based pcf:view:all OR per-user pcf:view:history:all
@@ -84,7 +86,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
             [PCFStatus.PENDING_APPROVAL]: { bg: 'bg-yellow-600/30', text: 'text-yellow-300', icon: <Clock size={12} /> },
             [PCFStatus.APPROVED]: { bg: 'bg-green-600/30', text: 'text-green-300', icon: <CheckCircle size={12} /> },
             [PCFStatus.APPROVED_WAITING_RELEASE]: { bg: 'bg-blue-600/30', text: 'text-blue-300', icon: <Wallet size={12} /> },
-            [PCFStatus.REPLENISHED]: { bg: 'bg-emerald-600/30', text: 'text-emerald-300', icon: <DollarSign size={12} /> },
+            [PCFStatus.REPLENISHED]: { bg: 'bg-emerald-600/30', text: 'text-emerald-300', icon: <PesoSign size={12} /> },
             [PCFStatus.REJECTED]: { bg: 'bg-red-600/30', text: 'text-red-300', icon: <XCircle size={12} /> },
             [PCFStatus.CANCELLED]: { bg: 'bg-orange-600/30', text: 'text-orange-300', icon: <Ban size={12} /> },
         };
@@ -278,7 +280,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                 <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700">
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-full bg-blue-900/50 flex items-center justify-center">
-                            <DollarSign size={28} className="text-blue-400" />
+                            <PesoSign size={28} className="text-blue-400" />
                         </div>
                         <div className="flex-1">
                             <p className="text-xs text-slate-400 uppercase tracking-wider">PCF Ceiling</p>
@@ -465,6 +467,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                 }
                 cashOnHand={walletStats.cashOnHand}
                 pcfCeiling={pcfCeiling}
+                businesses={businesses}
                 editingId={editingLiquidation?.id}
                 initialData={editingLiquidation ? {
                     expenses: editingLiquidation.expenses,
@@ -520,6 +523,37 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                             </button>
                         </div>
 
+                        {/* Tabs */}
+                        <div className="flex border-b border-slate-700 px-4 bg-slate-800/30">
+                            <button
+                                onClick={() => setDetailTab('details')}
+                                className={`px-4 py-2 text-sm font-medium transition-colors ${detailTab === 'details'
+                                    ? 'text-purple-400 border-b-2 border-purple-400'
+                                    : 'text-slate-400 hover:text-white'
+                                    }`}
+                            >
+                                Details
+                            </button>
+                            {selectedLiquidation.expenses.some(exp =>
+                                exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP')
+                            ) && (
+                                    <button
+                                        onClick={() => setDetailTab('sharing')}
+                                        className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${detailTab === 'sharing'
+                                            ? 'text-purple-400 border-b-2 border-purple-400'
+                                            : 'text-slate-400 hover:text-white'
+                                            }`}
+                                    >
+                                        BU Sharing
+                                        <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[10px] font-medium">
+                                            {selectedLiquidation.expenses.filter(exp =>
+                                                exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP')
+                                            ).length}
+                                        </span>
+                                    </button>
+                                )}
+                        </div>
+
                         {/* Body - Scrollable */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-6">
                             {/* Late Submission Warning */}
@@ -572,41 +606,134 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                 </div>
                             </div>
 
-                            {/* Expense Details Section */}
-                            <div>
-                                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                    <FileText size={14} className="text-purple-400" />
-                                    Expense Items ({selectedLiquidation.expenses.length})
-                                </h3>
-                                <div className="overflow-x-auto border border-slate-700 rounded-lg">
-                                    <table className="w-full text-xs">
-                                        <thead className="bg-slate-800 text-slate-400 uppercase sticky top-0 z-20 backdrop-blur-sm">
-                                            <tr>
-                                                <th className="px-3 py-2 text-left">Date</th>
-                                                <th className="px-3 py-2 text-left">Payee/Vendor</th>
-                                                <th className="px-3 py-2 text-left">OR#</th>
-                                                <th className="px-3 py-2 text-left">Classification</th>
-                                                <th className="px-3 py-2 text-right">Amount</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-700/50 text-slate-300">
-                                            {selectedLiquidation.expenses.map((exp, i) => (
-                                                <tr key={i} className="hover:bg-slate-800/30">
-                                                    <td className="px-3 py-2">{exp.date}</td>
-                                                    <td className="px-3 py-2">{exp.payeeVendor || '-'}</td>
-                                                    <td className="px-3 py-2 font-mono">{exp.orNo}</td>
-                                                    <td className="px-3 py-2">
-                                                        <span className="bg-slate-700 px-2 py-0.5 rounded text-xs">
-                                                            {exp.classification}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-medium">{formatCurrency(exp.amount)}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                            {/* Details Tab */}
+                            {detailTab === 'details' && (
+                                <>
+                                    {/* Expense Details Section */}
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <FileText size={14} className="text-purple-400" />
+                                            Expense Items ({selectedLiquidation.expenses.length})
+                                        </h3>
+                                        <div className="overflow-x-auto border border-slate-700 rounded-lg">
+                                            <table className="w-full text-xs">
+                                                <thead className="bg-slate-800 text-slate-400 uppercase sticky top-0 z-20 backdrop-blur-sm">
+                                                    <tr>
+                                                        <th className="px-3 py-2 text-left">Date</th>
+                                                        <th className="px-3 py-2 text-left">Payee/Vendor</th>
+                                                        <th className="px-3 py-2 text-left">OR#</th>
+                                                        <th className="px-3 py-2 text-left">COA</th>
+                                                        <th className="px-3 py-2 text-left">Description</th>
+                                                        <th className="px-3 py-2 text-left">BU</th>
+                                                        <th className="px-3 py-2 text-right">Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-700/50 text-slate-300">
+                                                    {selectedLiquidation.expenses.map((exp, i) => {
+                                                        const isShared = exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP');
+                                                        return (
+                                                            <tr key={i} className="hover:bg-slate-800/30">
+                                                                <td className="px-3 py-2">{exp.date}</td>
+                                                                <td className="px-3 py-2">{exp.payeeVendor || '-'}</td>
+                                                                <td className="px-3 py-2 font-mono">{exp.orNo}</td>
+                                                                <td className="px-3 py-2">
+                                                                    <span className="bg-slate-700 px-2 py-0.5 rounded text-xs">
+                                                                        {exp.coaCode || exp.classification || '-'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-3 py-2 truncate max-w-[120px]">
+                                                                    {exp.itemDescription || '-'}
+                                                                </td>
+                                                                <td className="px-3 py-2">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-xs">{exp.buName || '-'}</span>
+                                                                        {isShared && (
+                                                                            <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-3 py-2 text-right font-medium">{formatCurrency(exp.amount)}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
+                            {/* BU Sharing Tab */}
+                            {detailTab === 'sharing' && (() => {
+                                const sharedExpenses = selectedLiquidation.expenses.filter(
+                                    exp => exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP')
+                                );
+                                const totalShared = sharedExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+                                const numBusForSharing = Math.max(businesses.length - 1, 1);
+                                const perBuShare = totalShared / numBusForSharing;
+
+                                return (
+                                    <div className="space-y-4">
+                                        {/* Summary Cards */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
+                                                <p className="text-xs text-purple-400 uppercase">Total Shared</p>
+                                                <p className="text-xl font-bold text-purple-300">{formatCurrency(totalShared)}</p>
+                                            </div>
+                                            <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
+                                                <p className="text-xs text-purple-400 uppercase">Shared Items</p>
+                                                <p className="text-xl font-bold text-purple-300">{sharedExpenses.length}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Shared Items Table */}
+                                        <div>
+                                            <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <Building2 size={14} className="text-purple-400" />
+                                                Shared Expense Items
+                                            </h3>
+                                            <div className="overflow-x-auto border border-purple-700/50 rounded-lg">
+                                                <table className="w-full text-xs">
+                                                    <thead className="bg-purple-900/30 text-purple-300 uppercase sticky top-0 z-20">
+                                                        <tr>
+                                                            <th className="px-3 py-2 text-left">Date</th>
+                                                            <th className="px-3 py-2 text-left">Description</th>
+                                                            <th className="px-3 py-2 text-left">Payee/Vendor</th>
+                                                            <th className="px-3 py-2 text-left">OR#</th>
+                                                            <th className="px-3 py-2 text-right">Amount</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-purple-700/30 text-slate-300">
+                                                        {sharedExpenses.map((exp, i) => (
+                                                            <tr key={i} className="hover:bg-purple-900/20">
+                                                                <td className="px-3 py-2">{exp.date}</td>
+                                                                <td className="px-3 py-2">{exp.itemDescription || '-'}</td>
+                                                                <td className="px-3 py-2">{exp.payeeVendor || '-'}</td>
+                                                                <td className="px-3 py-2 font-mono">{exp.orNo}</td>
+                                                                <td className="px-3 py-2 text-right font-medium text-purple-300">{formatCurrency(exp.amount)}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        {/* Per-BU Breakdown */}
+                                        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+                                            <h4 className="text-sm font-bold text-slate-300 mb-3">Per-BU Share Estimate</h4>
+                                            <p className="text-xs text-slate-500 mb-3">Equally divided among {numBusForSharing} business units</p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {businesses.filter(b => !b.name.toUpperCase().includes('ATHOUSANDCONCEPTS')).map(bu => (
+                                                    <div key={bu.id} className="flex justify-between text-sm bg-slate-700/30 px-3 py-2 rounded">
+                                                        <span className="text-slate-300 truncate max-w-[150px]">{bu.name}</span>
+                                                        <span className="text-emerald-400 font-medium">{formatCurrency(perBuShare)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
 
                             {/* Tax Summary */}
                             <div className="grid grid-cols-3 gap-3">

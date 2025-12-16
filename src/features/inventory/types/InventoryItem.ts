@@ -33,6 +33,25 @@ export interface UnitConversion {
   conversion: number;    // How many countUnits in a buyUnit
 }
 
+
+// ============================================================
+// ASSET DETAILS - For Fixed Assets tracking
+// ============================================================
+
+export type AssetStatus = 'Active' | 'Broken' | 'In Repair' | 'Decommissioned';
+
+export interface AssetDetails {
+  serialNumber?: string;        // Asset tag / Serial number
+  purchaseDate?: string;        // YYYY-MM-DD format
+  status: AssetStatus;          // Current condition
+  assignedTo?: string;          // Employee name
+  assignedToId?: string;        // Employee user ID
+  location?: string;            // Physical location
+  warrantyExpiry?: string;      // YYYY-MM-DD format
+  purchasePrice?: number;       // Original purchase price
+  depreciationRate?: number;    // Annual depreciation %
+}
+
 // ============================================================
 // INVENTORY ITEM TYPES - Multi-Tenant
 // ============================================================
@@ -53,6 +72,7 @@ export interface InventoryItem {
   supplier?: string;
   notes?: string;
   menuItemId?: string;               // Link to menu item if FINISHED_GOOD from Menu Engineering
+  assetDetails?: AssetDetails;       // Asset-specific details (only for type='ASSET')
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;

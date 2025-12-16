@@ -19,6 +19,7 @@ interface InventoryItemModalProps {
     item?: InventoryItem | null; // For editing
     businessUnitId: string;
     storageAreas: string[];
+    uomOptions: string[];
 }
 
 interface FormData {
@@ -79,7 +80,8 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
     onSave,
     item,
     businessUnitId,
-    storageAreas
+    storageAreas,
+    uomOptions
 }) => {
     const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
     const [saving, setSaving] = useState(false);
@@ -154,14 +156,15 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 name: formData.name.trim(),
                 type: formData.type,
                 category: formData.category,
-                sku: formData.sku.trim() || undefined,
                 storageAreas: formData.storageAreas,
                 units,
                 parLevel: formData.parLevel,
                 currentStock: formData.currentStock,
                 costPerUnit: formData.costPerUnit,
-                supplier: formData.supplier.trim() || undefined,
-                notes: formData.notes.trim() || undefined
+                // Only include optional fields if they have values (avoid undefined)
+                ...(formData.sku.trim() && { sku: formData.sku.trim() }),
+                ...(formData.supplier.trim() && { supplier: formData.supplier.trim() }),
+                ...(formData.notes.trim() && { notes: formData.notes.trim() })
             };
 
             await onSave(itemData);
@@ -306,11 +309,10 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                         key={area}
                                         type="button"
                                         onClick={() => handleStorageAreaToggle(area)}
-                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                                            formData.storageAreas.includes(area)
-                                                ? 'bg-purple-500 text-white'
-                                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                                        }`}
+                                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.storageAreas.includes(area)
+                                            ? 'bg-purple-500 text-white'
+                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            }`}
                                     >
                                         {area}
                                     </button>
@@ -330,26 +332,26 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                 {/* Count Unit */}
                                 <div>
                                     <label className={labelClass}>Count Unit (Base)</label>
-                                    <input
-                                        type="text"
+                                    <select
                                         value={formData.countUnit}
                                         onChange={(e) => setFormData({ ...formData, countUnit: e.target.value })}
                                         className={inputClass}
-                                        placeholder="e.g., bottle"
-                                    />
+                                    >
+                                        {uomOptions.map((u: string) => <option key={u} value={u}>{u}</option>)}
+                                    </select>
                                     <p className="text-xs text-slate-500 mt-1">Unit used for counting</p>
                                 </div>
 
                                 {/* Buy Unit */}
                                 <div>
                                     <label className={labelClass}>Buy Unit</label>
-                                    <input
-                                        type="text"
+                                    <select
                                         value={formData.buyUnit}
                                         onChange={(e) => setFormData({ ...formData, buyUnit: e.target.value })}
                                         className={inputClass}
-                                        placeholder="e.g., case"
-                                    />
+                                    >
+                                        {uomOptions.map((u: string) => <option key={u} value={u}>{u}</option>)}
+                                    </select>
                                     <p className="text-xs text-slate-500 mt-1">Unit for purchasing</p>
                                 </div>
 

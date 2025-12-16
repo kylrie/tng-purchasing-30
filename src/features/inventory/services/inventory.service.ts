@@ -148,7 +148,10 @@ export class InventoryService {
 
     static async getStorageAreas(): Promise<string[]> {
         try {
-            return MOCK_STORAGE_AREAS;
+            // Import dynamically to avoid circular dependency
+            const { SettingsService } = await import('../../../shared/services/settings.service');
+            const settings = await SettingsService.getStorageAreas();
+            return settings.areas;
         } catch (error) {
             console.error('Error fetching storage areas:', error);
             return MOCK_STORAGE_AREAS;

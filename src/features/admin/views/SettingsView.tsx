@@ -92,6 +92,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [foodCostForm, setFoodCostForm] = useState({ excellent: 25, good: 30, warning: 35, danger: 40 });
     const [savingFoodCost, setSavingFoodCost] = useState(false);
 
+    // Storage Areas State
+    const [storageAreas, setStorageAreas] = useState<string[]>([]);
+    const [newStorageArea, setNewStorageArea] = useState('');
+    const [editingStorageAreaIndex, setEditingStorageAreaIndex] = useState<number | null>(null);
+
     // Admin role check helper
     const isAdmin = currentUser.role === SystemRole.SUPER_ADMIN || currentUser.role === SystemRole.ADMIN;
     const isStaging = typeof window !== 'undefined' && (window.location.hostname.includes('staging') || window.location.hostname.includes('localhost'));
@@ -100,10 +105,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     useEffect(() => {
         const loadSettings = async () => {
             try {
-                const [pcf, approvers, foodCost] = await Promise.all([
+                const [pcf, approvers, foodCost, storageAreaSettings] = await Promise.all([
                     SettingsService.getPcfSettings(),
                     SettingsService.getApproverAssignments(),
-                    SettingsService.getFoodCostSettings()
+                    SettingsService.getFoodCostSettings(),
+                    SettingsService.getStorageAreas()
                 ]);
                 setPcfSettings(pcf);
                 setPcfDeadlineDay(pcf.deadlineDay);
@@ -115,6 +121,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     warning: foodCost.warning,
                     danger: foodCost.danger
                 });
+                setStorageAreas(storageAreaSettings.areas);
             } catch (error) {
                 console.error('Error loading settings:', error);
             }
@@ -401,6 +408,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const handleCancelEditUOM = () => {
         setNewUOM('');
         setEditingUOMIndex(null);
+    };
+
+    // Storage Area Handlers
+    const handleAddOrUpdateStorageArea = async () => {
+        if (!newStorageArea.trim()) return;
+
+        const trimmedArea = newStorageArea.trim();
+
+        if (editingStorageAreaIndex !== null) {
+            // Update existing
+            const updatedList = [...storageAreas];
+            updatedList[editingStorageAreaIndex] = trimmedArea;
+            await SettingsService.updateStorageAreas(updatedList, currentUser.id, currentUser.name);
+            setStorageAreas(updatedList);
+            alert('Storage Area Updated Successfully');
+        } else {
+            // Add new
+            if (storageAreas.includes(trimmedArea)) {
+                alert('This storage area already exists!');
+                return;
+            }
+            const updatedList = [...storageAreas, trimmedArea];
+            await SettingsService.updateStorageAreas(updatedList, currentUser.id, currentUser.name);
+            setStorageAreas(updatedList);
+            alert('Storage Area Added Successfully');
+        }
+
+        setNewStorageArea('');
+        setEditingStorageAreaIndex(null);
+    };
+
+    const handleEditStorageArea = (index: number) => {
+        setNewStorageArea(storageAreas[index]);
+        setEditingStorageAreaIndex(index);
+    };
+
+    const handleDeleteStorageArea = async (index: number) => {
+        if (confirm(`Are you sure you want to delete "${storageAreas[index]}"?`)) {
+            try {
+                const updatedList = storageAreas.filter((_: string, i: number) => i !== index);
+                await SettingsService.updateStorageAreas(updatedList, currentUser.id, currentUser.name);
+                setStorageAreas(updatedList);
+                alert('Storage Area Deleted Successfully');
+            } catch (error) {
+                console.error('Error deleting storage area:', error);
+                alert('Failed to delete storage area. Please try again.');
+            }
+        }
+    };
+
+    const handleCancelEditStorageArea = () => {
+        setNewStorageArea('');
+        setEditingStorageAreaIndex(null);
     };
 
     const cardClass = "bg-slate-800/50 backdrop-blur-xl p-6 rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200";
@@ -1313,6 +1373,99 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                         {foodCostSettings.updatedByName && ` by ${foodCostSettings.updatedByName}`}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-slate-700 my-8"></div>
+
+                            {/* Storage Areas Section */}
+                            <div>
+                                <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-white">
+                                    <Database size={20} className="text-teal-400" /> Storage Areas
+                                </h3>
+                                <p className="text-slate-400 text-sm mb-6">
+                                    Manage storage locations used for inventory stock takes.
+                                </p>
+
+                                {/* Add/Edit Storage Area Form */}
+                                <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700 mb-6">
+                                    <h4 className="text-sm font-bold text-slate-300 mb-3">
+                                        {editingStorageAreaIndex !== null ? 'Edit Storage Area' : 'Add New Storage Area'}
+                                    </h4>
+                                    <div className="flex flex-col md:flex-row gap-3">
+                                        <input
+                                            type="text"
+                                            className={inputClass}
+                                            placeholder="e.g., Walk-in Freezer, Prep Station"
+                                            value={newStorageArea}
+                                            onChange={(e) => setNewStorageArea(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleAddOrUpdateStorageArea()}
+                                        />
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={handleAddOrUpdateStorageArea}
+                                                disabled={!newStorageArea.trim()}
+                                                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap
+                                                ${editingStorageAreaIndex !== null ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-teal-600 hover:bg-teal-700 text-white'}
+                                                disabled:opacity-50 disabled:cursor-not-allowed
+                                            `}
+                                            >
+                                                {editingStorageAreaIndex !== null ? (
+                                                    <><Check size={16} /> Update</>
+                                                ) : (
+                                                    <><Plus size={16} /> Add Area</>
+                                                )}
+                                            </button>
+                                            {editingStorageAreaIndex !== null && (
+                                                <button
+                                                    onClick={handleCancelEditStorageArea}
+                                                    className="flex-1 md:flex-none bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 font-medium transition-colors flex items-center justify-center gap-2"
+                                                >
+                                                    <X size={16} /> Cancel
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Storage Areas List */}
+                                <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                                    <h4 className="text-sm font-bold text-slate-400 uppercase mb-3">
+                                        Available Storage Areas ({storageAreas.length})
+                                    </h4>
+                                    {storageAreas.length === 0 ? (
+                                        <div className="text-center py-8 text-slate-500">
+                                            No storage areas available. Add one above.
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            {storageAreas.map((area, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 text-sm flex justify-between items-center hover:bg-slate-800/50 transition-colors group"
+                                                >
+                                                    <div className="font-medium text-slate-200">{area}</div>
+                                                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            onClick={() => handleEditStorageArea(index)}
+                                                            className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                            title="Edit Storage Area"
+                                                        >
+                                                            <Edit2 size={14} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteStorageArea(index)}
+                                                            className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                            title="Delete Storage Area"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )

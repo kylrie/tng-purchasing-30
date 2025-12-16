@@ -149,6 +149,28 @@ const DEFAULT_COA_SETTINGS: COASettings = {
 
 const COA_CONFIG_DOC = 'coa_config';
 
+// =====================================================
+// STORAGE AREA SETTINGS INTERFACE
+// =====================================================
+export interface StorageAreaSettings {
+    areas: string[];        // List of storage area names
+    lastUpdated?: string;
+    updatedBy?: string;
+    updatedByName?: string;
+}
+
+const DEFAULT_STORAGE_AREAS: StorageAreaSettings = {
+    areas: [
+        'Kitchen',
+        'Storage Room',
+        'Bar',
+        'Walk-in Cooler',
+        'Office'
+    ]
+};
+
+const STORAGE_AREAS_DOC = 'storage_areas';
+
 
 // =====================================================
 // SETTINGS SERVICE
@@ -415,6 +437,53 @@ export class SettingsService {
         await FirestoreService.setDocument(
             SETTINGS_COLLECTION,
             COA_CONFIG_DOC,
+            updatePayload
+        );
+    }
+
+    // =====================================================
+    // STORAGE AREA METHODS
+    // =====================================================
+
+    /**
+     * Get storage area options
+     * Returns defaults if not configured
+     */
+    static async getStorageAreas(): Promise<StorageAreaSettings> {
+        try {
+            const doc = await FirestoreService.getDocument<StorageAreaSettings>(
+                SETTINGS_COLLECTION,
+                STORAGE_AREAS_DOC
+            );
+            if (!doc) return { ...DEFAULT_STORAGE_AREAS };
+            if (!doc.areas || doc.areas.length === 0) {
+                return { ...doc, areas: DEFAULT_STORAGE_AREAS.areas };
+            }
+            return doc;
+        } catch (error) {
+            console.error('[SettingsService] Error getting storage areas:', error);
+            return { ...DEFAULT_STORAGE_AREAS };
+        }
+    }
+
+    /**
+     * Update storage area options
+     */
+    static async updateStorageAreas(
+        areas: string[],
+        userId?: string,
+        userName?: string
+    ): Promise<void> {
+        const updatePayload: StorageAreaSettings = {
+            areas,
+            lastUpdated: new Date().toISOString(),
+            updatedBy: userId,
+            updatedByName: userName,
+        };
+
+        await FirestoreService.setDocument(
+            SETTINGS_COLLECTION,
+            STORAGE_AREAS_DOC,
             updatePayload
         );
     }

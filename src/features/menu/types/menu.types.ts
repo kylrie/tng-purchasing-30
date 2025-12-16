@@ -106,6 +106,64 @@ export interface MenuItem {
 }
 
 // ============================================================
+// PRODUCTION RECIPE (for intermediate products)
+// ============================================================
+
+export type ProductionCategory =
+    | 'Syrups'
+    | 'Mixes'
+    | 'Sauces'
+    | 'Prep Items'
+    | 'Bases'
+    | 'Other';
+
+export const PRODUCTION_CATEGORIES: ProductionCategory[] = [
+    'Syrups',
+    'Mixes',
+    'Sauces',
+    'Prep Items',
+    'Bases',
+    'Other'
+];
+
+export interface ProductionRecipe {
+    id: string;
+    businessUnitId: string;
+    name: string;
+    category: ProductionCategory;
+    description?: string;
+    yieldQuantity: number;          // How much this recipe produces
+    yieldUnit: string;              // Unit of production (ml, kg, servings, etc.)
+    ingredients: RecipeIngredient[]; // Uses RAW_MATERIAL items
+    calculatedCost: number;         // Sum of ingredient costs
+    costPerUnit: number;            // calculatedCost / yieldQuantity
+    linkedInventoryItemId?: string; // Link to PRODUCTION item in inventory
+    isActive: boolean;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface CreateProductionRecipeInput {
+    businessUnitId: string;
+    name: string;
+    category: ProductionCategory;
+    description?: string;
+    yieldQuantity: number;
+    yieldUnit: string;
+    ingredients: Omit<RecipeIngredient, 'totalCost'>[];
+}
+
+// Type to represent a production recipe as an ingredient in finished goods
+export interface ProductionRecipeIngredient {
+    productionRecipeId: string;
+    productionRecipeName: string;   // Denormalized for display
+    quantity: number;               // Amount used
+    unit: string;                   // Unit used
+    costPerUnit: number;            // Cost from production recipe
+    totalCost: number;              // Calculated: quantity × costPerUnit
+}
+
+// ============================================================
 // INPUT TYPES
 // ============================================================
 

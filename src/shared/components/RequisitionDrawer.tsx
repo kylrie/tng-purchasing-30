@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, DollarSign, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban } from 'lucide-react';
+import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban } from 'lucide-react';
 import type { Requisition, RequisitionHistory, RequisitionItem, Supplier } from '../../features/procurement/types';
 import { RequisitionStatus } from '../../features/procurement/types';
 import LiquidationForm from '../../features/procurement/components/LiquidationForm';
@@ -7,6 +7,7 @@ import AllocationSummary from '../../features/procurement/components/AllocationS
 import { RequisitionService } from '../../features/procurement/services/requisitions.service';
 import type { Business } from '../types';
 import Card from './Card';
+import PesoSign from './PesoSign';
 
 // Variant types for different contexts
 export type DrawerVariant = 'BURF' | 'PRF' | 'FINANCE';
@@ -101,7 +102,7 @@ const getTimelineIcon = (action: string, stage: RequisitionStatus) => {
         return <Clock size={16} className="text-blue-400" />;
     }
     if (action.toLowerCase().includes('release') || action.toLowerCase().includes('fund')) {
-        return <DollarSign size={16} className="text-emerald-400" />;
+        return <PesoSign size={16} className="text-emerald-400" />;
     }
     return <ChevronRight size={16} className="text-slate-400" />;
 };
@@ -652,7 +653,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                                 return (
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                            <DollarSign size={14} className="text-emerald-400" />
+                                                            <PesoSign size={14} className="text-emerald-400" />
                                                             Released By
                                                         </span>
                                                         <span className="text-sm text-white font-medium">
@@ -889,7 +890,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                     disabled={isLoading}
                                     className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center gap-2"
                                 >
-                                    <DollarSign size={16} /> Release Fund
+                                    <PesoSign size={16} /> Release Fund
                                 </button>
                             )}
 

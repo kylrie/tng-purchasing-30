@@ -8,9 +8,9 @@ if (Test-Path .firebase) {
     Remove-Item -Recurse -Force .firebase
 }
 
-# Build with staging environment (empty = default database)
+# Build with staging environment - Using PRODUCTION database for data consistency
 Write-Host "Building with staging config..." -ForegroundColor Yellow
-$env:VITE_FIREBASE_DATABASE_ID = ""
+$env:VITE_FIREBASE_DATABASE_ID = "tng-systems"
 npm run build
 
 if ($LASTEXITCODE -ne 0) {

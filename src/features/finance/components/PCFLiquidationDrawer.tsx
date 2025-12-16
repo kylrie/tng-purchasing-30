@@ -1,8 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Plus, Trash2, Calendar, Receipt, FileText, Link as LinkIcon, AlertTriangle, CheckCircle, Edit3, Clock } from 'lucide-react';
 import type { PCFExpenseItem } from '../services/pcf.service';
+import type { Business } from '../../../shared/types';
 import { SettingsService } from '../../../shared/services/settings.service';
 import AccountSelector, { type SelectedAccount } from '../../../shared/components/AccountSelector';
+
+// Check if a BU is corporate (for expense sharing indicator)
+const isCorpBu = (buName: string): boolean => {
+    return buName.toUpperCase().includes('ATHOUSANDCONCEPTS') && buName.toUpperCase().includes('CORP');
+};
 
 interface PCFLiquidationDrawerProps {
     isOpen: boolean;
@@ -11,6 +17,7 @@ interface PCFLiquidationDrawerProps {
     onSaveDraft?: (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => Promise<void>;
     cashOnHand: number;
     pcfCeiling: number;
+    businesses: Business[];  // Added for BU dropdown
     // Edit mode props
     editingId?: string | null;
     initialData?: {
@@ -58,6 +65,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
     onSaveDraft,
     cashOnHand,
     pcfCeiling,
+    businesses = [],
     editingId,
     initialData,
     title,
@@ -268,7 +276,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                         </div>
 
                         <div className="overflow-x-auto border border-slate-700 rounded-lg">
-                            <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
+                            <table className="w-full text-sm" style={{ minWidth: '1350px' }}>
                                 <thead className="bg-slate-800 text-xs uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-3 py-3 text-left" style={{ width: '130px' }}>Date</th>
@@ -281,6 +289,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                         <th className="px-3 py-3 text-right" style={{ width: '90px' }}>VAT</th>
                                         <th className="px-3 py-3 text-right" style={{ width: '90px' }}>EWT</th>
                                         <th className="px-3 py-3 text-right" style={{ width: '110px' }}>Amount*</th>
+                                        <th className="px-3 py-3 text-left" style={{ width: '140px' }}>Business Unit</th>
                                         <th className="px-2 py-3" style={{ width: '40px' }}></th>
                                     </tr>
                                 </thead>
@@ -419,6 +428,34 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                 />
                                             </td>
 
+                                            {/* Business Unit */}
+                                            <td className="px-3 py-2">
+                                                <div className="flex items-center gap-1">
+                                                    <select
+                                                        value={expense.buId || ''}
+                                                        onChange={(e) => {
+                                                            const bu = businesses.find(b => b.id === e.target.value);
+                                                            const updated = [...expenses];
+                                                            updated[index] = {
+                                                                ...updated[index],
+                                                                buId: e.target.value,
+                                                                buName: bu?.name || '',
+                                                            };
+                                                            setExpenses(updated);
+                                                        }}
+                                                        className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    >
+                                                        <option value="">Select BU...</option>
+                                                        {businesses.map(b => (
+                                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    {expense.buName && isCorpBu(expense.buName) && (
+                                                        <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium shrink-0">SHARE</span>
+                                                    )}
+                                                </div>
+                                            </td>
+
                                             {/* Delete */}
                                             <td className="px-3 py-2">
                                                 <button
@@ -436,7 +473,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                 {/* Totals Footer */}
                                 <tfoot className="bg-slate-800/70 border-t border-slate-600">
                                     <tr className="text-slate-300 font-medium">
-                                        <td colSpan={7} className="px-2 py-3 text-right text-sm">
+                                        <td colSpan={8} className="px-2 py-3 text-right text-sm">
                                             Totals:
                                         </td>
                                         <td className="px-2 py-3 text-right text-sm">

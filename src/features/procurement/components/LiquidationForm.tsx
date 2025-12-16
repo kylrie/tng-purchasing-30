@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { DollarSign, Receipt, Link as LinkIcon, FileText, AlertTriangle, CheckCircle, Plus, Trash2 } from 'lucide-react';
+import { Receipt, Link as LinkIcon, FileText, AlertTriangle, CheckCircle, Plus, Trash2 } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import type { Requisition, Supplier } from '../types';
 import type { Business } from '../../../shared/types';
 
@@ -156,6 +157,20 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
         setItems(updated);
     };
 
+    // Handle BU selection
+    const handleBuChange = (index: number, buId: string) => {
+        const bu = businesses.find(b => b.id === buId);
+        const updated = [...items];
+        updated[index].buId = buId;
+        updated[index].buName = bu?.name || '';
+        setItems(updated);
+    };
+
+    // Check if a BU is corporate (for expense sharing indicator)
+    const isCorpBu = (buName: string) => {
+        return buName.toUpperCase().includes('ATHOUSANDCONCEPTS') && buName.toUpperCase().includes('CORP');
+    };
+
     // Add new row
     const addRow = () => {
         setItems([...items, {
@@ -202,7 +217,7 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-emerald-900/50 flex items-center justify-center">
-                            <DollarSign size={20} className="text-emerald-400" />
+                            <PesoSign size={20} className="text-emerald-400" />
                         </div>
                         <div>
                             <p className="text-xs text-emerald-400 uppercase tracking-wider">Budget Released</p>
@@ -247,6 +262,7 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                                 <th className="px-1 py-2 text-right w-[70px]">VAT</th>
                                 <th className="px-1 py-2 text-right w-[70px]">EWT</th>
                                 <th className="px-1 py-2 text-right w-[90px]">Amount*</th>
+                                <th className="px-1 py-2 text-left w-[120px]">Business Unit</th>
                                 {!readOnly && <th className="px-1 py-2 w-[30px]"></th>}
                             </tr>
                         </thead>
@@ -381,6 +397,33 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                                                 onChange={(e) => updateItem(index, 'amount', parseFloat(e.target.value) || 0)}
                                                 className="w-full px-1 py-1 bg-slate-900 border border-red-500/50 rounded text-right text-white font-medium focus:ring-1 focus:ring-red-500 focus:outline-none text-xs"
                                             />
+                                        )}
+                                    </td>
+                                    {/* Business Unit */}
+                                    <td className="px-1 py-2">
+                                        {readOnly ? (
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-slate-200 text-xs truncate">{item.buName || '-'}</span>
+                                                {item.buName && isCorpBu(item.buName) && (
+                                                    <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1">
+                                                <select
+                                                    value={item.buId || ''}
+                                                    onChange={(e) => handleBuChange(index, e.target.value)}
+                                                    className="flex-1 px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-[10px]"
+                                                >
+                                                    <option value="">Select BU...</option>
+                                                    {businesses.map(b => (
+                                                        <option key={b.id} value={b.id}>{b.name}</option>
+                                                    ))}
+                                                </select>
+                                                {item.buName && isCorpBu(item.buName) && (
+                                                    <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium shrink-0">SHARE</span>
+                                                )}
+                                            </div>
                                         )}
                                     </td>
                                     {/* Delete */}

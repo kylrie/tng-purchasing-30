@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
     Clock,
     FileText,
-    DollarSign,
     Receipt,
     AlertTriangle,
     Timer,
@@ -13,6 +12,7 @@ import {
     Coins,
     ShieldCheck
 } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import DashboardCard from '../components/DashboardCard';
 import type { Requisition, Supplier } from '../../procurement/types';
 import { RequisitionStatus, isSuperAdmin } from '../../procurement/types';
@@ -576,7 +576,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 label="Fund Release"
                                 value={pendingFundReleaseItems.length.toString()}
                                 route="/finance?tab=prf_pending"
-                                icon={DollarSign}
+                                icon={Wallet}
                                 progress={Math.min(pendingFundReleaseItems.length * 15, 100)}
                                 sparklineData={[2, 3, 2, 4, 3, pendingFundReleaseItems.length]}
                                 gradientColors={['#10b981', '#059669']}
@@ -912,7 +912,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                             <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
                                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <DollarSign className="text-emerald-400" size={20} />
+                                        <PesoSign className="text-emerald-400" size={20} />
                                         Pending Fund Release
                                     </h2>
                                     <span className="text-xs font-medium bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20">

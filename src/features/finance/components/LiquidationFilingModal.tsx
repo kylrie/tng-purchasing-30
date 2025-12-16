@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Upload, Receipt, DollarSign } from 'lucide-react';
+import { X, Upload, Receipt } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import type { Requisition, RequisitionItem, LiquidationDetails } from '../../procurement/types';
 
 interface LiquidationFilingModalProps {
@@ -245,7 +246,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
                             : 'bg-slate-700 text-slate-500 cursor-not-allowed'
                             }`}
                     >
-                        <DollarSign size={20} />
+                        <PesoSign size={20} />
                         {loading ? 'Submitting...' : 'Submit Liquidation'}
                     </button>
                 </div>

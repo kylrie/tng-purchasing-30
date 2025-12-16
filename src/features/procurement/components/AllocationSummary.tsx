@@ -1,5 +1,6 @@
 import React from 'react';
-import { Users, Building2, DollarSign } from 'lucide-react';
+import { Users, Building2 } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import type { CostAllocation } from '../types';
 
 interface AllocationSummaryProps {
@@ -56,7 +57,7 @@ const AllocationSummary: React.FC<AllocationSummaryProps> = ({ allocation, total
                         </div>
                         <div className="text-right">
                             <div className="flex items-center gap-1 text-emerald-400 font-semibold">
-                                <DollarSign size={14} />
+                                <PesoSign size={14} />
                                 ₱{alloc.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                             </div>
                         </div>

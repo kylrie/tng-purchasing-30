@@ -221,12 +221,12 @@ export async function createMenuItem(input: CreateMenuItemInput): Promise<string
         businessUnitId: input.businessUnitId,
         name: input.name,
         category: input.category,
-        description: input.description,
+        description: input.description || '', // Fallback to empty string to prevent undefined
         sellingPrice: input.sellingPrice,
         ingredients,
         calculatedCost: totalCost,
         ...margins,
-        imageUrl: input.imageUrl,
+        imageUrl: input.imageUrl || '', // Fallback to empty string to prevent undefined
         isActive: true
     };
 

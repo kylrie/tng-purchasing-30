@@ -14,8 +14,7 @@ import {
     MapPin,
     Plus,
     Upload,
-    Download,
-    FileSpreadsheet
+    Download
 } from 'lucide-react';
 import type { InventoryItem, InventoryItemType, StockCountSession, CreateInventoryItemInput } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
@@ -32,6 +31,7 @@ import type { User, Business } from '../../procurement/types';
 interface InventoryDashboardProps {
     currentUser: User;
     businesses: Business[];
+    uomOptions: string[];
 }
 
 interface CountItemState {
@@ -221,7 +221,7 @@ const ReviewPanel: React.FC<{
 // MAIN COMPONENT
 // ============================================================
 
-const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, businesses }) => {
+const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, businesses, uomOptions }) => {
     // Business unit selection
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
         businesses.length > 0 ? businesses[0].id : ''
@@ -548,7 +548,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                     </button>
                     <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer">
                         <Upload size={16} />
-                        {isImporting ? 'Importing...' : 'Import'}
+                        {isImporting ? 'Importing...' : 'Import Items'}
                         <input
                             ref={fileInputRef}
                             type="file"
@@ -560,10 +560,11 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                     </label>
                     <button
                         onClick={downloadSampleCSV}
-                        className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-sm transition-colors"
-                        title="Download sample CSV template"
+                        className="px-3 py-2 bg-purple-800 hover:bg-purple-700 text-purple-200 rounded-lg text-sm transition-colors flex items-center gap-1"
+                        title="Download Inventory Items Template"
                     >
-                        <FileSpreadsheet size={16} />
+                        <Download size={14} />
+                        <span className="text-xs">Items</span>
                     </button>
                 </div>
             </div>
@@ -739,6 +740,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                 item={editingItem}
                 businessUnitId={selectedBusinessUnit}
                 storageAreas={storageAreas}
+                uomOptions={uomOptions}
             />
         </div>
     );

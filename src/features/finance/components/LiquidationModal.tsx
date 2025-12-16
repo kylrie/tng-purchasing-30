@@ -1,26 +1,37 @@
 import React, { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Calendar, Receipt, FileText, Link as LinkIcon, CheckCircle } from 'lucide-react';
-import type { Requisition } from '../../procurement/types';
+import type { Requisition, Supplier } from '../../procurement/types';
+import type { Business } from '../../../shared/types';
 import { RequisitionStatus } from '../../procurement/types';
 import AccountSelector, { type SelectedAccount } from '../../../shared/components/AccountSelector';
+import SearchableDropdown from '../../../shared/components/SearchableDropdown';
 
 interface LiquidationModalProps {
     requisition: Requisition;
     onClose: () => void;
     onSubmit: (updatedRequisition: Requisition) => void;
     currentUserId: string;
+    suppliers: Supplier[];
+    businesses: Business[];  // Added for BU dropdown
 }
 
-// Dynamic expense row structure
+// Dynamic expense row structure - updated with TIN, VAT, EWT, BU
 interface LiquidationExpenseRow {
     id: string;
     date: string;
-    supplier: string;
-    invoiceNo: string;
+    supplierId: string;      // Supplier ID for linking
+    supplierName: string;    // Supplier name for display
+    tin: string;             // TIN (autofilled from supplier)
+    address: string;         // Address (autofilled from supplier)
+    orNo: string;            // OR No. (renamed from invoiceNo)
     coaCode: string;
     coaName: string;
-    amount: number;
     description: string;
+    vat: number;             // VAT amount
+    ewt: number;             // EWT amount
+    amount: number;
+    buId: string;            // Business Unit ID
+    buName: string;          // Business Unit Name
 }
 
 // Helper: Format currency
@@ -38,25 +49,43 @@ const getTodayDate = (): string => {
 };
 
 // Helper: Create empty expense row
-const createEmptyExpense = (): LiquidationExpenseRow => ({
+const createEmptyExpense = (defaultBuId: string = '', defaultBuName: string = ''): LiquidationExpenseRow => ({
     id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     date: getTodayDate(),
-    supplier: '',
-    invoiceNo: '',
+    supplierId: '',
+    supplierName: '',
+    tin: '',
+    address: '',
+    orNo: '',
     coaCode: '',
     coaName: '',
-    amount: 0,
     description: '',
+    vat: 0,
+    ewt: 0,
+    amount: 0,
+    buId: defaultBuId,
+    buName: defaultBuName,
 });
+
+// Check if a BU is corporate (for expense sharing indicator)
+const isCorpBu = (buName: string): boolean => {
+    return buName.toUpperCase().includes('ATHOUSANDCONCEPTS') && buName.toUpperCase().includes('CORP');
+};
 
 const LiquidationModal: React.FC<LiquidationModalProps> = ({
     requisition,
     onClose,
     onSubmit,
-    currentUserId
+    currentUserId,
+    suppliers = [],
+    businesses = []
 }) => {
+    // Get default BU from requisition
+    const defaultBuId = requisition.businessId || '';
+    const defaultBuName = businesses.find(b => b.id === defaultBuId)?.name || '';
+
     // Initialize with one empty expense row
-    const [expenses, setExpenses] = useState<LiquidationExpenseRow[]>([createEmptyExpense()]);
+    const [expenses, setExpenses] = useState<LiquidationExpenseRow[]>([createEmptyExpense(defaultBuId, defaultBuName)]);
 
     // Use the stored attachment link from liquidationDetails if available
     const [attachmentLink, setAttachmentLink] = useState(
@@ -67,18 +96,20 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
 
     // Calculate totals
     const totals = useMemo(() => {
-        const totalActual = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-        return { totalActual };
+        const totalAmount = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+        const totalVat = expenses.reduce((sum, e) => sum + (e.vat || 0), 0);
+        const totalEwt = expenses.reduce((sum, e) => sum + (e.ewt || 0), 0);
+        return { totalAmount, totalVat, totalEwt };
     }, [expenses]);
 
     const cashAdvance = requisition.totalAmount; // Amount released
-    const difference = cashAdvance - totals.totalActual;
+    const difference = cashAdvance - totals.totalAmount;
     const isRefund = difference > 0;
     const isReimbursement = difference < 0;
 
     // Add expense row
     const addExpenseRow = () => {
-        setExpenses([...expenses, createEmptyExpense()]);
+        setExpenses([...expenses, createEmptyExpense(defaultBuId, defaultBuName)]);
     };
 
     // Remove expense row
@@ -96,6 +127,32 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
     ) => {
         const updated = [...expenses];
         updated[index] = { ...updated[index], [field]: value };
+        setExpenses(updated);
+    };
+
+    // Handle supplier selection with TIN/address autofill
+    const handleSupplierChange = (index: number, supplierId: string) => {
+        const supplier = suppliers.find(s => s.id === supplierId);
+        const updated = [...expenses];
+        updated[index] = {
+            ...updated[index],
+            supplierId: supplierId,
+            supplierName: supplier?.name || '',
+            tin: supplier?.tin || '',
+            address: supplier?.address || '',
+        };
+        setExpenses(updated);
+    };
+
+    // Handle BU selection
+    const handleBuChange = (index: number, buId: string) => {
+        const bu = businesses.find(b => b.id === buId);
+        const updated = [...expenses];
+        updated[index] = {
+            ...updated[index],
+            buId: buId,
+            buName: bu?.name || '',
+        };
         setExpenses(updated);
     };
 
@@ -118,7 +175,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
     // Validate form
     const isValid = useMemo(() => {
         if (expenses.length === 0) return false;
-        if (totals.totalActual <= 0) return false;
+        if (totals.totalAmount <= 0) return false;
 
         // Check required fields
         for (const exp of expenses) {
@@ -127,7 +184,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
             }
         }
         return true;
-    }, [expenses, totals.totalActual]);
+    }, [expenses, totals.totalAmount]);
 
     const handleSubmit = () => {
         if (!isValid) return;
@@ -144,20 +201,28 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                 ...requisition.liquidationDetails,
                 dateFiled: new Date().toISOString(),
                 filedBy: currentUserId,
-                totalActualAmount: totals.totalActual,
+                submittedBy: currentUserId,
+                totalActualAmount: totals.totalAmount,
                 refundAmount: isRefund ? difference : 0,
                 reimbursementAmount: isReimbursement ? Math.abs(difference) : 0,
                 attachmentLink: attachmentLink,
-                // Save the expense rows with COA info
+                // Save the expense items with new structure including BU
                 expenses: expenses.map(exp => ({
                     id: exp.id,
                     date: exp.date,
-                    supplier: exp.supplier,
-                    invoiceNo: exp.invoiceNo,
+                    vendorId: exp.supplierId,
+                    vendorName: exp.supplierName,
+                    tin: exp.tin,
+                    address: exp.address,
+                    orNo: exp.orNo,
                     coaCode: exp.coaCode,
                     coaName: exp.coaName,
-                    amount: exp.amount,
                     description: exp.description,
+                    vat: exp.vat,
+                    ewt: exp.ewt,
+                    amount: exp.amount,
+                    buId: exp.buId,
+                    buName: exp.buName,
                 })),
             }
         };
@@ -166,9 +231,15 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
         setSubmitting(false);
     };
 
+    // Supplier options for dropdown
+    const supplierOptions = useMemo(() =>
+        suppliers.map(s => ({ value: s.id, label: s.name })),
+        [suppliers]
+    );
+
     return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
-            <div className="bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-6xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh]">
+            <div className="bg-slate-800/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-7xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh]">
                 {/* Header */}
                 <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 rounded-t-2xl">
                     <div>
@@ -212,16 +283,20 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                             </button>
                         </div>
 
-                        <div className="overflow-x-auto border border-slate-700 rounded-lg">
-                            <table className="w-full text-sm" style={{ minWidth: '900px' }}>
+                        <div className="overflow-x-auto overflow-y-visible border border-slate-700 rounded-lg">
+                            <table className="w-full text-sm" style={{ minWidth: '1200px' }}>
                                 <thead className="bg-slate-900/80 text-xs uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
-                                        <th className="px-3 py-3 text-left" style={{ width: '120px' }}>Date</th>
-                                        <th className="px-3 py-3 text-left" style={{ width: '150px' }}>Supplier</th>
-                                        <th className="px-3 py-3 text-left" style={{ width: '100px' }}>Invoice No.</th>
-                                        <th className="px-3 py-3 text-left" style={{ width: '200px' }}>Account (COA)</th>
-                                        <th className="px-3 py-3 text-right" style={{ width: '120px' }}>Amount*</th>
-                                        <th className="px-3 py-3 text-left" style={{ width: '180px' }}>Description</th>
+                                        <th className="px-2 py-3 text-left" style={{ width: '110px' }}>Date</th>
+                                        <th className="px-2 py-3 text-left" style={{ width: '180px' }}>Vendor/Supplier</th>
+                                        <th className="px-2 py-3 text-left" style={{ width: '100px' }}>TIN</th>
+                                        <th className="px-2 py-3 text-left" style={{ width: '90px' }}>OR No.</th>
+                                        <th className="px-2 py-3 text-left" style={{ width: '160px' }}>COA</th>
+                                        <th className="px-2 py-3 text-left" style={{ width: '140px' }}>Description</th>
+                                        <th className="px-2 py-3 text-right" style={{ width: '80px' }}>VAT</th>
+                                        <th className="px-2 py-3 text-right" style={{ width: '80px' }}>EWT</th>
+                                        <th className="px-2 py-3 text-right" style={{ width: '100px' }}>Amount*</th>
+                                        <th className="px-2 py-3 text-left" style={{ width: '140px' }}>Business Unit</th>
                                         <th className="px-2 py-3" style={{ width: '40px' }}></th>
                                     </tr>
                                 </thead>
@@ -229,7 +304,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                     {expenses.map((expense, index) => (
                                         <tr key={expense.id} className="hover:bg-slate-800/30">
                                             {/* Date */}
-                                            <td className="px-3 py-2">
+                                            <td className="px-2 py-2">
                                                 <div className="flex items-center gap-1">
                                                     <input
                                                         type="date"
@@ -247,39 +322,87 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                                 </div>
                                             </td>
 
-                                            {/* Supplier */}
-                                            <td className="px-3 py-2">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Vendor/Supplier"
-                                                    value={expense.supplier}
-                                                    onChange={(e) => updateExpense(index, 'supplier', e.target.value)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                            {/* Vendor/Supplier Dropdown */}
+                                            <td className="px-2 py-2">
+                                                <SearchableDropdown
+                                                    options={supplierOptions}
+                                                    value={expense.supplierId}
+                                                    onChange={(id) => handleSupplierChange(index, id)}
+                                                    placeholder="Select vendor..."
+                                                    className="text-xs"
                                                 />
                                             </td>
 
-                                            {/* Invoice No */}
-                                            <td className="px-3 py-2">
+                                            {/* TIN (autofilled) */}
+                                            <td className="px-2 py-2">
                                                 <input
                                                     type="text"
-                                                    placeholder="OR#/INV#"
-                                                    value={expense.invoiceNo}
-                                                    onChange={(e) => updateExpense(index, 'invoiceNo', e.target.value)}
+                                                    placeholder="TIN"
+                                                    value={expense.tin}
+                                                    onChange={(e) => updateExpense(index, 'tin', e.target.value)}
+                                                    className="w-full px-2 py-1.5 bg-slate-700/50 border border-slate-600 rounded text-slate-300 text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                />
+                                            </td>
+
+                                            {/* OR No. */}
+                                            <td className="px-2 py-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="OR#"
+                                                    value={expense.orNo}
+                                                    onChange={(e) => updateExpense(index, 'orNo', e.target.value)}
                                                     className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
                                             {/* COA Account Selector */}
-                                            <td className="px-3 py-2">
+                                            <td className="px-2 py-2">
                                                 <AccountSelector
                                                     value={expense.coaCode ? { code: expense.coaCode, name: expense.coaName } : null}
                                                     onChange={(account) => handleCoaChange(index, account)}
-                                                    placeholder="Select account..."
+                                                    placeholder="Select COA..."
+                                                />
+                                            </td>
+
+                                            {/* Description */}
+                                            <td className="px-2 py-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Description"
+                                                    value={expense.description}
+                                                    onChange={(e) => updateExpense(index, 'description', e.target.value)}
+                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                />
+                                            </td>
+
+                                            {/* VAT */}
+                                            <td className="px-2 py-2">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    placeholder="0.00"
+                                                    value={expense.vat || ''}
+                                                    onChange={(e) => updateExpense(index, 'vat', parseFloat(e.target.value) || 0)}
+                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                />
+                                            </td>
+
+                                            {/* EWT */}
+                                            <td className="px-2 py-2">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.01"
+                                                    placeholder="0.00"
+                                                    value={expense.ewt || ''}
+                                                    onChange={(e) => updateExpense(index, 'ewt', parseFloat(e.target.value) || 0)}
+                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
                                             {/* Amount */}
-                                            <td className="px-3 py-2">
+                                            <td className="px-2 py-2">
                                                 <input
                                                     type="number"
                                                     min="0"
@@ -291,15 +414,23 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                                 />
                                             </td>
 
-                                            {/* Description */}
-                                            <td className="px-3 py-2">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Description"
-                                                    value={expense.description}
-                                                    onChange={(e) => updateExpense(index, 'description', e.target.value)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
-                                                />
+                                            {/* Business Unit */}
+                                            <td className="px-2 py-2">
+                                                <div className="flex items-center gap-1">
+                                                    <select
+                                                        value={expense.buId || ''}
+                                                        onChange={(e) => handleBuChange(index, e.target.value)}
+                                                        className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    >
+                                                        <option value="">Select BU...</option>
+                                                        {businesses.map(b => (
+                                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                                        ))}
+                                                    </select>
+                                                    {expense.buName && isCorpBu(expense.buName) && (
+                                                        <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium shrink-0">SHARE</span>
+                                                    )}
+                                                </div>
                                             </td>
 
                                             {/* Delete */}
@@ -319,13 +450,19 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                 {/* Totals Footer */}
                                 <tfoot className="bg-slate-800/70 border-t border-slate-600">
                                     <tr className="text-slate-300 font-medium">
-                                        <td colSpan={4} className="px-3 py-3 text-right text-sm">
-                                            Total Actual Expenses:
+                                        <td colSpan={6} className="px-2 py-3 text-right text-sm">
+                                            Totals:
                                         </td>
-                                        <td className="px-3 py-3 text-right text-sm font-bold text-white">
-                                            {formatCurrency(totals.totalActual)}
+                                        <td className="px-2 py-3 text-right text-sm text-emerald-400">
+                                            {formatCurrency(totals.totalVat)}
                                         </td>
-                                        <td colSpan={2}></td>
+                                        <td className="px-2 py-3 text-right text-sm text-amber-400">
+                                            {formatCurrency(totals.totalEwt)}
+                                        </td>
+                                        <td className="px-2 py-3 text-right text-sm font-bold text-white">
+                                            {formatCurrency(totals.totalAmount)}
+                                        </td>
+                                        <td></td>
                                     </tr>
                                 </tfoot>
                             </table>
@@ -369,8 +506,16 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                 <span className="font-medium text-slate-200">{formatCurrency(cashAdvance)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
+                                <span className="text-slate-400">Total VAT:</span>
+                                <span className="font-medium text-emerald-400">{formatCurrency(totals.totalVat)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                                <span className="text-slate-400">Total EWT:</span>
+                                <span className="font-medium text-amber-400">{formatCurrency(totals.totalEwt)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
                                 <span className="text-slate-400">Total Actual Expenses:</span>
-                                <span className="font-bold text-white">{formatCurrency(totals.totalActual)}</span>
+                                <span className="font-bold text-white">{formatCurrency(totals.totalAmount)}</span>
                             </div>
                             <div className="border-t border-slate-600 my-2"></div>
                             {isRefund ? (
@@ -397,7 +542,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                 <div className="p-4 border-t border-slate-700 flex items-center justify-between bg-slate-800/50 rounded-b-2xl">
                     <div className="text-sm text-slate-400">
                         {expenses.length} expense{expenses.length !== 1 ? 's' : ''} | Total:
-                        <span className="font-bold text-white ml-1">{formatCurrency(totals.totalActual)}</span>
+                        <span className="font-bold text-white ml-1">{formatCurrency(totals.totalAmount)}</span>
                     </div>
                     <div className="flex gap-3">
                         <button

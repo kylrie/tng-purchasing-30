@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-    X, Save, Plus, Trash2, Loader2, ChefHat, DollarSign,
+    X, Save, Plus, Trash2, Loader2, ChefHat,
     TrendingUp, Search, AlertTriangle, Package
 } from 'lucide-react';
+import PesoSign from '../../../shared/components/PesoSign';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 import { InventoryService } from '../../inventory/services/inventory.service';
 import type { MenuItem, MenuCategory } from '../types/menu.types';
@@ -122,7 +123,7 @@ const LiveCostCard: React.FC<{
     return (
         <div className={`p-4 rounded-xl border ${bgColor}`}>
             <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
-                <DollarSign size={14} />
+                <PesoSign size={14} />
                 Live Costing
             </h4>
 

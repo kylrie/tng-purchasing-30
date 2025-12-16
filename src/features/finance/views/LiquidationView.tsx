@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Requisition } from '../../procurement/types';
+import type { Requisition, Supplier } from '../../procurement/types';
 import { RequisitionStatus, isSuperAdmin } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -19,6 +19,7 @@ interface LiquidationViewProps {
   businesses: Business[];
   onUpdateRequisition: (req: Requisition) => void;
   allUsers: User[];
+  suppliers: Supplier[];
 }
 
 export const LiquidationView: React.FC<LiquidationViewProps> = ({
@@ -27,7 +28,8 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   getStatusBadge,
   businesses,
   onUpdateRequisition,
-  allUsers
+  allUsers,
+  suppliers
 }) => {
   const [printReq, setPrintReq] = useState<Requisition | null>(null);
   const [editingLiquidationReq, setEditingLiquidationReq] = useState<Requisition | null>(null);
@@ -347,6 +349,8 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           onClose={() => setEditingLiquidationReq(null)}
           onSubmit={handleLiquidationSubmit}
           currentUserId={currentUser.id}
+          suppliers={suppliers}
+          businesses={businesses}
         />
       )}
       {auditReq && (

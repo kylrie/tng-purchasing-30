@@ -54,6 +54,8 @@ export interface PCFExpenseItem {
     vat: number;                          // Column 8: VAT Amount
     ewt: number;                          // Column 9: EWT Amount
     amount: number;                       // Column 10: Total Expense Amount
+    buId?: string;                        // Business Unit ID (for expense sharing)
+    buName?: string;                      // Business Unit Name
 }
 
 // =====================================================
