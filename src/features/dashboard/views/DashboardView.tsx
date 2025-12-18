@@ -726,13 +726,292 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
                     </div>
 
+
+                    {/* === BUDGET REVIEW SECTION === */}
+                    {(hasPermission('dashboard:section:finance_head_br') && financeHeadBRItems.length > 0) ||
+                        (hasPermission('dashboard:section:gm_br') && gmBRItems.length > 0) ||
+                        (hasPermission('dashboard:section:bod_br') && bodBRItems.length > 0) ? (
+                        <div className="mb-6">
+                            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <FileText size={14} />
+                                Budget Review Queue
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                {/* Finance Head BR Widget - Full Style */}
+                                {hasPermission('dashboard:section:finance_head_br') && financeHeadBRItems.length > 0 && (
+                                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-indigo-500/30 shadow-lg flex flex-col">
+                                        <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
+                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                                <FileText className="text-indigo-400" size={20} />
+                                                Finance Head BR
+                                            </h3>
+                                            <span className="text-xs font-medium bg-indigo-900/30 text-indigo-400 px-2 py-1 rounded-full border border-indigo-500/20">
+                                                {financeHeadBRItems.length} Pending
+                                            </span>
+                                        </div>
+                                        <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
+                                            <div className="space-y-4">
+                                                {financeHeadBRItems.map(req => {
+                                                    const requester = allUsers.find(u => u.id === req.requesterId);
+                                                    const business = businesses.find(b => b.id === req.businessId);
+                                                    return (
+                                                        <div
+                                                            key={req.id}
+                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-indigo-500/30 transition-all"
+                                                        >
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <div>
+                                                                    <span className="text-xs font-mono text-indigo-400 bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-500/10">{req.id}</span>
+                                                                    <h4
+                                                                        onClick={() => setDrawerReq(req)}
+                                                                        className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-indigo-300"
+                                                                    >
+                                                                        {req.description}
+                                                                    </h4>
+                                                                </div>
+                                                                <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-xs mb-2">
+                                                                <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                                <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-xs mb-3">
+                                                                <span className="font-semibold px-2 py-0.5 rounded bg-indigo-900/30 text-indigo-400 border border-indigo-500/20">
+                                                                    {business?.name || 'N/A'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                                <button
+                                                                    onClick={(e) => handleApprove(req, e)}
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                >
+                                                                    <CheckCircle size={14} /> Approve
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => handleRejectClick(req, e)}
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                >
+                                                                    <XCircle size={14} /> Reject
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* GM Budget Review Widget - Full Style */}
+                                {hasPermission('dashboard:section:gm_br') && gmBRItems.length > 0 && (
+                                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-violet-500/30 shadow-lg flex flex-col">
+                                        <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
+                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                                <FileText className="text-violet-400" size={20} />
+                                                GM Budget Review
+                                            </h3>
+                                            <span className="text-xs font-medium bg-violet-900/30 text-violet-400 px-2 py-1 rounded-full border border-violet-500/20">
+                                                {gmBRItems.length} Pending
+                                            </span>
+                                        </div>
+                                        <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
+                                            <div className="space-y-4">
+                                                {gmBRItems.map(req => {
+                                                    const requester = allUsers.find(u => u.id === req.requesterId);
+                                                    const business = businesses.find(b => b.id === req.businessId);
+                                                    return (
+                                                        <div
+                                                            key={req.id}
+                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-violet-500/30 transition-all"
+                                                        >
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <div>
+                                                                    <span className="text-xs font-mono text-violet-400 bg-violet-900/20 px-1.5 py-0.5 rounded border border-violet-500/10">{req.id}</span>
+                                                                    <h4
+                                                                        onClick={() => setDrawerReq(req)}
+                                                                        className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[250px] cursor-pointer hover:text-violet-300"
+                                                                    >
+                                                                        {req.description}
+                                                                    </h4>
+                                                                </div>
+                                                                <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-xs mb-2">
+                                                                <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                                <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-xs mb-3">
+                                                                <span className="font-semibold px-2 py-0.5 rounded bg-violet-900/30 text-violet-400 border border-violet-500/20">
+                                                                    {business?.name || 'N/A'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                                <button
+                                                                    onClick={(e) => handleApprove(req, e)}
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                >
+                                                                    <CheckCircle size={14} /> Approve
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => handleRejectClick(req, e)}
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                >
+                                                                    <XCircle size={14} /> Reject
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* BOD Budget Review Widget - Full Style */}
+                                {hasPermission('dashboard:section:bod_br') && bodBRItems.length > 0 && (
+                                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-rose-500/30 shadow-lg flex flex-col">
+                                        <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
+                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                                <FileText className="text-rose-400" size={20} />
+                                                BOD Budget Review
+                                            </h3>
+                                            <span className="text-xs font-medium bg-rose-900/30 text-rose-400 px-2 py-1 rounded-full border border-rose-500/20">
+                                                {bodBRItems.length} Pending
+                                            </span>
+                                        </div>
+                                        <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
+                                            <div className="space-y-4">
+                                                {bodBRItems.map(req => {
+                                                    const requester = allUsers.find(u => u.id === req.requesterId);
+                                                    const business = businesses.find(b => b.id === req.businessId);
+                                                    return (
+                                                        <div
+                                                            key={req.id}
+                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-rose-500/30 transition-all"
+                                                        >
+                                                            <div className="flex justify-between items-start mb-2">
+                                                                <div>
+                                                                    <span className="text-xs font-mono text-rose-400 bg-rose-900/20 px-1.5 py-0.5 rounded border border-rose-500/10">{req.id}</span>
+                                                                    <h4
+                                                                        onClick={() => setDrawerReq(req)}
+                                                                        className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-rose-300"
+                                                                    >
+                                                                        {req.description}
+                                                                    </h4>
+                                                                </div>
+                                                                <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-xs mb-2">
+                                                                <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                                <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-xs mb-3">
+                                                                <span className="font-semibold px-2 py-0.5 rounded bg-rose-900/30 text-rose-400 border border-rose-500/20">
+                                                                    {business?.name || 'N/A'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                                <button
+                                                                    onClick={(e) => handleApprove(req, e)}
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                >
+                                                                    <CheckCircle size={14} /> Approve
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => handleRejectClick(req, e)}
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                >
+                                                                    <XCircle size={14} /> Reject
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ) : null}
+
+                    {/* === CHECK AUTHORIZATION SECTION === */}
+                    {hasPermission('dashboard:section:check_auth') && checkAuthItems.length > 0 && (
+                        <div className="mb-6">
+                            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                <ShieldCheck size={14} />
+                                Check Authorization Queue
+                            </h2>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-amber-500/30 shadow-lg flex flex-col">
+                                    <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
+                                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                            <ShieldCheck className="text-amber-400" size={20} />
+                                            Check Authorization
+                                        </h3>
+                                        <span className="text-xs font-medium bg-amber-900/30 text-amber-400 px-2 py-1 rounded-full border border-amber-500/20">
+                                            {checkAuthItems.length} Pending
+                                        </span>
+                                    </div>
+                                    <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
+                                        <div className="space-y-4">
+                                            {checkAuthItems.map(req => {
+                                                const requester = allUsers.find(u => u.id === req.requesterId);
+                                                const business = businesses.find(b => b.id === req.businessId);
+                                                return (
+                                                    <div
+                                                        key={req.id}
+                                                        className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-amber-500/30 transition-all"
+                                                    >
+                                                        <div className="flex justify-between items-start mb-2">
+                                                            <div>
+                                                                <span className="text-xs font-mono text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-500/10">{req.id}</span>
+                                                                <h4
+                                                                    onClick={() => setDrawerReq(req)}
+                                                                    className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-amber-300"
+                                                                >
+                                                                    {req.description}
+                                                                </h4>
+                                                            </div>
+                                                            <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between text-xs mb-2">
+                                                            <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                            <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                        </div>
+                                                        <div className="flex items-center justify-between text-xs mb-3">
+                                                            <span className="font-semibold px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-500/20">
+                                                                {business?.name || 'N/A'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                            <button
+                                                                onClick={(e) => handleApprove(req, e)}
+                                                                className="flex-1 py-1.5 px-3 rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                            >
+                                                                <CheckCircle size={14} /> Authorize Check
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     <div className={`grid grid-cols-1 ${isApprover ? 'lg:grid-cols-3' : 'lg:grid-cols-1 max-w-4xl mx-auto'} gap-8`}>
                         {/* Pending Approvals - Only visible with permission */}
                         {hasPermission('dashboard:section:pending_list') && (
-                            <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-purple-500/30 shadow-lg flex flex-col">
                                 {/* Header with View All */}
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h2 className="text-lg font-bold text-white">Pending Approvals</h2>
+                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <Clock className="text-purple-400" size={20} />
+                                        Pending Approvals
+                                    </h3>
                                     <button onClick={() => navigate('/procurement-approvals')} className="text-xs font-medium bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full text-white transition-colors">View All</button>
                                 </div>
 
@@ -810,48 +1089,58 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 </div>
 
                                 {/* Tab Content */}
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
+                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
                                     <div className="space-y-4">
-                                        {getActiveTabItems().map(activity => (
-                                            <div
-                                                key={activity.id}
-                                                onClick={() => setDrawerReq(activity.rawRequisition)}
-                                                className="flex gap-4 items-center p-3 rounded-xl hover:bg-slate-700/30 transition-colors border border-transparent hover:border-slate-700 cursor-pointer group"
-                                            >
-                                                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 font-bold text-sm flex-shrink-0 group-hover:bg-slate-600 transition-colors">
-                                                    {activity.avatar}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm text-slate-200 truncate group-hover:text-white transition-colors">
-                                                        <span className="font-semibold text-white">{activity.user}</span> {activity.action} <span className="font-medium text-purple-300">"{activity.target}"</span>
-                                                    </p>
-                                                    <div className="flex items-center gap-2 mt-1">
-                                                        <span className="text-xs text-slate-500 uppercase font-semibold">{activity.time}</span>
-                                                        <span className="text-xs text-slate-600">•</span>
+                                        {getActiveTabItems().map(activity => {
+                                            const req = activity.rawRequisition;
+                                            const requester = allUsers.find(u => u.id === req?.requesterId);
+                                            const business = businesses.find(b => b.id === req?.businessId);
+                                            return (
+                                                <div
+                                                    key={activity.id}
+                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-purple-500/30 transition-all"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <span className="text-xs font-mono text-purple-400 bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-500/10">{activity.id}</span>
+                                                            <h4
+                                                                onClick={() => setDrawerReq(activity.rawRequisition)}
+                                                                className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-purple-300"
+                                                            >
+                                                                {activity.target}
+                                                            </h4>
+                                                        </div>
+                                                        <span className="text-xs text-slate-500">{activity.time}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs mb-2">
+                                                        <span className="text-slate-400">{requester?.name || activity.user}</span>
+                                                        <span className="text-slate-300 font-medium">₱{req?.totalAmount?.toLocaleString() || '0'}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs mb-3">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-purple-900/30 text-purple-400 border border-purple-500/20">
+                                                            {business?.name || 'N/A'}
+                                                        </span>
                                                         <span className={`text-xs font-semibold px-2 py-0.5 rounded ${activity.status.includes('PENDING') ? 'bg-orange-900/30 text-orange-400 border border-orange-500/20' : 'bg-cyan-900/30 text-cyan-400 border border-cyan-500/20'}`}>
                                                             {activity.status.replace(/_/g, ' ')}
                                                         </span>
                                                     </div>
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                        <button
+                                                            onClick={(e) => handleApprove(activity.rawRequisition, e)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <CheckCircle size={14} /> Approve
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleRejectClick(activity.rawRequisition, e)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <XCircle size={14} /> Reject
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                {/* Action Buttons */}
-                                                <div className="flex gap-1">
-                                                    <button
-                                                        onClick={(e) => handleApprove(activity.rawRequisition, e)}
-                                                        className="p-2 hover:bg-green-900/30 text-slate-400 hover:text-green-400 rounded-lg transition-colors"
-                                                        title="Approve"
-                                                    >
-                                                        <CheckCircle size={18} />
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => handleRejectClick(activity.rawRequisition, e)}
-                                                        className="p-2 hover:bg-red-900/30 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
-                                                        title="Reject"
-                                                    >
-                                                        <XCircle size={18} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                         {/* Tab-specific empty states */}
                                         {getActiveTabItems().length === 0 && (
                                             <div className="flex flex-col items-center justify-center py-12 text-slate-500">
@@ -871,37 +1160,58 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                         {/* Ready for PRF - Visible to Purchasing Officers */}
                         {hasPermission('dashboard:section:ready_for_prf_list') && readyForPrfItems.length > 0 && (
-                            <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-blue-500/30 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                         <FileText className="text-blue-400" size={20} />
                                         Ready for PRF
-                                    </h2>
+                                    </h3>
                                     <span className="text-xs font-medium bg-blue-900/30 text-blue-400 px-2 py-1 rounded-full border border-blue-500/20">
                                         {readyForPrfItems.length} Pending
                                     </span>
                                 </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
-                                    <div className="space-y-3">
-                                        {readyForPrfItems.map(req => (
-                                            <button
-                                                key={req.id}
-                                                onClick={() => setPreparePRFReq(req)}
-                                                className="w-full text-left p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-blue-500/30 transition-all group"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <span className="text-xs font-mono text-blue-400 bg-blue-900/20 px-1.5 py-0.5 rounded border border-blue-500/10">{req.id}</span>
-                                                        <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors">{req.description}</h4>
+                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
+                                    <div className="space-y-4">
+                                        {readyForPrfItems.map(req => {
+                                            const requester = allUsers.find(u => u.id === req.requesterId);
+                                            const business = businesses.find(b => b.id === req.businessId);
+                                            return (
+                                                <div
+                                                    key={req.id}
+                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-blue-500/30 transition-all"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <span className="text-xs font-mono text-blue-400 bg-blue-900/20 px-1.5 py-0.5 rounded border border-blue-500/10">{req.id}</span>
+                                                            <h4
+                                                                onClick={() => setDrawerReq(req)}
+                                                                className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-blue-300"
+                                                            >
+                                                                {req.description}
+                                                            </h4>
+                                                        </div>
+                                                        <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                     </div>
-                                                    <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                    <div className="flex items-center justify-between text-xs mb-2">
+                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs mb-3">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-500/20">
+                                                            {business?.name || 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                        <button
+                                                            onClick={() => setPreparePRFReq(req)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <FileText size={14} /> Prepare PRF
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-slate-400">{req.items.length} items</span>
-                                                    <span className="text-slate-300 font-medium">₱{req.totalAmount.toLocaleString()}</span>
-                                                </div>
-                                            </button>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
@@ -909,71 +1219,35 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                         {/* Pending Fund Release - Visible to Finance */}
                         {hasPermission('dashboard:section:pending_fund_release') && pendingFundReleaseItems.length > 0 && (
-                            <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-emerald-500/30 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                         <PesoSign className="text-emerald-400" size={20} />
                                         Pending Fund Release
-                                    </h2>
+                                    </h3>
                                     <span className="text-xs font-medium bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20">
                                         {pendingFundReleaseItems.length} Pending
                                     </span>
                                 </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
-                                    <div className="space-y-3">
-                                        {pendingFundReleaseItems.map(req => (
-                                            <button
-                                                key={req.id}
-                                                onClick={() => setReleaseFundReq(req)}
-                                                className="w-full text-left p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-emerald-500/30 transition-all group"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <span className="text-xs font-mono text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/10">{req.id}</span>
-                                                        <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors">{req.description}</h4>
-                                                    </div>
-                                                    <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
-                                                </div>
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-slate-400">{req.items.length} items</span>
-                                                    <span className="text-slate-300 font-medium">₱{req.totalAmount.toLocaleString()}</span>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* REMOVED: Combined BR Approvals widget - users now see role-specific widgets only */}
-
-                        {/* Finance Head BR Approvals Widget - BU-specific */}
-                        {financeHeadBRItems.length > 0 && (
-                            <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
-                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <FileText className="text-indigo-400" size={20} />
-                                        Finance Head BR
-                                    </h2>
-                                    <span className="text-xs font-medium bg-indigo-900/30 text-indigo-400 px-2 py-1 rounded-full border border-indigo-500/20">
-                                        {financeHeadBRItems.length} Pending
-                                    </span>
-                                </div>
                                 <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
-                                    <div className="space-y-3">
-                                        {financeHeadBRItems.map(req => {
+                                    <div className="space-y-4">
+                                        {pendingFundReleaseItems.map(req => {
                                             const requester = allUsers.find(u => u.id === req.requesterId);
                                             const business = businesses.find(b => b.id === req.businessId);
                                             return (
                                                 <div
                                                     key={req.id}
-                                                    onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-indigo-500/30 transition-all cursor-pointer group"
+                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-emerald-500/30 transition-all"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
-                                                            <span className="text-xs font-mono text-indigo-400 bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-500/10">{req.id}</span>
-                                                            <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{req.description}</h4>
+                                                            <span className="text-xs font-mono text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/10">{req.id}</span>
+                                                            <h4
+                                                                onClick={() => setDrawerReq(req)}
+                                                                className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-emerald-300"
+                                                            >
+                                                                {req.description}
+                                                            </h4>
                                                         </div>
                                                         <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                     </div>
@@ -981,23 +1255,17 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
                                                         <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                     </div>
-                                                    <div className="flex items-center justify-between text-xs">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-indigo-900/30 text-indigo-400 border border-indigo-500/20">
+                                                    <div className="flex items-center justify-between text-xs mb-3">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-500/20">
                                                             {business?.name || 'N/A'}
                                                         </span>
                                                     </div>
-                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-700/50">
                                                         <button
-                                                            onClick={(e) => handleApprove(req, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                            onClick={() => setReleaseFundReq(req)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                         >
-                                                            <CheckCircle size={14} /> Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleRejectClick(req, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                        >
-                                                            <XCircle size={14} /> Reject
+                                                            <PesoSign size={14} /> Release Funds
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1008,225 +1276,63 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                             </div>
                         )}
 
-                        {/* GM Budget Review Widget */}
-                        {gmBRItems.length > 0 && (
-                            <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
-                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <FileText className="text-violet-400" size={20} />
-                                        GM Budget Review
-                                    </h2>
-                                    <span className="text-xs font-medium bg-violet-900/30 text-violet-400 px-2 py-1 rounded-full border border-violet-500/20">
-                                        {gmBRItems.length} Pending
-                                    </span>
-                                </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
-                                    <div className="space-y-3">
-                                        {gmBRItems.map(req => {
-                                            const requester = allUsers.find(u => u.id === req.requesterId);
-                                            const business = businesses.find(b => b.id === req.businessId);
-                                            return (
-                                                <div
-                                                    key={req.id}
-                                                    onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-violet-500/30 transition-all cursor-pointer group"
-                                                >
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
-                                                            <span className="text-xs font-mono text-violet-400 bg-violet-900/20 px-1.5 py-0.5 rounded border border-violet-500/10">{req.id}</span>
-                                                            <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{req.description}</h4>
-                                                        </div>
-                                                        <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-xs mb-2">
-                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-xs">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-violet-900/30 text-violet-400 border border-violet-500/20">
-                                                            {business?.name || 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
-                                                        <button
-                                                            onClick={(e) => handleApprove(req, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                        >
-                                                            <CheckCircle size={14} /> Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleRejectClick(req, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                        >
-                                                            <XCircle size={14} /> Reject
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
-                        {/* BOD Budget Review Widget */}
-                        {bodBRItems.length > 0 && (
-                            <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
-                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <FileText className="text-rose-400" size={20} />
-                                        BOD Budget Review
-                                    </h2>
-                                    <span className="text-xs font-medium bg-rose-900/30 text-rose-400 px-2 py-1 rounded-full border border-rose-500/20">
-                                        {bodBRItems.length} Pending
-                                    </span>
-                                </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
-                                    <div className="space-y-3">
-                                        {bodBRItems.map(req => {
-                                            const requester = allUsers.find(u => u.id === req.requesterId);
-                                            const business = businesses.find(b => b.id === req.businessId);
-                                            return (
-                                                <div
-                                                    key={req.id}
-                                                    onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-rose-500/30 transition-all cursor-pointer group"
-                                                >
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
-                                                            <span className="text-xs font-mono text-rose-400 bg-rose-900/20 px-1.5 py-0.5 rounded border border-rose-500/10">{req.id}</span>
-                                                            <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{req.description}</h4>
-                                                        </div>
-                                                        <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-xs mb-2">
-                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-xs">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-rose-900/30 text-rose-400 border border-rose-500/20">
-                                                            {business?.name || 'N/A'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
-                                                        <button
-                                                            onClick={(e) => handleApprove(req, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                        >
-                                                            <CheckCircle size={14} /> Approve
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleRejectClick(req, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                        >
-                                                            <XCircle size={14} /> Reject
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Check Authorization Widget - BOD Step 6 (Role + BU filtered) */}
-                        {hasPermission('dashboard:section:check_auth') && checkAuthItems.length > 0 && (
-                            <div className="lg:col-span-1 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
-                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <ShieldCheck className="text-amber-400" size={20} />
-                                        Check Authorization
-                                    </h2>
-                                    <span className="text-xs font-medium bg-amber-900/30 text-amber-400 px-2 py-1 rounded-full border border-amber-500/20">
-                                        {checkAuthItems.length} Pending
-                                    </span>
-                                </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
-                                    <div className="space-y-3">
-                                        {checkAuthItems.map(req => {
-                                            const requester = allUsers.find(u => u.id === req.requesterId);
-                                            return (
-                                                <div
-                                                    key={req.id}
-                                                    onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-amber-500/30 transition-all cursor-pointer group"
-                                                >
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
-                                                            <span className="text-xs font-mono text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-500/10">{req.id}</span>
-                                                            <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[200px]">{req.description}</h4>
-                                                        </div>
-                                                        <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-xs mb-2">
-                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
-                                                    </div>
-                                                    <div className="flex items-center justify-between text-xs">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-500/20">
-                                                            CHECK AUTH
-                                                        </span>
-                                                        {req.chequeNumber && (
-                                                            <span className="text-slate-400">Check #{req.chequeNumber}</span>
-                                                        )}
-                                                    </div>
-                                                    {/* Quick Actions */}
-                                                    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50">
-                                                        <button
-                                                            onClick={(e) => handleApprove(req, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                        >
-                                                            <CheckCircle size={14} /> Authorize
-                                                        </button>
-                                                        <button
-                                                            onClick={(e) => handleRejectClick(req, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                        >
-                                                            <XCircle size={14} /> Reject
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+                        {/* BR and Check Auth widgets have been moved to separate sections above */}
 
                         {/* Pending Audit - Visible to Auditors */}
                         {hasPermission('dashboard:section:pending_audit_list') && pendingAuditItems.length > 0 && (
-                            <div className="lg:col-span-2 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 shadow-lg flex flex-col">
+                            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-amber-500/30 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                         <Receipt className="text-amber-400" size={20} />
                                         Pending Audit
-                                    </h2>
+                                    </h3>
                                     <span className="text-xs font-medium bg-amber-900/30 text-amber-400 px-2 py-1 rounded-full border border-amber-500/20">
                                         {pendingAuditItems.length} Pending
                                     </span>
                                 </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
-                                    <div className="space-y-3">
-                                        {pendingAuditItems.map(req => (
-                                            <button
-                                                key={req.id}
-                                                onClick={() => setAuditReq(req)}
-                                                className="w-full text-left p-4 rounded-xl bg-slate-700/30 hover:bg-slate-700/50 border border-slate-700/50 hover:border-amber-500/30 transition-all group"
-                                            >
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <span className="text-xs font-mono text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-500/10">{req.id}</span>
-                                                        <h4 className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors">{req.description}</h4>
+                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
+                                    <div className="space-y-4">
+                                        {pendingAuditItems.map(req => {
+                                            const requester = allUsers.find(u => u.id === req.requesterId);
+                                            const business = businesses.find(b => b.id === req.businessId);
+                                            return (
+                                                <div
+                                                    key={req.id}
+                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-amber-500/30 transition-all"
+                                                >
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <span className="text-xs font-mono text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-500/10">{req.id}</span>
+                                                            <h4
+                                                                onClick={() => setDrawerReq(req)}
+                                                                className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-amber-300"
+                                                            >
+                                                                {req.description}
+                                                            </h4>
+                                                        </div>
+                                                        <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                     </div>
-                                                    <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                    <div className="flex items-center justify-between text-xs mb-2">
+                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs mb-3">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-500/20">
+                                                            {business?.name || 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                        <button
+                                                            onClick={() => setAuditReq(req)}
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                        >
+                                                            <Receipt size={14} /> Start Audit
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center justify-between text-xs">
-                                                    <span className="text-slate-400">{req.items.length} items</span>
-                                                    <span className="text-slate-300 font-medium">₱{req.totalAmount.toLocaleString()}</span>
-                                                </div>
-                                            </button>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>

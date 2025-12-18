@@ -111,8 +111,11 @@ export const ALL_PERMISSIONS = [
   'dashboard:section:ready_for_prf_list',
   'dashboard:section:pending_fund_release',
   'dashboard:section:pending_audit_list',
-  'dashboard:section:br_list',         // BR Approvals widget on Dashboard
-  'dashboard:section:check_auth',      // Check Authorization widget on Dashboard
+  'dashboard:section:br_list',            // BR Approvals widget on Dashboard (legacy)
+  'dashboard:section:finance_head_br',    // Finance Head BR Widget - shows pending BR for assigned BUs
+  'dashboard:section:gm_br',              // GM Budget Review Widget - shows pending items for GM approval
+  'dashboard:section:bod_br',             // BOD Budget Review Widget - shows pending items for BOD approval
+  'dashboard:section:check_auth',         // Check Authorization Widget - shows checks awaiting BOD signature
 
 ] as const;
 
@@ -175,6 +178,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:section:pending_fund_release',
     'dashboard:section:pending_audit_list',
     'dashboard:section:br_list',
+    'dashboard:section:finance_head_br',
+    'dashboard:section:gm_br',
+    'dashboard:section:bod_br',
     'dashboard:section:check_auth',
     // Chart of Accounts
     'coa:view',
@@ -225,6 +231,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:section:pending_fund_release',
     'dashboard:section:pending_audit_list',
     'dashboard:section:br_list',
+    'dashboard:section:finance_head_br',
+    'dashboard:section:gm_br',
+    'dashboard:section:bod_br',
     'dashboard:section:check_auth',
     // PRF Tracker
     'module:view:prf_tracker',
@@ -251,6 +260,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:total_spend',
     'dashboard:widget:pending_approvals',
     'dashboard:section:pending_list',
+    'dashboard:section:bod_br',
     'dashboard:section:check_auth',
   ],
 
@@ -408,6 +418,8 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:section:pending_list',
     'dashboard:section:pending_fund_release',
     'dashboard:section:br_list',
+    'dashboard:section:finance_head_br',
+    'dashboard:section:gm_br',
     'dashboard:section:check_auth',
     // Chart of Accounts (Finance can view for liquidation classification)
     'coa:view',
@@ -465,6 +477,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:total_spend',
     'dashboard:section:pending_list',
     'dashboard:section:br_list',
+    'dashboard:section:finance_head_br',
     'dashboard:section:check_auth',
     // PRF Tracker
     'module:view:prf_tracker',
