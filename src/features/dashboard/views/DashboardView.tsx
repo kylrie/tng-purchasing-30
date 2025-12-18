@@ -376,8 +376,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         if (hasPermission('approval:bod')) return true;
 
         // BOD approvers assigned in settings can approve check authorization
-        if (approverAssignments.bodApprovers?.length > 0) {
-            return approverAssignments.bodApprovers.some(bod =>
+        const bodApprovers = approverAssignments.bodApprovers;
+        if (bodApprovers && bodApprovers.length > 0) {
+            return bodApprovers.some(bod =>
                 bod.userId === currentUser.id
             );
         }
