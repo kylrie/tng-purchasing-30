@@ -27,12 +27,12 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
             <head>
                 <title>Liquidation Report - ${req.id}</title>
                 <style>
-                    @page { size: A4 portrait; margin: 10mm; }
+                    @page { size: A4 portrait; margin: 5mm; }
                     body { 
                         font-family: Georgia, 'Times New Roman', serif; 
                         color: #1e293b;
                         margin: 0;
-                        padding: 20px;
+                        padding: 10px;
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                     }
@@ -94,7 +94,8 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
     if (!liquidation) return null; // Safety guard
 
     const cashAdvance = req.totalAmount || 0;
-    const totalActual = liquidation.totalActualAmount || 0;
+    // Calculate total actual from PRF items' actualCost field
+    const totalActual = (req.items || []).reduce((sum: number, item: any) => sum + (item.actualCost || 0), 0);
     const difference = cashAdvance - totalActual;
     const isRefund = difference > 0;
 
@@ -181,49 +182,57 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             </div>
                         )}
 
-                        {/* Expense Breakdown Table - New Format Only */}
+                        {/* PRF Items Cost Comparison Table */}
                         <div className="mb-8">
-                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-2">Expense Breakdown</h3>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-2">PRF Items - Cost Comparison</h3>
                             <table className="w-full text-[9px] border-collapse border border-slate-300">
                                 <thead className="bg-slate-100 print:bg-slate-100">
                                     <tr>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Item Name</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-center text-slate-800 font-bold w-12">Qty</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-center text-slate-800 font-bold w-12">UOM</th>
+                                        <th className="border border-slate-300 px-1 py-1 text-right text-slate-800 font-bold w-16">Est. Cost</th>
+                                        <th className="border border-slate-300 px-1 py-1 text-right text-slate-800 font-bold w-16">Actual Cost</th>
+                                        <th className="border border-slate-300 px-1 py-1 text-right text-slate-800 font-bold w-16">Variance</th>
                                         <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Date</th>
-                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Vendor/Payee</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Supplier</th>
                                         <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">TIN</th>
                                         <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">OR No.</th>
-                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">COA</th>
-                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Description</th>
-                                        <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">BU</th>
-                                        <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-16">VAT</th>
-                                        <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-16">EWT</th>
-                                        <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-20">Amount</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-14">VAT</th>
+                                        <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold w-14">EWT</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {((liquidation.items as any[]) || []).map((item: any, index: number) => {
-                                        const isShared = item.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && item.buName?.toUpperCase().includes('CORP');
+                                    {(req.items || []).map((item: any, index: number) => {
+                                        const estimatedCost = (item.price || 0) * (item.quantity || 0);
+                                        const actualCost = item.actualCost || 0;
+                                        const itemVariance = estimatedCost - actualCost;
+                                        const expenseItem = ((liquidation.items as any[]) || [])[index] || {};
                                         return (
-                                            <tr key={item.id || index}>
-                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">
-                                                    {item.date ? new Date(item.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
+                                            <tr key={item.itemId || index}>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900 font-medium">{item.name || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-center text-slate-900">{item.quantity || 0}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-center text-slate-900">{item.uom || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                                    ₱{estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                                 </td>
-                                                <td className="border border-slate-300 px-2 py-1 text-slate-900 font-medium">{item.vendorName || '-'}</td>
-                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.tin || '-'}</td>
-                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.orNo || '-'}</td>
-                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.coa || '-'}</td>
-                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{item.description || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-right text-slate-900 font-medium">
+                                                    ₱{actualCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td className={`border border-slate-300 px-2 py-1 text-right font-medium ${itemVariance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                                    {itemVariance >= 0 ? '+' : ''}₱{itemVariance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
                                                 <td className="border border-slate-300 px-2 py-1 text-slate-900">
-                                                    {item.buName || '-'}
-                                                    {isShared && <span className="ml-1 text-purple-700 font-bold">[SHARE]</span>}
+                                                    {expenseItem.date ? new Date(expenseItem.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
+                                                </td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{expenseItem.vendorName || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{expenseItem.tin || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-slate-900">{expenseItem.orNo || '-'}</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                                    {(expenseItem.vat || 0) > 0 ? `₱${expenseItem.vat.toLocaleString()}` : '-'}
                                                 </td>
                                                 <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                                    {(item.vat || 0) > 0 ? `₱${item.vat.toLocaleString()}` : '-'}
-                                                </td>
-                                                <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                                    {(item.ewt || 0) > 0 ? `₱${item.ewt.toLocaleString()}` : '-'}
-                                                </td>
-                                                <td className="border border-slate-300 px-2 py-1 text-right font-medium text-slate-900">
-                                                    ₱{(item.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    {(expenseItem.ewt || 0) > 0 ? `₱${expenseItem.ewt.toLocaleString()}` : '-'}
                                                 </td>
                                             </tr>
                                         );
@@ -231,15 +240,31 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                 </tbody>
                                 <tfoot className="bg-slate-50 font-bold">
                                     <tr>
-                                        <td colSpan={7} className="border border-slate-300 px-2 py-1 text-right text-slate-900">Totals</td>
+                                        <td colSpan={3} className="border border-slate-300 px-2 py-1 text-right text-slate-900">Totals</td>
+                                        <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                            ₱{(req.items || []).reduce((sum: number, i: any) => sum + ((i.price || 0) * (i.quantity || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                            ₱{(req.items || []).reduce((sum: number, i: any) => sum + (i.actualCost || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </td>
+                                        <td className={`border border-slate-300 px-2 py-1 text-right ${(() => {
+                                            const totalEst = (req.items || []).reduce((sum: number, i: any) => sum + ((i.price || 0) * (i.quantity || 0)), 0);
+                                            const totalAct = (req.items || []).reduce((sum: number, i: any) => sum + (i.actualCost || 0), 0);
+                                            return totalEst - totalAct >= 0 ? 'text-green-700' : 'text-red-700';
+                                        })()}`}>
+                                            {(() => {
+                                                const totalEst = (req.items || []).reduce((sum: number, i: any) => sum + ((i.price || 0) * (i.quantity || 0)), 0);
+                                                const totalAct = (req.items || []).reduce((sum: number, i: any) => sum + (i.actualCost || 0), 0);
+                                                const v = totalEst - totalAct;
+                                                return `${v >= 0 ? '+' : ''}₱${v.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
+                                            })()}
+                                        </td>
+                                        <td colSpan={4} className="border border-slate-300 px-2 py-1"></td>
                                         <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
                                             ₱{((liquidation.items as any[]) || []).reduce((sum: number, i: any) => sum + (i.vat || 0), 0).toLocaleString()}
                                         </td>
                                         <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
                                             ₱{((liquidation.items as any[]) || []).reduce((sum: number, i: any) => sum + (i.ewt || 0), 0).toLocaleString()}
-                                        </td>
-                                        <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                            ₱{totalActual?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                         </td>
                                     </tr>
                                 </tfoot>

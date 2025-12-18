@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Requisition, Supplier } from '../../procurement/types';
 import { RequisitionStatus, isSuperAdmin } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
@@ -38,6 +39,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit' | 'my_history'>('liquidations');
   const [searchTerm, setSearchTerm] = useState('');
   const { hasPermission } = usePermissions();
+  const navigate = useNavigate();
 
   const canView = hasPermission('liquidation:view');
 
@@ -276,12 +278,12 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        {/* File/Edit Liquidation - Only for OWN liquidations OR if has file:all permission */}
+                        {/* File/Edit Liquidation - Opens in new window */}
                         {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) &&
                           activeTab === 'liquidations' &&
                           (req.requesterId === currentUser.id || hasPermission('liquidation:file:all')) && (
                             <button
-                              onClick={() => setEditingLiquidationReq(req)}
+                              onClick={() => navigate(`/liquidation/${req.id}`)}
                               className="text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-700 bg-cyan-900/50 hover:bg-cyan-800/50"
                             >
                               {req.status === RequisitionStatus.FUNDS_RELEASED ? (
@@ -303,10 +305,10 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                             </button>
                           )}
 
-                        {/* Re-file (Rejected) */}
+                        {/* Re-file (Rejected) - Opens in new window */}
                         {(req.status === RequisitionStatus.LIQUIDATION_REJECTED || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)) && (
                           <button
-                            onClick={() => setEditingLiquidationReq(req)}
+                            onClick={() => navigate(`/liquidation/${req.id}`)}
                             className="text-orange-400 hover:text-orange-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-orange-700 bg-orange-900/50 hover:bg-orange-800/50"
                           >
                             <RefreshCw size={14} /> Re-file Liquidation
@@ -368,6 +370,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
         isOpen={!!drawerReq}
         onClose={() => setDrawerReq(null)}
         variant="FINANCE"
+        businesses={businesses}
         getStatusBadge={getStatusBadge}
         onCancel={async () => {
           if (drawerReq && confirm(`Are you sure you want to CANCEL ${drawerReq.id}? This action cannot be undone.`)) {

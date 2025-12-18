@@ -84,14 +84,40 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
     const defaultBuId = requisition.businessId || '';
     const defaultBuName = businesses.find(b => b.id === defaultBuId)?.name || '';
 
-    // Initialize with one empty expense row
-    const [expenses, setExpenses] = useState<LiquidationExpenseRow[]>([createEmptyExpense(defaultBuId, defaultBuName)]);
+    // Initialize expenses from existing liquidationDetails (for re-filing rejected liquidations)
+    // or start with one empty expense row
+    const initialExpenses = (): LiquidationExpenseRow[] => {
+        const existingExpenses = requisition.liquidationDetails?.expenses;
+        if (existingExpenses && existingExpenses.length > 0) {
+            // Map existing expenses to our row structure
+            return existingExpenses.map(exp => ({
+                id: exp.id || `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                date: exp.date || getTodayDate(),
+                supplierId: exp.vendorId || '',
+                supplierName: exp.vendorName || '',
+                tin: exp.tin || '',
+                address: exp.address || '',
+                orNo: exp.orNo || '',
+                coaCode: exp.coaCode || '',
+                coaName: exp.coaName || '',
+                description: exp.description || '',
+                vat: exp.vat || 0,
+                ewt: exp.ewt || 0,
+                amount: exp.amount || 0,
+                buId: exp.buId || defaultBuId,
+                buName: exp.buName || defaultBuName,
+            }));
+        }
+        return [createEmptyExpense(defaultBuId, defaultBuName)];
+    };
+
+    const [expenses, setExpenses] = useState<LiquidationExpenseRow[]>(initialExpenses);
 
     // Use the stored attachment link from liquidationDetails if available
     const [attachmentLink, setAttachmentLink] = useState(
         requisition.liquidationDetails?.attachmentLink || requisition.attachments?.[0] || ''
     );
-    const [remarks, setRemarks] = useState(requisition.remarks || '');
+    const [remarks, setRemarks] = useState(requisition.liquidationDetails?.auditNotes || requisition.remarks || '');
     const [submitting, setSubmitting] = useState(false);
 
     // Calculate totals

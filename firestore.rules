@@ -60,7 +60,14 @@ service cloud.firestore {
       // FIX: Use hasAny() instead of 'in' operator because 'in' fails for arrays with >10 elements
       let permDoc = getPermissionsDoc();
       let userRole = getUserRole();
-      return isSuperAdmin() || (
+      
+      // FIX: Fallback for FINANCE_HEAD role - Firestore config may have empty array
+      // but FINANCE_HEAD should have finance-related permissions by default
+      let isFinanceHeadWithFinancePermission = 
+        userRole == 'FINANCE_HEAD' && 
+        permission in ['finance:upload_check', 'approval:finance_head:br', 'finance:release_funds', 'finance:view_cheque'];
+      
+      return isSuperAdmin() || isFinanceHeadWithFinancePermission || (
         permDoc.permissions != null && 
         permDoc.permissions[userRole] != null &&
         permDoc.permissions[userRole].hasAny([permission])
@@ -209,8 +216,8 @@ service cloud.firestore {
       return affectedKeys.hasOnly(allowedFields);
     }
     
-    // Check Preparation update validation
-    // Allows chequeNumber and chequeImageUrl in addition to workflow fields
+    // Check Preparation update validation (Bank Reference Entry)
+    // Allows bankRefNumber/bankRefLink (new) and chequeNumber/chequeImageUrl (legacy) in addition to workflow fields
     function isValidCheckPrepUpdate() {
       let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
       let allowedFields = [
@@ -218,6 +225,29 @@ service cloud.firestore {
         'history', 
         'updatedAt',
         'currentApproverId',
+        // New fields
+        'bankRefNumber',
+        'bankRefLink',
+        // Legacy fields (for backward compatibility)
+        'chequeNumber',
+        'chequeImageUrl'
+      ].toSet();
+      return affectedKeys.hasOnly(allowedFields);
+    }
+    
+    // Fund Release update validation
+    // Allows checkVoucherNumber/checkVoucherLink (new) in addition to workflow fields
+    function isValidFundReleaseUpdate() {
+      let affectedKeys = request.resource.data.diff(resource.data).affectedKeys();
+      let allowedFields = [
+        'status',
+        'history', 
+        'updatedAt',
+        'fundReleaseDate',
+        // New fields
+        'checkVoucherNumber',
+        'checkVoucherLink',
+        // Legacy fields (for backward compatibility)
         'chequeNumber',
         'chequeImageUrl'
       ].toSet();

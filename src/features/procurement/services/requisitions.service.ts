@@ -867,8 +867,8 @@ export class RequisitionService {
    */
   static async releaseFundsWithPcfUpdate(
     requisitionId: string,
-    chequeNumber: string,
-    chequeImageUrl?: string,
+    checkVoucherNumber: string,
+    checkVoucherLink?: string,
     userId?: string,
     userName?: string
   ): Promise<void> {
@@ -901,17 +901,22 @@ export class RequisitionService {
         action: isPcfReplenishment ? 'AUDITED_CLEARED' : 'FUNDS_RELEASED',
         stage: finalStatus,
         comments: isPcfReplenishment
-          ? `Cheque #${chequeNumber} released - PCF Replenishment complete (no liquidation required)`
-          : `Cheque #${chequeNumber} released`,
+          ? `Voucher #${checkVoucherNumber} released - PCF Replenishment complete (no liquidation required)`
+          : `Voucher #${checkVoucherNumber} released`,
       };
 
       const updatedHistory = [historyEntry, ...(requisition.history || [])];
 
       // Step 1: Update the PRF status
+      // Save to new fields (checkVoucherNumber/checkVoucherLink) and legacy fields for compatibility
       transaction.update(docRef, {
         status: finalStatus,
-        chequeNumber: chequeNumber,
-        chequeImageUrl: chequeImageUrl || '',
+        // New fields
+        checkVoucherNumber: checkVoucherNumber,
+        checkVoucherLink: checkVoucherLink || '',
+        // Legacy fields (for backward compatibility with existing views)
+        chequeNumber: checkVoucherNumber,
+        chequeImageUrl: checkVoucherLink || '',
         fundReleaseDate: new Date().toISOString(),
         history: updatedHistory,
         updatedAt: serverTimestamp(),
@@ -968,16 +973,21 @@ export class RequisitionService {
         timestamp: checkUploadNowISO, // Full ISO timestamp with time
         actorId: userId,
         actorName: userName,
-        action: 'Check Uploaded',
+        action: 'Bank Reference Added',
         stage: nextStatus,
-        comments: `Check #${chequeNumber} uploaded for authorization`,
+        comments: `Bank Ref #${chequeNumber} added for authorization`,
       };
 
       const updatedHistory = [historyEntry, ...(requisition.history || [])];
 
-      // Update requisition with check details and advance status
+      // Update requisition with bank ref details and advance status
+      // Save to both new fields (bankRefNumber/bankRefLink) and legacy fields (chequeNumber/chequeImageUrl) for compatibility
       const updateData: Record<string, unknown> = {
         status: nextStatus,
+        // New fields
+        bankRefNumber: chequeNumber,
+        bankRefLink: chequeImageUrl,
+        // Legacy fields (for backward compatibility with existing views)
         chequeNumber: chequeNumber,
         chequeImageUrl: chequeImageUrl,
         history: updatedHistory,

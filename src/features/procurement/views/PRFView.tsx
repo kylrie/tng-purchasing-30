@@ -78,7 +78,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     const [designatedApproverId, setDesignatedApproverId] = useState(initialData?.prfDetails?.designatedApproverId || '');
     const [description, setDescription] = useState(initialData?.description || '');
     const [remarks, setRemarks] = useState(initialData?.remarks || '');
-    const [attachmentLink, setAttachmentLink] = useState(initialData?.attachments?.[0] || '');
+    const [attachmentLink, setAttachmentLink] = useState(initialData?.externalLink || initialData?.attachments?.[0] || '');
     const [customId, setCustomId] = useState('');
 
     // VAT/EWT Tax State
@@ -1353,6 +1353,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 isOpen={!!selectedReq}
                 onClose={() => setSelectedReq(null)}
                 variant="PRF"
+                businesses={businesses}
                 getStatusBadge={getStatusBadge}
                 onApprove={handleDrawerApprove}
                 onReject={handleDrawerReject}

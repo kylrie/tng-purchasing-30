@@ -197,7 +197,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
         setDescription(req.description);
         setRemarks(req.remarks || '');
         setDateNeeded(req.dateNeeded || '');
-        setAttachmentLink(req.attachments?.[0] || '');
+        setAttachmentLink(req.externalLink || req.attachments?.[0] || '');
         setNewItems(req.items);
         setEditingId(req.id);
         setIsCreating(true);
@@ -229,6 +229,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
             }
 
             // FIX C6: Sanitize all user-generated content before saving to Firestore
+            const nowISO = new Date().toISOString();
             const baseReq: any = {
                 id: reqId,
                 requesterId: currentUser.id,
@@ -240,14 +241,24 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 items: sanitizeItems(newItems), // Sanitize item names and remarks
                 totalAmount: 0,
                 status: status,
-                dateCreated: new Date().toISOString().split('T')[0],
+                dateCreated: nowISO.split('T')[0],
                 description: sanitizeText(description), // Sanitize user input
                 remarks: sanitizeText(remarks), // Sanitize user input
                 dateNeeded,
                 isUrgent, // Persist urgency flag for querying/filtering
                 priority: isUrgent ? 'URGENT' : 'NORMAL',
                 attachments,
-                timestamp: new Date().toISOString()
+                timestamp: nowISO,
+                // Add initial history entry for creation
+                history: [{
+                    date: nowISO.split('T')[0],
+                    timestamp: nowISO,
+                    actorId: currentUser.id,
+                    actorName: currentUser.name,
+                    action: isFinalSubmission ? 'BURF Created & Submitted' : 'BURF Draft Created',
+                    stage: status,
+                    comments: `Created by ${currentUser.name}`
+                }]
             };
 
             if (editingId) {
@@ -648,6 +659,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 isOpen={!!selectedBurf}
                 onClose={() => setSelectedBurf(null)}
                 variant="BURF"
+                businesses={businesses}
                 getStatusBadge={getStatusBadge}
                 onCancel={async () => {
                     if (selectedBurf && confirm(`Are you sure you want to CANCEL ${selectedBurf.id}? This action cannot be undone.`)) {

@@ -46,8 +46,16 @@ if (recaptchaSiteKey) {
 }
 
 // Initialize services
+// For multi-database setup:
+// - Production: VITE_FIREBASE_DATABASE_ID = "tng-systems"
+// - Staging: VITE_FIREBASE_DATABASE_ID = "" or undefined (uses "(default)" database)
 const dbId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
-export const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+const effectiveDbId = dbId && dbId.trim() !== '' ? dbId : undefined;
+
+// Log which database is being used (for debugging)
+console.log(`🔥 Firestore Database: ${effectiveDbId ? effectiveDbId : '(default)'}`);
+
+export const db = effectiveDbId ? getFirestore(app, effectiveDbId) : getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();

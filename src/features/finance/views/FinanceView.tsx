@@ -18,7 +18,7 @@ interface FinanceViewProps {
     currentUser: User;
     requisitions: Requisition[];
     getStatusBadge: (status: RequisitionStatus) => React.ReactNode;
-    handleReleaseFunds: (id: string, chequeNumber: string, chequeImageUrl?: string) => void;
+    handleReleaseFunds: (id: string, checkVoucherNumber: string, checkVoucherLink?: string) => void;
     businesses: Business[];
     allUsers: User[];
 }
@@ -40,7 +40,31 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const [pcfLiquidations, setPcfLiquidations] = useState<PCFLiquidation[]>([]);
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
+    const [selectedBu, setSelectedBu] = useState<string>('all');
     const { hasPermission } = usePermissions();
+
+    // Helper function to filter requisitions by search term and BU
+    const applyFilters = (reqs: Requisition[]) => {
+        let filtered = reqs;
+
+        // Apply BU filter
+        if (selectedBu !== 'all') {
+            filtered = filtered.filter(req => req.businessId === selectedBu);
+        }
+
+        // Apply search filter
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(req =>
+                req.id.toLowerCase().includes(term) ||
+                req.description?.toLowerCase().includes(term) ||
+                businesses.find(b => b.id === req.businessId)?.name.toLowerCase().includes(term) ||
+                allUsers.find(u => u.id === req.requesterId)?.name.toLowerCase().includes(term)
+            );
+        }
+
+        return filtered;
+    };
 
     // Approve handler for BR and Check Auth items
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
@@ -97,9 +121,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         setReleaseModalOpen(true);
     };
 
-    const confirmRelease = (chequeNumber: string, chequeImageUrl: string) => {
+    const confirmRelease = (checkVoucherNumber: string, checkVoucherLink: string) => {
         if (selectedReq) {
-            handleReleaseFunds(selectedReq.id, chequeNumber, chequeImageUrl);
+            handleReleaseFunds(selectedReq.id, checkVoucherNumber, checkVoucherLink);
             setReleaseModalOpen(false);
             setSelectedReq(null);
             setDrawerReq(null); // Close drawer after release
@@ -165,17 +189,41 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         req.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD
     );
 
-    // Filter requisitions based on search term
+    // Apply filters to all requisition lists
+    const filteredBrPendingReqs = useMemo(() => applyFilters(brPendingReqs), [brPendingReqs, searchTerm, selectedBu, businesses, allUsers]);
+    const filteredCheckPrepReqs = useMemo(() => applyFilters(checkPrepReqs), [checkPrepReqs, searchTerm, selectedBu, businesses, allUsers]);
+    const filteredCheckAuthReqs = useMemo(() => applyFilters(checkAuthReqs), [checkAuthReqs, searchTerm, selectedBu, businesses, allUsers]);
+    const filteredPcfPending = useMemo(() => {
+        let filtered = pcfPending;
+        if (selectedBu !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBu);
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(liq =>
+                liq.replenishmentPrfId?.toLowerCase().includes(term) ||
+                liq.userName?.toLowerCase().includes(term) ||
+                businesses.find(b => b.id === liq.businessId)?.name.toLowerCase().includes(term)
+            );
+        }
+        return filtered;
+    }, [pcfPending, searchTerm, selectedBu, businesses]);
+    const filteredPcfReleased = useMemo(() => {
+        let filtered = pcfReleased;
+        if (selectedBu !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBu);
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(liq =>
+                liq.replenishmentPrfId?.toLowerCase().includes(term) ||
+                liq.userName?.toLowerCase().includes(term) ||
+                businesses.find(b => b.id === liq.businessId)?.name.toLowerCase().includes(term)
+            );
+        }
+        return filtered;
+    }, [pcfReleased, searchTerm, selectedBu, businesses]);
+
+    // Filter requisitions for PRF tabs (Fund Release)
     const filteredReqs = useMemo(() => {
-        if (!searchTerm.trim()) return displayedReqs;
-        const term = searchTerm.toLowerCase();
-        return displayedReqs.filter(req =>
-            req.id.toLowerCase().includes(term) ||
-            req.description?.toLowerCase().includes(term) ||
-            businesses.find(b => b.id === req.businessId)?.name.toLowerCase().includes(term) ||
-            allUsers.find(u => u.id === req.requesterId)?.name.toLowerCase().includes(term)
-        );
-    }, [displayedReqs, searchTerm, businesses, allUsers]);
+        return applyFilters(displayedReqs);
+    }, [displayedReqs, searchTerm, selectedBu, businesses, allUsers]);
 
     return (
         <>
@@ -185,16 +233,30 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         <h1 className="text-2xl font-bold text-white">Finance - Fund Release</h1>
                         <p className="text-slate-400 text-sm">Release funds for approved PRF requisitions.</p>
                     </div>
-                    {/* Search Bar */}
-                    <div className="relative w-full md:w-72">
-                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by ID, description, BU..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-                        />
+                    {/* Filters: BU Dropdown + Search Bar */}
+                    <div className="flex items-center gap-3">
+                        {/* BU Filter Dropdown */}
+                        <select
+                            value={selectedBu}
+                            onChange={(e) => setSelectedBu(e.target.value)}
+                            className="bg-slate-800 border border-slate-700 rounded-lg text-white text-sm py-2 px-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        >
+                            <option value="all">All Business Units</option>
+                            {businesses.map(bu => (
+                                <option key={bu.id} value={bu.id}>{bu.name}</option>
+                            ))}
+                        </select>
+                        {/* Search Bar */}
+                        <div className="relative w-full md:w-72">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search by ID, description..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -409,7 +471,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700">
-                                    {pcfPending.map(liq => {
+                                    {filteredPcfPending.map(liq => {
                                         // Find the linked PRF for this PCF to enable release action
                                         const linkedPrf = requisitions.find(r => r.id === liq.replenishmentPrfId);
                                         return (
@@ -456,7 +518,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             </tr>
                                         );
                                     })}
-                                    {pcfPending.length === 0 && (
+                                    {filteredPcfPending.length === 0 && (
                                         <tr>
                                             <td colSpan={7} className="px-6 py-12 text-center text-slate-500 italic">
                                                 No PCF pending release.
@@ -487,7 +549,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700">
-                                    {pcfReleased.map(liq => {
+                                    {filteredPcfReleased.map(liq => {
                                         const linkedPrf = requisitions.find(r => r.id === liq.replenishmentPrfId);
                                         return (
                                             <tr
@@ -527,7 +589,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             </tr>
                                         );
                                     })}
-                                    {pcfReleased.length === 0 && (
+                                    {filteredPcfReleased.length === 0 && (
                                         <tr>
                                             <td colSpan={7} className="px-6 py-12 text-center text-slate-500 italic">
                                                 No PCF releases found.
@@ -558,7 +620,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700">
-                                    {brPendingReqs.map(req => (
+                                    {filteredBrPendingReqs.map(req => (
                                         <tr
                                             key={req.id}
                                             className="hover:bg-slate-800/60 cursor-pointer transition-colors"
@@ -631,7 +693,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             </td>
                                         </tr>
                                     ))}
-                                    {brPendingReqs.length === 0 && (
+                                    {filteredBrPendingReqs.length === 0 && (
                                         <tr>
                                             <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
                                                 No pending Budget Request approvals found.
@@ -662,7 +724,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700">
-                                    {checkPrepReqs.map(req => (
+                                    {filteredCheckPrepReqs.map(req => (
                                         <tr
                                             key={req.id}
                                             className="hover:bg-slate-800/60 cursor-pointer transition-colors"
@@ -711,7 +773,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             </td>
                                         </tr>
                                     ))}
-                                    {checkPrepReqs.length === 0 && (
+                                    {filteredCheckPrepReqs.length === 0 && (
                                         <tr>
                                             <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
                                                 No requisitions pending check preparation.
@@ -736,13 +798,13 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4">Requester</th>
                                         <th className="px-6 py-4">Description</th>
                                         <th className="px-6 py-4">Amount</th>
-                                        <th className="px-6 py-4">Check #</th>
+                                        <th className="px-6 py-4">Ref #</th>
                                         <th className="px-6 py-4">Status</th>
                                         <th className="px-6 py-4 text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700">
-                                    {checkAuthReqs.map(req => (
+                                    {filteredCheckAuthReqs.map(req => (
                                         <tr
                                             key={req.id}
                                             className="hover:bg-slate-800/60 cursor-pointer transition-colors"
@@ -807,7 +869,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             </td>
                                         </tr>
                                     ))}
-                                    {checkAuthReqs.length === 0 && (
+                                    {filteredCheckAuthReqs.length === 0 && (
                                         <tr>
                                             <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
                                                 No pending Check Authorization items found.
@@ -835,6 +897,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 isOpen={!!drawerReq}
                 onClose={() => setDrawerReq(null)}
                 variant="FINANCE"
+                businesses={businesses}
                 getStatusBadge={getStatusBadge}
                 onReleaseFund={() => {
                     if (drawerReq) {
@@ -918,7 +981,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 title={`Reject ${rejectingReq?.id || 'Request'}`}
             />
 
-            {/* Check Preparation Modal */}
+            {/* Check Preparation Modal (Bank Reference Entry) */}
             {selectedReq && (
                 <CheckPrepModal
                     isOpen={isCheckPrepModalOpen}
@@ -926,20 +989,20 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         setCheckPrepModalOpen(false);
                         setSelectedReq(null);
                     }}
-                    onConfirm={async (chequeNumber, chequeImageUrl) => {
+                    onConfirm={async (bankRefNumber, bankRefLink) => {
                         try {
                             await RequisitionService.uploadCheckForPreparation(
                                 selectedReq.id,
-                                chequeNumber,
-                                chequeImageUrl,
+                                bankRefNumber,
+                                bankRefLink,
                                 currentUser.id,
                                 currentUser.name
                             );
                             setCheckPrepModalOpen(false);
                             setSelectedReq(null);
                         } catch (error: any) {
-                            console.error('Error uploading check:', error);
-                            alert(`Failed to upload check: ${error.message || 'Unknown error'}`);
+                            console.error('Error saving bank reference:', error);
+                            alert(`Failed to save bank reference: ${error.message || 'Unknown error'}`);
                         }
                     }}
                     requisition={selectedReq}

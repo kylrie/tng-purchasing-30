@@ -1,59 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import type { Requisition } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
-import { CheckCircle, FileText, ExternalLink, Edit3 } from 'lucide-react';
+import { CheckCircle, FileText, ExternalLink, Hash, Link as LinkIcon } from 'lucide-react';
 
 interface ReleaseFundModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (chequeNumber: string, chequeImageUrl: string) => void;
+  onConfirm: (checkVoucherNumber: string, checkVoucherLink: string) => void;
   requisition: Requisition;
 }
 
-type InputMode = 'existing' | 'manual';
-
 const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, onConfirm, requisition }) => {
-  // Determine if existing check info is available
-  const hasExistingCheckInfo = !!requisition.chequeNumber;
+  // Check Voucher input fields
+  const [checkVoucherNumber, setCheckVoucherNumber] = useState('');
+  const [checkVoucherLink, setCheckVoucherLink] = useState('');
 
-  // Default to 'existing' if check info exists, otherwise 'manual'
-  const [mode, setMode] = useState<InputMode>(hasExistingCheckInfo ? 'existing' : 'manual');
+  // Helper to ensure URL is absolute (starts with http:// or https://)
+  const ensureAbsoluteUrl = (url: string): string => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    return `https://${url}`;
+  };
 
-  // Manual input fields
-  const [manualChequeNumber, setManualChequeNumber] = useState('');
-  const [manualChequeImageUrl, setManualChequeImageUrl] = useState('');
+  // Get Bank Ref info from Check Prep step (new fields or fallback to legacy)
+  const bankRefNumber = requisition.bankRefNumber || requisition.chequeNumber;
+  const rawBankRefLink = requisition.bankRefLink || requisition.chequeImageUrl;
+  const bankRefLink = ensureAbsoluteUrl(rawBankRefLink || '');
+  const hasBankRefInfo = !!bankRefNumber;
 
-  // Reset state when modal opens/closes or requisition changes
+  // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setMode(hasExistingCheckInfo ? 'existing' : 'manual');
-      setManualChequeNumber('');
-      setManualChequeImageUrl('');
+      setCheckVoucherNumber('');
+      setCheckVoucherLink('');
     }
-  }, [isOpen, hasExistingCheckInfo]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleConfirm = () => {
-    if (mode === 'existing') {
-      if (!requisition.chequeNumber) {
-        alert('No check information available. Please use manual entry.');
-        return;
-      }
-      onConfirm(requisition.chequeNumber, requisition.chequeImageUrl || '');
-    } else {
-      // Manual mode
-      if (!manualChequeNumber.trim()) {
-        alert('Please enter a check number.');
-        return;
-      }
-      onConfirm(manualChequeNumber.trim(), manualChequeImageUrl.trim());
+    if (!checkVoucherNumber.trim()) {
+      alert('Please enter a Check Voucher #.');
+      return;
     }
+    onConfirm(checkVoucherNumber.trim(), checkVoucherLink.trim());
   };
 
-  const canConfirm = mode === 'existing'
-    ? !!requisition.chequeNumber
-    : !!manualChequeNumber.trim();
+  const canConfirm = !!checkVoucherNumber.trim();
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
@@ -73,94 +68,66 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
           </div>
         </div>
 
-        {/* Mode Toggle - Only show if existing check info is available */}
-        {hasExistingCheckInfo && (
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setMode('existing')}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${mode === 'existing'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
-            >
-              Use Check Prep Info
-            </button>
-            <button
-              onClick={() => setMode('manual')}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${mode === 'manual'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
-                }`}
-            >
-              <Edit3 size={14} />
-              Enter Manually
-            </button>
-          </div>
-        )}
-
-        {/* Existing Check Info Display */}
-        {mode === 'existing' && hasExistingCheckInfo && (
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700">
-              <FileText className="text-amber-400" size={20} />
+        {/* Bank Reference Info from Check Prep */}
+        {hasBankRefInfo && (
+          <div className="mb-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+            <p className="text-xs text-slate-500 uppercase mb-2 font-medium">From Check Prep</p>
+            <div className="flex items-center gap-3 mb-2">
+              <FileText className="text-amber-400" size={18} />
               <div>
-                <p className="text-xs text-slate-500 uppercase">Check Number</p>
-                <p className="text-white font-mono font-medium">{requisition.chequeNumber}</p>
+                <p className="text-xs text-slate-500">Bank Ref #</p>
+                <p className="text-white font-mono font-medium">{bankRefNumber}</p>
               </div>
             </div>
-
-            {requisition.chequeImageUrl && (
+            {bankRefLink && (
               <a
-                href={requisition.chequeImageUrl}
+                href={bankRefLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-blue-500 transition-colors"
+                className="flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm transition-colors"
               >
-                <ExternalLink className="text-blue-400" size={20} />
-                <div>
-                  <p className="text-xs text-slate-500 uppercase">Check Image</p>
-                  <p className="text-blue-400 text-sm underline">View Check Document</p>
-                </div>
+                <ExternalLink size={14} />
+                View Reference Document
               </a>
             )}
           </div>
         )}
 
-        {/* Manual Input Fields */}
-        {mode === 'manual' && (
-          <div className="space-y-4 mb-6">
-            <div>
-              <label htmlFor="chequeNumber" className="block text-sm font-medium text-slate-300 mb-2">
-                Check Number <span className="text-red-400">*</span>
-              </label>
-              <input
-                id="chequeNumber"
-                type="text"
-                value={manualChequeNumber}
-                onChange={(e) => setManualChequeNumber(e.target.value)}
-                placeholder="Enter check number"
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="chequeImageUrl" className="block text-sm font-medium text-slate-300 mb-2">
-                Check Image URL <span className="text-slate-500">(optional)</span>
-              </label>
-              <input
-                id="chequeImageUrl"
-                type="text"
-                value={manualChequeImageUrl}
-                onChange={(e) => setManualChequeImageUrl(e.target.value)}
-                placeholder="https://drive.google.com/..."
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Paste a Google Drive link to the check image
-              </p>
-            </div>
+        {/* Check Voucher Input Section */}
+        <div className="space-y-4 mb-6">
+          <div>
+            <label htmlFor="checkVoucherNumber" className="block text-sm font-medium text-slate-300 mb-2">
+              <Hash className="w-4 h-4 inline mr-2" />
+              Check Voucher # <span className="text-red-400">*</span>
+            </label>
+            <input
+              id="checkVoucherNumber"
+              type="text"
+              value={checkVoucherNumber}
+              onChange={(e) => setCheckVoucherNumber(e.target.value)}
+              placeholder="Enter check voucher number"
+              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
           </div>
-        )}
+
+          <div>
+            <label htmlFor="checkVoucherLink" className="block text-sm font-medium text-slate-300 mb-2">
+              <LinkIcon className="w-4 h-4 inline mr-2" />
+              Voucher Link <span className="text-slate-500">(optional)</span>
+            </label>
+            <input
+              id="checkVoucherLink"
+              type="text"
+              value={checkVoucherLink}
+              onChange={(e) => setCheckVoucherLink(e.target.value)}
+              placeholder="https://drive.google.com/..."
+              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Paste a Google Drive link to the voucher document
+            </p>
+          </div>
+        </div>
 
         <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
           <button onClick={onClose} className="px-6 py-2 text-slate-300 font-medium hover:bg-slate-700 rounded-lg">

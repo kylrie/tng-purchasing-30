@@ -325,8 +325,16 @@ export interface Requisition {
   parentBurfId?: string; // Link to parent BURF for batch PRF tracking
 
   fundReleaseDate?: string; // Date when funds were released by Finance
-  chequeNumber?: string;
-  chequeImageUrl?: string; // Link to cheque image
+  chequeNumber?: string; // Legacy: kept for backward compatibility
+  chequeImageUrl?: string; // Legacy: Link to cheque image
+
+  // Step 6: Bank Reference (Check Prep)
+  bankRefNumber?: string; // Bank Reference Number entered during Check Prep
+  bankRefLink?: string; // Link to bank reference document
+
+  // Step 8: Check Voucher (Fund Release)
+  checkVoucherNumber?: string; // Check Voucher Number entered during Fund Release
+  checkVoucherLink?: string; // Link to check voucher document
 
   // PRF Specific Data
   prfDetails?: {

@@ -15,6 +15,7 @@ import ApprovedView from './features/procurement/views/ApprovedView';
 import FinanceView from './features/finance/views/FinanceView';
 import FinanceOverview from './features/finance/views/FinanceOverview';
 import LiquidationView from './features/finance/views/LiquidationView';
+import LiquidationPage from './features/finance/views/LiquidationPage';
 import PCFView from './features/finance/views/PCFView';
 import PCFApprovalView from './features/finance/views/PCFApprovalView';
 import SuppliersView from './features/inventory/views/SuppliersView';
@@ -131,7 +132,7 @@ function ProtectedApp() {
       [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'Pending Finance Head',
       [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'Pending GM Budget',
       [RequisitionStatus.PENDING_BOD_APPROVAL]: 'Pending BOD',
-      [RequisitionStatus.FOR_CHECK_PREPARATION]: 'Check Preparation',
+      [RequisitionStatus.FOR_CHECK_PREPARATION]: 'Bank Ref Entry',
       [RequisitionStatus.PENDING_CHECK_AUTH_BOD]: 'Check Auth',
       [RequisitionStatus.FOR_FUND_RELEASE]: 'For Release',
       // Legacy
@@ -153,12 +154,12 @@ function ProtectedApp() {
     );
   };
 
-  const handleReleaseFunds = async (id: string, chequeNumber: string, chequeImageUrl?: string) => {
+  const handleReleaseFunds = async (id: string, checkVoucherNumber: string, checkVoucherLink?: string) => {
     // Use the new service method that automatically updates linked PCF liquidations
     await RequisitionService.releaseFundsWithPcfUpdate(
       id,
-      chequeNumber,
-      chequeImageUrl,
+      checkVoucherNumber,
+      checkVoucherLink,
       currentUser?.id,
       currentUser?.name
     );
@@ -311,6 +312,13 @@ function ProtectedApp() {
               allUsers={users}
               suppliers={suppliers}
             />
+          </ProtectedRoute>
+        } />
+
+        {/* Liquidation Page - Full page for filing liquidation (opens in new window) */}
+        <Route path="/liquidation/:prfId" element={
+          <ProtectedRoute permission="liquidation:file:all">
+            <LiquidationPage />
           </ProtectedRoute>
         } />
 

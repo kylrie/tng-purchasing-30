@@ -51,14 +51,22 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
                         // Load permissions exactly as saved in Firestore
                         for (const [role, perms] of Object.entries(data.permissions)) {
-                            savedPermissions[role] = perms as Permission[];
+                            const permsList = perms as Permission[];
+                            // If Firestore has empty array but we have defaults, use defaults
+                            // This fixes the issue where custom roles (like FINANCE_HEAD) were created 
+                            // with empty permissions and the user couldn't save via UI
+                            if (permsList.length === 0 && ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS]) {
+                                savedPermissions[role] = ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS];
+                            } else {
+                                savedPermissions[role] = permsList;
+                            }
                         }
 
                         // Add any roles from defaults that don't exist in Firestore yet
                         // (but DON'T merge their permissions - just add empty array if missing)
                         for (const role of Object.keys(ROLES_TO_PERMISSIONS)) {
                             if (!savedPermissions[role]) {
-                                savedPermissions[role] = ROLES_TO_PERMISSIONS[role];
+                                savedPermissions[role] = ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS];
                             }
                         }
 

@@ -48,15 +48,6 @@ const formatCurrency = (amount: number): string => {
     }).format(amount);
 };
 
-// Helper: Format date nicely (date only)
-const formatDate = (dateValue: string | Date | any): string => {
-    if (!dateValue) return '-';
-    if (dateValue?.toDate && typeof dateValue.toDate === 'function') {
-        return dateValue.toDate().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-    }
-    const parsed = new Date(dateValue);
-    return isNaN(parsed.getTime()) ? '-' : parsed.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
-};
 
 // Helper: Format timestamp with date AND time for history entries
 const formatDateTime = (timestamp: string | undefined, legacyDate: string): string => {
@@ -205,7 +196,17 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                             )}
                         </div>
                         <p className="text-sm text-slate-400 mt-1 truncate">{requisition.description || 'No description'}</p>
-                        <p className="text-xs text-slate-500 mt-1">{getTitle()}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <p className="text-xs text-slate-500">{getTitle()}</p>
+                            {requisition.businessId && businesses.length > 0 && (
+                                <>
+                                    <span className="text-slate-600">•</span>
+                                    <span className="text-xs text-purple-400 font-medium">
+                                        {businesses.find(b => b.id === requisition.businessId)?.name || 'Unknown BU'}
+                                    </span>
+                                </>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                         {onPrint && (
@@ -456,240 +457,6 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                     {/* History Tab */}
                     {activeTab === 'history' && (
                         <div>
-                            {/* Key Actions Summary */}
-                            {((requisition.history && requisition.history.length > 0) || parentBurf) && (
-                                <div className="mb-6 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                                    <h4 className="text-xs uppercase tracking-wider text-slate-400 mb-3">Key Actions</h4>
-                                    <div className="space-y-2">
-                                        {/* Parent BURF History Section */}
-                                        {parentBurf && parentBurf.history && parentBurf.history.length > 0 && (
-                                            <>
-                                                <div className="mb-2 pb-2 border-b border-slate-700">
-                                                    <p className="text-xs text-slate-500 mb-2">From BURF: <span className="text-purple-400 font-mono">{parentBurf.id}</span></p>
-                                                    {/* BURF Created - Always show with fallback */}
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                            <Clock size={14} className="text-blue-400" />
-                                                            BURF Created
-                                                        </span>
-                                                        <span className="text-sm text-white font-medium">
-                                                            {(() => {
-                                                                // Try to find a create entry or use first history entry
-                                                                const createEntry = parentBurf.history.find(h =>
-                                                                    h.action.toLowerCase().includes('created') ||
-                                                                    h.action.toLowerCase().includes('submitted')
-                                                                );
-                                                                const firstEntry = parentBurf.history[0];
-                                                                // Use createEntry, firstEntry, or requesterName as fallback
-                                                                const creatorName = createEntry?.actorName ||
-                                                                    firstEntry?.actorName ||
-                                                                    parentBurf.requesterName ||
-                                                                    'Unknown';
-                                                                const createdDate = createEntry?.date ||
-                                                                    firstEntry?.date ||
-                                                                    parentBurf.dateCreated;
-                                                                return (
-                                                                    <>
-                                                                        {creatorName}
-                                                                        <span className="text-xs text-slate-500 ml-2">
-                                                                            {formatDate(createdDate)}
-                                                                        </span>
-                                                                    </>
-                                                                );
-                                                            })()}
-                                                        </span>
-                                                    </div>
-                                                    {/* Manager Approved */}
-                                                    {(() => {
-                                                        const bumEntry = parentBurf.history.find(h =>
-                                                            h.stage === RequisitionStatus.BURF_PENDING_CIC
-                                                        );
-                                                        if (bumEntry) {
-                                                            return (
-                                                                <div className="flex items-center justify-between mb-1">
-                                                                    <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                                        <CheckCircle2 size={14} className="text-purple-400" />
-                                                                        Manager Approved
-                                                                    </span>
-                                                                    <span className="text-sm text-white font-medium">
-                                                                        {bumEntry.actorName || 'Unknown'}
-                                                                        <span className="text-xs text-slate-500 ml-2">{formatDate(bumEntry.date)}</span>
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                    {/* CIC Approved */}
-                                                    {(() => {
-                                                        const cicEntry = parentBurf.history.find(h =>
-                                                            h.stage === RequisitionStatus.READY_FOR_PRF
-                                                        );
-                                                        if (cicEntry) {
-                                                            return (
-                                                                <div className="flex items-center justify-between">
-                                                                    <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                                        <CheckCircle2 size={14} className="text-indigo-400" />
-                                                                        CIC Approved
-                                                                    </span>
-                                                                    <span className="text-sm text-white font-medium">
-                                                                        {cicEntry.actorName || 'Unknown'}
-                                                                        <span className="text-xs text-slate-500 ml-2">{formatDate(cicEntry.date)}</span>
-                                                                    </span>
-                                                                </div>
-                                                            );
-                                                        }
-                                                        return null;
-                                                    })()}
-                                                </div>
-                                            </>
-                                        )}
-                                        {/* Created By */}
-                                        {(() => {
-                                            const createEntry = requisition.history?.find(h =>
-                                                h.action.toLowerCase().includes('created') ||
-                                                h.action.toLowerCase().includes('submitted')
-                                            );
-                                            if (createEntry) {
-                                                return (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                            <Clock size={14} className="text-blue-400" />
-                                                            Created By
-                                                        </span>
-                                                        <span className="text-sm text-white font-medium">
-                                                            {createEntry.actorName || requisition.requesterName || 'Unknown'}
-                                                            <span className="text-xs text-slate-500 ml-2">{formatDate(createEntry.date)}</span>
-                                                        </span>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                        {/* Manager Approved (BURF stage) */}
-                                        {(() => {
-                                            const managerEntry = requisition.history?.find(h =>
-                                                h.stage === RequisitionStatus.BURF_PENDING_CIC ||
-                                                (h.action.toLowerCase().includes('approved') && h.stage === RequisitionStatus.BURF_PENDING_MANAGER)
-                                            );
-                                            if (managerEntry && managerEntry.action.toLowerCase().includes('approved')) {
-                                                return (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                            <CheckCircle2 size={14} className="text-purple-400" />
-                                                            Manager Approved
-                                                        </span>
-                                                        <span className="text-sm text-white font-medium">
-                                                            {managerEntry.actorName || 'Unknown'}
-                                                            <span className="text-xs text-slate-500 ml-2">{formatDate(managerEntry.date)}</span>
-                                                        </span>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                        {/* CIC Approved */}
-                                        {(() => {
-                                            const cicEntry = requisition.history?.find(h =>
-                                                h.stage === RequisitionStatus.READY_FOR_PRF &&
-                                                h.action.toLowerCase().includes('approved')
-                                            );
-                                            if (cicEntry) {
-                                                return (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                            <CheckCircle2 size={14} className="text-indigo-400" />
-                                                            CIC Approved
-                                                        </span>
-                                                        <span className="text-sm text-white font-medium">
-                                                            {cicEntry.actorName || 'Unknown'}
-                                                            <span className="text-xs text-slate-500 ml-2">{formatDate(cicEntry.date)}</span>
-                                                        </span>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                        {/* PRF Prepared By */}
-                                        {requisition.prfDetails?.preparedByName && (
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                    <FileText size={14} className="text-cyan-400" />
-                                                    PRF Prepared By
-                                                </span>
-                                                <span className="text-sm text-white font-medium">
-                                                    {requisition.prfDetails.preparedByName}
-                                                    <span className="text-xs text-slate-500 ml-2">{formatDate(requisition.prfDetails.datePrepared)}</span>
-                                                </span>
-                                            </div>
-                                        )}
-                                        {/* Final Approval (for Payment) */}
-                                        {(() => {
-                                            const approvalEntry = requisition.history?.find(h =>
-                                                h.stage === RequisitionStatus.APPROVED_FOR_PAYMENT
-                                            );
-                                            if (approvalEntry) {
-                                                return (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                            <CheckCircle2 size={14} className="text-green-400" />
-                                                            Approved for Payment
-                                                        </span>
-                                                        <span className="text-sm text-white font-medium">
-                                                            {approvalEntry.actorName || 'Unknown'}
-                                                            <span className="text-xs text-slate-500 ml-2">{formatDate(approvalEntry.date)}</span>
-                                                        </span>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                        {/* Fund Released */}
-                                        {(() => {
-                                            const releaseEntry = requisition.history?.find(h =>
-                                                h.stage === RequisitionStatus.FUNDS_RELEASED
-                                            );
-                                            if (releaseEntry) {
-                                                return (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                            <PesoSign size={14} className="text-emerald-400" />
-                                                            Released By
-                                                        </span>
-                                                        <span className="text-sm text-white font-medium">
-                                                            {releaseEntry.actorName || 'Unknown'}
-                                                            <span className="text-xs text-slate-500 ml-2">{formatDate(releaseEntry.date)}</span>
-                                                        </span>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                        {/* Audited/Cleared */}
-                                        {(() => {
-                                            const auditEntry = requisition.history?.find(h =>
-                                                h.stage === RequisitionStatus.AUDITED_CLEARED
-                                            );
-                                            if (auditEntry) {
-                                                return (
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="text-sm text-slate-400 flex items-center gap-2">
-                                                            <CheckCircle2 size={14} className="text-teal-400" />
-                                                            Audited By
-                                                        </span>
-                                                        <span className="text-sm text-white font-medium">
-                                                            {auditEntry.actorName || 'Unknown'}
-                                                            <span className="text-xs text-slate-500 ml-2">{formatDate(auditEntry.date)}</span>
-                                                        </span>
-                                                    </div>
-                                                );
-                                            }
-                                            return null;
-                                        })()}
-                                    </div>
-                                </div>
-                            )}
-
                             {/* Timeline - Combined Parent BURF + Current Requisition History */}
                             {((parentBurf?.history && parentBurf.history.length > 0) || (requisition.history && requisition.history.length > 0)) ? (
                                 <div className="relative pl-6">
@@ -697,54 +464,77 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                     <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-slate-700" />
 
                                     <div className="space-y-4">
-                                        {/* Parent BURF History Entries First */}
-                                        {parentBurf?.history?.map((entry: RequisitionHistory, index: number) => (
-                                            <div key={`burf-${index}`} className="relative">
-                                                {/* Timeline dot */}
-                                                <div className="absolute -left-4 mt-1 p-1 bg-slate-900 rounded-full border border-purple-700/50">
-                                                    {getTimelineIcon(entry.action, entry.stage)}
-                                                </div>
+                                        {/* Combined and Sorted History Entries */}
+                                        {(() => {
+                                            // Combine all history entries with source info
+                                            type CombinedEntry = {
+                                                entry: RequisitionHistory;
+                                                source: 'burf' | 'current';
+                                                sourceId?: string;
+                                                sortDate: number;
+                                            };
 
-                                                <div className="bg-purple-900/20 rounded-lg p-3 border border-purple-700/30">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="text-sm font-medium text-purple-300">{entry.action}</span>
-                                                        <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp, entry.date)}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                                                        <User size={12} />
-                                                        <span>{entry.actorName || 'System'}</span>
-                                                    </div>
-                                                    <p className="text-xs text-purple-400 mt-1">From BURF: {parentBurf.id}</p>
-                                                    {entry.comments && (
-                                                        <p className="text-xs text-slate-500 mt-2 italic">"{entry.comments}"</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
+                                            const allEntries: CombinedEntry[] = [];
 
-                                        {/* Current Requisition History Entries */}
-                                        {requisition.history?.map((entry: RequisitionHistory, index: number) => (
-                                            <div key={`req-${index}`} className="relative">
-                                                {/* Timeline dot */}
-                                                <div className="absolute -left-4 mt-1 p-1 bg-slate-900 rounded-full border border-slate-700">
-                                                    {getTimelineIcon(entry.action, entry.stage)}
-                                                </div>
+                                            // Add parent BURF entries
+                                            if (parentBurf?.history) {
+                                                parentBurf.history.forEach(entry => {
+                                                    const dateStr = entry.timestamp || entry.date;
+                                                    allEntries.push({
+                                                        entry,
+                                                        source: 'burf',
+                                                        sourceId: parentBurf.id,
+                                                        sortDate: dateStr ? new Date(dateStr).getTime() : 0
+                                                    });
+                                                });
+                                            }
 
-                                                <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-                                                    <div className="flex items-center justify-between mb-1">
-                                                        <span className="text-sm font-medium text-white">{entry.action}</span>
-                                                        <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp, entry.date)}</span>
+                                            // Add current requisition entries
+                                            if (requisition.history) {
+                                                requisition.history.forEach(entry => {
+                                                    const dateStr = entry.timestamp || entry.date;
+                                                    allEntries.push({
+                                                        entry,
+                                                        source: 'current',
+                                                        sortDate: dateStr ? new Date(dateStr).getTime() : 0
+                                                    });
+                                                });
+                                            }
+
+                                            // Sort by date (oldest first for chronological reading)
+                                            allEntries.sort((a, b) => a.sortDate - b.sortDate);
+
+                                            return allEntries.map((item, index) => {
+                                                const { entry, source, sourceId } = item;
+                                                const isBurf = source === 'burf';
+
+                                                return (
+                                                    <div key={`${source}-${index}`} className="relative">
+                                                        {/* Timeline dot */}
+                                                        <div className={`absolute -left-4 mt-1 p-1 bg-slate-900 rounded-full border ${isBurf ? 'border-purple-700/50' : 'border-slate-700'}`}>
+                                                            {getTimelineIcon(entry.action, entry.stage)}
+                                                        </div>
+
+                                                        <div className={`${isBurf ? 'bg-purple-900/20 border-purple-700/30' : 'bg-slate-800/50 border-slate-700/50'} rounded-lg p-3 border`}>
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className={`text-sm font-medium ${isBurf ? 'text-purple-300' : 'text-white'}`}>{entry.action}</span>
+                                                                <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp, entry.date)}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                                <User size={12} />
+                                                                <span>{entry.actorName || 'System'}</span>
+                                                            </div>
+                                                            {isBurf && (
+                                                                <p className="text-xs text-purple-400 mt-1">From BURF: {sourceId}</p>
+                                                            )}
+                                                            {entry.comments && (
+                                                                <p className="text-xs text-slate-500 mt-2 italic">"{entry.comments}"</p>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                                                        <User size={12} />
-                                                        <span>{entry.actorName || 'System'}</span>
-                                                    </div>
-                                                    {entry.comments && (
-                                                        <p className="text-xs text-slate-500 mt-2 italic">"{entry.comments}"</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
+                                                );
+                                            });
+                                        })()}
                                     </div>
                                 </div>
                             ) : (

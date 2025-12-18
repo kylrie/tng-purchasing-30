@@ -277,6 +277,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                 isOpen={!!drawerReq}
                 onClose={() => setDrawerReq(null)}
                 variant="PRF"
+                businesses={businesses}
                 getStatusBadge={getStatusBadge}
                 onPrint={() => drawerReq && setPrintReq(drawerReq)}
             />

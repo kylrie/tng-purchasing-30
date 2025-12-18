@@ -8,10 +8,21 @@ if (Test-Path .firebase) {
     Remove-Item -Recurse -Force .firebase
 }
 
-# Build with staging environment - Uses (default) database for separation from production
+# Create .env.staging to override database ID (empty = default database)
+# This overrides any VITE_FIREBASE_DATABASE_ID in .env
+Write-Host "Creating staging environment override..." -ForegroundColor Yellow
+@"
+# Staging environment - uses (default) database
+VITE_FIREBASE_DATABASE_ID=
+"@ | Set-Content .env.staging
+
+# Build with staging environment using Vite's mode feature
+# --mode staging will load .env.staging which overrides .env
 Write-Host "Building with staging config..." -ForegroundColor Yellow
-$env:VITE_FIREBASE_DATABASE_ID = ""  # Empty = (default) database
-npm run build
+npm run build -- --mode staging
+
+# Clean up the temporary file
+Remove-Item .env.staging -ErrorAction SilentlyContinue
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red

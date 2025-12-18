@@ -209,6 +209,19 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     }
   }, [contextPermissions, contextRoles, isInitialized]);
 
+  // Browser-level warning for unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved permission changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
   const groupedPermissions = useMemo(() => {
     const groups: Record<string, PermissionConfig[]> = {};
 
@@ -306,6 +319,21 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
   };
 
   const handleSave = async () => {
+    // Check for roles with empty permissions and warn user
+    const emptyRoles = roles.filter(role => {
+      if (role === UserRole.SUPER_ADMIN) return false; // Super Admin is always full access
+      const rolePerms = permissions[role] || [];
+      return rolePerms.length === 0;
+    });
+
+    if (emptyRoles.length > 0) {
+      const roleNames = emptyRoles.join(', ');
+      const proceed = confirm(
+        `Warning: The following role(s) have NO permissions assigned:\n\n${roleNames}\n\nUsers with these roles will have limited access. Continue saving?`
+      );
+      if (!proceed) return;
+    }
+
     try {
       await onSave({ permissions, roles });
       setIsDirty(false);
@@ -509,16 +537,27 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
             <div className="w-64 border-r border-slate-700 bg-slate-900/50 flex flex-col">
               <div className="p-4 font-bold text-slate-400 text-xs uppercase tracking-wider border-b border-slate-800">Select Role</div>
               <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {(roles || []).map((role: UserRole) => (
-                  <button
-                    key={role}
-                    onClick={() => setSelectedRoleForPivot(role)}
-                    className={`w-full text-left px-4 py-3 text-sm font-medium flex items-center justify-between border-l-2 transition-all ${selectedRoleForPivot === role ? 'bg-purple-900/20 border-purple-500 text-purple-300' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
-                  >
-                    {role.replace(/_/g, ' ')}
-                    {selectedRoleForPivot === role && <ChevronRight size={14} />}
-                  </button>
-                ))}
+                {(roles || []).map((role: UserRole) => {
+                  const rolePerms = permissions[role] || [];
+                  const hasEmptyPerms = role !== UserRole.SUPER_ADMIN && rolePerms.length === 0;
+                  return (
+                    <button
+                      key={role}
+                      onClick={() => setSelectedRoleForPivot(role)}
+                      className={`w-full text-left px-4 py-3 text-sm font-medium flex items-center justify-between border-l-2 transition-all ${selectedRoleForPivot === role ? 'bg-purple-900/20 border-purple-500 text-purple-300' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {role.replace(/_/g, ' ')}
+                        {hasEmptyPerms && (
+                          <span title="No permissions assigned - users with this role will have limited access">
+                            <AlertCircle size={14} className="text-amber-400" />
+                          </span>
+                        )}
+                      </div>
+                      {selectedRoleForPivot === role && <ChevronRight size={14} />}
+                    </button>
+                  );
+                })}
               </div>
               <div className="p-4 border-t border-slate-800 bg-slate-900/30">
                 <div className="text-xs text-slate-500 mb-2">Create New Role</div>

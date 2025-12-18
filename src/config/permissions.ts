@@ -437,4 +437,37 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:total_spend',
     'dashboard:section:pending_audit_list',
   ],
+
+  // Finance Head - Budget Review approvals and check upload
+  FINANCE_HEAD: [
+    'requisition:view:all',
+    'requisition:print',
+    'approval:finance_head:br',
+    'approval:view:history',
+    'finance:upload_check',      // Bank Reference Entry (Check Preparation step)
+    'finance:release_funds',
+    'finance:view_cheque',
+    'liquidation:view',
+    'liquidation:file:all',
+    'liquidation:print',
+    'module:view:dashboard',
+    'module:view:burf',
+    'module:view:prf',
+    'module:view:approvals',
+    'module:view:approved',
+    'module:view:finance',
+    'module:view:finance:br',
+    'module:view:finance:check_auth',
+    'module:view:liquidation',
+    // Dashboard Widgets
+    'dashboard:widget:pending_approvals',
+    'dashboard:widget:active_prfs',
+    'dashboard:widget:total_spend',
+    'dashboard:section:pending_list',
+    'dashboard:section:br_list',
+    'dashboard:section:check_auth',
+    // PRF Tracker
+    'module:view:prf_tracker',
+    'prf_tracker:view:all',
+  ],
 };

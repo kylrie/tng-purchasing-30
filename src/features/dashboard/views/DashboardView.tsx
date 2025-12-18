@@ -1257,13 +1257,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         requisition={releaseFundReq}
                         isOpen={!!releaseFundReq}
                         onClose={() => setReleaseFundReq(null)}
-                        onConfirm={(chequeNumber, chequeImageUrl) => {
+                        onConfirm={(checkVoucherNumber, checkVoucherLink) => {
                             const updatedReq = {
                                 ...releaseFundReq,
                                 status: RequisitionStatus.FUNDS_RELEASED,
                                 fundReleaseDate: new Date().toISOString(),
-                                chequeNumber: chequeNumber,
-                                chequeImageUrl: chequeImageUrl
+                                checkVoucherNumber: checkVoucherNumber,
+                                checkVoucherLink: checkVoucherLink,
+                                // Legacy fields for backward compatibility
+                                chequeNumber: checkVoucherNumber,
+                                chequeImageUrl: checkVoucherLink
                             };
                             onUpdateRequisition(updatedReq);
                             setReleaseFundReq(null);
@@ -1318,6 +1321,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 isOpen={!!drawerReq}
                 onClose={() => setDrawerReq(null)}
                 variant="BURF"
+                businesses={businesses}
                 onApprove={async () => {
                     if (drawerReq && confirm(`Are you sure you want to approve ${drawerReq.id}?`)) {
                         try {
