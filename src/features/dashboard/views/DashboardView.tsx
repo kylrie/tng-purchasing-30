@@ -368,18 +368,21 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         return false;
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
-    // Check Authorization Items - Filter by BOD role assignment
+    // Check Authorization Items - Filter by BOD role assignment OR permission
     const checkAuthItems = requisitions.filter(r => {
         if (r.status !== RequisitionStatus.PENDING_CHECK_AUTH_BOD) return false;
 
-        // BOD approvers can approve check authorization
-        if (approverAssignments.bodApprovers) {
+        // SuperAdmins and users with BOD approval permission can always see
+        if (hasPermission('approval:bod')) return true;
+
+        // BOD approvers assigned in settings can approve check authorization
+        if (approverAssignments.bodApprovers?.length > 0) {
             return approverAssignments.bodApprovers.some(bod =>
                 bod.userId === currentUser.id
             );
         }
-        // Also allow users with explicit BOD approval permission
-        return hasPermission('approval:bod');
+
+        return false;
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
 
