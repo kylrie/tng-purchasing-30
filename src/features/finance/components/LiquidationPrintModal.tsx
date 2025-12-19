@@ -207,7 +207,8 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                         const estimatedCost = (item.price || 0) * (item.quantity || 0);
                                         const actualCost = item.actualCost || 0;
                                         const itemVariance = estimatedCost - actualCost;
-                                        const expenseItem = ((liquidation.items as any[]) || [])[index] || {};
+                                        // Look up expense details from expenses array (not items)
+                                        const expenseItem = ((liquidation.expenses as any[]) || [])[index] || {};
                                         return (
                                             <tr key={item.itemId || index}>
                                                 <td className="border border-slate-300 px-2 py-1 text-slate-900 font-medium">{item.name || '-'}</td>
@@ -261,10 +262,10 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                         </td>
                                         <td colSpan={4} className="border border-slate-300 px-2 py-1"></td>
                                         <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                            ₱{((liquidation.items as any[]) || []).reduce((sum: number, i: any) => sum + (i.vat || 0), 0).toLocaleString()}
+                                            ₱{((liquidation.expenses as any[]) || []).reduce((sum: number, i: any) => sum + (i.vat || 0), 0).toLocaleString()}
                                         </td>
                                         <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
-                                            ₱{((liquidation.items as any[]) || []).reduce((sum: number, i: any) => sum + (i.ewt || 0), 0).toLocaleString()}
+                                            ₱{((liquidation.expenses as any[]) || []).reduce((sum: number, i: any) => sum + (i.ewt || 0), 0).toLocaleString()}
                                         </td>
                                     </tr>
                                 </tfoot>
@@ -273,7 +274,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
 
                         {/* BU Sharing Breakdown - Shows if any items have SHARE flag */}
                         {(() => {
-                            const items = (liquidation.items as any[]) || [];
+                            const items = (liquidation.expenses as any[]) || [];
                             const sharedItems = items.filter((item: any) =>
                                 item.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && item.buName?.toUpperCase().includes('CORP')
                             );

@@ -36,8 +36,9 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const [editingLiquidationReq, setEditingLiquidationReq] = useState<Requisition | null>(null);
   const [auditReq, setAuditReq] = useState<Requisition | null>(null);
   const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
-  const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit' | 'my_history'>('liquidations');
+  const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit' | 'my_history' | 'audit_history'>('liquidations');
   const [searchTerm, setSearchTerm] = useState('');
+  const [auditHistoryFilter, setAuditHistoryFilter] = useState<'all' | 'rejected' | 'cleared'>('all');
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
@@ -131,6 +132,26 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     return new Date(dateB).getTime() - new Date(dateA).getTime();
   });
 
+  // Audit History: All audited liquidations (for auditors to review history)
+  const auditHistoryReqs = requisitions.filter(req => {
+    if (auditHistoryFilter === 'rejected') {
+      return req.status === RequisitionStatus.LIQUIDATION_REJECTED;
+    }
+    if (auditHistoryFilter === 'cleared') {
+      return req.status === RequisitionStatus.AUDITED_CLEARED;
+    }
+    // 'all' - show both
+    return [
+      RequisitionStatus.AUDITED_CLEARED,
+      RequisitionStatus.LIQUIDATION_REJECTED
+    ].includes(req.status);
+  }).sort((a, b) => {
+    // Sort by audit date, most recent first
+    const dateA = a.liquidationDetails?.auditDate || a.dateCreated;
+    const dateB = b.liquidationDetails?.auditDate || b.dateCreated;
+    return new Date(dateB).getTime() - new Date(dateA).getTime();
+  });
+
   // Custom liquidation status badge function
   const getLiquidationStatusBadge = (req: Requisition) => {
     if (req.status === RequisitionStatus.LIQUIDATION_FILED) {
@@ -158,7 +179,8 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   };
 
   const displayedReqs = activeTab === 'liquidations' ? liquidationReqs :
-    activeTab === 'for_audit' ? auditingReqs : myHistoryReqs;
+    activeTab === 'for_audit' ? auditingReqs :
+      activeTab === 'audit_history' ? auditHistoryReqs : myHistoryReqs;
 
   // Apply search filter
   const filteredReqs = displayedReqs.filter(req => {
@@ -212,7 +234,35 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           >
             For Audit ({auditingReqs.length})
           </button>
+          {/* Audit History tab - only visible to auditors */}
+          {hasPermission('liquidation:audit') && (
+            <button
+              className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'audit_history'
+                ? 'border-b-2 border-cyan-500 text-cyan-400'
+                : 'text-slate-400 hover:text-slate-300'
+                }`}
+              onClick={() => setActiveTab('audit_history')}
+            >
+              Audit History ({auditHistoryReqs.length})
+            </button>
+          )}
         </div>
+
+        {/* Filter for Audit History tab */}
+        {activeTab === 'audit_history' && (
+          <div className="mb-4 flex items-center gap-3">
+            <label className="text-sm text-slate-400">Filter by status:</label>
+            <select
+              value={auditHistoryFilter}
+              onChange={(e) => setAuditHistoryFilter(e.target.value as 'all' | 'rejected' | 'cleared')}
+              className="px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="all">All</option>
+              <option value="rejected">Rejected</option>
+              <option value="cleared">Audited Cleared</option>
+            </select>
+          </div>
+        )}
 
         {/* Search Bar */}
         <div className="mb-4">
@@ -371,6 +421,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
         onClose={() => setDrawerReq(null)}
         variant="FINANCE"
         businesses={businesses}
+        allUsers={allUsers}
         getStatusBadge={getStatusBadge}
         onCancel={async () => {
           if (drawerReq && confirm(`Are you sure you want to CANCEL ${drawerReq.id}? This action cannot be undone.`)) {

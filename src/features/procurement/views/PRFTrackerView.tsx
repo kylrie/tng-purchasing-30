@@ -38,7 +38,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
     requisitions,
     getStatusBadge,
     businesses,
-    // allUsers available for future use (e.g., showing requester names)
+    allUsers,
 }) => {
     const { hasPermission } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
@@ -278,6 +278,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                 onClose={() => setDrawerReq(null)}
                 variant="PRF"
                 businesses={businesses}
+                allUsers={allUsers}
                 getStatusBadge={getStatusBadge}
                 onPrint={() => drawerReq && setPrintReq(drawerReq)}
             />

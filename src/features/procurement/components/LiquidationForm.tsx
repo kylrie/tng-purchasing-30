@@ -76,6 +76,26 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
 }) => {
     // Initialize items - either from saved data or create empty rows
     const [items, setItems] = useState<LiquidationItemRow[]>(() => {
+        // First check expenses array (new format from LiquidationPage)
+        if (requisition.liquidationDetails?.expenses && requisition.liquidationDetails.expenses.length > 0) {
+            return (requisition.liquidationDetails.expenses as any[]).map((exp: any, idx: number) => ({
+                id: exp.id || `exp-${idx}`,
+                date: exp.date || new Date().toISOString().split('T')[0],
+                vendorId: exp.vendorId || '',
+                vendorName: exp.vendorName || '',
+                tin: exp.tin || '',
+                orNo: exp.orNo || '',
+                address: exp.address || '',
+                coa: exp.coaCode || exp.coaName || '',
+                description: exp.description || '',
+                vat: exp.vat || 0,
+                ewt: exp.ewt || 0,
+                amount: exp.amount || 0,
+                buId: exp.buId || requisition.businessId,
+                buName: exp.buName || '',
+            }));
+        }
+        // Fallback to items array (legacy format)
         if (requisition.liquidationDetails?.items) {
             // Handle both new format and legacy format
             const savedItems = requisition.liquidationDetails.items;

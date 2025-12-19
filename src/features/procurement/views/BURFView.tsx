@@ -660,6 +660,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 onClose={() => setSelectedBurf(null)}
                 variant="BURF"
                 businesses={businesses}
+                allUsers={allUsers}
                 getStatusBadge={getStatusBadge}
                 onCancel={async () => {
                     if (selectedBurf && confirm(`Are you sure you want to CANCEL ${selectedBurf.id}? This action cannot be undone.`)) {

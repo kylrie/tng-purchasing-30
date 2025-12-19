@@ -1432,6 +1432,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 onClose={() => setDrawerReq(null)}
                 variant="BURF"
                 businesses={businesses}
+                allUsers={allUsers}
                 onApprove={async () => {
                     if (drawerReq && confirm(`Are you sure you want to approve ${drawerReq.id}?`)) {
                         try {

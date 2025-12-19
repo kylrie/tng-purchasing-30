@@ -576,6 +576,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 onClose={() => setDrawerReq(null)}
                 variant={drawerReq?.id.startsWith('PRF') || drawerReq?.status?.includes('PRF') ? 'PRF' : 'BURF'}
                 businesses={businesses}
+                allUsers={allUsers}
                 getStatusBadge={getStatusBadge}
                 onApprove={handleDrawerApprove}
                 onReject={handleDrawerReject}

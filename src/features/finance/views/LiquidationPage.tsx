@@ -201,11 +201,8 @@ const LiquidationPage: React.FC = () => {
     const handleSubmit = async () => {
         if (!requisition || !currentUser) return;
 
-        const hasValidExpenses = expenses.some(e => e.amount > 0);
-        if (!hasValidExpenses) {
-            alert('Please add at least one expense with an amount.');
-            return;
-        }
+        // Validation removed - allow zero actual costs for cases where no spending occurred
+        // Previously required at least one actual cost > 0, but this prevents valid full-refund scenarios
 
         setIsSubmitting(true);
         try {

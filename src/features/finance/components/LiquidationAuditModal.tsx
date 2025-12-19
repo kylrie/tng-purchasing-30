@@ -35,9 +35,12 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
         return null; // Or render an error state indicating missing data
     }
 
-    // Safe Math
+    // Safe Math - Calculate actual total from items' actualCost values
     const prfTotal = Number(requisition.totalAmount) || 0;
-    const actualTotal = Number(liquidation.totalActualAmount) || 0;
+    // Calculate actual from items (each item.actualCost is already the total for that item)
+    const actualFromItems = requisition.items.reduce((sum, item) => sum + (item.actualCost || 0), 0);
+    // Fallback to liquidation.totalActualAmount if items don't have actualCost
+    const actualTotal = actualFromItems > 0 ? actualFromItems : (Number(liquidation.totalActualAmount) || 0);
     const difference = prfTotal - actualTotal;
     const isRefund = difference >= 0;
 
@@ -201,7 +204,8 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                         {requisition.items.map((item, index) => {
                                             const qty = item.quantity || 0;
                                             const budgeted = (item.price || 0) * qty;
-                                            const actual = (item.actualCost || 0) * qty;
+                                            // actualCost is already the total for this item (not per-unit)
+                                            const actual = item.actualCost || 0;
                                             const variance = budgeted - actual;
                                             const isPositiveVariance = variance >= 0;
 
@@ -237,6 +241,61 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                         </div>
                     </div>
 
+                    {/* Expense Breakdown - Shows submitted expense details */}
+                    {liquidation.expenses && (liquidation.expenses as any[]).length > 0 && (
+                        <div>
+                            <h3 className="text-lg font-semibold text-white mb-3">Expense Breakdown</h3>
+                            <div className="border border-slate-700 rounded-lg overflow-hidden bg-slate-900/30">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-900/80 border-b border-slate-700">
+                                            <tr>
+                                                <th className="px-3 py-2 text-left font-semibold text-slate-400">Date</th>
+                                                <th className="px-3 py-2 text-left font-semibold text-slate-400">Supplier</th>
+                                                <th className="px-3 py-2 text-left font-semibold text-slate-400">TIN</th>
+                                                <th className="px-3 py-2 text-left font-semibold text-slate-400">OR No.</th>
+                                                <th className="px-3 py-2 text-left font-semibold text-slate-400">Description</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-slate-400">Amount</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-slate-400">VAT</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-slate-400">EWT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-700">
+                                            {(liquidation.expenses as any[]).map((exp: any, index: number) => (
+                                                <tr key={exp.id || index} className="hover:bg-slate-800/50 transition-colors">
+                                                    <td className="px-3 py-2 text-slate-300">
+                                                        {exp.date ? new Date(exp.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-slate-200">{exp.vendorName || '-'}</td>
+                                                    <td className="px-3 py-2 text-slate-400 font-mono text-xs">{exp.tin || '-'}</td>
+                                                    <td className="px-3 py-2 text-slate-300">{exp.orNo || '-'}</td>
+                                                    <td className="px-3 py-2 text-slate-300">{exp.description || exp.coaName || '-'}</td>
+                                                    <td className="px-3 py-2 text-right text-slate-200 font-medium">₱{(exp.amount || 0).toLocaleString()}</td>
+                                                    <td className="px-3 py-2 text-right text-slate-400">{exp.vat ? `₱${exp.vat.toLocaleString()}` : '-'}</td>
+                                                    <td className="px-3 py-2 text-right text-slate-400">{exp.ewt ? `₱${exp.ewt.toLocaleString()}` : '-'}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot className="bg-slate-900/60 border-t border-slate-600">
+                                            <tr>
+                                                <td colSpan={5} className="px-3 py-2 text-right font-semibold text-slate-400">Totals</td>
+                                                <td className="px-3 py-2 text-right text-white font-bold">
+                                                    ₱{(liquidation.expenses as any[]).reduce((sum: number, e: any) => sum + (e.amount || 0), 0).toLocaleString()}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-slate-300">
+                                                    ₱{(liquidation.expenses as any[]).reduce((sum: number, e: any) => sum + (e.vat || 0), 0).toLocaleString()}
+                                                </td>
+                                                <td className="px-3 py-2 text-right text-slate-300">
+                                                    ₱{(liquidation.expenses as any[]).reduce((sum: number, e: any) => sum + (e.ewt || 0), 0).toLocaleString()}
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Action Area */}
                     <div className="pt-4 border-t border-slate-700/50">
                         {!canAudit ? (
@@ -263,8 +322,8 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                             </div>
                         ) : (
                             <div className={`rounded-xl p-6 border animate-in slide-in-from-bottom-2 ${action === 'approve'
-                                    ? 'bg-green-950/30 border-green-500/30'
-                                    : 'bg-red-950/30 border-red-500/30'
+                                ? 'bg-green-950/30 border-green-500/30'
+                                : 'bg-red-950/30 border-red-500/30'
                                 }`}>
                                 <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${action === 'approve' ? 'text-green-400' : 'text-red-400'
                                     }`}>
@@ -292,8 +351,8 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                             onClick={handleSubmit}
                                             disabled={loading || (action === 'reject' && !rejectionReason.trim())}
                                             className={`flex-1 px-6 py-3 rounded-lg font-semibold text-white flex items-center justify-center gap-2 transition-all ${action === 'approve'
-                                                    ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-900'
-                                                    : 'bg-red-600 hover:bg-red-500 disabled:bg-red-900'
+                                                ? 'bg-green-600 hover:bg-green-500 disabled:bg-green-900'
+                                                : 'bg-red-600 hover:bg-red-500 disabled:bg-red-900'
                                                 } disabled:opacity-50 disabled:cursor-not-allowed`}
                                         >
                                             {loading ? (

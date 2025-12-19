@@ -1354,6 +1354,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 onClose={() => setSelectedReq(null)}
                 variant="PRF"
                 businesses={businesses}
+                allUsers={allUsers}
                 getStatusBadge={getStatusBadge}
                 onApprove={handleDrawerApprove}
                 onReject={handleDrawerReject}

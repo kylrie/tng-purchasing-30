@@ -516,6 +516,14 @@ service cloud.firestore {
            (hasPermission('liquidation:file:own') && isOwner(resource)))
         ) ||
         
+        // Liquidation: Refile after rejection - Permission-based
+        (
+          resource.data.status == 'LIQUIDATION_REJECTED' &&
+          request.resource.data.status == 'LIQUIDATION_FILED' &&
+          (hasPermission('liquidation:file:all') || 
+           (hasPermission('liquidation:file:own') && isOwner(resource)))
+        ) ||
+        
         // Liquidation: Audit - Permission-based
         (
           resource.data.status == 'LIQUIDATION_FILED' &&

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, CheckCircle2, XCircle, ChevronRight, User, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban } from 'lucide-react';
+import { X, Clock, CheckCircle2, XCircle, ChevronRight, User as UserIcon, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban } from 'lucide-react';
 import type { Requisition, RequisitionHistory, RequisitionItem, Supplier } from '../../features/procurement/types';
 import { RequisitionStatus } from '../../features/procurement/types';
 import LiquidationForm from '../../features/procurement/components/LiquidationForm';
 import AllocationSummary from '../../features/procurement/components/AllocationSummary';
 import { RequisitionService } from '../../features/procurement/services/requisitions.service';
-import type { Business } from '../types';
+import type { Business, User } from '../types';
 import Card from './Card';
 import PesoSign from './PesoSign';
 
@@ -35,6 +35,7 @@ interface RequisitionDrawerProps {
     isLoading?: boolean;
     businesses?: Business[]; // For BU dropdown in liquidation
     suppliers?: Supplier[];  // For vendor dropdown in liquidation
+    allUsers?: User[];       // For displaying approver names
     // Optional: status badge renderer
     getStatusBadge?: (status: RequisitionStatus) => React.ReactNode;
 }
@@ -122,6 +123,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     isLoading = false,
     businesses = [],
     suppliers = [],
+    allUsers = [],
     getStatusBadge,
 }) => {
     const [activeTab, setActiveTab] = useState<TabType>('items');
@@ -196,13 +198,33 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                             )}
                         </div>
                         <p className="text-sm text-slate-400 mt-1 truncate">{requisition.description || 'No description'}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <p className="text-xs text-slate-500">{getTitle()}</p>
                             {requisition.businessId && businesses.length > 0 && (
                                 <>
                                     <span className="text-slate-600">•</span>
                                     <span className="text-xs text-purple-400 font-medium">
                                         {businesses.find(b => b.id === requisition.businessId)?.name || 'Unknown BU'}
+                                    </span>
+                                </>
+                            )}
+                            {/* Current Approver */}
+                            {requisition.currentApproverId && allUsers.length > 0 && (
+                                <>
+                                    <span className="text-slate-600">•</span>
+                                    <span className="text-xs text-amber-400 font-medium flex items-center gap-1">
+                                        <UserIcon size={10} />
+                                        Approver: {allUsers.find(u => u.id === requisition.currentApproverId)?.name || 'Unknown'}
+                                    </span>
+                                </>
+                            )}
+                            {/* PRF Designated Approver - for Direct PRFs */}
+                            {requisition.prfDetails?.designatedApproverId && allUsers.length > 0 && (
+                                <>
+                                    <span className="text-slate-600">•</span>
+                                    <span className="text-xs text-cyan-400 font-medium flex items-center gap-1">
+                                        <UserIcon size={10} />
+                                        Selected Approver: {allUsers.find(u => u.id === requisition.prfDetails?.designatedApproverId)?.name || 'Unknown'}
                                     </span>
                                 </>
                             )}
@@ -521,7 +543,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                                                 <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp, entry.date)}</span>
                                                             </div>
                                                             <div className="flex items-center gap-2 text-xs text-slate-400">
-                                                                <User size={12} />
+                                                                <UserIcon size={12} />
                                                                 <span>{entry.actorName || 'System'}</span>
                                                             </div>
                                                             {isBurf && (

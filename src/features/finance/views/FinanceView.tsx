@@ -898,6 +898,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 onClose={() => setDrawerReq(null)}
                 variant="FINANCE"
                 businesses={businesses}
+                allUsers={allUsers}
                 getStatusBadge={getStatusBadge}
                 onReleaseFund={() => {
                     if (drawerReq) {
