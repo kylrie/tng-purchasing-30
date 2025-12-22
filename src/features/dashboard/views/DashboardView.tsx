@@ -438,14 +438,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         setRejectingReq(req);
     };
 
-    const handleRejectConfirm = (reason: string) => {
+    const handleRejectConfirm = async (reason: string) => {
         if (rejectingReq) {
-            const newRemarks = rejectingReq.remarks
-                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}`
-                : `[REJECTED]: ${reason}`;
-
-            onUpdateRequisition({ ...rejectingReq, status: RequisitionStatus.REJECTED, remarks: newRemarks });
-            setRejectingReq(null);
+            try {
+                await RequisitionService.rejectRequisition(
+                    rejectingReq.id,
+                    currentUser.id,
+                    currentUser.name,
+                    reason
+                );
+                setRejectingReq(null);
+            } catch (error: any) {
+                console.error('Error rejecting requisition:', error);
+                alert(`Failed to reject requisition: ${error.message || 'Unknown error'}`);
+            }
         }
     };
 
@@ -1479,14 +1485,46 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         // BURF Workflow
                         (drawerReq.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('approval:manager:burf')) ||
                         (drawerReq.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('approval:cic:burf')) ||
-                        // PRF Workflow
-                        (drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER && hasPermission('approval:manager:prf')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL && hasPermission('approval:gm:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD && hasPermission('approval:bod'))
+                        // PRF Workflow - Step 1: Must be the designated approver OR SuperAdmin
+                        (drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER && (
+                            drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
+                            isSuperAdmin(currentUser.role)
+                        )) ||
+                        // GM PRF Approval (50k+): Check if assigned as GM
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL &&
+                            hasPermission('approval:gm:br') &&
+                            currentUser.id === approverAssignments.gmUid
+                        ) ||
+                        // Finance Head BR: Check if assigned for this BU
+                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
+                            hasPermission('approval:finance_head:br') &&
+                            approverAssignments.financeHeads?.some(fh =>
+                                fh.userId === currentUser.id &&
+                                fh.businessUnitIds.includes(drawerReq.businessId)
+                            )
+                        ) ||
+                        // GM BR: Check if assigned as GM
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
+                            hasPermission('approval:gm:br') &&
+                            currentUser.id === approverAssignments.gmUid
+                        ) ||
+                        // BOD: Check if assigned as BOD approver
+                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
+                            hasPermission('approval:bod') &&
+                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                        ) ||
+                        // CFO: Check if assigned as CFO
+                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
+                            hasPermission('approval:cfo') &&
+                            currentUser.id === approverAssignments.cfoUid
+                        ) ||
+                        // Check Auth BOD: Check if assigned as BOD approver
+                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
+                            hasPermission('approval:bod') &&
+                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                        ) ||
+                        // SuperAdmin can always approve
+                        isSuperAdmin(currentUser.role)
                     )
                 }
                 canReject={
@@ -1494,14 +1532,46 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         // BURF Workflow
                         (drawerReq.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('approval:manager:burf')) ||
                         (drawerReq.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('approval:cic:burf')) ||
-                        // PRF Workflow
-                        (drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER && hasPermission('approval:manager:prf')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL && hasPermission('approval:gm:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD && hasPermission('approval:bod'))
+                        // PRF Workflow - Step 1: Must be the designated approver OR SuperAdmin
+                        (drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER && (
+                            drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
+                            isSuperAdmin(currentUser.role)
+                        )) ||
+                        // GM PRF Approval (50k+): Check if assigned as GM
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL &&
+                            hasPermission('approval:gm:br') &&
+                            currentUser.id === approverAssignments.gmUid
+                        ) ||
+                        // Finance Head BR: Check if assigned for this BU
+                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
+                            hasPermission('approval:finance_head:br') &&
+                            approverAssignments.financeHeads?.some(fh =>
+                                fh.userId === currentUser.id &&
+                                fh.businessUnitIds.includes(drawerReq.businessId)
+                            )
+                        ) ||
+                        // GM BR: Check if assigned as GM
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
+                            hasPermission('approval:gm:br') &&
+                            currentUser.id === approverAssignments.gmUid
+                        ) ||
+                        // BOD: Check if assigned as BOD approver
+                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
+                            hasPermission('approval:bod') &&
+                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                        ) ||
+                        // CFO: Check if assigned as CFO
+                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
+                            hasPermission('approval:cfo') &&
+                            currentUser.id === approverAssignments.cfoUid
+                        ) ||
+                        // Check Auth BOD: Check if assigned as BOD approver
+                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
+                            hasPermission('approval:bod') &&
+                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                        ) ||
+                        // SuperAdmin can always reject
+                        isSuperAdmin(currentUser.role)
                     )
                 }
                 canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}

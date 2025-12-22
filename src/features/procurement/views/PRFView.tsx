@@ -736,10 +736,12 @@ export const PrfView: React.FC<PrfViewProps> = ({
     };
 
     // Check if current user can approve selected PRF
-    const canApproveSelectedPrf = selectedReq && (
-        selectedReq.status === RequisitionStatus.PRF_PENDING_MANAGER &&
-        hasPermission('approval:manager:prf')
-    );
+    // All PRFs (Direct and BURF→PRF) have a designatedApproverId set
+    const canApproveSelectedPrf = selectedReq &&
+        selectedReq.status === RequisitionStatus.PRF_PENDING_MANAGER && (
+            selectedReq.prfDetails?.designatedApproverId === currentUser.id ||
+            isSuperAdmin(currentUser.role)
+        );
 
     // Check if current user can submit liquidation
     const canSubmitLiquidation = selectedReq && (

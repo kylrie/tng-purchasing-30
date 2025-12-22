@@ -299,6 +299,28 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
         );
     };
 
+    // Render attachments section
+    const renderAttachments = () => {
+        if (!req.attachments || req.attachments.length === 0) return null;
+
+        return (
+            <div className="border border-slate-900 mb-4 text-[10px]">
+                <div className="bg-slate-100 print:bg-transparent px-2 py-1 font-bold border-b border-slate-900">
+                    ATTACHMENTS
+                </div>
+                <div className="p-2">
+                    {req.attachments.map((url, idx) => (
+                        <div key={idx} className="py-1 text-[9px] break-all">
+                            <span className="font-bold">Link {idx + 1}:</span>{' '}
+                            <span className="text-blue-700 underline">{url}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
+
     return (
         <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:block">
             {/* Print Styles - Enhanced for multi-page PDF */}
@@ -397,6 +419,7 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
                                     <>
                                         {renderFooterTotals()}
                                         {renderExpenseSharing()}
+                                        {renderAttachments()}
                                         {renderSignatures()}
 
                                         {/* Page indicator */}

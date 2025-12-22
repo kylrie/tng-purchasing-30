@@ -788,20 +788,18 @@ export class RequisitionService {
    * @param userId - Current user ID
    * @param userName - Current user name
    * @param payload - Liquidation data including item actuals and summary
+   * 
+   * NOTE: The items array accepts the new LiquidationItemRow format from LiquidationForm:
+   * { id, date, vendorId, vendorName, tin, orNo, address, coa, description, vat, ewt, amount, buId, buName }
+   * OR the legacy format:
+   * { itemId, name, quantity, estimatedCost, actualCost, receiptRef }
    */
   static async submitLiquidation(
     requisitionId: string,
     userId: string,
     userName: string,
     payload: {
-      items: Array<{
-        itemId: string;
-        name: string;
-        quantity: number;
-        estimatedCost: number;
-        actualCost: number;
-        receiptRef: string;
-      }>;
+      items: any[]; // Accepts both LiquidationItemRow and legacy formats
       totalBudget: number;
       totalActual: number;
       variance: number; // positive = surplus (to return), negative = deficit (to reimburse)
@@ -810,6 +808,25 @@ export class RequisitionService {
     }
   ): Promise<void> {
     const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
+
+    // Helper function to deeply sanitize any value (removes undefined from objects and arrays)
+    const deepSanitize = (value: any): any => {
+      if (value === undefined) return null; // Convert undefined to null (Firestore-safe)
+      if (value === null) return null;
+      if (Array.isArray(value)) {
+        return value.map(item => deepSanitize(item));
+      }
+      if (typeof value === 'object' && value !== null) {
+        const cleaned: Record<string, any> = {};
+        for (const [key, val] of Object.entries(value)) {
+          if (val !== undefined) {
+            cleaned[key] = deepSanitize(val);
+          }
+        }
+        return cleaned;
+      }
+      return value;
+    };
 
     await runTransaction(db, async (transaction) => {
       const snap = await transaction.get(docRef);
@@ -834,28 +851,41 @@ export class RequisitionService {
         comments: payload.remarks || 'Liquidation documents submitted',
       };
 
-      const updatedHistory = [historyEntry, ...(requisition.history || [])];
+      // Sanitize existing history entries (may have undefined comments from legacy data)
+      const sanitizedHistory = deepSanitize([historyEntry, ...(requisition.history || [])]);
 
-      // Update requisition with liquidation details
-      transaction.update(docRef, {
+      // Sanitize items array
+      const sanitizedItems = deepSanitize(payload.items);
+
+      // Build the update object
+      const updateData = {
         status: RequisitionStatus.LIQUIDATION_FILED,
-        history: updatedHistory,
+        history: sanitizedHistory,
         liquidationDetails: {
           submittedBy: userId,
           submittedByName: userName,
           submittedAt: new Date().toISOString(),
-          items: payload.items,
-          totalBudget: payload.totalBudget,
-          totalActual: payload.totalActual,
-          variance: payload.variance,
-          receiptsLink: payload.receiptsLink || '',
-          remarks: payload.remarks || '',
+          items: sanitizedItems,
+          expenses: sanitizedItems, // Store as 'expenses' for the new format (LiquidationForm uses this key)
+          totalBudget: payload.totalBudget ?? 0,
+          totalActual: payload.totalActual ?? 0,
+          variance: payload.variance ?? 0,
+          receiptsLink: payload.receiptsLink ?? '',
+          remarks: payload.remarks ?? '',
           status: 'PENDING' as const, // Pending audit
         },
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      // Final sanitization of the entire update object
+      const sanitizedUpdateData = deepSanitize(updateData);
+      // Re-add serverTimestamp as it gets stripped by deepSanitize
+      sanitizedUpdateData.updatedAt = serverTimestamp();
+
+      transaction.update(docRef, sanitizedUpdateData);
     });
   }
+
 
   /**
    * Release funds for a requisition and automatically update linked PCF status

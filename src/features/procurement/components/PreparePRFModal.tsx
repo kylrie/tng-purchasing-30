@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Check, ArrowLeft, Loader2, Save } from 'lucide-react';
+import { Check, ArrowLeft, Loader2, Save, Paperclip } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails, User } from '../types';
 import { RequisitionStatus } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
@@ -66,6 +66,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
     // Remarks state
     const [remarks, setRemarks] = useState(requisition.remarks || '');
+
+    // Attachment link state
+    const [attachmentLink, setAttachmentLink] = useState(requisition.attachments?.[0] || '');
 
     // Submission loading states to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -210,6 +213,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                 ewtPercentage: applyEwt ? ewtPercentage : undefined,
                 ewtAmount: applyEwt ? ewtAmount : undefined,
                 netAmount: applyEwt ? netAmount : totalAmount,
+                attachments: attachmentLink ? [attachmentLink] : requisition.attachments || [],
                 prfDetails: supplierDetails.name ? {
                     supplier: supplierDetails,
                     preparedBy: currentUserId,
@@ -302,6 +306,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     ewtPercentage: applyEwt ? ewtPercentage : undefined,
                     ewtAmount: applyEwt ? ewtAmount : undefined,
                     netAmount: applyEwt ? netAmount : totalAmount,
+                    attachments: attachmentLink ? [attachmentLink] : requisition.attachments || [],
                     prfDetails: {
                         supplier: supplierDetails,
                         preparedBy: currentUserId,
@@ -428,6 +433,22 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                             rows={2}
                             className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500 resize-none"
                         />
+                    </div>
+
+                    {/* Attachment Link Section */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
+                            <Paperclip size={16} className="text-slate-400" />
+                            Attachment Link (Optional)
+                        </label>
+                        <input
+                            type="text"
+                            value={attachmentLink}
+                            onChange={(e) => setAttachmentLink(e.target.value)}
+                            placeholder="https://drive.google.com/..."
+                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Paste a Google Drive link to supporting documents (quotation, invoice, etc.)</p>
                     </div>
 
                     {/* Item Specification & Costing */}

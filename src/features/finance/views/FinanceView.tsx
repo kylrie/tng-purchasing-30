@@ -12,6 +12,8 @@ import { usePermissions } from '../../../hooks/usePermissions';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import { executeWorkflowAction } from '../../procurement/services/workflowService';
+import { SettingsService } from '../../../shared/services/settings.service';
+import type { ApproverAssignments } from '../../../shared/services/settings.service';
 import PRFPrintModal from '../../procurement/components/PRFPrintModal';
 
 interface FinanceViewProps {
@@ -42,6 +44,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
     const [selectedBu, setSelectedBu] = useState<string>('all');
     const { hasPermission } = usePermissions();
+    const [approverAssignments, setApproverAssignments] = useState<ApproverAssignments>({});
+
+    // Fetch approver assignments for BU-specific checks
+    useEffect(() => {
+        SettingsService.getApproverAssignments().then(setApproverAssignments);
+    }, []);
 
     // Helper function to filter requisitions by search term and BU
     const applyFilters = (reqs: Requisition[]) => {
@@ -650,12 +658,33 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             <td className="px-6 py-4">
                                                 {/* Role-based action visibility: Only show actions if user can approve this status */}
                                                 {(() => {
-                                                    // Determine if current user can approve based on the item's current status
+                                                    // Determine if current user can approve based on the item's current status AND assignment
                                                     const canApproveThisStatus =
-                                                        (req.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
-                                                        (req.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
-                                                        (req.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
-                                                        (req.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo'));
+                                                        // Finance Head: Check if assigned for this BU
+                                                        (req.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
+                                                            hasPermission('approval:finance_head:br') &&
+                                                            approverAssignments.financeHeads?.some(fh =>
+                                                                fh.userId === currentUser.id &&
+                                                                fh.businessUnitIds.includes(req.businessId)
+                                                            )
+                                                        ) ||
+                                                        // GM: Check if assigned as GM
+                                                        (req.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
+                                                            hasPermission('approval:gm:br') &&
+                                                            currentUser.id === approverAssignments.gmUid
+                                                        ) ||
+                                                        // BOD: Check if assigned as BOD approver
+                                                        (req.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
+                                                            hasPermission('approval:bod') &&
+                                                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                                                        ) ||
+                                                        // CFO: Check if assigned as CFO
+                                                        (req.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
+                                                            hasPermission('approval:cfo') &&
+                                                            currentUser.id === approverAssignments.cfoUid
+                                                        ) ||
+                                                        // SuperAdmin can always approve
+                                                        isSuperAdmin(currentUser.role);
 
                                                     if (canApproveThisStatus) {
                                                         return (
@@ -845,8 +874,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 {getStatusBadge(req.status)}
                                             </td>
                                             <td className="px-6 py-4">
-                                                {/* BOD Check Authorization - permission-based visibility */}
-                                                {hasPermission('approval:bod') ? (
+                                                {/* BOD Check Authorization - must be assigned BOD approver */}
+                                                {(approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id) || isSuperAdmin(currentUser.role)) ? (
                                                     <div className="flex items-center justify-center gap-2">
                                                         <button
                                                             onClick={(e) => handleApprove(req, e)}
@@ -949,20 +978,70 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 }}
                 canApprove={
                     !!drawerReq && (
-                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD && hasPermission('approval:bod'))
+                        // Finance Head: Check if assigned for this BU
+                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
+                            hasPermission('approval:finance_head:br') &&
+                            approverAssignments.financeHeads?.some(fh =>
+                                fh.userId === currentUser.id &&
+                                fh.businessUnitIds.includes(drawerReq.businessId)
+                            )
+                        ) ||
+                        // GM: Check if assigned as GM
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
+                            hasPermission('approval:gm:br') &&
+                            currentUser.id === approverAssignments.gmUid
+                        ) ||
+                        // CFO: Check if assigned as CFO
+                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
+                            hasPermission('approval:cfo') &&
+                            currentUser.id === approverAssignments.cfoUid
+                        ) ||
+                        // BOD: Check if assigned as BOD approver
+                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
+                            hasPermission('approval:bod') &&
+                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                        ) ||
+                        // Check Auth BOD: Check if assigned as BOD approver
+                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
+                            hasPermission('approval:bod') &&
+                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                        ) ||
+                        // SuperAdmin can always approve
+                        isSuperAdmin(currentUser.role)
                     )
                 }
                 canReject={
                     !!drawerReq && (
-                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL && hasPermission('approval:finance_head:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL && hasPermission('approval:gm:br')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL && hasPermission('approval:bod')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL && hasPermission('approval:cfo')) ||
-                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD && hasPermission('approval:bod'))
+                        // Finance Head: Check if assigned for this BU
+                        (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
+                            hasPermission('approval:finance_head:br') &&
+                            approverAssignments.financeHeads?.some(fh =>
+                                fh.userId === currentUser.id &&
+                                fh.businessUnitIds.includes(drawerReq.businessId)
+                            )
+                        ) ||
+                        // GM: Check if assigned as GM
+                        (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
+                            hasPermission('approval:gm:br') &&
+                            currentUser.id === approverAssignments.gmUid
+                        ) ||
+                        // CFO: Check if assigned as CFO
+                        (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
+                            hasPermission('approval:cfo') &&
+                            currentUser.id === approverAssignments.cfoUid
+                        ) ||
+                        // BOD: Check if assigned as BOD approver
+                        (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
+                            hasPermission('approval:bod') &&
+                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                        ) ||
+                        // Check Auth BOD: Check if assigned as BOD approver
+                        (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
+                            hasPermission('approval:bod') &&
+                            approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
+                        ) ||
+                        // SuperAdmin can always reject
+                        isSuperAdmin(currentUser.role)
                     )
                 }
                 canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}

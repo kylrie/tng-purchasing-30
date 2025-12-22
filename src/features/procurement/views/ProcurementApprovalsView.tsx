@@ -30,7 +30,6 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     requisitions,
     allUsers,
     businesses,
-    onUpdateRequisition,
     getStatusBadge
 }) => {
     const [searchParams] = useSearchParams();
@@ -96,18 +95,13 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
                 // Note: Sub-tab filtering (BURF/CIC/PRF) is applied after this via displayRequisitions
 
-                // PRF_PENDING_MANAGER: Check based on source type
+                // PRF_PENDING_MANAGER: Must be the designated approver or have global access
                 if (req.status === RequisitionStatus.PRF_PENDING_MANAGER) {
-                    // BURF→PRF conversions: Use BUM role-based approval
-                    if (req.parentBurfId) {
-                        if (!hasPermission('approval:manager:prf')) return false;
-                    } else {
-                        // Direct PRF: Use designated approver
-                        const isDesignated = req.prfDetails?.designatedApproverId === currentUser.id;
-                        const hasGlobalAccess = hasPermission('requisition:view:all');
-                        if (!isDesignated && !hasGlobalAccess) {
-                            return false;
-                        }
+                    const isDesignated = req.prfDetails?.designatedApproverId === currentUser.id;
+                    const hasGlobalAccess = hasPermission('requisition:view:all');
+                    const isSuperAdminUser = isSuperAdmin(currentUser.role);
+                    if (!isDesignated && !hasGlobalAccess && !isSuperAdminUser) {
+                        return false;
                     }
                 }
             } else {
@@ -214,14 +208,20 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         setRejectingReq(req);
     };
 
-    const handleRejectConfirm = (reason: string) => {
+    const handleRejectConfirm = async (reason: string) => {
         if (rejectingReq) {
-            const newRemarks = rejectingReq.remarks
-                ? `${rejectingReq.remarks}\n\n[REJECTED]: ${reason}`
-                : `[REJECTED]: ${reason}`;
-
-            onUpdateRequisition({ ...rejectingReq, status: RequisitionStatus.REJECTED, remarks: newRemarks });
-            setRejectingReq(null);
+            try {
+                await RequisitionService.rejectRequisition(
+                    rejectingReq.id,
+                    currentUser.id,
+                    currentUser.name,
+                    reason
+                );
+                setRejectingReq(null);
+            } catch (error: any) {
+                console.error('Error rejecting requisition:', error);
+                alert(`Failed to reject requisition: ${error.message || 'Unknown error'}`);
+            }
         }
     };
 
@@ -581,8 +581,24 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 onApprove={handleDrawerApprove}
                 onReject={handleDrawerReject}
                 onCancel={handleDrawerCancel}
-                canApprove={activeTab === 'pending' && !!drawerReq && userApprovalStatuses.includes(drawerReq.status)}
-                canReject={activeTab === 'pending' && !!drawerReq && userApprovalStatuses.includes(drawerReq.status)}
+                canApprove={activeTab === 'pending' && !!drawerReq && (
+                    // For PRF_PENDING_MANAGER: Must be the designated approver
+                    drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER
+                        ? (
+                            drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
+                            isSuperAdmin(currentUser.role)
+                        )
+                        : userApprovalStatuses.includes(drawerReq.status)
+                )}
+                canReject={activeTab === 'pending' && !!drawerReq && (
+                    // For PRF_PENDING_MANAGER: Must be the designated approver
+                    drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER
+                        ? (
+                            drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
+                            isSuperAdmin(currentUser.role)
+                        )
+                        : userApprovalStatuses.includes(drawerReq.status)
+                )}
                 canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}
                 isLoading={drawerLoading}
             />
