@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Receipt, FileText, Link as LinkIcon, CheckCircle, Printer } from 'lucide-react';
+import { ArrowLeft, Receipt, FileText, Link as LinkIcon, CheckCircle, Printer, Save, Plus } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRequisitions } from '../../procurement/hooks/useRequisitions';
 import { useSuppliers } from '../../inventory/hooks/useSuppliers';
@@ -86,8 +86,9 @@ const LiquidationPage: React.FC = () => {
         return { id: bu?.id || '', name: bu?.name || '' };
     }, [requisition, businesses]);
 
-    // Initialize expenses from existing liquidationDetails or start fresh
+    // Initialize expenses from existing liquidationDetails or create one expense per item
     const initialExpenses = useMemo((): LiquidationExpenseRow[] => {
+        // If we have existing expenses saved, use those
         if (requisition?.liquidationDetails?.expenses?.length) {
             return requisition.liquidationDetails.expenses.map(exp => ({
                 id: exp.id || crypto.randomUUID(),
@@ -107,6 +108,12 @@ const LiquidationPage: React.FC = () => {
                 buName: exp.buName || defaultBu.name,
             }));
         }
+        // FIX: Create one expense entry per requisition item (not just one empty row)
+        // This ensures each item row has its own expense object for independent supplier selection
+        if (requisition?.items?.length) {
+            return requisition.items.map(() => createEmptyExpense(defaultBu.id, defaultBu.name));
+        }
+        // Fallback: single empty row
         return [createEmptyExpense(defaultBu.id, defaultBu.name)];
     }, [requisition, defaultBu]);
 
@@ -197,6 +204,74 @@ const LiquidationPage: React.FC = () => {
         setExpenses(updated);
     };
 
+    // Add expense row
+    const addExpenseRow = () => {
+        setExpenses([...expenses, createEmptyExpense(defaultBu.id, defaultBu.name)]);
+    };
+
+    // Save as Draft handler (saves without changing status)
+    const handleSaveDraft = async () => {
+        if (!requisition || !currentUser) return;
+
+        setIsSubmitting(true);
+        try {
+            const updatedItems = requisition.items.map(item => ({
+                ...item,
+                actualCost: itemActualCosts[item.itemId] || 0,
+            }));
+
+            const updatedRequisition = {
+                ...requisition,
+                // Keep the same status - don't change to LIQUIDATION_FILED
+                remarks,
+                items: updatedItems,
+                attachments: receiptsLink ? [receiptsLink] : [],
+                liquidationDetails: {
+                    ...requisition.liquidationDetails,
+                    // Mark as draft
+                    dateFiled: requisition.liquidationDetails?.dateFiled || new Date().toISOString(),
+                    filedBy: requisition.liquidationDetails?.filedBy || currentUser.id,
+                    isDraft: true,
+                    lastSavedAt: new Date().toISOString(),
+                    lastSavedBy: currentUser.id,
+                    totalActualAmount,
+                    totalItemActualCost: itemTotals.totalActual,
+                    itemVariance: itemTotals.variance,
+                    refundAmount: variance > 0 ? variance : 0,
+                    reimbursementAmount: variance < 0 ? Math.abs(variance) : 0,
+                    attachmentLink: receiptsLink,
+                    receiptsLink,
+                    remarks,
+                    expenses: expenses.map(exp => ({
+                        id: exp.id,
+                        date: exp.date,
+                        vendorId: exp.supplierId,
+                        vendorName: exp.supplierName,
+                        tin: exp.tin,
+                        address: exp.address,
+                        orNo: exp.orNo,
+                        coaCode: exp.coaCode,
+                        coaName: exp.coaName,
+                        description: exp.description,
+                        vat: exp.vat,
+                        ewt: exp.ewt,
+                        amount: exp.amount,
+                        buId: exp.buId,
+                        buName: exp.buName,
+                    })),
+                }
+            };
+
+            await updateRequisition(updatedRequisition);
+            alert('Draft saved successfully!');
+        } catch (error: any) {
+            console.error('Error saving draft:', error);
+            alert(`Error saving draft: ${error.message || 'Unknown error'}`);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     // Submit handler
     const handleSubmit = async () => {
         if (!requisition || !currentUser) return;
@@ -255,7 +330,7 @@ const LiquidationPage: React.FC = () => {
             await updateRequisition(updatedRequisition);
 
             alert('Liquidation submitted successfully!');
-            navigate('/liquidation');
+            // Stay on page - no navigation - page will detect new status and show read-only
         } catch (error: any) {
             console.error('Error submitting liquidation:', error);
             alert(`Error submitting liquidation: ${error.message || 'Unknown error'}`);
@@ -276,13 +351,18 @@ const LiquidationPage: React.FC = () => {
         );
     }
 
-    // Check if liquidation can be filed
+    // Check if liquidation can be filed (or is already filed for viewing)
     const canFileLiquidation = [
         RequisitionStatus.FUNDS_RELEASED,
         RequisitionStatus.LIQUIDATION_REJECTED,
     ].includes(requisition.status);
 
-    if (!canFileLiquidation) {
+    // Check if already filed (read-only mode)
+    const isReadOnly = requisition.status === RequisitionStatus.LIQUIDATION_FILED ||
+        requisition.status === RequisitionStatus.AUDITED_CLEARED;
+
+    // Only show error for truly invalid statuses
+    if (!canFileLiquidation && !isReadOnly) {
         return (
             <div className="max-w-4xl mx-auto py-12">
                 <div className="bg-slate-800/50 rounded-xl p-8 text-center">
@@ -319,7 +399,16 @@ const LiquidationPage: React.FC = () => {
                             <ArrowLeft size={20} />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold text-white">File Liquidation</h1>
+                            <div className="flex items-center gap-3">
+                                <h1 className="text-2xl font-bold text-white">
+                                    {isReadOnly ? 'View Liquidation' : 'File Liquidation'}
+                                </h1>
+                                {isReadOnly && (
+                                    <span className="px-3 py-1 bg-emerald-600/30 text-emerald-400 rounded-full text-sm font-medium">
+                                        ✓ Filed
+                                    </span>
+                                )}
+                            </div>
                             <p className="text-sm text-slate-400">
                                 {requisition.id} • {business?.name} • {formatCurrency(requisition.totalAmount || 0)}
                             </p>
@@ -333,23 +422,35 @@ const LiquidationPage: React.FC = () => {
                             <Printer size={18} />
                             Print Preview
                         </button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isSubmitting}
-                            className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-2 disabled:opacity-50"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
-                                    Submitting...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle size={18} />
-                                    Submit Liquidation
-                                </>
-                            )}
-                        </button>
+                        {!isReadOnly && (
+                            <>
+                                <button
+                                    onClick={handleSaveDraft}
+                                    disabled={isSubmitting}
+                                    className="px-4 py-2 bg-amber-600 hover:bg-amber-700 rounded-lg flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    <Save size={18} />
+                                    Save Draft
+                                </button>
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={isSubmitting}
+                                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-2 disabled:opacity-50"
+                                >
+                                    {isSubmitting ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white"></div>
+                                            Submitting...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle size={18} />
+                                            Submit Liquidation
+                                        </>
+                                    )}
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
                 {/* PRF Summary */}
@@ -387,6 +488,15 @@ const LiquidationPage: React.FC = () => {
                             <Receipt size={20} className="text-cyan-400" />
                             Expense Details
                         </h2>
+                        {!isReadOnly && (
+                            <button
+                                onClick={addExpenseRow}
+                                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 rounded-lg flex items-center gap-2 text-sm"
+                            >
+                                <Plus size={16} />
+                                Add Row
+                            </button>
+                        )}
                     </div>
 
                     <div className="overflow-x-auto">

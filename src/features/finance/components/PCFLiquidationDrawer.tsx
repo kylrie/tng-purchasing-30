@@ -139,8 +139,20 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
         }
     }, [isOpen, expenses]);
 
-    // Check if exceeds available cash
-    const exceedsCashOnHand = totals.totalAmount > cashOnHand;
+    // FIX High #6: When editing a draft, the original amount is already counted in cashOnHand
+    // So we need to add it back for comparison (otherwise editing same amount fails)
+    const originalDraftAmount = useMemo(() => {
+        if (editingId && initialData && initialData.expenses) {
+            return initialData.expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+        }
+        return 0;
+    }, [editingId, initialData]);
+
+    // Effective available cash = cashOnHand + originalDraftAmount (since draft is already deducted)
+    const effectiveCashOnHand = cashOnHand + originalDraftAmount;
+
+    // Check if exceeds available cash (use effective cash for editing)
+    const exceedsCashOnHand = totals.totalAmount > effectiveCashOnHand;
 
     // Add expense row
     const addExpenseRow = () => {
@@ -170,11 +182,24 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
         updateExpense(index, 'date', getTodayDate());
     };
 
+    // FIX Medium #12: Helper to validate URL format
+    const isValidUrl = (url: string): boolean => {
+        if (!url) return true; // Empty is allowed
+        try {
+            new URL(url);
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
     // Validate form
     const isValid = useMemo(() => {
         if (expenses.length === 0) return false;
         if (totals.totalAmount <= 0) return false;
         if (exceedsCashOnHand) return false;
+        // FIX Medium #12: Validate receiptsLink URL format
+        if (receiptsLink && !isValidUrl(receiptsLink)) return false;
 
         // Check required fields
         for (const exp of expenses) {
@@ -183,7 +208,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
             }
         }
         return true;
-    }, [expenses, totals.totalAmount, exceedsCashOnHand]);
+    }, [expenses, totals.totalAmount, exceedsCashOnHand, receiptsLink]);
 
     // Handle submit
     const handleSubmit = async () => {

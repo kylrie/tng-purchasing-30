@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Receipt, Building2, Eye, Users, User as UserIcon, Ban, Printer } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
 import Card from '../../../shared/components/Card';
@@ -50,7 +50,8 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     };
 
     // Fetch liquidations and calculate wallet
-    const loadData = async () => {
+    // FIX High #4: Wrapped in useCallback with proper dependencies
+    const loadData = useCallback(async () => {
         setLoading(true);
         try {
             if (viewAll && canViewAll) {
@@ -73,11 +74,11 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentUser.id, pcfCeiling, viewAll, canViewAll]);
 
     useEffect(() => {
         loadData();
-    }, [currentUser.id, pcfCeiling, viewAll]);
+    }, [loadData]);
 
     // Status badge helper
     const getStatusBadge = (status: PCFStatus) => {

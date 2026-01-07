@@ -509,7 +509,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                 </div>
                             </div>
 
-                            {/* Expense Details Table */}
+                            {/* Expense Details Table - FIX High #8: Added COA and BU columns */}
                             <div>
                                 <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
                                     <Receipt size={14} className="text-purple-400" />
@@ -522,32 +522,44 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                                 <th className="px-3 py-2 text-left">Date</th>
                                                 <th className="px-3 py-2 text-left">Payee/Vendor</th>
                                                 <th className="px-3 py-2 text-left">OR#</th>
-                                                <th className="px-3 py-2 text-left">Classification</th>
+                                                <th className="px-3 py-2 text-left">COA</th>
                                                 <th className="px-3 py-2 text-left">Description</th>
+                                                <th className="px-3 py-2 text-left">BU</th>
                                                 <th className="px-3 py-2 text-right">Amount</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-700/50 text-slate-300">
-                                            {selectedLiquidation.expenses.map((exp, i) => (
-                                                <tr key={i} className="hover:bg-slate-800/30">
-                                                    <td className="px-3 py-2">{exp.date}</td>
-                                                    <td className="px-3 py-2">{exp.payeeVendor || '-'}</td>
-                                                    <td className="px-3 py-2 font-mono">{exp.orNo}</td>
-                                                    <td className="px-3 py-2">
-                                                        <span className="bg-slate-700 px-2 py-0.5 rounded text-xs">
-                                                            {exp.classification}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-3 py-2 max-w-[150px] truncate" title={exp.itemDescription}>
-                                                        {exp.itemDescription || '-'}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-right font-medium">{formatCurrency(exp.amount)}</td>
-                                                </tr>
-                                            ))}
+                                            {selectedLiquidation.expenses.map((exp, i) => {
+                                                const isShared = exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP');
+                                                return (
+                                                    <tr key={i} className="hover:bg-slate-800/30">
+                                                        <td className="px-3 py-2">{exp.date}</td>
+                                                        <td className="px-3 py-2">{exp.payeeVendor || '-'}</td>
+                                                        <td className="px-3 py-2 font-mono">{exp.orNo}</td>
+                                                        <td className="px-3 py-2">
+                                                            <span className="bg-slate-700 px-2 py-0.5 rounded text-xs">
+                                                                {exp.coaCode || exp.classification || '-'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 max-w-[120px] truncate" title={exp.itemDescription}>
+                                                            {exp.itemDescription || '-'}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-xs truncate max-w-[80px]">{exp.buName || '-'}</span>
+                                                                {isShared && (
+                                                                    <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-right font-medium">{formatCurrency(exp.amount)}</td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                         <tfoot className="bg-slate-800/70 border-t border-slate-600">
                                             <tr>
-                                                <td colSpan={5} className="px-3 py-2 text-right font-medium text-slate-300">Total:</td>
+                                                <td colSpan={6} className="px-3 py-2 text-right font-medium text-slate-300">Total:</td>
                                                 <td className="px-3 py-2 text-right font-bold text-white">{formatCurrency(selectedLiquidation.totalAmount)}</td>
                                             </tr>
                                         </tfoot>

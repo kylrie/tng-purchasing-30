@@ -275,11 +275,32 @@ export class PCFService {
 
     /**
      * Submit a draft for approval
+     * FIX: Now includes late submission check based on expense dates
      */
     static async submitForApproval(liquidationId: string): Promise<void> {
+        // Fetch the draft to get expense dates
+        const liquidation = await this.getLiquidationById(liquidationId);
+        if (!liquidation) {
+            throw new Error('Liquidation not found');
+        }
+
+        // Check deadline for late submission based on expense dates
+        const settings = await SettingsService.getPcfSettings();
+        const submissionDate = new Date();
+        const expenseDates = liquidation.expenses.map(e => e.date).filter(Boolean);
+        const { isLate, daysLate, expenseMonth } = SettingsService.calculateLatenessFromExpenses(
+            submissionDate,
+            expenseDates,
+            settings.deadlineDay
+        );
+
         await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
             status: PCFStatus.PENDING_APPROVAL,
             dateSubmitted: new Date().toISOString(),
+            isLate,
+            daysLate: isLate ? daysLate : 0,
+            deadlineDay: settings.deadlineDay,
+            expenseMonth,
         });
     }
 
@@ -319,9 +340,10 @@ export class PCFService {
             const prfRef = doc(db, REQUISITIONS_COLLECTION, newPrfId);
 
             // Build PRF items from PCF expenses
+            // FIX: Use coaName || classification for backward compatibility
             const prfItems: RequisitionItem[] = liquidation.expenses.map((expense, index) => ({
                 itemId: `pcf-${liquidationId}-${index}`,
-                name: `${expense.classification}: ${expense.itemDescription}`,
+                name: `${expense.coaName || expense.classification || 'Expense'}: ${expense.itemDescription}`,
                 quantity: 1,
                 uom: 'lot',
                 price: expense.amount,

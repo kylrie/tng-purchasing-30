@@ -147,9 +147,10 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
     // Calculate totals
     const { totalBudget, totalActual, totalVat, totalEwt, variance } = useMemo(() => {
         const budget = requisition.totalAmount || requisition.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-        const actual = items.reduce((sum, item) => sum + item.amount, 0);
-        const vat = items.reduce((sum, item) => sum + item.vat, 0);
-        const ewt = items.reduce((sum, item) => sum + item.ewt, 0);
+        // FIX: Add null/undefined checks to prevent TypeError when item data is malformed
+        const actual = items.reduce((sum, item) => sum + (item?.amount || 0), 0);
+        const vat = items.reduce((sum, item) => sum + (item?.vat || 0), 0);
+        const ewt = items.reduce((sum, item) => sum + (item?.ewt || 0), 0);
         return {
             totalBudget: budget,
             totalActual: actual,
