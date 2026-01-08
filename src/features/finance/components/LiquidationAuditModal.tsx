@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, XCircle, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
-import type { Requisition } from '../../procurement/types';
+import type { Requisition, LiquidationExpense } from '../../procurement/types';
 import { usePermissions } from '../../../hooks/usePermissions';
 
 interface LiquidationAuditModalProps {
@@ -38,7 +38,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
     // Safe Math - Calculate actual total from items' actualCost values
     const prfTotal = Number(requisition.totalAmount) || 0;
     // Calculate actual from items (each item.actualCost is already the total for that item)
-    const actualFromItems = requisition.items.reduce((sum, item) => sum + (item.actualCost || 0), 0);
+    const actualFromItems = (requisition.items || []).reduce((sum, item) => sum + (item.actualCost || 0), 0);
     // Fallback to liquidation.totalActualAmount if items don't have actualCost
     const actualTotal = actualFromItems > 0 ? actualFromItems : (Number(liquidation.totalActualAmount) || 0);
     const difference = prfTotal - actualTotal;
@@ -66,9 +66,11 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                 await onReject(trimmedReason);
             }
             onClose();
-        } catch (err: any) {
+        } catch (err: unknown) {
+            // FIX: Replace err: any with unknown and type-safe access
+            const errorMessage = err instanceof Error ? err.message : 'Failed to submit audit. Please try again.';
             console.error('Audit submission error:', err);
-            setError(err.message || 'Failed to submit audit. Please try again.');
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
@@ -81,8 +83,16 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
         setRejectionReason('');
     };
 
-    // Sub-components for cleaner render
-    const FinancialCard = ({ label, amount, colorClass, borderClass, textClass }: any) => (
+    // FIX: Define typed props for FinancialCard sub-component
+    interface FinancialCardProps {
+        label: string;
+        amount: number;
+        colorClass: string;
+        borderClass: string;
+        textClass: string;
+    }
+
+    const FinancialCard: React.FC<FinancialCardProps> = ({ label, amount, colorClass, borderClass, textClass }) => (
         <div className={`rounded-lg p-4 border ${borderClass} ${colorClass}`}>
             <div className={`text-sm mb-1 ${textClass} opacity-80`}>{label}</div>
             <div className={`text-2xl font-bold ${textClass}`}>₱{amount.toLocaleString()}</div>
@@ -201,7 +211,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-700">
-                                        {requisition.items.map((item, index) => {
+                                        {(requisition.items || []).map((item, index) => {
                                             const qty = item.quantity || 0;
                                             const budgeted = (item.price || 0) * qty;
                                             // actualCost is already the total for this item (not per-unit)
@@ -242,7 +252,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                     </div>
 
                     {/* Expense Breakdown - Shows submitted expense details */}
-                    {liquidation.expenses && (liquidation.expenses as any[]).length > 0 && (
+                    {liquidation.expenses && liquidation.expenses.length > 0 && (
                         <div>
                             <h3 className="text-lg font-semibold text-white mb-3">Expense Breakdown</h3>
                             <div className="border border-slate-700 rounded-lg overflow-hidden bg-slate-900/30">
@@ -261,7 +271,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-700">
-                                            {(liquidation.expenses as any[]).map((exp: any, index: number) => (
+                                            {liquidation.expenses.map((exp: LiquidationExpense, index: number) => (
                                                 <tr key={exp.id || index} className="hover:bg-slate-800/50 transition-colors">
                                                     <td className="px-3 py-2 text-slate-300">
                                                         {exp.date ? new Date(exp.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
@@ -280,13 +290,13 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                                             <tr>
                                                 <td colSpan={5} className="px-3 py-2 text-right font-semibold text-slate-400">Totals</td>
                                                 <td className="px-3 py-2 text-right text-white font-bold">
-                                                    ₱{(liquidation.expenses as any[]).reduce((sum: number, e: any) => sum + (e.amount || 0), 0).toLocaleString()}
+                                                    ₱{liquidation.expenses.reduce((sum: number, e: LiquidationExpense) => sum + (e.amount || 0), 0).toLocaleString()}
                                                 </td>
                                                 <td className="px-3 py-2 text-right text-slate-300">
-                                                    ₱{(liquidation.expenses as any[]).reduce((sum: number, e: any) => sum + (e.vat || 0), 0).toLocaleString()}
+                                                    ₱{liquidation.expenses.reduce((sum: number, e: LiquidationExpense) => sum + (e.vat || 0), 0).toLocaleString()}
                                                 </td>
                                                 <td className="px-3 py-2 text-right text-slate-300">
-                                                    ₱{(liquidation.expenses as any[]).reduce((sum: number, e: any) => sum + (e.ewt || 0), 0).toLocaleString()}
+                                                    ₱{liquidation.expenses.reduce((sum: number, e: LiquidationExpense) => sum + (e.ewt || 0), 0).toLocaleString()}
                                                 </td>
                                             </tr>
                                         </tfoot>

@@ -3,7 +3,7 @@ import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Rec
 import PesoSign from '../../../shared/components/PesoSign';
 import Card from '../../../shared/components/Card';
 import type { User as UserType, Business } from '../../../shared/types';
-import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
+import { PCFService, PCFStatus, type PCFLiquidation, type PCFExpenseItem } from '../services/pcf.service';
 import PCFLiquidationDrawer from '../components/PCFLiquidationDrawer';
 import PCFPrintModal from '../components/PCFPrintModal';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -106,7 +106,8 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     };
 
     // Handle submit from drawer
-    const handleSubmitLiquidation = async (expenses: any[], receiptsLink: string, remarks: string) => {
+    // FIX: Replace any[] with PCFExpenseItem[] for type safety
+    const handleSubmitLiquidation = async (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => {
         await PCFService.submitLiquidation(
             currentUser.id,
             currentUser.name,
@@ -121,7 +122,8 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     };
 
     // Handle save draft from drawer
-    const handleSaveDraft = async (expenses: any[], receiptsLink: string, remarks: string) => {
+    // FIX: Replace any[] with PCFExpenseItem[] for type safety
+    const handleSaveDraft = async (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => {
         await PCFService.createDraftLiquidation(
             currentUser.id,
             currentUser.name,
@@ -149,7 +151,8 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     };
 
     // Handle update draft - just saves changes without submitting
-    const handleUpdateDraft = async (expenses: any[], receiptsLink: string, remarks: string) => {
+    // FIX: Replace any[] with PCFExpenseItem[] for type safety
+    const handleUpdateDraft = async (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => {
         if (!editingLiquidation) return;
 
         await PCFService.updateDraftLiquidation(
@@ -176,7 +179,8 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     };
 
     // Handle submit edited/refiled liquidation
-    const handleEditSubmit = async (expenses: any[], receiptsLink: string, remarks: string) => {
+    // FIX: Replace any[] with PCFExpenseItem[] for type safety
+    const handleEditSubmit = async (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => {
         if (!editingLiquidation) return;
 
         await PCFService.refileLiquidation(
@@ -642,7 +646,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                                                         {exp.coaCode || exp.classification || '-'}
                                                                     </span>
                                                                 </td>
-                                                                <td className="px-3 py-2 truncate max-w-[120px]">
+                                                                <td className="px-3 py-2 whitespace-normal break-words max-w-[120px]">
                                                                     {exp.itemDescription || '-'}
                                                                 </td>
                                                                 <td className="px-3 py-2">
@@ -726,7 +730,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                             <div className="grid grid-cols-2 gap-2">
                                                 {businesses.filter(b => !b.name.toUpperCase().includes('ATHOUSANDCONCEPTS')).map(bu => (
                                                     <div key={bu.id} className="flex justify-between text-sm bg-slate-700/30 px-3 py-2 rounded">
-                                                        <span className="text-slate-300 truncate max-w-[150px]">{bu.name}</span>
+                                                        <span className="text-slate-300 whitespace-normal break-words max-w-[150px]">{bu.name}</span>
                                                         <span className="text-emerald-400 font-medium">{formatCurrency(perBuShare)}</span>
                                                     </div>
                                                 ))}

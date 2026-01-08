@@ -26,6 +26,7 @@ export const DEFAULT_BUSINESS_ROLES = [
   'CIC',               // Corporate Inventory Controller
   'PURCHASING_OFFICER',
   'FINANCE',           // Treasury (Releases Budget)
+  'FINANCE_HEAD',      // Finance Head (Budget Review)
   'AUDITOR',           // Checks Liquidation
   'GENERAL_MANAGER',
   'BOARD_OF_DIRECTOR',
@@ -52,6 +53,7 @@ export const UserRole = {
   CIC: 'CIC' as const,
   PURCHASING_OFFICER: 'PURCHASING_OFFICER' as const,
   FINANCE: 'FINANCE' as const,
+  FINANCE_HEAD: 'FINANCE_HEAD' as const,  // FIX: Added for consistency
   AUDITOR: 'AUDITOR' as const,
   GENERAL_MANAGER: 'GENERAL_MANAGER' as const,
   BOARD_OF_DIRECTOR: 'BOARD_OF_DIRECTOR' as const,
@@ -210,6 +212,27 @@ export interface RequisitionItem {
   receiptImageUrl?: string; // External link (Google Drive)
 }
 
+// FIX: Extracted expense structure as standalone type for reuse
+export interface LiquidationExpense {
+  id: string;
+  date: string;
+  supplier?: string;          // Legacy: supplier name
+  vendorId?: string;          // New: supplier ID for linking
+  vendorName?: string;        // New: supplier name for display
+  tin?: string;               // TIN from supplier
+  address?: string;           // Address from supplier
+  invoiceNo?: string;         // Legacy: invoice number
+  orNo?: string;              // New: OR No.
+  coaCode: string;
+  coaName: string;
+  amount: number;
+  description: string;
+  vat?: number;               // VAT amount
+  ewt?: number;               // EWT amount
+  buId?: string;              // Business Unit ID
+  buName?: string;            // Business Unit Name
+}
+
 export interface LiquidationDetails {
   // Submission info
   submittedBy?: string;
@@ -241,25 +264,7 @@ export interface LiquidationDetails {
   attachmentLink?: string; // Link to liquidation attachments
 
   // Dynamic expense rows with COA (new structure)
-  expenses?: Array<{
-    id: string;
-    date: string;
-    supplier?: string;          // Legacy: supplier name
-    vendorId?: string;          // New: supplier ID for linking
-    vendorName?: string;        // New: supplier name for display
-    tin?: string;               // TIN from supplier
-    address?: string;           // Address from supplier
-    invoiceNo?: string;         // Legacy: invoice number
-    orNo?: string;              // New: OR No.
-    coaCode: string;
-    coaName: string;
-    amount: number;
-    description: string;
-    vat?: number;               // VAT amount
-    ewt?: number;               // EWT amount
-    buId?: string;              // Business Unit ID
-    buName?: string;            // Business Unit Name (for expense sharing indicator)
-  }>;
+  expenses?: LiquidationExpense[];
 
   // Audit
   auditNotes?: string;

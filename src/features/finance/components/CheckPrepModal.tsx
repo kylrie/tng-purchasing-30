@@ -13,18 +13,22 @@ const CheckPrepModal: React.FC<CheckPrepModalProps> = ({ isOpen, onClose, onConf
     const [bankRefNumber, setBankRefNumber] = useState('');
     const [bankRefLink, setBankRefLink] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    // FIX: Replace alert() with inline validation state
+    const [validationError, setValidationError] = useState<string | null>(null);
 
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
+        // FIX: Replace alert() with inline validation
         if (!bankRefNumber.trim()) {
-            alert('Please enter a Bank Ref #.');
+            setValidationError('Please enter a Bank Ref #.');
             return;
         }
         if (!bankRefLink.trim()) {
-            alert('Please enter a Google Drive link for the reference document.');
+            setValidationError('Please enter a Google Drive link for the reference document.');
             return;
         }
+        setValidationError(null);
 
         setIsSubmitting(true);
         try {
@@ -62,6 +66,13 @@ const CheckPrepModal: React.FC<CheckPrepModalProps> = ({ isOpen, onClose, onConf
 
                 {/* Content */}
                 <div className="p-6 space-y-4">
+                    {/* Validation Error Display */}
+                    {validationError && (
+                        <div className="p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm">
+                            {validationError}
+                        </div>
+                    )}
+
                     {/* Amount Display */}
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700">
                         <div className="flex justify-between items-center">

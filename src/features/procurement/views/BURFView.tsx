@@ -11,6 +11,8 @@ import { CounterService } from '../../../shared/services/counter.service';
 import { executeWorkflowAction } from '../services/workflowService';
 // FIX C6: Import sanitization utility to prevent XSS/injection
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
+// FIX: Import URL validation utility
+import { isValidUrl } from '../../../shared/utils/validation';
 
 interface BurfViewProps {
     currentUser: User;
@@ -237,7 +239,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 requesterName: currentUser.name,
                 requesterPhotoUrl: currentUser.avatar || '',
                 businessId: currentUser.businessId,
-                externalLink: attachmentLink || undefined, // Store as dedicated field
+                // FIX: Only store externalLink if it's a valid URL
+                externalLink: attachmentLink && isValidUrl(attachmentLink) ? attachmentLink : undefined,
                 items: sanitizeItems(newItems), // Sanitize item names and remarks
                 totalAmount: 0,
                 status: status,

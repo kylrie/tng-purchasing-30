@@ -14,6 +14,8 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
   // Check Voucher input fields
   const [checkVoucherNumber, setCheckVoucherNumber] = useState('');
   const [checkVoucherLink, setCheckVoucherLink] = useState('');
+  // FIX: Replace alert() with inline validation state
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Helper to ensure URL is absolute (starts with http:// or https://)
   const ensureAbsoluteUrl = (url: string): string => {
@@ -35,16 +37,19 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
     if (isOpen) {
       setCheckVoucherNumber('');
       setCheckVoucherLink('');
+      setValidationError(null); // FIX: Also reset validation error
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleConfirm = () => {
+    // FIX: Replace alert() with inline validation
     if (!checkVoucherNumber.trim()) {
-      alert('Please enter a Check Voucher #.');
+      setValidationError('Please enter a Check Voucher #.');
       return;
     }
+    setValidationError(null);
     onConfirm(checkVoucherNumber.trim(), checkVoucherLink.trim());
   };
 
@@ -67,6 +72,13 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
             </span>
           </div>
         </div>
+
+        {/* Validation Error Display */}
+        {validationError && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm">
+            {validationError}
+          </div>
+        )}
 
         {/* Bank Reference Info from Check Prep */}
         {hasBankRefInfo && (

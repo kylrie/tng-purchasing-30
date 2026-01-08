@@ -17,7 +17,7 @@ const LiquidationFilingModal: React.FC<LiquidationFilingModalProps> = ({
     currentUserId
 }) => {
     const [items, setItems] = useState<RequisitionItem[]>(
-        requisition.items.map(item => ({
+        (requisition.items || []).map(item => ({
             ...item,
             actualCost: item.actualCost || item.price,
             receiptRef: item.receiptRef || '',

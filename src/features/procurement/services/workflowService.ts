@@ -63,6 +63,7 @@ export const executeWorkflowAction = async ({
       actionIndex: currentHistoryLength // FIX BUG 6: Sequential index for server timestamp correlation
     };
 
+    // FIX: Use const instead of let (prefer-const)
     const updates: Record<string, unknown> = {
       history: arrayUnion(auditEntry),
       lastModified: serverTimestamp(), // Server timestamp - authoritative audit trail
@@ -73,15 +74,74 @@ export const executeWorkflowAction = async ({
     switch (action) {
       case 'APPROVE': {
         let nextStatus: RequisitionStatus | null = null;
+        const totalAmount = (data.totalAmount as number) || 0;
+        const GM_PRF_THRESHOLD = 50000;
 
-        // Validate current status allows approval (Issue #8 - race condition check)
+        // =====================================================
+        // FIX: Full 8-Stage PRF Workflow (synced with requisitions.service.ts)
+        // =====================================================
+        // BURF Workflow:
+        //   BURF_PENDING_MANAGER → BURF_PENDING_CIC → READY_FOR_PRF
+        //
+        // PRF 8-Stage Workflow:
+        //   Step 1: PRF_PENDING_MANAGER → Step 2 (if >=50k) or Step 3 (if <50k)
+        //   Step 2: PENDING_GM_PRF_APPROVAL → Step 3
+        //   Step 3: PENDING_FINANCE_HEAD_BR_APPROVAL → Step 4
+        //   Step 4: PENDING_GM_BR_APPROVAL → Step 5
+        //   Step 5: PENDING_BOD_APPROVAL → Step 6
+        //   Step 6: FOR_CHECK_PREPARATION → Step 7
+        //   Step 7: PENDING_CHECK_AUTH_BOD → Step 8
+        //   Step 8: FOR_FUND_RELEASE → FUNDS_RELEASED
+        // =====================================================
+
+        // BURF Workflow (unchanged)
         if (currentStatus === RequisitionStatus.BURF_PENDING_MANAGER) {
           nextStatus = RequisitionStatus.BURF_PENDING_CIC;
         } else if (currentStatus === RequisitionStatus.BURF_PENDING_CIC) {
           nextStatus = RequisitionStatus.READY_FOR_PRF;
-        } else if (currentStatus === RequisitionStatus.PRF_PENDING_MANAGER) {
-          nextStatus = RequisitionStatus.APPROVED_FOR_PAYMENT;
-        } else {
+        }
+        // PRF Step 1: BUM Approval → Step 2 (if >=50k) or Step 3 (if <50k)
+        else if (currentStatus === RequisitionStatus.PRF_PENDING_MANAGER) {
+          nextStatus = totalAmount >= GM_PRF_THRESHOLD
+            ? RequisitionStatus.PENDING_GM_PRF_APPROVAL
+            : RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL;
+        }
+        // PRF Step 2: GM PRF Review → Step 3
+        else if (currentStatus === RequisitionStatus.PENDING_GM_PRF_APPROVAL) {
+          nextStatus = RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL;
+        }
+        // PRF Step 3: Finance Head Budget Review → Step 4
+        else if (currentStatus === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL) {
+          nextStatus = RequisitionStatus.PENDING_GM_BR_APPROVAL;
+        }
+        // PRF Step 4: GM Budget Approval → Step 5
+        else if (currentStatus === RequisitionStatus.PENDING_GM_BR_APPROVAL) {
+          nextStatus = RequisitionStatus.PENDING_BOD_APPROVAL;
+        }
+        // PRF Step 5: BOD Approval → Step 6 (Check Prep)
+        else if (currentStatus === RequisitionStatus.PENDING_BOD_APPROVAL) {
+          nextStatus = RequisitionStatus.FOR_CHECK_PREPARATION;
+        }
+        // PRF Step 6: Check Preparation → Step 7 (BOD Check Auth)
+        else if (currentStatus === RequisitionStatus.FOR_CHECK_PREPARATION) {
+          nextStatus = RequisitionStatus.PENDING_CHECK_AUTH_BOD;
+        }
+        // PRF Step 7: BOD Check Authorization → Step 8 (Fund Release)
+        else if (currentStatus === RequisitionStatus.PENDING_CHECK_AUTH_BOD) {
+          nextStatus = RequisitionStatus.FOR_FUND_RELEASE;
+        }
+        // PRF Step 8: Fund Release → Complete
+        else if (currentStatus === RequisitionStatus.FOR_FUND_RELEASE) {
+          nextStatus = RequisitionStatus.FUNDS_RELEASED;
+        }
+        // Legacy status support
+        else if (currentStatus === RequisitionStatus.APPROVED_FOR_PAYMENT) {
+          nextStatus = RequisitionStatus.FUNDS_RELEASED;
+        }
+        else if (currentStatus === RequisitionStatus.PENDING_CFO_APPROVAL) {
+          nextStatus = RequisitionStatus.PENDING_BOD_APPROVAL; // Legacy: skip to BOD
+        }
+        else {
           throw new Error(`Cannot approve from status: ${currentStatus}. Status may have changed.`);
         }
 
@@ -102,6 +162,36 @@ export const executeWorkflowAction = async ({
           };
         } else if (currentStatus === RequisitionStatus.PRF_PENDING_MANAGER) {
           updates['approvals.prfManager'] = {
+            approved: true,
+            approverId: user.uid,
+            date: serverTimestamp()
+          };
+        } else if (currentStatus === RequisitionStatus.PENDING_GM_PRF_APPROVAL) {
+          updates['approvals.gmPrf'] = {
+            approved: true,
+            approverId: user.uid,
+            date: serverTimestamp()
+          };
+        } else if (currentStatus === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL) {
+          updates['approvals.financeHeadBr'] = {
+            approved: true,
+            approverId: user.uid,
+            date: serverTimestamp()
+          };
+        } else if (currentStatus === RequisitionStatus.PENDING_GM_BR_APPROVAL) {
+          updates['approvals.gmBr'] = {
+            approved: true,
+            approverId: user.uid,
+            date: serverTimestamp()
+          };
+        } else if (currentStatus === RequisitionStatus.PENDING_BOD_APPROVAL) {
+          updates['approvals.bod'] = {
+            approved: true,
+            approverId: user.uid,
+            date: serverTimestamp()
+          };
+        } else if (currentStatus === RequisitionStatus.PENDING_CHECK_AUTH_BOD) {
+          updates['approvals.checkAuthBod'] = {
             approved: true,
             approverId: user.uid,
             date: serverTimestamp()

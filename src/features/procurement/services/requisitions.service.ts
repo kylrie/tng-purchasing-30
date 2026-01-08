@@ -754,6 +754,8 @@ export class RequisitionService {
 
   /**
    * Re-file a rejected requisition
+   * FIX: Now uses transaction to prevent data inconsistency (matching approve/reject pattern)
+   * Previously used separate update + addHistoryEntry calls
    */
   static async reFileRequisition(
     requisitionId: string,
@@ -761,25 +763,42 @@ export class RequisitionService {
     userName: string,
     updates: Partial<Requisition>
   ): Promise<void> {
-    // If the requisition has prfDetails, it's a PRF and should return to PRF_PENDING_MANAGER
-    // Otherwise, it's a BURF and should return to BURF_PENDING_MANAGER
-    const nextStatus = updates.prfDetails
-      ? RequisitionStatus.PRF_PENDING_MANAGER
-      : RequisitionStatus.BURF_PENDING_MANAGER;
+    const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
 
-    await this.updateRequisition(requisitionId, {
-      ...updates,
-      status: nextStatus,
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) throw new Error('Requisition not found');
+
+      const requisition = { id: snap.id, ...snap.data() } as Requisition;
+
+      // If the requisition has prfDetails, it's a PRF and should return to PRF_PENDING_MANAGER
+      // Otherwise, it's a BURF and should return to BURF_PENDING_MANAGER
+      const nextStatus = requisition.prfDetails || updates.prfDetails
+        ? RequisitionStatus.PRF_PENDING_MANAGER
+        : RequisitionStatus.BURF_PENDING_MANAGER;
+
+      // Create history entry inline (can't call async methods in transaction)
+      const refileNowISO = new Date().toISOString();
+      const historyEntry: RequisitionHistory = {
+        date: refileNowISO.split('T')[0], // Legacy: date only
+        timestamp: refileNowISO, // Full ISO timestamp with time
+        actorId: userId,
+        actorName: userName,
+        action: 'Re-filed',
+        stage: nextStatus,
+        comments: 'Requisition has been updated and re-filed for approval.',
+      };
+
+      const updatedHistory = [historyEntry, ...(requisition.history || [])];
+
+      // Atomic update within transaction - status + history + updates together
+      transaction.update(docRef, {
+        ...removeUndefinedFields(updates),
+        status: nextStatus,
+        history: updatedHistory,
+        updatedAt: serverTimestamp(),
+      });
     });
-
-    await this.addHistoryEntry(
-      requisitionId,
-      userId,
-      userName,
-      'Re-filed',
-      nextStatus,
-      'Requisition has been updated and re-filed for approval.'
-    );
   }
 
   /**

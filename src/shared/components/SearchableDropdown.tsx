@@ -27,30 +27,39 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     className = ""
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
+    // FIX: Track user-typed input separately from the derived display value
+    // This prevents cascading setState when value/options change
+    const [inputValue, setInputValue] = useState('');
     const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, width: 0, openAbove: false });
 
     const containerRef = useRef<HTMLDivElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Initialize search term if value is present
-    useEffect(() => {
-        const selectedOption = options.find(opt => opt.value === value);
-        if (selectedOption) {
-            setSearchTerm(selectedOption.label);
-        } else {
-            if (!value) setSearchTerm('');
-        }
-    }, [value, options]);
+    // FIX: Use useMemo for derived display label instead of useEffect + setState
+    // This eliminates the cascading render problem identified in the diagnostic
+    const selectedOption = useMemo(() =>
+        options.find(opt => opt.value === value),
+        [options, value]
+    );
 
+    // The display value is either what the user is typing (when dropdown is open)
+    // or the selected option's label (when dropdown is closed)
+    const displayValue = useMemo(() => {
+        if (isOpen && inputValue !== '') {
+            return inputValue; // User is actively typing
+        }
+        return selectedOption?.label || '';
+    }, [isOpen, inputValue, selectedOption]);
+
+    // Filtered options based on user input (only filter when dropdown is open)
     const filteredOptions = useMemo(() => {
-        if (!searchTerm) return options;
+        if (!isOpen || inputValue === '') return options;
 
         return options.filter(option =>
-            option.label.toLowerCase().includes(searchTerm.toLowerCase())
+            option.label.toLowerCase().includes(inputValue.toLowerCase())
         );
-    }, [options, searchTerm]);
+    }, [options, inputValue, isOpen]);
 
     // Calculate menu position
     const updatePosition = useCallback(() => {
@@ -106,42 +115,38 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                 !menuRef.current.contains(event.target as Node)
             ) {
                 setIsOpen(false);
-                // Reset search term to selected value label
-                const selectedOption = options.find(opt => opt.value === value);
-                if (selectedOption) {
-                    setSearchTerm(selectedOption.label);
-                } else {
-                    setSearchTerm('');
-                }
+                // FIX: Clear user input when closing (display will revert to selectedOption via displayValue)
+                setInputValue('');
             }
         };
 
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isOpen, value, options]);
+    }, [isOpen]);
 
     // Close on Escape
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape' && isOpen) {
                 setIsOpen(false);
-                const selectedOption = options.find(opt => opt.value === value);
-                setSearchTerm(selectedOption?.label || '');
+                // FIX: Clear user input (display will revert to selectedOption via displayValue)
+                setInputValue('');
             }
         };
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, value, options]);
+    }, [isOpen]);
 
     const handleSelect = (option: Option) => {
         onChange(option.value);
-        setSearchTerm(option.label);
+        // FIX: Clear input after selection (displayValue will show selectedOption.label)
+        setInputValue('');
         setIsOpen(false);
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchTerm(e.target.value);
+        setInputValue(e.target.value);
         setIsOpen(true);
         if (e.target.value === '') {
             onChange('');
@@ -151,16 +156,16 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     const handleClear = (e: React.MouseEvent) => {
         e.stopPropagation();
         onChange('');
-        setSearchTerm('');
+        setInputValue('');
         setIsOpen(true);
     };
 
     const toggleDropdown = () => {
-        setIsOpen(!isOpen);
         if (isOpen) {
-            const selectedOption = options.find(opt => opt.value === value);
-            setSearchTerm(selectedOption?.label || '');
+            // Closing: clear user input (display will revert via displayValue)
+            setInputValue('');
         }
+        setIsOpen(!isOpen);
     };
 
     // Render the floating menu via portal
@@ -185,7 +190,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                         <input
                             ref={searchInputRef}
                             type="text"
-                            value={searchTerm}
+                            value={inputValue}
                             onChange={handleInputChange}
                             placeholder="Type to search..."
                             className="w-full pl-8 pr-3 py-1.5 bg-slate-900/50 border border-slate-600 rounded text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
@@ -236,7 +241,7 @@ const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                 `}
             >
                 <span className={`truncate ${value ? 'text-white' : 'text-slate-500'}`}>
-                    {searchTerm || placeholder}
+                    {displayValue || placeholder}
                 </span>
                 <div className="flex items-center gap-0.5 flex-shrink-0">
                     {value && (

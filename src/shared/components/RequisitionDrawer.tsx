@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, Clock, CheckCircle2, XCircle, ChevronRight, User as UserIcon, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban } from 'lucide-react';
 import type { Requisition, RequisitionHistory, RequisitionItem, Supplier } from '../../features/procurement/types';
 import { RequisitionStatus } from '../../features/procurement/types';
-import LiquidationForm from '../../features/procurement/components/LiquidationForm';
+import LiquidationForm, { type LiquidationItemRow } from '../../features/procurement/components/LiquidationForm';
 import AllocationSummary from '../../features/procurement/components/AllocationSummary';
 import { RequisitionService } from '../../features/procurement/services/requisitions.service';
 import type { Business, User } from '../types';
@@ -11,6 +11,16 @@ import PesoSign from './PesoSign';
 
 // Variant types for different contexts
 export type DrawerVariant = 'BURF' | 'PRF' | 'FINANCE';
+
+// FIX Issue #4: Define proper type for liquidation payload (replacing 'any')
+export interface LiquidationSubmitPayload {
+    items: LiquidationItemRow[];
+    totalBudget: number;
+    totalActual: number;
+    variance: number;
+    receiptsLink: string;
+    remarks: string;
+}
 
 interface RequisitionDrawerProps {
     requisition: Requisition | null;
@@ -22,7 +32,7 @@ interface RequisitionDrawerProps {
     onReject?: () => void;
     onReleaseFund?: () => void;
     onPreparePrf?: () => void; // BURF only - when status is READY_FOR_PRF
-    onSubmitLiquidation?: (payload: any) => Promise<void>; // Liquidation callback
+    onSubmitLiquidation?: (payload: LiquidationSubmitPayload) => Promise<void>; // Liquidation callback
     onPrint?: () => void; // Print preview callback
     onCancel?: () => void; // Cancel requisition callback (SuperAdmin only)
     // Permission flags
@@ -129,27 +139,85 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     const [activeTab, setActiveTab] = useState<TabType>('items');
     const [parentBurf, setParentBurf] = useState<Requisition | null>(null);
 
+    // FIX Issue #5: Reset activeTab when requisition changes to prevent stale tab state
+    useEffect(() => {
+        setActiveTab('items');
+    }, [requisition?.id]);
+
     // Fetch parent BURF if this PRF was converted from a BURF
     useEffect(() => {
+        let isMounted = true; // Cleanup flag to prevent setState on unmounted component
+
         const fetchParentBurf = async () => {
             if (requisition?.parentBurfId) {
                 try {
                     const parent = await RequisitionService.getRequisitionById(requisition.parentBurfId);
-                    setParentBurf(parent);
+                    if (isMounted) {
+                        setParentBurf(parent);
+                    }
                 } catch (error) {
                     console.error('Failed to fetch parent BURF:', error);
-                    setParentBurf(null);
+                    if (isMounted) {
+                        setParentBurf(null);
+                    }
                 }
             } else {
-                setParentBurf(null);
+                if (isMounted) {
+                    setParentBurf(null);
+                }
             }
         };
         fetchParentBurf();
+
+        return () => {
+            isMounted = false; // Cleanup on unmount
+        };
     }, [requisition?.parentBurfId, requisition?.id]);
+
+    // FIX Issue #1: Extract IIFE to useMemo for combined history entries
+    // This prevents recalculation on every render and makes the code more testable
+    interface CombinedHistoryEntry {
+        entry: RequisitionHistory;
+        source: 'burf' | 'current';
+        sourceId?: string;
+        sortDate: number;
+    }
+
+    const combinedHistoryEntries = useMemo((): CombinedHistoryEntry[] => {
+        const allEntries: CombinedHistoryEntry[] = [];
+
+        // Add parent BURF entries
+        if (parentBurf?.history) {
+            parentBurf.history.forEach(entry => {
+                const dateStr = entry.timestamp || entry.date;
+                allEntries.push({
+                    entry,
+                    source: 'burf',
+                    sourceId: parentBurf.id,
+                    sortDate: dateStr ? new Date(dateStr).getTime() : 0
+                });
+            });
+        }
+
+        // Add current requisition entries
+        if (requisition?.history) {
+            requisition.history.forEach(entry => {
+                const dateStr = entry.timestamp || entry.date;
+                allEntries.push({
+                    entry,
+                    source: 'current',
+                    sortDate: dateStr ? new Date(dateStr).getTime() : 0
+                });
+            });
+        }
+
+        // Sort by date (oldest first for chronological reading)
+        return allEntries.sort((a, b) => a.sortDate - b.sortDate);
+    }, [parentBurf, requisition?.history]);
 
     if (!isOpen || !requisition) return null;
 
-    const totalAmount = requisition.items.reduce((sum: number, item: RequisitionItem) => {
+    const totalAmount = (requisition.items || []).reduce((sum: number, item: RequisitionItem) => {
         return sum + ((item.price || 0) * (item.quantity || 0));
     }, 0);
 
@@ -190,14 +258,14 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                 <div className="flex items-center justify-between p-6 border-b border-slate-700">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3">
-                            <h2 className="text-xl font-bold text-white truncate">{requisition.id}</h2>
+                            <h2 className="text-xl font-bold text-white">{requisition.id}</h2>
                             {getStatusBadge && getStatusBadge(requisition.status)}
                             {/* URGENT Badge - shows for urgent requisitions */}
                             {(requisition.isUrgent || requisition.priority === 'URGENT') && (
                                 <span className="text-[10px] bg-red-500/20 text-red-400 font-bold px-1.5 py-0.5 rounded-full uppercase border border-red-500/30">Urgent</span>
                             )}
                         </div>
-                        <p className="text-sm text-slate-400 mt-1 truncate">{requisition.description || 'No description'}</p>
+                        <p className="text-sm text-slate-400 mt-1 whitespace-normal break-words">{requisition.description || 'No description'}</p>
                         <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <p className="text-xs text-slate-500">{getTitle()}</p>
                             {requisition.businessId && businesses.length > 0 && (
@@ -343,7 +411,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
 
                             {/* Items Table */}
                             <div>
-                                <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Items ({requisition.items.length})</h3>
+                                <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Items ({(requisition.items || []).length})</h3>
                                 <Card className="!p-0 overflow-hidden">
                                     <table className="w-full text-sm">
                                         <thead className="bg-slate-800/80 text-xs uppercase text-slate-400">
@@ -355,7 +423,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-700">
-                                            {requisition.items.map((item: RequisitionItem, index: number) => (
+                                            {(requisition.items || []).map((item: RequisitionItem, index: number) => (
                                                 <tr key={item.itemId || index} className="hover:bg-slate-800/40">
                                                     <td className="px-4 py-3 text-slate-200">{item.name}</td>
                                                     <td className="px-4 py-3 text-center text-slate-400">{item.quantity} {item.uom}</td>
@@ -486,77 +554,37 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                     <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-slate-700" />
 
                                     <div className="space-y-4">
-                                        {/* Combined and Sorted History Entries */}
-                                        {(() => {
-                                            // Combine all history entries with source info
-                                            type CombinedEntry = {
-                                                entry: RequisitionHistory;
-                                                source: 'burf' | 'current';
-                                                sourceId?: string;
-                                                sortDate: number;
-                                            };
+                                        {/* Combined and Sorted History Entries - now using memoized value */}
+                                        {combinedHistoryEntries.map((item, index) => {
+                                            const { entry, source, sourceId } = item;
+                                            const isBurf = source === 'burf';
 
-                                            const allEntries: CombinedEntry[] = [];
-
-                                            // Add parent BURF entries
-                                            if (parentBurf?.history) {
-                                                parentBurf.history.forEach(entry => {
-                                                    const dateStr = entry.timestamp || entry.date;
-                                                    allEntries.push({
-                                                        entry,
-                                                        source: 'burf',
-                                                        sourceId: parentBurf.id,
-                                                        sortDate: dateStr ? new Date(dateStr).getTime() : 0
-                                                    });
-                                                });
-                                            }
-
-                                            // Add current requisition entries
-                                            if (requisition.history) {
-                                                requisition.history.forEach(entry => {
-                                                    const dateStr = entry.timestamp || entry.date;
-                                                    allEntries.push({
-                                                        entry,
-                                                        source: 'current',
-                                                        sortDate: dateStr ? new Date(dateStr).getTime() : 0
-                                                    });
-                                                });
-                                            }
-
-                                            // Sort by date (oldest first for chronological reading)
-                                            allEntries.sort((a, b) => a.sortDate - b.sortDate);
-
-                                            return allEntries.map((item, index) => {
-                                                const { entry, source, sourceId } = item;
-                                                const isBurf = source === 'burf';
-
-                                                return (
-                                                    <div key={`${source}-${index}`} className="relative">
-                                                        {/* Timeline dot */}
-                                                        <div className={`absolute -left-4 mt-1 p-1 bg-slate-900 rounded-full border ${isBurf ? 'border-purple-700/50' : 'border-slate-700'}`}>
-                                                            {getTimelineIcon(entry.action, entry.stage)}
-                                                        </div>
-
-                                                        <div className={`${isBurf ? 'bg-purple-900/20 border-purple-700/30' : 'bg-slate-800/50 border-slate-700/50'} rounded-lg p-3 border`}>
-                                                            <div className="flex items-center justify-between mb-1">
-                                                                <span className={`text-sm font-medium ${isBurf ? 'text-purple-300' : 'text-white'}`}>{entry.action}</span>
-                                                                <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp, entry.date)}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-xs text-slate-400">
-                                                                <UserIcon size={12} />
-                                                                <span>{entry.actorName || 'System'}</span>
-                                                            </div>
-                                                            {isBurf && (
-                                                                <p className="text-xs text-purple-400 mt-1">From BURF: {sourceId}</p>
-                                                            )}
-                                                            {entry.comments && (
-                                                                <p className="text-xs text-slate-500 mt-2 italic">"{entry.comments}"</p>
-                                                            )}
-                                                        </div>
+                                            return (
+                                                <div key={`${source}-${entry.timestamp || entry.date}-${index}`} className="relative">
+                                                    {/* Timeline dot */}
+                                                    <div className={`absolute -left-4 mt-1 p-1 bg-slate-900 rounded-full border ${isBurf ? 'border-purple-700/50' : 'border-slate-700'}`}>
+                                                        {getTimelineIcon(entry.action, entry.stage)}
                                                     </div>
-                                                );
-                                            });
-                                        })()}
+
+                                                    <div className={`${isBurf ? 'bg-purple-900/20 border-purple-700/30' : 'bg-slate-800/50 border-slate-700/50'} rounded-lg p-3 border`}>
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className={`text-sm font-medium ${isBurf ? 'text-purple-300' : 'text-white'}`}>{entry.action}</span>
+                                                            <span className="text-xs text-slate-500">{formatDateTime(entry.timestamp, entry.date)}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                            <UserIcon size={12} />
+                                                            <span>{entry.actorName || 'System'}</span>
+                                                        </div>
+                                                        {isBurf && (
+                                                            <p className="text-xs text-purple-400 mt-1">From BURF: {sourceId}</p>
+                                                        )}
+                                                        {entry.comments && (
+                                                            <p className="text-xs text-slate-500 mt-2 italic">"{entry.comments}"</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             ) : (
@@ -594,8 +622,8 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                             >
                                                 <ExternalLink size={18} className="text-emerald-400" />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-sm text-white group-hover:text-emerald-400 truncate">View Check Image</p>
-                                                    <p className="text-xs text-slate-500 truncate">{requisition.chequeImageUrl}</p>
+                                                    <p className="text-sm text-white group-hover:text-emerald-400">View Check Image</p>
+                                                    <p className="text-xs text-slate-500 whitespace-normal break-words">{requisition.chequeImageUrl}</p>
                                                 </div>
                                             </a>
                                         )}
@@ -615,8 +643,8 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                         >
                                             <ExternalLink size={20} className="text-blue-400" />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-white group-hover:text-blue-400 truncate">External Reference</p>
-                                                <p className="text-xs text-slate-500 truncate">{requisition.externalLink}</p>
+                                                <p className="text-sm text-white group-hover:text-blue-400">External Reference</p>
+                                                <p className="text-xs text-slate-500 whitespace-normal break-words">{requisition.externalLink}</p>
                                             </div>
                                         </a>
                                     )}
@@ -630,8 +658,8 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                         >
                                             <Paperclip size={20} className="text-slate-400" />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm text-white group-hover:text-blue-400 truncate">Attachment {index + 1}</p>
-                                                <p className="text-xs text-slate-500 truncate">{url}</p>
+                                                <p className="text-sm text-white group-hover:text-blue-400">Attachment {index + 1}</p>
+                                                <p className="text-xs text-slate-500 whitespace-normal break-words">{url}</p>
                                             </div>
                                         </a>
                                     ))}

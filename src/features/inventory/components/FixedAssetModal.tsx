@@ -157,6 +157,8 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
 
     const [isSaving, setIsSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    // FIX: Replace alert() with inline error state
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     // Auto-compute depreciation
     const depreciation = useMemo(() => {
@@ -217,6 +219,7 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                 });
             }
             setErrors({});
+            setSaveError(null); // FIX: Also reset save error
         }
     }, [isOpen, asset]);
 
@@ -323,7 +326,8 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
             onClose();
         } catch (err) {
             console.error('Error saving asset:', err);
-            alert('Failed to save asset. Please try again.');
+            // FIX: Replace alert() with inline error state
+            setSaveError('Failed to save asset. Please try again.');
         } finally {
             setIsSaving(false);
         }
@@ -372,6 +376,13 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
 
                 {/* Form Content */}
                 <div className="p-6 space-y-6">
+                    {/* Save Error Display */}
+                    {saveError && (
+                        <div className="p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm flex items-center justify-between">
+                            <span>{saveError}</span>
+                            <button onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-300 ml-2">&times;</button>
+                        </div>
+                    )}
                     {/* Basic Info Section */}
                     <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700 space-y-4">
                         <h3 className="font-semibold text-white flex items-center gap-2">

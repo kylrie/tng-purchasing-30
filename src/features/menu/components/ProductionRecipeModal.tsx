@@ -50,6 +50,9 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
     const [yieldUnit, setYieldUnit] = useState('serving');
     const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    // FIX: Replace alert() with inline error state
+    const [validationError, setValidationError] = useState<string | null>(null);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
     // Ingredient search
     const [searchQuery, setSearchQuery] = useState('');
@@ -72,6 +75,9 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             setYieldUnit('serving');
             setIngredients([]);
         }
+        // FIX: Reset errors when modal opens
+        setValidationError(null);
+        setSaveError(null);
     }, [recipe, isOpen]);
 
     // Calculate total cost
@@ -128,14 +134,16 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
 
     // Save recipe
     const handleSave = async () => {
+        // FIX: Replace alert() with inline validation
         if (!name.trim()) {
-            alert('Please enter a recipe name');
+            setValidationError('Please enter a recipe name');
             return;
         }
         if (ingredients.length === 0) {
-            alert('Please add at least one ingredient');
+            setValidationError('Please add at least one ingredient');
             return;
         }
+        setValidationError(null);
 
         setIsSaving(true);
         try {
@@ -165,7 +173,8 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             onSave();
         } catch (err) {
             console.error('Error saving recipe:', err);
-            alert('Failed to save recipe');
+            // FIX: Replace alert() with inline save error
+            setSaveError('Failed to save recipe. Please try again.');
         } finally {
             setIsSaving(false);
         }
@@ -201,6 +210,13 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Error Display */}
+                    {(validationError || saveError) && (
+                        <div className="p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm flex items-center justify-between">
+                            <span>{validationError || saveError}</span>
+                            <button onClick={() => { setValidationError(null); setSaveError(null); }} className="text-red-400 hover:text-red-300 ml-2">&times;</button>
+                        </div>
+                    )}
                     {/* Basic Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Receipt, Link as LinkIcon, FileText, AlertTriangle, CheckCircle, Plus, Trash2 } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
-import type { Requisition, Supplier } from '../types';
+import type { Requisition, Supplier, LiquidationExpense } from '../types';
 import type { Business } from '../../../shared/types';
 
 // New liquidation line item structure matching the screenshot
@@ -78,7 +78,8 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
     const [items, setItems] = useState<LiquidationItemRow[]>(() => {
         // First check expenses array (new format from LiquidationPage)
         if (requisition.liquidationDetails?.expenses && requisition.liquidationDetails.expenses.length > 0) {
-            return (requisition.liquidationDetails.expenses as any[]).map((exp: any, idx: number) => ({
+            // FIX: Use LiquidationExpense type instead of any
+            return requisition.liquidationDetails.expenses.map((exp: LiquidationExpense, idx: number) => ({
                 id: exp.id || `exp-${idx}`,
                 date: exp.date || new Date().toISOString().split('T')[0],
                 vendorId: exp.vendorId || '',
@@ -146,7 +147,7 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
 
     // Calculate totals
     const { totalBudget, totalActual, totalVat, totalEwt, variance } = useMemo(() => {
-        const budget = requisition.totalAmount || requisition.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+        const budget = requisition.totalAmount || (requisition.items || []).reduce((sum, item) => sum + (item.quantity * item.price), 0);
         // FIX: Add null/undefined checks to prevent TypeError when item data is malformed
         const actual = items.reduce((sum, item) => sum + (item?.amount || 0), 0);
         const vat = items.reduce((sum, item) => sum + (item?.vat || 0), 0);
@@ -269,7 +270,8 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                         </button>
                     )}
                 </div>
-                <div className="bg-slate-800/50 rounded-lg border border-slate-700 overflow-x-auto">
+                {/* Desktop Table - Hidden on mobile */}
+                <div className="bg-slate-800/50 rounded-lg border border-slate-700 overflow-x-auto hidden md:block">
                     <table className="w-full text-xs min-w-[900px]">
                         <thead className="bg-slate-900/80 text-[10px] uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
@@ -306,7 +308,7 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                                     {/* Payee/Vendor */}
                                     <td className="px-1 py-2">
                                         {readOnly ? (
-                                            <span className="text-slate-200">{item.vendorName || '-'}</span>
+                                            <span className="text-slate-200 whitespace-normal break-words">{item.vendorName || '-'}</span>
                                         ) : (
                                             <select
                                                 value={item.vendorId}
@@ -322,12 +324,12 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                                     </td>
                                     {/* TIN (auto-filled) */}
                                     <td className="px-1 py-2">
-                                        <span className="text-slate-400 text-[10px]">{item.tin || '-'}</span>
+                                        <span className="text-slate-400 text-[10px] whitespace-normal break-words">{item.tin || '-'}</span>
                                     </td>
                                     {/* OR No. */}
                                     <td className="px-1 py-2">
                                         {readOnly ? (
-                                            <span className="text-slate-200">{item.orNo || '-'}</span>
+                                            <span className="text-slate-200 whitespace-normal break-words">{item.orNo || '-'}</span>
                                         ) : (
                                             <input
                                                 type="text"
@@ -340,14 +342,14 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                                     </td>
                                     {/* Address (auto-filled) */}
                                     <td className="px-1 py-2">
-                                        <span className="text-slate-400 text-[10px] truncate block max-w-[100px]" title={item.address}>
+                                        <span className="text-slate-400 text-[10px] whitespace-normal break-words block max-w-[100px]" title={item.address}>
                                             {item.address || '-'}
                                         </span>
                                     </td>
                                     {/* COA/Account */}
                                     <td className="px-1 py-2">
                                         {readOnly ? (
-                                            <span className="text-slate-200">{item.coa || '-'}</span>
+                                            <span className="text-slate-200 whitespace-normal break-words">{item.coa || '-'}</span>
                                         ) : (
                                             <select
                                                 value={item.coa}
@@ -364,7 +366,7 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                                     {/* Description */}
                                     <td className="px-1 py-2">
                                         {readOnly ? (
-                                            <span className="text-slate-200">{item.description || '-'}</span>
+                                            <span className="text-slate-200 whitespace-normal break-words">{item.description || '-'}</span>
                                         ) : (
                                             <input
                                                 type="text"
@@ -424,7 +426,7 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                                     <td className="px-1 py-2">
                                         {readOnly ? (
                                             <div className="flex items-center gap-1">
-                                                <span className="text-slate-200 text-xs truncate">{item.buName || '-'}</span>
+                                                <span className="text-slate-200 text-xs whitespace-normal break-words">{item.buName || '-'}</span>
                                                 {item.buName && isCorpBu(item.buName) && (
                                                     <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
                                                 )}
@@ -471,6 +473,72 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                             </tr>
                         </tbody>
                     </table>
+                </div>
+
+                {/* Mobile Card View - Visible only on mobile */}
+                <div className="md:hidden space-y-3">
+                    {items.map((item, index) => (
+                        <div key={item.id} className="bg-slate-800/50 rounded-lg border border-slate-700 p-4 space-y-3">
+                            <div className="flex justify-between items-start">
+                                <div className="flex-1">
+                                    <p className="text-xs text-slate-400">Date</p>
+                                    <p className="text-sm text-white">{item.date || '-'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xs text-slate-400">Amount</p>
+                                    <p className="text-lg font-bold text-white">{formatCurrency(item.amount)}</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p className="text-xs text-slate-400">Payee/Vendor</p>
+                                    <p className="text-sm text-slate-200 whitespace-normal break-words">{item.vendorName || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-slate-400">OR No.</p>
+                                    <p className="text-sm text-slate-200">{item.orNo || '-'}</p>
+                                </div>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-400">Description</p>
+                                <p className="text-sm text-slate-200 whitespace-normal break-words">{item.description || '-'}</p>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-center bg-slate-900/50 rounded p-2">
+                                <div>
+                                    <p className="text-[10px] text-slate-500">VAT</p>
+                                    <p className="text-xs text-emerald-400">{formatCurrency(item.vat)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-slate-500">EWT</p>
+                                    <p className="text-xs text-amber-400">{formatCurrency(item.ewt)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] text-slate-500">BU</p>
+                                    <p className="text-xs text-purple-400 whitespace-normal break-words">{item.buName || '-'}</p>
+                                </div>
+                            </div>
+                            {!readOnly && (
+                                <button
+                                    onClick={() => deleteRow(index)}
+                                    disabled={items.length <= 1}
+                                    className="w-full py-2 text-red-400 hover:text-red-300 disabled:opacity-30 flex items-center justify-center gap-1 border border-red-900/30 rounded"
+                                >
+                                    <Trash2 size={14} /> Remove
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    {/* Mobile Totals */}
+                    <div className="bg-slate-900/60 rounded-lg p-4 border border-slate-600">
+                        <div className="flex justify-between items-center">
+                            <span className="text-slate-400 font-medium">Total</span>
+                            <span className="text-xl font-bold text-white">{formatCurrency(totalActual)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm mt-2">
+                            <span className="text-emerald-400">VAT: {formatCurrency(totalVat)}</span>
+                            <span className="text-amber-400">EWT: {formatCurrency(totalEwt)}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

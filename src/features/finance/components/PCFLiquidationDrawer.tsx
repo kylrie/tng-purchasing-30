@@ -76,6 +76,8 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
     const [submitting, setSubmitting] = useState(false);
     const [savingDraft, setSavingDraft] = useState(false);
     const [deadlineInfo, setDeadlineInfo] = useState<{ deadlineDay: number; isLate: boolean; daysLate: number; expenseMonthName?: string } | null>(null);
+    // FIX Issue #2: Replace alert() with inline toast notification
+    const [toast, setToast] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
 
     // Initialize form when editing existing liquidation
     useEffect(() => {
@@ -102,6 +104,8 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
 
     // Calculate deadline info based on expense dates
     useEffect(() => {
+        let isMounted = true; // FIX Issue #3: Cleanup flag to prevent setState on unmounted component
+
         const calculateDeadline = async () => {
             try {
                 const settings = await SettingsService.getPcfSettings();
@@ -119,16 +123,20 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                     );
                     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                         'July', 'August', 'September', 'October', 'November', 'December'];
-                    setDeadlineInfo({
-                        deadlineDay: settings.deadlineDay,
-                        isLate,
-                        daysLate,
-                        expenseMonthName: monthNames[expenseMonth]
-                    });
+                    if (isMounted) {
+                        setDeadlineInfo({
+                            deadlineDay: settings.deadlineDay,
+                            isLate,
+                            daysLate,
+                            expenseMonthName: monthNames[expenseMonth]
+                        });
+                    }
                 } else {
                     // Fallback: use simple current-month check
                     const { isLate, daysLate } = SettingsService.calculateLateness(now, settings.deadlineDay);
-                    setDeadlineInfo({ deadlineDay: settings.deadlineDay, isLate, daysLate });
+                    if (isMounted) {
+                        setDeadlineInfo({ deadlineDay: settings.deadlineDay, isLate, daysLate });
+                    }
                 }
             } catch (error) {
                 console.error('Error calculating deadline:', error);
@@ -137,6 +145,10 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
         if (isOpen) {
             calculateDeadline();
         }
+
+        return () => {
+            isMounted = false; // Cleanup on unmount
+        };
     }, [isOpen, expenses]);
 
     // FIX High #6: When editing a draft, the original amount is already counted in cashOnHand
@@ -235,17 +247,23 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
         // Basic validation - at least one expense with some data
         const hasData = expenses.some(e => e.amount > 0 || e.payeeVendor || e.orNo);
         if (!hasData) {
-            alert('Please add at least one expense item before saving.');
+            // FIX Issue #2: Replace alert() with toast notification
+            setToast({ type: 'warning', message: 'Please add at least one expense item before saving.' });
+            setTimeout(() => setToast(null), 4000);
             return;
         }
 
         setSavingDraft(true);
         try {
             await onSaveDraft(expenses, receiptsLink, remarks);
-            alert('Draft saved successfully!');
+            // FIX Issue #2: Replace alert() with toast notification
+            setToast({ type: 'success', message: 'Draft saved successfully!' });
+            setTimeout(() => setToast(null), 3000);
         } catch (error) {
             console.error('Save draft error:', error);
-            alert('Failed to save draft. Please try again.');
+            // FIX Issue #2: Replace alert() with toast notification
+            setToast({ type: 'error', message: 'Failed to save draft. Please try again.' });
+            setTimeout(() => setToast(null), 4000);
         } finally {
             setSavingDraft(false);
         }
@@ -260,6 +278,25 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
                 onClick={onClose}
             />
+
+            {/* FIX Issue #2: Toast Notification UI */}
+            {toast && (
+                <div className={`fixed top-4 right-4 z-[60] px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${toast.type === 'success' ? 'bg-emerald-600 text-white' :
+                        toast.type === 'error' ? 'bg-red-600 text-white' :
+                            'bg-yellow-600 text-white'
+                    }`}>
+                    {toast.type === 'success' && <CheckCircle size={18} />}
+                    {toast.type === 'error' && <AlertTriangle size={18} />}
+                    {toast.type === 'warning' && <AlertTriangle size={18} />}
+                    <span className="text-sm font-medium">{toast.message}</span>
+                    <button
+                        onClick={() => setToast(null)}
+                        className="ml-2 p-1 hover:bg-white/20 rounded transition-colors"
+                    >
+                        <X size={14} />
+                    </button>
+                </div>
+            )}
 
             {/* Drawer - Expanded width for 10-column table */}
             <div className="fixed inset-y-0 right-0 w-[95vw] max-w-[1600px] bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col">

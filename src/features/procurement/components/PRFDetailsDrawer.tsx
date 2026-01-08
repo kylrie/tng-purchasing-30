@@ -65,7 +65,7 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
 }) => {
     if (!isOpen || !requisition) return null;
 
-    const totalAmount = requisition.items.reduce((sum, item) => {
+    const totalAmount = (requisition.items || []).reduce((sum, item) => {
         return sum + ((item.price || 0) * (item.quantity || 0));
     }, 0);
 
@@ -109,7 +109,7 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
 
                     {/* Items Table */}
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Items ({requisition.items.length})</h3>
+                        <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Items ({(requisition.items || []).length})</h3>
                         <Card className="!p-0 overflow-hidden">
                             <table className="w-full text-sm">
                                 <thead className="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
@@ -121,7 +121,7 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700">
-                                    {requisition.items.map((item, index) => (
+                                    {(requisition.items || []).map((item, index) => (
                                         <tr key={item.itemId || index} className="hover:bg-slate-800/40">
                                             <td className="px-4 py-3 text-slate-200">{item.name}</td>
                                             <td className="px-4 py-3 text-center text-slate-400">{item.quantity} {item.uom}</td>

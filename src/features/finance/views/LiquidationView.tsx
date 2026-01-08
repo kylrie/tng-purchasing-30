@@ -437,9 +437,10 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                 reason: 'Cancelled by SuperAdmin'
               });
               setDrawerReq(null);
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('Error cancelling:', error);
-              alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
+              const message = error instanceof Error ? error.message : 'Unknown error';
+              alert(`Failed to cancel: ${message}`);
             }
           }
         }}

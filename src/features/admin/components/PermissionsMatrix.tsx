@@ -86,14 +86,26 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'approval:bod': { label: 'BOD Approval', category: 'Approval Workflow' },
 
   // Finance Workflow
-  'finance:release_funds': { label: 'Release Funds', category: 'Finance Workflow' },
-  'finance:view_cheque': { label: 'View Cheque Details', category: 'Finance Workflow' },
+  'finance:release_funds': {
+    label: 'Release Funds',
+    category: 'Finance Workflow',
+    description: 'Release funds for PRF/PCF after BOD check authorization'
+  },
+  'finance:view_cheque': {
+    label: 'View Cheque Details',
+    category: 'Finance Workflow',
+    description: 'View bank reference and check voucher details'
+  },
+  'finance:upload_check': {
+    label: 'Upload Bank Reference (Check Prep)',
+    category: 'Finance Workflow',
+    description: 'Add bank reference # for BOD check authorization step'
+  },
   'liquidation:view': { label: 'View Liquidations', category: 'Finance Workflow' },
   'liquidation:file:own': { label: 'File Own Liquidation', category: 'Finance Workflow' },
   'liquidation:file:all': { label: 'File All Liquidations', category: 'Finance Workflow' },
   'liquidation:audit': { label: 'Audit Liquidations', category: 'Finance Workflow' },
   'liquidation:print': { label: 'Print Liquidation', category: 'Finance Workflow' },
-  'finance:upload_check': { label: 'Upload Check Attachments', category: 'Finance Workflow' },
 
   // PCF (Petty Cash Fund)
   'pcf:view:own': { label: 'View Own PCF', category: 'Petty Cash Fund' },
@@ -136,9 +148,7 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'module:view:finance:check_auth': { label: 'View Check Authorization Tab', category: 'Module Access' },
   'module:view:prf_tracker': { label: 'View PRF Tracker', category: 'Module Access' },
 
-  // Deprecated / UI
-  'ui:view:approvals_page': { label: 'View Approvals Page (Legacy)', category: 'Legacy / UI' },
-  'ui:view:settings_page': { label: 'View Settings Page (Legacy)', category: 'Legacy / UI' },
+  // Note: Legacy 'ui:view:*' permissions have been removed - use 'module:view:*' instead
 
   // Dashboard Widget Visibility
   'dashboard:widget:pending_approvals': { label: 'Pending Approvals Card', category: 'Dashboard Widgets' },
@@ -156,6 +166,9 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'dashboard:section:pending_fund_release': { label: 'Pending Fund Release List', category: 'Dashboard Widgets' },
   'dashboard:section:pending_audit_list': { label: 'Pending Audit List', category: 'Dashboard Widgets' },
   'dashboard:section:br_list': { label: 'BR Approvals Widget', category: 'Dashboard Widgets', description: 'Shows Budget Request approvals on Dashboard' },
+  'dashboard:section:finance_head_br': { label: 'Finance Head BR Widget', category: 'Dashboard Widgets', description: 'Shows pending BR for Finance Head approval' },
+  'dashboard:section:gm_br': { label: 'GM Budget Review Widget', category: 'Dashboard Widgets', description: 'Shows pending items for GM budget approval' },
+  'dashboard:section:bod_br': { label: 'BOD Budget Review Widget', category: 'Dashboard Widgets', description: 'Shows pending items for BOD approval' },
   'dashboard:section:check_auth': { label: 'Check Authorization Widget', category: 'Dashboard Widgets', description: 'Shows Check Authorization items on Dashboard' },
 
   // PRF Tracker

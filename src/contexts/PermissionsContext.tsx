@@ -45,30 +45,22 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     if (data.permissions) {
-                        // FIX: Firestore permissions are authoritative - don't merge with defaults
-                        // This ensures unchecked permissions stay unchecked after refresh
+                        // FIX BUG: Firestore is the single source of truth
+                        // Do NOT fall back to defaults - if Firestore has empty array, respect it
+                        // This fixes the issue where intentionally unchecked permissions reverted on refresh
                         const savedPermissions: Record<string, Permission[]> = {};
 
                         // Load permissions exactly as saved in Firestore
                         for (const [role, perms] of Object.entries(data.permissions)) {
                             const permsList = perms as Permission[];
-                            // If Firestore has empty array but we have defaults, use defaults
-                            // This fixes the issue where custom roles (like FINANCE_HEAD) were created 
-                            // with empty permissions and the user couldn't save via UI
-                            if (permsList.length === 0 && ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS]) {
-                                savedPermissions[role] = ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS];
-                            } else {
-                                savedPermissions[role] = permsList;
-                            }
+                            // Firestore is authoritative - use exactly what's saved
+                            savedPermissions[role] = permsList;
                         }
 
-                        // Add any roles from defaults that don't exist in Firestore yet
-                        // (but DON'T merge their permissions - just add empty array if missing)
-                        for (const role of Object.keys(ROLES_TO_PERMISSIONS)) {
-                            if (!savedPermissions[role]) {
-                                savedPermissions[role] = ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS];
-                            }
-                        }
+                        // For roles that exist in code but not in Firestore, 
+                        // only add them if this is a fresh install (no permissions doc existed)
+                        // Don't auto-populate with defaults if Firestore is already initialized
+                        // This preserves intentional removals
 
                         setPermissions(savedPermissions);
                     }

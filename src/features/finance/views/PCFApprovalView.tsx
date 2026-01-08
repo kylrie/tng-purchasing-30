@@ -126,9 +126,10 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             // Refresh list
             await loadPendingLiquidations();
             setSelectedLiquidation(null);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error approving PCF:', error);
-            alert(`Failed to approve: ${error.message}`);
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Failed to approve: ${message}`);
         } finally {
             setProcessingId(null);
         }
@@ -157,9 +158,10 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             setRejectModalId(null);
             setRejectReason('');
             setSelectedLiquidation(null);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error rejecting PCF:', error);
-            alert(`Failed to reject: ${error.message}`);
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Failed to reject: ${message}`);
         } finally {
             setProcessingId(null);
         }
@@ -189,9 +191,10 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             setCancelModalId(null);
             setCancelReason('');
             setSelectedLiquidation(null);
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error cancelling PCF:', error);
-            alert(`Failed to cancel: ${error.message}`);
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Failed to cancel: ${message}`);
         } finally {
             setProcessingId(null);
         }
@@ -541,12 +544,12 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                                                 {exp.coaCode || exp.classification || '-'}
                                                             </span>
                                                         </td>
-                                                        <td className="px-3 py-2 max-w-[120px] truncate" title={exp.itemDescription}>
+                                                        <td className="px-3 py-2 max-w-[120px] whitespace-normal break-words" title={exp.itemDescription}>
                                                             {exp.itemDescription || '-'}
                                                         </td>
                                                         <td className="px-3 py-2">
                                                             <div className="flex items-center gap-1">
-                                                                <span className="text-xs truncate max-w-[80px]">{exp.buName || '-'}</span>
+                                                                <span className="text-xs whitespace-normal break-words max-w-[80px]">{exp.buName || '-'}</span>
                                                                 {isShared && (
                                                                     <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
                                                                 )}

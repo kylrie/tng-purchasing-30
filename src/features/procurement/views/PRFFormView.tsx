@@ -10,23 +10,42 @@ interface PRFFormViewProps {
 }
 
 export const PRFFormView: React.FC<PRFFormViewProps> = ({ requisitionId, onCancel, requisitions, handleSubmitPRF }) => {
+    // FIX: Find requisition first (used for initialization, but hooks MUST come before returns)
     const req = requisitions.find(r => r.id === requisitionId);
-    if (!req) return <div>Requisition not found</div>;
 
-    const [supplier, setSupplier] = useState<SupplierDetails>(
-        req.prfDetails?.supplier || { name: '', tin: '', address: '', paymentMode: '', terms: '' }
+    // FIX: All useState hooks MUST be called before any conditional returns (React Rules of Hooks)
+    // Use useMemo-style inline defaults that handle undefined req gracefully
+    const [supplier, setSupplier] = useState<SupplierDetails>(() => 
+        req?.prfDetails?.supplier || { name: '', tin: '', address: '', paymentMode: '', terms: '' }
     );
 
-    // Initialize items
-    const [items, setItems] = useState<RequisitionItem[]>(
-        req.items.map(i => ({ ...i, price: i.price || 0 }))
+    // Initialize items with lazy initializer to handle undefined req
+    const [items, setItems] = useState<RequisitionItem[]>(() => 
+        req?.items.map(i => ({ ...i, price: i.price || 0 })) || []
     );
 
     // Selection State: Default all selected
-    const [selectedItemIds, setSelectedItemIds] = useState<string[]>(req.items.map(i => i.itemId));
+    const [selectedItemIds, setSelectedItemIds] = useState<string[]>(() => 
+        req?.items.map(i => i.itemId) || []
+    );
 
     // Confirmation Modal State
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    // FIX: NOW we can safely do the conditional return AFTER all hooks are declared
+    if (!req) {
+        return (
+            <div className="p-8 text-center">
+                <div className="text-red-500 font-medium">Requisition not found</div>
+                <button 
+                    onClick={onCancel} 
+                    className="mt-4 px-4 py-2 bg-slate-200 rounded-lg hover:bg-slate-300"
+                >
+                    Go Back
+                </button>
+            </div>
+        );
+    }
 
     const handleItemChange = (index: number, field: keyof RequisitionItem, value: any) => {
         const newItems = [...items];

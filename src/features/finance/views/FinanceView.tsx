@@ -84,9 +84,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     currentUser.id,
                     currentUser.name
                 );
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error approving:', error);
-                alert(`Failed to approve: ${error.message || 'Unknown error'}`);
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                alert(`Failed to approve: ${message}`);
             }
         }
     };
@@ -107,9 +108,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     reason
                 );
                 setRejectingReq(null);
-            } catch (error: any) {
+            } catch (error: unknown) {
                 console.error('Error rejecting:', error);
-                alert(`Failed to reject: ${error.message || 'Unknown error'}`);
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                alert(`Failed to reject: ${message}`);
             }
         }
     };
@@ -944,9 +946,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                 currentUser.name
                             );
                             setDrawerReq(null);
-                        } catch (error: any) {
+                        } catch (error: unknown) {
                             console.error('Error approving:', error);
-                            alert(`Failed to approve: ${error.message || 'Unknown error'}`);
+                            const message = error instanceof Error ? error.message : 'Unknown error';
+                            alert(`Failed to approve: ${message}`);
                         }
                     }
                 }}
@@ -970,9 +973,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                 reason: 'Cancelled by SuperAdmin'
                             });
                             setDrawerReq(null);
-                        } catch (error: any) {
+                        } catch (error: unknown) {
                             console.error('Error cancelling:', error);
-                            alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
+                            const message = error instanceof Error ? error.message : 'Unknown error';
+                            alert(`Failed to cancel: ${message}`);
                         }
                     }
                 }}
@@ -1080,9 +1084,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                             );
                             setCheckPrepModalOpen(false);
                             setSelectedReq(null);
-                        } catch (error: any) {
+                        } catch (error: unknown) {
                             console.error('Error saving bank reference:', error);
-                            alert(`Failed to save bank reference: ${error.message || 'Unknown error'}`);
+                            const message = error instanceof Error ? error.message : 'Unknown error';
+                            alert(`Failed to save bank reference: ${message}`);
                         }
                     }}
                     requisition={selectedReq}

@@ -215,7 +215,7 @@ const LiquidationPage: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            const updatedItems = requisition.items.map(item => ({
+            const updatedItems = (requisition.items || []).map(item => ({
                 ...item,
                 actualCost: itemActualCosts[item.itemId] || 0,
             }));
@@ -264,9 +264,10 @@ const LiquidationPage: React.FC = () => {
 
             await updateRequisition(updatedRequisition);
             alert('Draft saved successfully!');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error saving draft:', error);
-            alert(`Error saving draft: ${error.message || 'Unknown error'}`);
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Error saving draft: ${message}`);
         } finally {
             setIsSubmitting(false);
         }
@@ -283,7 +284,7 @@ const LiquidationPage: React.FC = () => {
         try {
             // Build updated requisition with liquidation details
             // Update items with actual costs
-            const updatedItems = requisition.items.map(item => ({
+            const updatedItems = (requisition.items || []).map(item => ({
                 ...item,
                 actualCost: itemActualCosts[item.itemId] || 0,
             }));
@@ -331,9 +332,10 @@ const LiquidationPage: React.FC = () => {
 
             alert('Liquidation submitted successfully!');
             // Stay on page - no navigation - page will detect new status and show read-only
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Error submitting liquidation:', error);
-            alert(`Error submitting liquidation: ${error.message || 'Unknown error'}`);
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Error submitting liquidation: ${message}`);
         } finally {
             setIsSubmitting(false);
         }
@@ -743,7 +745,7 @@ const LiquidationPage: React.FC = () => {
                         req={{
                             ...requisition,
                             // Update items with current actual costs
-                            items: requisition.items.map((item) => ({
+                            items: (requisition.items || []).map((item) => ({
                                 ...item,
                                 actualCost: itemActualCosts[item.itemId] || 0
                             })),

@@ -26,7 +26,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     // Items state - store as pure RequisitionItem[] with separate selection Set
     // Filter out items that have already been converted to PRF (tracked in convertedItemIds)
     const convertedItemIdsSet = new Set(requisition.convertedItemIds || []);
-    const availableItems = requisition.items.filter(item => !convertedItemIdsSet.has(item.itemId));
+    const availableItems = (requisition.items || []).filter(item => !convertedItemIdsSet.has(item.itemId));
 
     const [items, setItems] = useState<RequisitionItem[]>(
         availableItems.map(item => ({ ...item, price: item.price ?? 0 }))
@@ -73,6 +73,8 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     // Submission loading states to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSavingDraft, setIsSavingDraft] = useState(false);
+    // FIX: Replace alert() with inline status message
+    const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
     // Determine if this is a BURF→PRF conversion (not a Direct PRF or PRF edit)
     // Includes BURF_PARTIALLY_PROCESSED for multi-batch PRF creation
@@ -229,10 +231,15 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
             // Use onSubmit callback but with DRAFT status
             onSubmit(draftRequisition);
-            alert('✅ Draft saved successfully! You can continue editing later.');
-        } catch (error: any) {
+            // FIX: Replace alert() with status message
+            setStatusMessage({ type: 'success', text: '✅ Draft saved successfully! You can continue editing later.' });
+            setTimeout(() => setStatusMessage(null), 4000);
+        } catch (error: unknown) {
+            // FIX: Replace error: any with unknown and type-safe access
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Error saving draft:', error);
-            alert(`Failed to save draft: ${error?.message || 'Unknown error'}`);
+            setStatusMessage({ type: 'error', text: `Failed to save draft: ${errorMessage}` });
+            setTimeout(() => setStatusMessage(null), 5000);
         } finally {
             setIsSavingDraft(false);
         }
@@ -321,17 +328,20 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                 };
                 onSubmit(updatedRequisition);
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
+            // FIX: Replace error: any with unknown and type-safe access
+            const errObj = error instanceof Error ? error : { message: 'Unknown error', code: 'UNKNOWN' };
             // Detailed error logging for debugging
             console.error("=== PRF SUBMISSION ERROR ===");
-            console.error("Firestore Error Code:", error?.code);
-            console.error("Firestore Error Message:", error?.message);
+            console.error("Firestore Error Code:", (errObj as { code?: string }).code);
+            console.error("Firestore Error Message:", errObj.message);
             console.error("Full Error:", error);
             console.error("===========================");
 
             // Show user-friendly message with actual error detail
-            const errorMessage = error?.message || "Unknown error occurred";
-            alert(`Failed to submit PRF: ${errorMessage}`);
+            // FIX: Replace alert() with status message
+            setStatusMessage({ type: 'error', text: `Failed to submit PRF: ${errObj.message}` });
+            setTimeout(() => setStatusMessage(null), 5000);
         } finally {
             setIsSubmitting(false);
         }
@@ -357,11 +367,18 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                         </button>
                         <h2 className="text-xl font-bold text-white">
                             {requisition.prfDetails ? 'Edit Purchase Requisition (PRF)' : 'Prepare Purchase Requisition (PRF)'}
+                            <span className="ml-2 text-purple-400 font-mono text-lg">({requisition.id})</span>
                         </h2>
                     </div>
                 </div>
 
                 <div className="p-6 space-y-6">
+                    {/* Status Message Display */}
+                    {statusMessage && (
+                        <div className={`p-3 rounded-lg text-sm ${statusMessage.type === 'success' ? 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-300' : 'bg-red-500/20 border border-red-500/40 text-red-300'}`}>
+                            {statusMessage.text}
+                        </div>
+                    )}
                     {/* General Info Row: PRF ID & Approver */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* PRF Identifier Input */}

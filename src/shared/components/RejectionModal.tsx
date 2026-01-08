@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XCircle } from 'lucide-react';
 import Card from './Card';
 
@@ -11,6 +11,13 @@ interface RejectionModalProps {
 
 const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onConfirm, title = "Reject Request" }) => {
     const [reason, setReason] = useState('');
+
+    // FIX: Reset reason when modal opens to prevent stale state
+    useEffect(() => {
+        if (isOpen) {
+            setReason('');
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -35,8 +42,8 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onConf
                     />
                 </div>
                 <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
-                    <button 
-                        onClick={onClose} 
+                    <button
+                        onClick={onClose}
                         className="px-4 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg font-medium transition-colors"
                     >
                         Cancel

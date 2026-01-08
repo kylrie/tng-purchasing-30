@@ -61,13 +61,10 @@ service cloud.firestore {
       let permDoc = getPermissionsDoc();
       let userRole = getUserRole();
       
-      // FIX: Fallback for FINANCE_HEAD role - Firestore config may have empty array
-      // but FINANCE_HEAD should have finance-related permissions by default
-      let isFinanceHeadWithFinancePermission = 
-        userRole == 'FINANCE_HEAD' && 
-        permission in ['finance:upload_check', 'approval:finance_head:br', 'finance:release_funds', 'finance:view_cheque'];
+      // NOTE: FINANCE_HEAD fallback removed - now relies entirely on Firestore config/permissions
+      // Make sure FINANCE_HEAD permissions are properly configured in the Permission Matrix
       
-      return isSuperAdmin() || isFinanceHeadWithFinancePermission || (
+      return isSuperAdmin() || (
         permDoc.permissions != null && 
         permDoc.permissions[userRole] != null &&
         permDoc.permissions[userRole].hasAny([permission])
@@ -471,7 +468,16 @@ service cloud.firestore {
           resource.data.status == 'FOR_FUND_RELEASE' &&
           request.resource.data.status == 'FUNDS_RELEASED' &&
           hasPermission('finance:release_funds') &&
-          isValidWorkflowUpdate()
+          isValidFundReleaseUpdate()
+        ) ||
+        
+        // PCF Replenishment: Fund Release → Audited Cleared (no liquidation needed)
+        // PCF Replenishments have linkedPcfId and skip the liquidation step entirely
+        (
+          resource.data.status == 'FOR_FUND_RELEASE' &&
+          request.resource.data.status == 'AUDITED_CLEARED' &&
+          hasPermission('finance:release_funds') &&
+          isValidFundReleaseUpdate()
         ) ||
         
         // LEGACY: CFO → BOD (for existing data in old workflow)
@@ -740,9 +746,11 @@ service cloud.firestore {
       // All authenticated users can read inventory items
       allow read: if isSignedIn();
       
-      // Create/Update: Any authenticated user can manage inventory
+      // Create/Update: Requires inventory:manage:items permission
+      // This prevents unauthorized data manipulation via direct API calls
+      allow create, update: if isSignedIn() && hasPermission('inventory:manage:items');
+      
       // Delete: Admin only (to prevent accidental data loss)
-      allow create, update: if isSignedIn();
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
     }
     
@@ -778,24 +786,6 @@ service cloud.firestore {
       // Create/Update: Any authenticated user can manage menu items
       // Delete: Admin only (to prevent accidental data loss)
       allow create, update: if isSignedIn();
-      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
-    }
-    
-    // =====================================================
-    // NOTIFICATIONS COLLECTION
-    // Stores user notifications for approval workflow
-    // =====================================================
-    match /notifications/{notificationId} {
-      // Users can read their own notifications (targetRoles contains their UID)
-      allow read: if isSignedIn();
-      
-      // Any authenticated user can create notifications (for approval workflow)
-      allow create: if isSignedIn();
-      
-      // Users can update their own notifications (e.g., mark as read)
-      allow update: if isSignedIn();
-      
-      // Only admins can delete notifications
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
     }
   }

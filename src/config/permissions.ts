@@ -92,9 +92,7 @@ export const ALL_PERMISSIONS = [
   'module:view:prf_tracker',  // View PRF Tracker (Kanban view for requisition flow)
   'prf_tracker:view:all',      // Toggle to view all PRFs in tracker (within assigned BUs)
 
-  // UI Component Visibility (deprecated, use module:view instead)
-  'ui:view:approvals_page',
-  'ui:view:settings_page',
+  // NOTE: Legacy 'ui:view:*' permissions removed - use 'module:view:*' instead
 
   // Dashboard Widget Visibility
   'dashboard:widget:pending_approvals',
@@ -146,7 +144,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'inventory:view:reports',
     'inventory:manage:uom',
     'approval:view:history',
-    'ui:view:settings_page',
+    // Note: ui:view:settings_page removed, use module:view:settings instead
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',
@@ -197,10 +195,11 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'approval:manager:burf',
     'approval:manager:prf',
     'approval:finance_head:br',  // Finance Head BR
+    'approval:gm:br',             // GM Budget Review (FIX: was missing)
     'approval:cfo',              // CFO Approval
     'approval:bod',              // BOD Approval
     'approval:view:history',
-    'ui:view:approvals_page',
+    // Note: ui:view:approvals_page removed, use module:view:approvals instead
     'liquidation:view',
     'liquidation:file:own',
     'liquidation:print',
@@ -273,7 +272,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'approval:manager:burf',
     'approval:manager:prf',
     'approval:view:history',
-    'ui:view:approvals_page',
+    // Note: ui:view:approvals_page removed, use module:view:approvals instead
     'liquidation:file:own',
     'liquidation:print',
     'module:view:dashboard',
@@ -335,7 +334,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'requisition:print',
     'approval:cic:burf',
     'approval:view:history',
-    'ui:view:approvals_page',
+    // Note: ui:view:approvals_page removed, use module:view:approvals instead
     'liquidation:view',
     'liquidation:print',
     'module:view:dashboard',
