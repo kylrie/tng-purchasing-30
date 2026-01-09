@@ -623,6 +623,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4">Business Unit</th>
                                         <th className="px-6 py-4">Requester</th>
                                         <th className="px-6 py-4">Description</th>
+                                        <th className="px-6 py-4">Supplier</th>
                                         <th className="px-6 py-4">Amount</th>
                                         <th className="px-6 py-4">Date Created</th>
                                         <th className="px-6 py-4">Status</th>
@@ -646,6 +647,11 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             <td className="px-6 py-4 text-slate-300">
                                                 <div className="truncate max-w-[200px]" title={req.description}>
                                                     {req.description}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                <div className="truncate max-w-[150px]" title={req.prfDetails?.supplier?.name || 'N/A'}>
+                                                    {req.prfDetails?.supplier?.name || <span className="text-slate-500 italic">N/A</span>}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-emerald-400 font-semibold">
@@ -748,6 +754,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4">Business Unit</th>
                                         <th className="px-6 py-4">Requester</th>
                                         <th className="px-6 py-4">Description</th>
+                                        <th className="px-6 py-4">Supplier</th>
                                         <th className="px-6 py-4">Amount</th>
                                         <th className="px-6 py-4">Date Created</th>
                                         <th className="px-6 py-4">Status</th>
@@ -774,6 +781,11 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             <td className="px-6 py-4 text-slate-300">
                                                 <div className="truncate max-w-[200px]" title={req.description}>
                                                     {req.description}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                <div className="truncate max-w-[150px]" title={req.prfDetails?.supplier?.name || 'N/A'}>
+                                                    {req.prfDetails?.supplier?.name || <span className="text-slate-500 italic">N/A</span>}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-emerald-400 font-semibold">
@@ -828,6 +840,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4">Business Unit</th>
                                         <th className="px-6 py-4">Requester</th>
                                         <th className="px-6 py-4">Description</th>
+                                        <th className="px-6 py-4">Supplier</th>
                                         <th className="px-6 py-4">Amount</th>
                                         <th className="px-6 py-4">Ref #</th>
                                         <th className="px-6 py-4">Status</th>
@@ -851,6 +864,11 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             <td className="px-6 py-4 text-slate-300">
                                                 <div className="truncate max-w-[200px]" title={req.description}>
                                                     {req.description}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-300">
+                                                <div className="truncate max-w-[150px]" title={req.prfDetails?.supplier?.name || 'N/A'}>
+                                                    {req.prfDetails?.supplier?.name || <span className="text-slate-500 italic">N/A</span>}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-emerald-400 font-semibold">

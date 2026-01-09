@@ -822,6 +822,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                                 <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
                                                                 <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
+                                                            {req.prfDetails?.supplier?.name && (
+                                                                <div className="flex items-center text-xs mb-2">
+                                                                    <span className="text-slate-500">Supplier:</span>
+                                                                    <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                                </div>
+                                                            )}
                                                             <div className="flex items-center justify-between text-xs mb-3">
                                                                 <span className="font-semibold px-2 py-0.5 rounded bg-indigo-900/30 text-indigo-400 border border-indigo-500/20">
                                                                     {business?.name || 'N/A'}
@@ -888,6 +894,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                                 <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
                                                                 <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
+                                                            {req.prfDetails?.supplier?.name && (
+                                                                <div className="flex items-center text-xs mb-2">
+                                                                    <span className="text-slate-500">Supplier:</span>
+                                                                    <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                                </div>
+                                                            )}
                                                             <div className="flex items-center justify-between text-xs mb-3">
                                                                 <span className="font-semibold px-2 py-0.5 rounded bg-violet-900/30 text-violet-400 border border-violet-500/20">
                                                                     {business?.name || 'N/A'}
@@ -954,6 +966,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                                 <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
                                                                 <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
+                                                            {req.prfDetails?.supplier?.name && (
+                                                                <div className="flex items-center text-xs mb-2">
+                                                                    <span className="text-slate-500">Supplier:</span>
+                                                                    <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                                </div>
+                                                            )}
                                                             <div className="flex items-center justify-between text-xs mb-3">
                                                                 <span className="font-semibold px-2 py-0.5 rounded bg-rose-900/30 text-rose-400 border border-rose-500/20">
                                                                     {business?.name || 'N/A'}
@@ -1029,6 +1047,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                             <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
                                                             <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                         </div>
+                                                        {req.prfDetails?.supplier?.name && (
+                                                            <div className="flex items-center text-xs mb-2">
+                                                                <span className="text-slate-500">Supplier:</span>
+                                                                <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                            </div>
+                                                        )}
                                                         <div className="flex items-center justify-between text-xs mb-3">
                                                             <span className="font-semibold px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-500/20">
                                                                 {business?.name || 'N/A'}
@@ -1308,6 +1332,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
                                                         <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                     </div>
+                                                    {req.prfDetails?.supplier?.name && (
+                                                        <div className="flex items-center text-xs mb-2">
+                                                            <span className="text-slate-500">Supplier:</span>
+                                                            <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                        </div>
+                                                    )}
                                                     <div className="flex items-center justify-between text-xs mb-3">
                                                         <span className="font-semibold px-2 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-500/20">
                                                             {business?.name || 'N/A'}

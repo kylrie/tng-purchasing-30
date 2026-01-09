@@ -5,6 +5,8 @@ import { RequisitionStatus } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
 import SearchableDropdown from '../../../shared/components/SearchableDropdown';
 import EditableItemTable from './EditableItemTable';
+// FIX: Import URL sanitization utility for attachment links
+import { sanitizeAttachmentUrl } from '../../../shared/utils/validation';
 
 interface PreparePRFModalProps {
     requisition: Requisition;
@@ -68,7 +70,8 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     const [remarks, setRemarks] = useState(requisition.remarks || '');
 
     // Attachment link state
-    const [attachmentLink, setAttachmentLink] = useState(requisition.attachments?.[0] || '');
+    // FIX: Read from both externalLink and attachments array for backward compatibility
+    const [attachmentLink, setAttachmentLink] = useState(requisition.externalLink || requisition.attachments?.[0] || '');
 
     // Submission loading states to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -230,7 +233,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                 ewtPercentage: applyEwt ? ewtPercentage : undefined,
                 ewtAmount: applyEwt ? ewtAmount : undefined,
                 netAmount: applyEwt ? netAmount : totalAmount,
-                attachments: attachmentLink ? [attachmentLink] : requisition.attachments || [],
+                // FIX: Sanitize URL (add https:// if missing) before storing
+                attachments: attachmentLink ? [sanitizeAttachmentUrl(attachmentLink)] : requisition.attachments || [],
+                externalLink: attachmentLink ? sanitizeAttachmentUrl(attachmentLink) : requisition.externalLink,
                 prfDetails: supplierDetails.name ? {
                     supplier: supplierDetails,
                     preparedBy: currentUserId,
@@ -267,7 +272,6 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
 
         try {
             const selectedItems = items.filter(item => selectedItemIds.has(item.itemId));
-            const unselectedItems = items.filter(item => !selectedItemIds.has(item.itemId));
 
             // Get preparer's name from users array for denormalization
             const preparer = users.find(u => u.id === currentUserId);
@@ -277,8 +281,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             // Includes BURF_PARTIALLY_PROCESSED for multi-batch PRF creation
             const isBurfConversion = requisition.status === RequisitionStatus.READY_FOR_PRF ||
                 requisition.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED;
-            if (isBurfConversion && unselectedItems.length > 0) {
-                // Use the new transactional service for atomic PRF creation + BURF update
+            if (isBurfConversion) {
+                // FIX: Merged redundant branches - use transactional service for all BURF conversions
+                // FIX: Now passes VAT/EWT tax fields and attachment link (previously lost during conversion)
                 await RequisitionService.createBatchPrfFromBurf({
                     sourceBurfId: requisition.id,
                     sourceBusinessId: requisition.businessId, // Required for query permissions
@@ -289,24 +294,18 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                         preparedByName: preparedByName,
                         designatedApproverId: designatedApproverId,
                     },
-                    userId: currentUserId,
-                    userName: preparedByName,
-                });
-
-                // Close modal - parent will refresh from Firestore subscription
-                onClose();
-            } else if (isBurfConversion && unselectedItems.length === 0) {
-                // ALL items selected for conversion - use transactional service
-                await RequisitionService.createBatchPrfFromBurf({
-                    sourceBurfId: requisition.id,
-                    sourceBusinessId: requisition.businessId, // Required for query permissions
-                    selectedItems: selectedItems,
-                    prfDetails: {
-                        supplier: supplierDetails,
-                        preparedBy: currentUserId,
-                        preparedByName: preparedByName,
-                        designatedApproverId: designatedApproverId,
+                    // FIX: Include VAT/EWT tax fields
+                    taxFields: {
+                        applyVat,
+                        vatPercentage: applyVat ? vatPercentage : undefined,
+                        vatAmount: applyVat ? vatAmount : undefined,
+                        applyEwt,
+                        ewtPercentage: applyEwt ? ewtPercentage : undefined,
+                        ewtAmount: applyEwt ? ewtAmount : undefined,
+                        netAmount: applyEwt ? netAmount : totalAmount,
                     },
+                    // FIX: Sanitize and include attachment link (add https:// if missing)
+                    attachmentLink: attachmentLink ? sanitizeAttachmentUrl(attachmentLink) : undefined,
                     userId: currentUserId,
                     userName: preparedByName,
                 });
@@ -328,7 +327,9 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     ewtPercentage: applyEwt ? ewtPercentage : undefined,
                     ewtAmount: applyEwt ? ewtAmount : undefined,
                     netAmount: applyEwt ? netAmount : totalAmount,
-                    attachments: attachmentLink ? [attachmentLink] : requisition.attachments || [],
+                    // FIX: Sanitize URL (add https:// if missing) before storing
+                    attachments: attachmentLink ? [sanitizeAttachmentUrl(attachmentLink)] : requisition.attachments || [],
+                    externalLink: attachmentLink ? sanitizeAttachmentUrl(attachmentLink) : requisition.externalLink,
                     prfDetails: {
                         supplier: supplierDetails,
                         preparedBy: currentUserId,

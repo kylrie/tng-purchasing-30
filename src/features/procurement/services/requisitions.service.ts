@@ -81,6 +81,18 @@ interface CreateBatchPrfParams {
     preparedByName: string;
     designatedApproverId?: string;
   };
+  // FIX: VAT/EWT tax fields - previously lost during BURF→PRF conversion
+  taxFields?: {
+    applyVat?: boolean;
+    vatPercentage?: number;
+    vatAmount?: number;
+    applyEwt?: boolean;
+    ewtPercentage?: number;
+    ewtAmount?: number;
+    netAmount?: number;
+  };
+  // FIX: Attachment link to preserve from BURF or user input
+  attachmentLink?: string;
   userId: string;
   userName: string;
 }
@@ -238,7 +250,7 @@ export class RequisitionService {
    * @returns Result containing new PRF ID and updated BURF status
    */
   static async createBatchPrfFromBurf(params: CreateBatchPrfParams): Promise<CreateBatchPrfResult> {
-    const { sourceBurfId, selectedItems, prfDetails, userId, userName } = params;
+    const { sourceBurfId, selectedItems, prfDetails, userId, userName, taxFields, attachmentLink } = params;
 
     try {
       const sourceBurfRef = doc(db, REQUISITIONS_COLLECTION, sourceBurfId);
@@ -285,28 +297,35 @@ export class RequisitionService {
         newPrfId = `${sourceBurfId}-Batch${paddedBatch}`;
 
         // FIX: Double Spend Prevention (Item Verification)
-        // Verify that ALL selected items still exist in the source BURF
+        // Verify that items from the source BURF are not already converted
+        // BUT: Allow new items added during PRF preparation (e.g., DELIVERY FEE)
         const sourceItemMap = new Map(sourceBurf.items.map(i => [i.itemId, i]));
 
-        // FIX: Check against already converted items, not removed items
+        // FIX: Check against already converted items
         const alreadyConverted = (sourceBurf as any).convertedItemIds || [];
         const alreadyConvertedSet = new Set(alreadyConverted);
 
-        // Validate selected items exist and are not already converted
-        const invalidItems = selectedItems.filter(item =>
-          !sourceItemMap.has(item.itemId) || alreadyConvertedSet.has(item.itemId)
+        // Separate items into: existing BURF items vs newly added items
+        const existingBurfItems = selectedItems.filter(item => sourceItemMap.has(item.itemId));
+        // Note: Items not in sourceItemMap are newly added during PRF prep (e.g., DELIVERY FEE)
+
+        // Only validate existing BURF items for double-conversion
+        // (new items like 'DELIVERY FEE' are allowed to pass through)
+        const invalidItems = existingBurfItems.filter(item =>
+          alreadyConvertedSet.has(item.itemId)
         );
 
         if (invalidItems.length > 0) {
           const invalidNames = invalidItems.map(i => i.name).join(', ');
-          throw new Error(`Critical Error: Some items have already been converted or don't exist: ${invalidNames}. Please refresh and try again.`);
+          throw new Error(`Critical Error: Some items have already been converted: ${invalidNames}. Please refresh and try again.`);
         }
 
-        // Step B: Track converted items (don't remove from array - preserve for history)
-        const selectedItemIds = new Set(selectedItems.map(item => item.itemId));
-        const newConvertedItemIds = [...alreadyConverted, ...selectedItems.map(i => i.itemId)];
+        // Step B: Track converted items (only from source BURF, not newly added)
+        const existingBurfItemIds = existingBurfItems.map(i => i.itemId);
+        const selectedItemIds = new Set(existingBurfItemIds);
+        const newConvertedItemIds = [...alreadyConverted, ...existingBurfItemIds];
 
-        // Calculate remaining (unconverted) items count
+        // Calculate remaining (unconverted) items count from source BURF
         const unconvertedItems = sourceBurf.items.filter(item =>
           !selectedItemIds.has(item.itemId) && !alreadyConvertedSet.has(item.itemId)
         );
@@ -336,8 +355,18 @@ export class RequisitionService {
           dateNeeded: sourceBurf.dateNeeded || '',
           isUrgent: sourceBurf.isUrgent || false, // Persist urgency flag through lifecycle
           priority: sourceBurf.priority || 'NORMAL',
-          attachments: sourceBurf.attachments || [],
+          // FIX: Transfer both attachments array and externalLink
+          attachments: attachmentLink ? [attachmentLink] : (sourceBurf.attachments || []),
+          externalLink: attachmentLink || sourceBurf.externalLink,
           parentBurfId: sourceBurfId,
+          // FIX: Include VAT/EWT tax fields from user input
+          ...(taxFields?.applyVat !== undefined && { applyVat: taxFields.applyVat }),
+          ...(taxFields?.vatPercentage !== undefined && { vatPercentage: taxFields.vatPercentage }),
+          ...(taxFields?.vatAmount !== undefined && { vatAmount: taxFields.vatAmount }),
+          ...(taxFields?.applyEwt !== undefined && { applyEwt: taxFields.applyEwt }),
+          ...(taxFields?.ewtPercentage !== undefined && { ewtPercentage: taxFields.ewtPercentage }),
+          ...(taxFields?.ewtAmount !== undefined && { ewtAmount: taxFields.ewtAmount }),
+          ...(taxFields?.netAmount !== undefined && { netAmount: taxFields.netAmount }),
           // Corporate Expense Sharing: Include allocation if rule exists
           ...(expenseAllocation && { costAllocation: expenseAllocation }),
           prfDetails: {

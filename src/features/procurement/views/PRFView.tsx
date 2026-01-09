@@ -17,16 +17,10 @@ import SearchableDropdown from '../../../shared/components/SearchableDropdown';
 import { RequisitionService, calculateExpenseAllocation } from '../services/requisitions.service';
 // FIX C6: Import sanitization utility to prevent XSS/injection attacks
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
+// FIX: Import shared isValidUrl instead of defining locally (consolidates URL validation)
+import { isValidUrl } from '../../../shared/utils/validation';
 
-// FIX BUG 8: URL validation utility to prevent malicious URLs (javascript:, data:, etc.)
-const isValidUrl = (url: string): boolean => {
-    try {
-        const parsed = new URL(url);
-        return ['http:', 'https:'].includes(parsed.protocol);
-    } catch {
-        return false;
-    }
-};
+
 
 interface PrfViewProps {
     currentUser: User;
