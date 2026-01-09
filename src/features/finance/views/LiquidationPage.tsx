@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Receipt, FileText, Link as LinkIcon, CheckCircle, Printer, Save, Plus } from 'lucide-react';
+import { ArrowLeft, Receipt, FileText, Link as LinkIcon, CheckCircle, Printer, Save, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useRequisitions } from '../../procurement/hooks/useRequisitions';
 import { useSuppliers } from '../../inventory/hooks/useSuppliers';
@@ -208,6 +208,16 @@ const LiquidationPage: React.FC = () => {
     const addExpenseRow = () => {
         setExpenses([...expenses, createEmptyExpense(defaultBu.id, defaultBu.name)]);
     };
+
+    // Delete expense row (only for additional rows beyond item count)
+    const deleteExpenseRow = (index: number) => {
+        const itemCount = requisition?.items?.length || 0;
+        // Only allow deleting rows beyond the item-linked expenses
+        if (index >= itemCount) {
+            setExpenses(prev => prev.filter((_, i) => i !== index));
+        }
+    };
+
 
     // Save as Draft handler (saves without changing status)
     const handleSaveDraft = async () => {
@@ -517,8 +527,8 @@ const LiquidationPage: React.FC = () => {
                                     <th className="px-2 py-2 text-left w-20">OR No.</th>
                                     <th className="px-2 py-2 text-left w-28">COA</th>
                                     <th className="px-2 py-2 text-left w-32">Description</th>
-                                    <th className="px-2 py-2 text-right w-20">VAT</th>
-                                    <th className="px-2 py-2 text-right w-20">EWT</th>
+                                    <th className="px-3 py-2 text-right w-40">VAT</th>
+                                    <th className="px-3 py-2 text-right w-40">EWT</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">
@@ -613,23 +623,23 @@ const LiquidationPage: React.FC = () => {
                                                 />
                                             </td>
                                             {/* VAT */}
-                                            <td className="px-2 py-2">
+                                            <td className="px-3 py-2">
                                                 <input
                                                     type="number"
                                                     value={exp?.vat || ''}
                                                     onChange={(e) => updateExpense(index, 'vat', parseFloat(e.target.value) || 0)}
-                                                    className="w-full bg-slate-700 border-0 rounded px-1 py-1 text-xs text-right"
+                                                    className="w-28 bg-slate-700 border-0 rounded px-3 py-2 text-sm text-right"
                                                     placeholder="0.00"
                                                     step="0.01"
                                                 />
                                             </td>
                                             {/* EWT */}
-                                            <td className="px-2 py-2">
+                                            <td className="px-3 py-2">
                                                 <input
                                                     type="number"
                                                     value={exp?.ewt || ''}
                                                     onChange={(e) => updateExpense(index, 'ewt', parseFloat(e.target.value) || 0)}
-                                                    className="w-full bg-slate-700 border-0 rounded px-1 py-1 text-xs text-right"
+                                                    className="w-28 bg-slate-700 border-0 rounded px-3 py-2 text-sm text-right"
                                                     placeholder="0.00"
                                                     step="0.01"
                                                 />
@@ -662,7 +672,172 @@ const LiquidationPage: React.FC = () => {
                             }
                         </div>
                     )}
+
+                    {/* Additional Expense Rows - beyond PRF items */}
+                    {expenses.length > (requisition.items?.length || 0) && (
+                        <div className="mt-6 border-t border-slate-700 pt-4">
+                            <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                                <Plus size={16} className="text-cyan-400" />
+                                Additional Expenses ({expenses.length - (requisition.items?.length || 0)} rows)
+                            </h3>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-slate-900/50 text-xs uppercase text-slate-400">
+                                        <tr>
+                                            <th className="px-2 py-2 text-left w-24">Date</th>
+                                            <th className="px-2 py-2 text-left w-32">Supplier</th>
+                                            <th className="px-2 py-2 text-left w-24">TIN</th>
+                                            <th className="px-2 py-2 text-left w-20">OR No.</th>
+                                            <th className="px-2 py-2 text-left w-28">COA</th>
+                                            <th className="px-2 py-2 text-left w-32">Description</th>
+                                            <th className="px-2 py-2 text-right w-24">Amount</th>
+                                            <th className="px-3 py-2 text-right w-40">VAT</th>
+                                            <th className="px-3 py-2 text-right w-40">EWT</th>
+                                            {!isReadOnly && <th className="px-2 py-2 text-center w-12">Action</th>}
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-700">
+                                        {expenses.slice(requisition.items?.length || 0).map((exp, idx) => {
+                                            const actualIndex = (requisition.items?.length || 0) + idx;
+                                            return (
+                                                <tr key={exp.id} className="hover:bg-slate-800/30">
+                                                    <td className="px-2 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-xs text-slate-300">{exp.date || '-'}</span>
+                                                        ) : (
+                                                            <input
+                                                                type="date"
+                                                                value={exp.date || ''}
+                                                                onChange={(e) => updateExpense(actualIndex, 'date', e.target.value)}
+                                                                className="w-full bg-slate-700 border-0 rounded px-1 py-1 text-xs"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="px-2 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-xs text-slate-300">{exp.supplierName || '-'}</span>
+                                                        ) : (
+                                                            <SearchableDropdown
+                                                                options={suppliers.map(s => ({ value: s.id, label: s.name }))}
+                                                                value={exp.supplierId || ''}
+                                                                onChange={(value) => handleSupplierChange(actualIndex, value)}
+                                                                placeholder="Select..."
+                                                                className="text-xs"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="px-2 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-xs text-slate-300">{exp.tin || '-'}</span>
+                                                        ) : (
+                                                            <input
+                                                                type="text"
+                                                                value={exp.tin || ''}
+                                                                onChange={(e) => updateExpense(actualIndex, 'tin', e.target.value)}
+                                                                className="w-full bg-slate-700 border-0 rounded px-1 py-1 text-xs"
+                                                                placeholder="TIN"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="px-2 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-xs text-slate-300">{exp.orNo || '-'}</span>
+                                                        ) : (
+                                                            <input
+                                                                type="text"
+                                                                value={exp.orNo || ''}
+                                                                onChange={(e) => updateExpense(actualIndex, 'orNo', e.target.value)}
+                                                                className="w-full bg-slate-700 border-0 rounded px-1 py-1 text-xs"
+                                                                placeholder="OR #"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="px-2 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-xs text-slate-300">{exp.coaCode ? `${exp.coaCode} - ${exp.coaName}` : '-'}</span>
+                                                        ) : (
+                                                            <AccountSelector
+                                                                value={exp.coaCode ? { code: exp.coaCode, name: exp.coaName } : null}
+                                                                onChange={(account) => handleCoaChange(actualIndex, account)}
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="px-2 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-xs text-slate-300">{exp.description || '-'}</span>
+                                                        ) : (
+                                                            <input
+                                                                type="text"
+                                                                value={exp.description || ''}
+                                                                onChange={(e) => updateExpense(actualIndex, 'description', e.target.value)}
+                                                                className="w-full bg-slate-700 border-0 rounded px-1 py-1 text-xs"
+                                                                placeholder="Description"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="px-2 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-xs text-slate-300 text-right block">{formatCurrency(exp.amount || 0)}</span>
+                                                        ) : (
+                                                            <input
+                                                                type="number"
+                                                                value={exp.amount || ''}
+                                                                onChange={(e) => updateExpense(actualIndex, 'amount', parseFloat(e.target.value) || 0)}
+                                                                className="w-full bg-slate-700 border-0 rounded px-1 py-1 text-xs text-right"
+                                                                placeholder="0.00"
+                                                                step="0.01"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-sm text-cyan-400 text-right block">{formatCurrency(exp.vat || 0)}</span>
+                                                        ) : (
+                                                            <input
+                                                                type="number"
+                                                                value={exp.vat || ''}
+                                                                onChange={(e) => updateExpense(actualIndex, 'vat', parseFloat(e.target.value) || 0)}
+                                                                className="w-28 bg-slate-700 border-0 rounded px-3 py-2 text-sm text-right"
+                                                                placeholder="0.00"
+                                                                step="0.01"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {isReadOnly ? (
+                                                            <span className="text-sm text-orange-400 text-right block">{formatCurrency(exp.ewt || 0)}</span>
+                                                        ) : (
+                                                            <input
+                                                                type="number"
+                                                                value={exp.ewt || ''}
+                                                                onChange={(e) => updateExpense(actualIndex, 'ewt', parseFloat(e.target.value) || 0)}
+                                                                className="w-28 bg-slate-700 border-0 rounded px-3 py-2 text-sm text-right"
+                                                                placeholder="0.00"
+                                                                step="0.01"
+                                                            />
+                                                        )}
+                                                    </td>
+                                                    {!isReadOnly && (
+                                                        <td className="px-2 py-2 text-center">
+                                                            <button
+                                                                onClick={() => deleteExpenseRow(actualIndex)}
+                                                                className="text-red-400 hover:text-red-300 p-1"
+                                                                title="Delete row"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
 
                 {/* Summary & Attachments */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

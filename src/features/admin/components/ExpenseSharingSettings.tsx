@@ -135,6 +135,14 @@ const ExpenseSharingSettings: React.FC<ExpenseSharingSettingsProps> = ({ classNa
 
     // Validate all rules
     const validateRules = (): string | null => {
+        // Check for duplicate source BUs across all rules
+        const sourceBuIds = rules.map(r => r.sourceBuId).filter(Boolean);
+        const duplicateSources = sourceBuIds.filter((id, idx) => sourceBuIds.indexOf(id) !== idx);
+        if (duplicateSources.length > 0) {
+            const duplicateBuName = rules.find(r => r.sourceBuId === duplicateSources[0])?.sourceBuName || duplicateSources[0];
+            return `Duplicate source Business Unit detected: "${duplicateBuName}" is used in multiple rules. Each source BU can only have one allocation rule.`;
+        }
+
         for (let i = 0; i < rules.length; i++) {
             const rule = rules[i];
             if (!rule.sourceBuId) {
@@ -143,9 +151,22 @@ const ExpenseSharingSettings: React.FC<ExpenseSharingSettingsProps> = ({ classNa
             if (rule.allocations.length === 0) {
                 return `Rule ${i + 1}: Please add at least one allocation`;
             }
+
+            // Check for duplicate target BUs within this rule
+            const targetBuIds = rule.allocations.map(a => a.targetBuId).filter(Boolean);
+            const duplicateTargets = targetBuIds.filter((id, idx) => targetBuIds.indexOf(id) !== idx);
+            if (duplicateTargets.length > 0) {
+                const duplicateBuName = rule.allocations.find(a => a.targetBuId === duplicateTargets[0])?.targetBuName || duplicateTargets[0];
+                return `Rule ${i + 1}: Duplicate target Business Unit "${duplicateBuName}". Each target can only appear once per rule.`;
+            }
+
             for (let j = 0; j < rule.allocations.length; j++) {
                 if (!rule.allocations[j].targetBuId) {
                     return `Rule ${i + 1}, Allocation ${j + 1}: Please select a target Business Unit`;
+                }
+                // Check if target BU is same as source BU
+                if (rule.allocations[j].targetBuId === rule.sourceBuId) {
+                    return `Rule ${i + 1}, Allocation ${j + 1}: Target cannot be the same as the source Business Unit`;
                 }
                 if (rule.allocations[j].percentage <= 0) {
                     return `Rule ${i + 1}, Allocation ${j + 1}: Percentage must be greater than 0`;

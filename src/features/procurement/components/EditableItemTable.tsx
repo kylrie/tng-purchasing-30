@@ -38,7 +38,20 @@ const EditableItemTable: React.FC<EditableItemTableProps> = ({
 }) => {
     // Inline editing state
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
-    const [editedValues, setEditedValues] = useState<{ quantity: number; price: number }>({ quantity: 0, price: 0 });
+    const [editedValues, setEditedValues] = useState<{ name: string; quantity: number; uom: string; price: number; remarks: string }>({ name: '', quantity: 0, uom: 'pcs', price: 0, remarks: '' });
+
+    // Common UOM options
+    const uomOptions = ['pcs', 'units', 'kg', 'g', 'lbs', 'oz', 'L', 'mL', 'gal', 'box', 'pack', 'set', 'roll', 'sheet', 'ream', 'pair', 'dozen', 'case', 'bundle', 'lot'];
+
+    // Auto-start edit mode for newly added items (empty name with 'new-' prefix)
+    React.useEffect(() => {
+        if (readOnly) return;
+        const newItem = items.find(item => item.itemId.startsWith('new-') && !item.name && editingItemId !== item.itemId);
+        if (newItem) {
+            setEditingItemId(newItem.itemId);
+            setEditedValues({ name: newItem.name, quantity: newItem.quantity, uom: newItem.uom || 'pcs', price: newItem.price || 0, remarks: newItem.remarks || '' });
+        }
+    }, [items, editingItemId, readOnly]);
 
     // Calculate total amount
     const calculateTotal = () => {
@@ -56,16 +69,20 @@ const EditableItemTable: React.FC<EditableItemTableProps> = ({
     const handleEditClick = (item: RequisitionItem) => {
         if (readOnly) return;
         setEditingItemId(item.itemId);
-        setEditedValues({ quantity: item.quantity, price: item.price || 0 });
+        setEditedValues({ name: item.name, quantity: item.quantity, uom: item.uom || 'pcs', price: item.price || 0, remarks: item.remarks || '' });
     };
 
     const handleCancelEdit = () => {
         setEditingItemId(null);
-        setEditedValues({ quantity: 0, price: 0 });
+        setEditedValues({ name: '', quantity: 0, uom: 'pcs', price: 0, remarks: '' });
     };
 
     const handleSaveEdit = (index: number) => {
         // Validation
+        if (!editedValues.name.trim()) {
+            alert('Item name is required.');
+            return;
+        }
         if (editedValues.quantity <= 0) {
             alert('Quantity must be greater than 0.');
             return;
@@ -78,12 +95,15 @@ const EditableItemTable: React.FC<EditableItemTableProps> = ({
         const newItems = [...items];
         newItems[index] = {
             ...newItems[index],
+            name: editedValues.name,
             quantity: editedValues.quantity,
-            price: editedValues.price
+            uom: editedValues.uom,
+            price: editedValues.price,
+            remarks: editedValues.remarks
         };
         onUpdateItems(newItems);
         setEditingItemId(null);
-        setEditedValues({ quantity: 0, price: 0 });
+        setEditedValues({ name: '', quantity: 0, uom: 'pcs', price: 0, remarks: '' });
     };
 
     const handleDelete = (index: number) => {
@@ -142,8 +162,25 @@ const EditableItemTable: React.FC<EditableItemTableProps> = ({
                                         />
                                     </td>
                                 )}
-                                <td className="px-4 py-3 font-medium text-slate-200">{item.name}</td>
-                                {/* Quantity - editable when in edit mode */}
+                                {/* Item Name - editable when in edit mode */}
+                                <td className="px-4 py-3">
+                                    {isEditing ? (
+                                        <input
+                                            type="text"
+                                            value={editedValues.name}
+                                            onChange={(e) => setEditedValues({
+                                                ...editedValues,
+                                                name: e.target.value
+                                            })}
+                                            placeholder="Enter item name..."
+                                            className="w-full px-2 py-1 bg-blue-900/30 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <span className="font-medium text-slate-200">{item.name || <span className="text-slate-500 italic">No name</span>}</span>
+                                    )}
+                                </td>
+                                {/* Quantity & UOM - editable when in edit mode */}
                                 <td className="px-4 py-3">
                                     {isEditing ? (
                                         <div className="flex items-center gap-1">
@@ -155,15 +192,42 @@ const EditableItemTable: React.FC<EditableItemTableProps> = ({
                                                     quantity: parseFloat(e.target.value) || 0
                                                 })}
                                                 min="1"
-                                                className="w-20 px-2 py-1 bg-blue-900/30 border border-blue-500 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                                                className="w-16 px-2 py-1 bg-blue-900/30 border border-blue-500 rounded text-right focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
                                             />
-                                            <span className="text-slate-400 text-sm">{item.uom}</span>
+                                            <select
+                                                value={editedValues.uom}
+                                                onChange={(e) => setEditedValues({
+                                                    ...editedValues,
+                                                    uom: e.target.value
+                                                })}
+                                                className="px-2 py-1 bg-blue-900/30 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-white text-sm"
+                                            >
+                                                {uomOptions.map(opt => (
+                                                    <option key={opt} value={opt}>{opt}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     ) : (
                                         <span className="text-slate-400">{item.quantity} {item.uom}</span>
                                     )}
                                 </td>
-                                <td className="px-4 py-3 text-slate-500 text-xs">{item.remarks || '-'}</td>
+                                {/* Remarks - editable when in edit mode */}
+                                <td className="px-4 py-3">
+                                    {isEditing ? (
+                                        <input
+                                            type="text"
+                                            value={editedValues.remarks}
+                                            onChange={(e) => setEditedValues({
+                                                ...editedValues,
+                                                remarks: e.target.value
+                                            })}
+                                            placeholder="Optional remarks..."
+                                            className="w-full px-2 py-1 bg-blue-900/30 border border-blue-500 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-slate-500"
+                                        />
+                                    ) : (
+                                        <span className="text-slate-500 text-xs">{item.remarks || '-'}</span>
+                                    )}
+                                </td>
                                 {/* Price - editable when in edit mode */}
                                 <td className="px-4 py-3">
                                     {isEditing ? (

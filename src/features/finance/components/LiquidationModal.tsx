@@ -319,9 +319,9 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                         <th className="px-2 py-3 text-left" style={{ width: '90px' }}>OR No.</th>
                                         <th className="px-2 py-3 text-left" style={{ width: '160px' }}>COA</th>
                                         <th className="px-2 py-3 text-left" style={{ width: '140px' }}>Description</th>
-                                        <th className="px-2 py-3 text-right" style={{ width: '80px' }}>VAT</th>
-                                        <th className="px-2 py-3 text-right" style={{ width: '80px' }}>EWT</th>
-                                        <th className="px-2 py-3 text-right" style={{ width: '100px' }}>Amount*</th>
+                                        <th className="px-2 py-3 text-right" style={{ width: '120px' }}>VAT</th>
+                                        <th className="px-2 py-3 text-right" style={{ width: '120px' }}>EWT</th>
+                                        <th className="px-2 py-3 text-right" style={{ width: '120px' }}>Amount*</th>
                                         <th className="px-2 py-3 text-left" style={{ width: '140px' }}>Business Unit</th>
                                         <th className="px-2 py-3" style={{ width: '40px' }}></th>
                                     </tr>
@@ -410,7 +410,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.vat || ''}
                                                     onChange={(e) => updateExpense(index, 'vat', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -423,7 +423,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.ewt || ''}
                                                     onChange={(e) => updateExpense(index, 'ewt', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -436,7 +436,7 @@ const LiquidationModal: React.FC<LiquidationModalProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.amount || ''}
                                                     onChange={(e) => updateExpense(index, 'amount', parseFloat(e.target.value) || 0)}
-                                                    className={`w-full px-2 py-1.5 bg-slate-800 border rounded text-white text-xs text-right focus:ring-1 focus:ring-purple-500 focus:outline-none ${!expense.amount ? 'border-red-600/50' : 'border-slate-600'}`}
+                                                    className={`w-full px-3 py-2 bg-slate-800 border rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none ${!expense.amount ? 'border-red-600/50' : 'border-slate-600'}`}
                                                 />
                                             </td>
 

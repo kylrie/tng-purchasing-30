@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Check, ArrowLeft, Loader2, Save, Paperclip } from 'lucide-react';
+import { Check, ArrowLeft, Loader2, Save, Paperclip, Plus } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails, User } from '../types';
 import { RequisitionStatus } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
@@ -190,6 +190,21 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         } else {
             setSelectedItemIds(new Set());
         }
+    };
+
+    // Add new item row handler
+    const handleAddRow = () => {
+        const newItemId = `new-${Date.now()}`;
+        const newItem: RequisitionItem = {
+            itemId: newItemId,
+            name: '',
+            quantity: 1,
+            uom: 'pcs',
+            stockOnHand: 0,
+            price: 0
+        };
+        setItems(prev => [...prev, newItem]);
+        setSelectedItemIds(prev => new Set([...prev, newItemId]));
     };
 
     // Save as Draft handler - saves work without starting approval
@@ -472,7 +487,17 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     <div>
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-semibold text-white">Item Specification & Costing</h3>
-                            <span className="text-xs text-slate-400">Select items to include in this PRF</span>
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs text-slate-400">Select items to include in this PRF</span>
+                                <button
+                                    type="button"
+                                    onClick={handleAddRow}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                >
+                                    <Plus size={16} />
+                                    Add Row
+                                </button>
+                            </div>
                         </div>
                         <EditableItemTable
                             items={items}

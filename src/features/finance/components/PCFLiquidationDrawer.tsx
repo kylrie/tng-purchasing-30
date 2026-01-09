@@ -282,8 +282,8 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
             {/* FIX Issue #2: Toast Notification UI */}
             {toast && (
                 <div className={`fixed top-4 right-4 z-[60] px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in slide-in-from-top-2 duration-300 ${toast.type === 'success' ? 'bg-emerald-600 text-white' :
-                        toast.type === 'error' ? 'bg-red-600 text-white' :
-                            'bg-yellow-600 text-white'
+                    toast.type === 'error' ? 'bg-red-600 text-white' :
+                        'bg-yellow-600 text-white'
                     }`}>
                     {toast.type === 'success' && <CheckCircle size={18} />}
                     {toast.type === 'error' && <AlertTriangle size={18} />}
@@ -348,9 +348,9 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                         <th className="px-3 py-3 text-left" style={{ width: '160px' }}>Address</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '140px' }}>COA/Account</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '160px' }}>Description</th>
-                                        <th className="px-3 py-3 text-right" style={{ width: '90px' }}>VAT</th>
-                                        <th className="px-3 py-3 text-right" style={{ width: '90px' }}>EWT</th>
-                                        <th className="px-3 py-3 text-right" style={{ width: '110px' }}>Amount*</th>
+                                        <th className="px-3 py-3 text-right" style={{ width: '150px' }}>VAT</th>
+                                        <th className="px-3 py-3 text-right" style={{ width: '150px' }}>EWT</th>
+                                        <th className="px-3 py-3 text-right" style={{ width: '130px' }}>Amount*</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '140px' }}>Business Unit</th>
                                         <th className="px-2 py-3" style={{ width: '40px' }}></th>
                                     </tr>
@@ -459,7 +459,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.vat || ''}
                                                     onChange={(e) => updateExpense(index, 'vat', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -472,7 +472,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.ewt || ''}
                                                     onChange={(e) => updateExpense(index, 'ewt', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -485,7 +485,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.amount || ''}
                                                     onChange={(e) => updateExpense(index, 'amount', parseFloat(e.target.value) || 0)}
-                                                    className={`w-full px-2 py-1.5 bg-slate-800 border rounded text-white text-xs text-right focus:ring-1 focus:ring-purple-500 focus:outline-none ${!expense.amount ? 'border-red-600/50' : 'border-slate-600'
+                                                    className={`w-full px-3 py-2 bg-slate-800 border rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none ${!expense.amount ? 'border-red-600/50' : 'border-slate-600'
                                                         }`}
                                                 />
                                             </td>

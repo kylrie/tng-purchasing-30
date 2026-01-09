@@ -272,37 +272,44 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             </table>
                         </div>
 
-                        {/* BU Sharing Breakdown - Shows if any items have SHARE flag */}
-                        {(() => {
-                            const items = (liquidation.expenses as any[]) || [];
-                            const sharedItems = items.filter((item: any) =>
-                                item.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && item.buName?.toUpperCase().includes('CORP')
-                            );
-                            if (sharedItems.length === 0) return null;
-
-                            const totalShared = sharedItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0);
-
-                            return (
-                                <div className="mb-8 border border-purple-300 bg-purple-50 p-4 rounded print:bg-purple-50">
-                                    <h3 className="text-sm font-bold text-purple-900 uppercase mb-2">BU Sharing Summary</h3>
-                                    <table className="w-full text-xs border-collapse">
-                                        <tbody>
-                                            <tr>
-                                                <td className="py-1 text-purple-800">Total Shared Amount:</td>
-                                                <td className="py-1 text-right font-bold text-purple-900">₱{totalShared.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        {/* Corporate Expense Sharing Breakdown - Uses proper costAllocation data */}
+                        {req.costAllocation && req.costAllocation.length > 0 && (
+                            <div className="mb-8 border border-purple-300 bg-purple-50 p-4 rounded print:bg-purple-50">
+                                <h3 className="text-sm font-bold text-purple-900 uppercase mb-2">Corporate Expense Sharing</h3>
+                                <table className="w-full text-xs border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-purple-200">
+                                            <th className="py-1 text-left text-purple-800">Business Unit</th>
+                                            <th className="py-1 text-right text-purple-800 w-16">Share %</th>
+                                            <th className="py-1 text-right text-purple-800 w-24">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {req.costAllocation.map((alloc: any, idx: number) => (
+                                            <tr key={idx} className="border-b border-purple-100">
+                                                <td className="py-1 text-purple-900">{alloc.buName}</td>
+                                                <td className="py-1 text-right text-purple-900">{alloc.percentage}%</td>
+                                                <td className="py-1 text-right font-bold text-purple-900">
+                                                    ₱{alloc.amount?.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
                                             </tr>
-                                            <tr>
-                                                <td className="py-1 text-purple-800">Number of Shared Items:</td>
-                                                <td className="py-1 text-right font-bold text-purple-900">{sharedItems.length}</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                    <div className="mt-2 pt-2 border-t border-purple-200">
-                                        <p className="text-[10px] text-purple-700">Items marked with [SHARE] will be distributed across all business units.</p>
-                                    </div>
+                                        ))}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="border-t border-purple-300">
+                                            <td className="py-1 font-bold text-purple-900">Total</td>
+                                            <td className="py-1 text-right font-bold text-purple-900">100%</td>
+                                            <td className="py-1 text-right font-bold text-purple-900">
+                                                ₱{req.costAllocation.reduce((sum: number, a: any) => sum + (a.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                                <div className="mt-2 pt-2 border-t border-purple-200">
+                                    <p className="text-[10px] text-purple-700">This expense is shared across the above business units based on configured allocation rules.</p>
                                 </div>
-                            );
-                        })()}
+                            </div>
+                        )}
 
                         {/* Summary Table */}
                         <div className="mb-12 w-1/2 ml-auto">

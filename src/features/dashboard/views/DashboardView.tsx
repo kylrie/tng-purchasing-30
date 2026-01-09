@@ -25,8 +25,9 @@ import LiquidationAuditModal from '../../finance/components/LiquidationAuditModa
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import RejectionModal from '../../../shared/components/RejectionModal';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Briefcase } from 'lucide-react';
 import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
+import { PCFService } from '../../finance/services/pcf.service';
 
 interface DashboardViewProps {
     requisitions: Requisition[];
@@ -34,7 +35,7 @@ interface DashboardViewProps {
     allUsers: User[];
     suppliers: Supplier[];
     businesses: Business[];
-    onCreateRequisition: (req: any) => void;
+    onCreateRequisition: (req: Omit<Requisition, 'id'> | Requisition) => void;
     onUpdateRequisition: (req: Requisition) => void;
 }
 
@@ -52,10 +53,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     // Workflow Approver Assignments for filtering
     const [approverAssignments, setApproverAssignments] = React.useState<ApproverAssignments>({});
 
-    // Load approver assignments on mount
+    // PCF Pending Count - real data from service
+    const [pcfPendingCount, setPcfPendingCount] = React.useState<number>(0);
+
+    // Load approver assignments and PCF pending count on mount
     React.useEffect(() => {
         SettingsService.getApproverAssignments().then(setApproverAssignments);
-    }, []);
+
+        // Fetch real PCF pending count
+        if (hasPermission('pcf:approve')) {
+            PCFService.getPendingLiquidations()
+                .then(liquidations => setPcfPendingCount(liquidations.length))
+                .catch(() => setPcfPendingCount(0));
+        }
+    }, [hasPermission]);
 
     // Determine if the user is an approver
     const isApprover = hasPermission('approval:manager:burf') ||
@@ -316,9 +327,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         return userBUs.includes(r.businessId);
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
-    // Pending Fund Release (Finance)
+    // Pending Fund Release (Finance) - includes both legacy and new workflow statuses
     const pendingFundReleaseItems = requisitions.filter(r =>
-        r.status === RequisitionStatus.APPROVED_FOR_PAYMENT &&
+        (r.status === RequisitionStatus.FOR_FUND_RELEASE ||
+            r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) &&
         hasPermission('finance:release_funds')
     );
 
@@ -335,9 +347,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             if (isAssignedForBU) return true;
         }
 
-        // Option 2: Fallback - if user has Finance Head BR permission, show all Finance Head BR items
-        // This handles cases where BU assignments aren't fully configured
-        if (hasPermission('approval:finance_head:br')) return true;
+        // REMOVED: Fallback permission bypass - Finance Heads must be assigned to specific BUs
+        // This ensures proper BU-based access control
 
         return false;
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
@@ -386,6 +397,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         return false;
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
+    // CFO Approval Items - Only for assigned CFO
+    const cfoPendingItems = requisitions.filter(r => {
+        if (r.status !== RequisitionStatus.PENDING_CFO_APPROVAL) return false;
+        return currentUser.id === approverAssignments.cfoUid;
+    }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
     // Pending Audit (Auditor)
     const pendingAuditItems = requisitions.filter(r =>
@@ -426,9 +442,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 // Ideally, we should fetch the updated req or construct it.
                 // For now, let's assume the parent or a listener will update the list.
                 // To be safe, we can manually trigger an update if we knew the next status.
-            } catch (error: any) {
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
                 console.error("Error approving requisition:", error);
-                alert(`Failed to approve requisition: ${error.message || 'Unknown error'}`);
+                alert(`Failed to approve requisition: ${message}`);
             }
         }
     };
@@ -448,9 +465,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     reason
                 );
                 setRejectingReq(null);
-            } catch (error: any) {
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
                 console.error('Error rejecting requisition:', error);
-                alert(`Failed to reject requisition: ${error.message || 'Unknown error'}`);
+                alert(`Failed to reject requisition: ${message}`);
             }
         }
     };
@@ -618,19 +636,37 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                             />
                         )}
 
-                        {/* PCF Approval Card */}
-                        {hasPermission('dashboard:widget:pcf_approvals') && (
+                        {/* PCF Approval Card - Connected to real data */}
+                        {hasPermission('pcf:approve') && (
                             <DashboardCard
                                 id="pcf-approval"
                                 label="PCF Approval"
-                                value="0"
+                                value={pcfPendingCount.toString()}
                                 route="/pcf-approvals"
                                 icon={Wallet}
-                                progress={0}
-                                sparklineData={[0, 0, 0, 0, 0, 0]}
-                                gradientColors={['#64748b', '#475569']}
-                                iconColor="text-slate-400"
-                                sparklineColor="#64748b"
+                                progress={Math.min(pcfPendingCount * 20, 100)}
+                                sparklineData={[1, 2, 1, 3, 2, pcfPendingCount]}
+                                gradientColors={pcfPendingCount > 0 ? ['#f97316', '#eab308'] : ['#64748b', '#475569']}
+                                iconColor={pcfPendingCount > 0 ? 'text-orange-400' : 'text-slate-400'}
+                                sparklineColor={pcfPendingCount > 0 ? '#f97316' : '#64748b'}
+                                urgency={pcfPendingCount > 3 ? 'critical' : pcfPendingCount > 0 ? 'warning' : 'normal'}
+                            />
+                        )}
+
+                        {/* CFO Approval Card - Only for assigned CFO */}
+                        {currentUser.id === approverAssignments.cfoUid && cfoPendingItems.length > 0 && (
+                            <DashboardCard
+                                id="cfo-approval"
+                                label="CFO Approval"
+                                value={cfoPendingItems.length.toString()}
+                                route="/finance?tab=cfo_pending"
+                                icon={Briefcase}
+                                progress={Math.min(cfoPendingItems.length * 20, 100)}
+                                sparklineData={[1, 1, 2, 1, 2, cfoPendingItems.length]}
+                                gradientColors={['#8b5cf6', '#a855f7']}
+                                iconColor="text-purple-400"
+                                sparklineColor="#8b5cf6"
+                                urgency={cfoPendingItems.length > 0 ? 'warning' : 'normal'}
                             />
                         )}
 
@@ -767,7 +803,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                     return (
                                                         <div
                                                             key={req.id}
-                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-indigo-500/30 transition-all"
+                                                            onClick={() => setDrawerReq(req)}
+                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-indigo-500/30 transition-all cursor-pointer"
                                                         >
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <div>
@@ -832,7 +869,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                     return (
                                                         <div
                                                             key={req.id}
-                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-violet-500/30 transition-all"
+                                                            onClick={() => setDrawerReq(req)}
+                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-violet-500/30 transition-all cursor-pointer"
                                                         >
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <div>
@@ -897,7 +935,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                     return (
                                                         <div
                                                             key={req.id}
-                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-rose-500/30 transition-all"
+                                                            onClick={() => setDrawerReq(req)}
+                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-rose-500/30 transition-all cursor-pointer"
                                                         >
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <div>
@@ -971,7 +1010,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 return (
                                                     <div
                                                         key={req.id}
-                                                        className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-amber-500/30 transition-all"
+                                                        onClick={() => setDrawerReq(req)}
+                                                        className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-amber-500/30 transition-all cursor-pointer"
                                                     >
                                                         <div className="flex justify-between items-start mb-2">
                                                             <div>
@@ -1108,7 +1148,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                             return (
                                                 <div
                                                     key={activity.id}
-                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-purple-500/30 transition-all"
+                                                    onClick={() => setDrawerReq(activity.rawRequisition)}
+                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-purple-500/30 transition-all cursor-pointer"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
@@ -1188,7 +1229,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                             return (
                                                 <div
                                                     key={req.id}
-                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-blue-500/30 transition-all"
+                                                    onClick={() => setDrawerReq(req)}
+                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-blue-500/30 transition-all cursor-pointer"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
@@ -1247,7 +1289,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                             return (
                                                 <div
                                                     key={req.id}
-                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-emerald-500/30 transition-all"
+                                                    onClick={() => setDrawerReq(req)}
+                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
@@ -1309,7 +1352,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                             return (
                                                 <div
                                                     key={req.id}
-                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-amber-500/30 transition-all"
+                                                    onClick={() => setDrawerReq(req)}
+                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-amber-500/30 transition-all cursor-pointer"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
@@ -1448,9 +1492,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 currentUser.name
                             );
                             setDrawerReq(null);
-                        } catch (error: any) {
+                        } catch (error: unknown) {
+                            const message = error instanceof Error ? error.message : 'Unknown error';
                             console.error('Error approving:', error);
-                            alert(`Failed to approve: ${error.message || 'Unknown error'}`);
+                            alert(`Failed to approve: ${message}`);
                         }
                     }
                 }}
@@ -1474,9 +1519,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 reason: 'Cancelled by SuperAdmin'
                             });
                             setDrawerReq(null);
-                        } catch (error: any) {
+                        } catch (error: unknown) {
+                            const message = error instanceof Error ? error.message : 'Unknown error';
                             console.error('Error cancelling:', error);
-                            alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
+                            alert(`Failed to cancel: ${message}`);
                         }
                     }
                 }}
@@ -1523,8 +1569,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                             hasPermission('approval:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
-                        // SuperAdmin can always approve
-                        isSuperAdmin(currentUser.role)
+                        // SuperAdmin can always approve (except READY_FOR_PRF which needs Prepare PRF action)
+                        (isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.READY_FOR_PRF)
                     )
                 }
                 canReject={
@@ -1570,11 +1616,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                             hasPermission('approval:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
-                        // SuperAdmin can always reject
-                        isSuperAdmin(currentUser.role)
+                        // SuperAdmin can always reject (except READY_FOR_PRF which needs Prepare PRF action)
+                        (isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.READY_FOR_PRF)
                     )
                 }
                 canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}
+                onPreparePrf={() => {
+                    if (drawerReq) {
+                        setPreparePRFReq(drawerReq);
+                        setDrawerReq(null);
+                    }
+                }}
+                canPreparePrf={
+                    !!drawerReq &&
+                    drawerReq.status === RequisitionStatus.READY_FOR_PRF &&
+                    hasPermission('requisition:prepare:prf')
+                }
             />
 
             <RejectionModal

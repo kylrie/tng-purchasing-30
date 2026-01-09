@@ -7,6 +7,7 @@ import { PCFService, PCFStatus, type PCFLiquidation, type PCFExpenseItem } from 
 import PCFLiquidationDrawer from '../components/PCFLiquidationDrawer';
 import PCFPrintModal from '../components/PCFPrintModal';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { SettingsService, type AllocationRule } from '../../../shared/services/settings.service';
 
 interface PCFViewProps {
     currentUser: UserType;
@@ -37,6 +38,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     });
     const [viewAll, setViewAll] = useState(false);
     const [detailTab, setDetailTab] = useState<'details' | 'sharing'>('details');
+    const [allocationRules, setAllocationRules] = useState<AllocationRule[]>([]);
 
     const { hasPermission } = usePermissions();
     // Can view all: Either role-based pcf:view:all OR per-user pcf:view:history:all
@@ -79,6 +81,19 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    // Load expense allocation rules
+    useEffect(() => {
+        const loadAllocationRules = async () => {
+            try {
+                const settings = await SettingsService.getExpenseSharingRules();
+                setAllocationRules(settings.rules || []);
+            } catch (error) {
+                console.error('Error loading allocation rules:', error);
+            }
+        };
+        loadAllocationRules();
+    }, []);
 
     // Status badge helper
     const getStatusBadge = (status: PCFStatus) => {
@@ -539,24 +554,20 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                             >
                                 Details
                             </button>
-                            {selectedLiquidation.expenses.some(exp =>
-                                exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP')
-                            ) && (
-                                    <button
-                                        onClick={() => setDetailTab('sharing')}
-                                        className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${detailTab === 'sharing'
-                                            ? 'text-purple-400 border-b-2 border-purple-400'
-                                            : 'text-slate-400 hover:text-white'
-                                            }`}
-                                    >
-                                        BU Sharing
-                                        <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[10px] font-medium">
-                                            {selectedLiquidation.expenses.filter(exp =>
-                                                exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP')
-                                            ).length}
-                                        </span>
-                                    </button>
-                                )}
+                            {allocationRules.some(r => r.isEnabled) && (
+                                <button
+                                    onClick={() => setDetailTab('sharing')}
+                                    className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${detailTab === 'sharing'
+                                        ? 'text-purple-400 border-b-2 border-purple-400'
+                                        : 'text-slate-400 hover:text-white'
+                                        }`}
+                                >
+                                    BU Sharing
+                                    <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[10px] font-medium">
+                                        {allocationRules.find(r => r.isEnabled)?.allocations.length || 0}
+                                    </span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Body - Scrollable */}
@@ -670,71 +681,76 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
 
                             {/* BU Sharing Tab */}
                             {detailTab === 'sharing' && (() => {
-                                const sharedExpenses = selectedLiquidation.expenses.filter(
-                                    exp => exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP')
-                                );
-                                const totalShared = sharedExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-                                const numBusForSharing = Math.max(businesses.length - 1, 1);
-                                const perBuShare = totalShared / numBusForSharing;
+                                // Find the allocation rule for this liquidation's business
+                                const activeRule = allocationRules.find(r => r.isEnabled);
+                                const totalLiquidationAmount = selectedLiquidation.totalAmount;
+
+                                // Calculate shares based on allocation rules
+                                const allocatedShares = activeRule?.allocations.map((alloc, index) => {
+                                    const isLast = index === activeRule.allocations.length - 1;
+                                    let amount: number;
+                                    if (isLast) {
+                                        // Use remainder for last allocation to avoid rounding errors
+                                        const previousTotal = activeRule.allocations.slice(0, index).reduce((sum, a) =>
+                                            sum + Math.round((totalLiquidationAmount * a.percentage / 100) * 100) / 100, 0
+                                        );
+                                        amount = totalLiquidationAmount - previousTotal;
+                                    } else {
+                                        amount = Math.round((totalLiquidationAmount * alloc.percentage / 100) * 100) / 100;
+                                    }
+                                    return {
+                                        buName: alloc.targetBuName,
+                                        percentage: alloc.percentage,
+                                        amount
+                                    };
+                                }) || [];
 
                                 return (
                                     <div className="space-y-4">
                                         {/* Summary Cards */}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
-                                                <p className="text-xs text-purple-400 uppercase">Total Shared</p>
-                                                <p className="text-xl font-bold text-purple-300">{formatCurrency(totalShared)}</p>
+                                                <p className="text-xs text-purple-400 uppercase">Total Amount</p>
+                                                <p className="text-xl font-bold text-purple-300">{formatCurrency(totalLiquidationAmount)}</p>
                                             </div>
                                             <div className="bg-purple-900/20 border border-purple-700/50 rounded-lg p-4">
-                                                <p className="text-xs text-purple-400 uppercase">Shared Items</p>
-                                                <p className="text-xl font-bold text-purple-300">{sharedExpenses.length}</p>
-                                            </div>
-                                        </div>
-
-                                        {/* Shared Items Table */}
-                                        <div>
-                                            <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                                <Building2 size={14} className="text-purple-400" />
-                                                Shared Expense Items
-                                            </h3>
-                                            <div className="overflow-x-auto border border-purple-700/50 rounded-lg">
-                                                <table className="w-full text-xs">
-                                                    <thead className="bg-purple-900/30 text-purple-300 uppercase sticky top-0 z-20">
-                                                        <tr>
-                                                            <th className="px-3 py-2 text-left">Date</th>
-                                                            <th className="px-3 py-2 text-left">Description</th>
-                                                            <th className="px-3 py-2 text-left">Payee/Vendor</th>
-                                                            <th className="px-3 py-2 text-left">OR#</th>
-                                                            <th className="px-3 py-2 text-right">Amount</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-purple-700/30 text-slate-300">
-                                                        {sharedExpenses.map((exp, i) => (
-                                                            <tr key={i} className="hover:bg-purple-900/20">
-                                                                <td className="px-3 py-2">{exp.date}</td>
-                                                                <td className="px-3 py-2">{exp.itemDescription || '-'}</td>
-                                                                <td className="px-3 py-2">{exp.payeeVendor || '-'}</td>
-                                                                <td className="px-3 py-2 font-mono">{exp.orNo}</td>
-                                                                <td className="px-3 py-2 text-right font-medium text-purple-300">{formatCurrency(exp.amount)}</td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
+                                                <p className="text-xs text-purple-400 uppercase">Allocated To</p>
+                                                <p className="text-xl font-bold text-purple-300">{allocatedShares.length} BUs</p>
                                             </div>
                                         </div>
 
                                         {/* Per-BU Breakdown */}
                                         <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-                                            <h4 className="text-sm font-bold text-slate-300 mb-3">Per-BU Share Estimate</h4>
-                                            <p className="text-xs text-slate-500 mb-3">Equally divided among {numBusForSharing} business units</p>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                {businesses.filter(b => !b.name.toUpperCase().includes('ATHOUSANDCONCEPTS')).map(bu => (
-                                                    <div key={bu.id} className="flex justify-between text-sm bg-slate-700/30 px-3 py-2 rounded">
-                                                        <span className="text-slate-300 whitespace-normal break-words max-w-[150px]">{bu.name}</span>
-                                                        <span className="text-emerald-400 font-medium">{formatCurrency(perBuShare)}</span>
+                                            <h4 className="text-sm font-bold text-slate-300 mb-3">Per-BU Share (Based on Allocation Rules)</h4>
+                                            {activeRule ? (
+                                                <>
+                                                    <p className="text-xs text-slate-500 mb-3">
+                                                        From: <span className="text-purple-400">{activeRule.sourceBuName}</span>
+                                                    </p>
+                                                    <div className="space-y-2">
+                                                        {allocatedShares.map((share, idx) => (
+                                                            <div key={idx} className="flex justify-between items-center text-sm bg-slate-700/30 px-3 py-2 rounded">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-slate-300 whitespace-normal break-words max-w-[150px]">{share.buName}</span>
+                                                                    <span className="text-xs text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded">
+                                                                        {share.percentage}%
+                                                                    </span>
+                                                                </div>
+                                                                <span className="text-emerald-400 font-medium">{formatCurrency(share.amount)}</span>
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                    <div className="mt-3 pt-3 border-t border-slate-600 flex justify-between text-sm font-bold">
+                                                        <span className="text-slate-300">Total</span>
+                                                        <span className="text-emerald-400">{formatCurrency(totalLiquidationAmount)}</span>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="text-center py-4">
+                                                    <p className="text-slate-400 text-sm">No expense allocation rules configured.</p>
+                                                    <p className="text-slate-500 text-xs mt-1">Configure rules in Admin → Settings → Expense Allocation</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 );

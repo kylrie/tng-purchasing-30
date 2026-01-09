@@ -31,20 +31,39 @@ export async function calculateExpenseAllocation(
     const rule = await SettingsService.getAllocationRuleForBu(businessId);
 
     if (!rule || !rule.isEnabled || rule.allocations.length === 0) {
+      // Expected: No rule exists or rule is disabled - this is normal, not an error
       return undefined;
     }
 
-    // Calculate allocation for each target BU
-    const allocations: CostAllocation[] = rule.allocations.map(alloc => ({
-      buId: alloc.targetBuId,
-      buName: alloc.targetBuName,
-      percentage: alloc.percentage,
-      amount: Math.round((totalAmount * alloc.percentage / 100) * 100) / 100 // Round to 2 decimal places
-    }));
+    // Calculate allocation for each target BU using remainder pattern
+    // This ensures the sum of allocated amounts exactly equals totalAmount
+    const allocations: CostAllocation[] = [];
+    let remainingAmount = totalAmount;
+
+    rule.allocations.forEach((alloc, index) => {
+      const isLast = index === rule.allocations.length - 1;
+
+      // For last allocation, use remaining amount to avoid rounding errors
+      const amount = isLast
+        ? remainingAmount
+        : Math.round((totalAmount * alloc.percentage / 100) * 100) / 100;
+
+      remainingAmount -= amount;
+
+      allocations.push({
+        buId: alloc.targetBuId,
+        buName: alloc.targetBuName,
+        percentage: alloc.percentage,
+        amount: amount
+      });
+    });
 
     return allocations;
   } catch (error) {
-    console.error('[calculateExpenseAllocation] Error:', error);
+    // Unexpected error - log for debugging but don't block PRF creation
+    console.error('[calculateExpenseAllocation] Unexpected error fetching allocation rule:', error);
+    console.error('[calculateExpenseAllocation] BusinessId:', businessId, 'TotalAmount:', totalAmount);
+    // Return undefined to allow PRF creation to proceed without allocation
     return undefined;
   }
 }
