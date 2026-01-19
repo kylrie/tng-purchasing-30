@@ -23,6 +23,7 @@ import type { ImportResult } from '../services/inventory.data.service';
 import VisualCountRow from '../components/VisualCountRow';
 import InventoryItemModal from '../components/InventoryItemModal';
 import type { User, Business } from '../../procurement/types';
+import { UI_CONSTANTS } from '../../../config/constants';
 
 // ============================================================
 // PROPS
@@ -424,7 +425,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
             await exportInventoryToCSV(selectedBusinessUnit, currentBusiness?.name);
         } catch (err) {
             setError('Failed to export inventory');
-            setTimeout(() => setError(null), 3000);
+            setTimeout(() => setError(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
         }
     };
 

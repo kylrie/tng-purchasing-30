@@ -4,6 +4,7 @@ import type { PCFExpenseItem } from '../services/pcf.service';
 import type { Business } from '../../../shared/types';
 import { SettingsService } from '../../../shared/services/settings.service';
 import AccountSelector, { type SelectedAccount } from '../../../shared/components/AccountSelector';
+import { UI_CONSTANTS } from '../../../config/constants';
 
 // Check if a BU is corporate (for expense sharing indicator)
 const isCorpBu = (buName: string): boolean => {
@@ -249,7 +250,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
         if (!hasData) {
             // FIX Issue #2: Replace alert() with toast notification
             setToast({ type: 'warning', message: 'Please add at least one expense item before saving.' });
-            setTimeout(() => setToast(null), 4000);
+            setTimeout(() => setToast(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
             return;
         }
 
@@ -258,12 +259,12 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
             await onSaveDraft(expenses, receiptsLink, remarks);
             // FIX Issue #2: Replace alert() with toast notification
             setToast({ type: 'success', message: 'Draft saved successfully!' });
-            setTimeout(() => setToast(null), 3000);
+            setTimeout(() => setToast(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
         } catch (error) {
             console.error('Save draft error:', error);
             // FIX Issue #2: Replace alert() with toast notification
             setToast({ type: 'error', message: 'Failed to save draft. Please try again.' });
-            setTimeout(() => setToast(null), 4000);
+            setTimeout(() => setToast(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
         } finally {
             setSavingDraft(false);
         }

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil, Loader2 } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus, isSuperAdmin } from '../types';
+import { useTaxSettings } from '../../../shared/hooks/useTaxSettings';
 import type { User, Business } from '../../../shared/types';
 import { executeWorkflowAction } from '../services/workflowService';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -75,11 +76,12 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     const [attachmentLink, setAttachmentLink] = useState(initialData?.externalLink || initialData?.attachments?.[0] || '');
     const [customId, setCustomId] = useState('');
 
-    // VAT/EWT Tax State
+    // VAT/EWT Tax State - use configurable defaults from Firestore
+    const { settings: taxSettings } = useTaxSettings();
     const [applyVat, setApplyVat] = useState(initialData?.applyVat ?? false);
-    const [vatPercentage, setVatPercentage] = useState(initialData?.vatPercentage ?? 12);
+    const [vatPercentage, setVatPercentage] = useState(initialData?.vatPercentage ?? taxSettings.defaultVatPercentage);
     const [applyEwt, setApplyEwt] = useState(initialData?.applyEwt ?? false);
-    const [ewtPercentage, setEwtPercentage] = useState(initialData?.ewtPercentage ?? 2);
+    const [ewtPercentage, setEwtPercentage] = useState(initialData?.ewtPercentage ?? taxSettings.defaultEwtPercentage);
 
     // Submission loading state to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);

@@ -96,7 +96,12 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
     const cashAdvance = req.totalAmount || 0;
     // Calculate total actual from PRF items' actualCost field
     const totalActual = (req.items || []).reduce((sum: number, item: any) => sum + (item.actualCost || 0), 0);
-    const difference = cashAdvance - totalActual;
+    // Calculate additional expenses
+    const additionalExpenses = ((liquidation.expenses as any[]) || [])
+        .filter((exp: any) => exp.isAdditionalExpense === true)
+        .reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
+    const totalAllExpenses = totalActual + additionalExpenses;
+    const difference = cashAdvance - totalAllExpenses;
     const isRefund = difference > 0;
 
     return (
@@ -182,9 +187,9 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             </div>
                         )}
 
-                        {/* PRF Items Cost Comparison Table */}
+                        {/* Itemized Costs Table */}
                         <div className="mb-8">
-                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-2">PRF Items - Cost Comparison</h3>
+                            <h3 className="text-sm font-bold text-slate-900 uppercase mb-2">Itemized Costs</h3>
                             <table className="w-full text-[9px] border-collapse border border-slate-300">
                                 <thead className="bg-slate-100 print:bg-slate-100">
                                     <tr>
@@ -272,6 +277,64 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                             </table>
                         </div>
 
+                        {/* Additional Expenses Table */}
+                        {(() => {
+                            const addExpenses = ((liquidation.expenses as any[]) || [])
+                                .filter((exp: any) => exp.isAdditionalExpense === true && (exp.amount > 0 || exp.vendorName));
+                            if (addExpenses.length === 0) return null;
+                            const addTotal = addExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
+                            return (
+                                <div className="mb-8">
+                                    <h3 className="text-sm font-bold text-yellow-700 uppercase mb-2">Additional Expenses</h3>
+                                    <table className="w-full text-[9px] border-collapse border border-slate-300">
+                                        <thead className="bg-yellow-50 print:bg-yellow-50">
+                                            <tr>
+                                                <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Date</th>
+                                                <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Supplier</th>
+                                                <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">Description</th>
+                                                <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">TIN</th>
+                                                <th className="border border-slate-300 px-2 py-1 text-left text-slate-800 font-bold">OR No.</th>
+                                                <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold">Amount</th>
+                                                <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold">VAT</th>
+                                                <th className="border border-slate-300 px-2 py-1 text-right text-slate-800 font-bold">EWT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {addExpenses.map((exp: any, index: number) => (
+                                                <tr key={exp.id || index}>
+                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">
+                                                        {exp.date ? new Date(exp.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
+                                                    </td>
+                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">{exp.vendorName || '-'}</td>
+                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">{exp.description || exp.coaName || '-'}</td>
+                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">{exp.tin || '-'}</td>
+                                                    <td className="border border-slate-300 px-2 py-1 text-slate-900">{exp.orNo || '-'}</td>
+                                                    <td className="border border-slate-300 px-2 py-1 text-right text-yellow-700 font-medium">
+                                                        ₱{(exp.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                    </td>
+                                                    <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                                        {(exp.vat || 0) > 0 ? `₱${exp.vat.toLocaleString()}` : '-'}
+                                                    </td>
+                                                    <td className="border border-slate-300 px-2 py-1 text-right text-slate-900">
+                                                        {(exp.ewt || 0) > 0 ? `₱${exp.ewt.toLocaleString()}` : '-'}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                        <tfoot className="bg-yellow-50 font-bold">
+                                            <tr>
+                                                <td colSpan={5} className="border border-slate-300 px-2 py-1 text-right text-slate-900">Total Additional Expenses</td>
+                                                <td className="border border-slate-300 px-2 py-1 text-right text-yellow-700">
+                                                    ₱{addTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                </td>
+                                                <td colSpan={2} className="border border-slate-300 px-2 py-1"></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            );
+                        })()}
+
                         {/* Corporate Expense Sharing Breakdown - Uses proper costAllocation data */}
                         {req.costAllocation && req.costAllocation.length > 0 && (
                             <div className="mb-8 border border-purple-300 bg-purple-50 p-4 rounded print:bg-purple-50">
@@ -320,9 +383,15 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
                                         <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{cashAdvance?.toLocaleString()}</td>
                                     </tr>
                                     <tr>
-                                        <td className="border border-slate-300 px-3 py-2 font-semibold bg-slate-50 text-slate-900">Total Actual Expenses</td>
+                                        <td className="border border-slate-300 px-3 py-2 font-semibold bg-slate-50 text-slate-900">Total Itemized Costs</td>
                                         <td className="border border-slate-300 px-3 py-2 text-right text-slate-900">₱{totalActual?.toLocaleString()}</td>
                                     </tr>
+                                    {additionalExpenses > 0 && (
+                                        <tr>
+                                            <td className="border border-slate-300 px-3 py-2 font-semibold bg-yellow-50 text-yellow-700">Additional Expenses</td>
+                                            <td className="border border-slate-300 px-3 py-2 text-right text-yellow-700">₱{additionalExpenses?.toLocaleString()}</td>
+                                        </tr>
+                                    )}
                                     <tr className={isRefund ? 'text-green-700' : 'text-red-700'}>
                                         <td className="border border-slate-300 px-3 py-2 font-bold bg-slate-50 text-inherit">
                                             {isRefund ? 'Amount to Return (Refund)' : 'Amount to Reimburse'}

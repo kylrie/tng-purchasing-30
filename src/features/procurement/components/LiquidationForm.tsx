@@ -20,6 +20,7 @@ export interface LiquidationItemRow {
     amount: number;      // Total amount
     buId?: string;       // Tagged Business Unit ID
     buName?: string;     // Tagged Business Unit Name
+    isAdditionalExpense?: boolean; // Whether this is an additional expense (not PRF-linked)
 }
 
 interface LiquidationFormProps {
@@ -94,6 +95,7 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                 amount: exp.amount || 0,
                 buId: exp.buId || requisition.businessId,
                 buName: exp.buName || '',
+                isAdditionalExpense: exp.isAdditionalExpense || false,
             }));
         }
         // Fallback to items array (legacy format)
@@ -146,20 +148,27 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
     const [remarks, setRemarks] = useState(requisition.liquidationDetails?.remarks || '');
 
     // Calculate totals
-    const { totalBudget, totalActual, totalVat, totalEwt, variance } = useMemo(() => {
+    const { totalBudget, totalActual, totalVat, totalEwt, totalAdditionalExpenses, variance } = useMemo(() => {
         const budget = requisition.totalAmount || (requisition.items || []).reduce((sum, item) => sum + (item.quantity * item.price), 0);
-        // FIX: Add null/undefined checks to prevent TypeError when item data is malformed
-        const actual = items.reduce((sum, item) => sum + (item?.amount || 0), 0);
+        // In read-only mode, use actualCost from requisition.items; otherwise use expense amounts
+        const actual = readOnly
+            ? (requisition.items || []).reduce((sum, item) => sum + (item.actualCost || 0), 0)
+            : items.reduce((sum, item) => sum + (item?.amount || 0), 0);
         const vat = items.reduce((sum, item) => sum + (item?.vat || 0), 0);
         const ewt = items.reduce((sum, item) => sum + (item?.ewt || 0), 0);
+        // Calculate additional expenses (rows marked as isAdditionalExpense)
+        const additionalExpenses = items
+            .filter((item: any) => item.isAdditionalExpense === true)
+            .reduce((sum, item) => sum + (item?.amount || 0), 0);
         return {
             totalBudget: budget,
             totalActual: actual,
             totalVat: vat,
             totalEwt: ewt,
-            variance: budget - actual,
+            totalAdditionalExpenses: additionalExpenses,
+            variance: budget - actual - additionalExpenses,
         };
-    }, [items, requisition]);
+    }, [items, requisition, readOnly]);
 
     // Update a specific field in a row
     const updateItem = (index: number, field: keyof LiquidationItemRow, value: any) => {
@@ -255,11 +264,11 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                 </div>
             </div>
 
-            {/* Expense Breakdown Table */}
+            {/* Expense Breakdown Table - Named "Itemized Costs" in read-only mode */}
             <div>
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                        <Receipt size={16} /> Expense Breakdown
+                        <Receipt size={16} /> {readOnly ? 'Itemized Costs' : 'Expense Breakdown'}
                     </h3>
                     {!readOnly && (
                         <button
@@ -274,260 +283,346 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                 <div className="bg-slate-800/50 rounded-lg border border-slate-700 overflow-x-auto hidden md:block">
                     <table className="w-full text-xs min-w-[900px]">
                         <thead className="bg-slate-900/80 text-[10px] uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
-                            <tr>
-                                <th className="px-2 py-2 text-left w-[100px]">Date</th>
-                                <th className="px-1 py-2 text-left w-[140px]">Payee/Vendor</th>
-                                <th className="px-1 py-2 text-left w-[90px]">TIN</th>
-                                <th className="px-1 py-2 text-left w-[70px]">OR No.*</th>
-                                <th className="px-1 py-2 text-left w-[120px]">Address</th>
-                                <th className="px-1 py-2 text-left w-[100px]">COA/Account</th>
-                                <th className="px-1 py-2 text-left w-[120px]">Description</th>
-                                <th className="px-1 py-2 text-right w-[70px]">VAT</th>
-                                <th className="px-1 py-2 text-right w-[70px]">EWT</th>
-                                <th className="px-1 py-2 text-right w-[90px]">Amount*</th>
-                                <th className="px-1 py-2 text-left w-[120px]">Business Unit</th>
-                                {!readOnly && <th className="px-1 py-2 w-[30px]"></th>}
-                            </tr>
+                            {readOnly ? (
+                                <tr>
+                                    <th className="px-2 py-2 text-left">Item</th>
+                                    <th className="px-1 py-2 text-right">Qty</th>
+                                    <th className="px-1 py-2 text-left">Supplier</th>
+                                    <th className="px-1 py-2 text-left">TIN</th>
+                                    <th className="px-1 py-2 text-left">OR No.</th>
+                                    <th className="px-1 py-2 text-left">Description</th>
+                                    <th className="px-1 py-2 text-right">Actual Cost</th>
+                                    <th className="px-1 py-2 text-right">VAT</th>
+                                    <th className="px-1 py-2 text-right">EWT</th>
+                                </tr>
+                            ) : (
+                                <tr>
+                                    <th className="px-2 py-2 text-left w-[100px]">Date</th>
+                                    <th className="px-1 py-2 text-left w-[140px]">Payee/Vendor</th>
+                                    <th className="px-1 py-2 text-left w-[90px]">TIN</th>
+                                    <th className="px-1 py-2 text-left w-[70px]">OR No.*</th>
+                                    <th className="px-1 py-2 text-left w-[120px]">Address</th>
+                                    <th className="px-1 py-2 text-left w-[100px]">COA/Account</th>
+                                    <th className="px-1 py-2 text-left w-[120px]">Description</th>
+                                    <th className="px-1 py-2 text-right w-[70px]">VAT</th>
+                                    <th className="px-1 py-2 text-right w-[70px]">EWT</th>
+                                    <th className="px-1 py-2 text-right w-[90px]">Amount*</th>
+                                    <th className="px-1 py-2 text-left w-[120px]">Business Unit</th>
+                                    <th className="px-1 py-2 w-[30px]"></th>
+                                </tr>
+                            )}
                         </thead>
                         <tbody className="divide-y divide-slate-700">
-                            {items.map((item, index) => (
-                                <tr key={item.id} className="hover:bg-slate-800/30">
-                                    {/* Date */}
-                                    <td className="px-2 py-2">
-                                        {readOnly ? (
-                                            <span className="text-slate-200">{item.date}</span>
-                                        ) : (
-                                            <input
-                                                type="date"
-                                                value={item.date}
-                                                onChange={(e) => updateItem(index, 'date', e.target.value)}
-                                                className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none text-xs"
-                                            />
-                                        )}
-                                    </td>
-                                    {/* Payee/Vendor */}
-                                    <td className="px-1 py-2">
-                                        {readOnly ? (
-                                            <span className="text-slate-200 whitespace-normal break-words">{item.vendorName || '-'}</span>
-                                        ) : (
-                                            <select
-                                                value={item.vendorId}
-                                                onChange={(e) => handleVendorChange(index, e.target.value)}
-                                                className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-[10px]"
-                                            >
-                                                <option value="">Select...</option>
-                                                {suppliers.map(s => (
-                                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                                ))}
-                                            </select>
-                                        )}
-                                    </td>
-                                    {/* TIN (auto-filled) */}
-                                    <td className="px-1 py-2">
-                                        <span className="text-slate-400 text-[10px] whitespace-normal break-words">{item.tin || '-'}</span>
-                                    </td>
-                                    {/* OR No. */}
-                                    <td className="px-1 py-2">
-                                        {readOnly ? (
-                                            <span className="text-slate-200 whitespace-normal break-words">{item.orNo || '-'}</span>
-                                        ) : (
-                                            <input
-                                                type="text"
-                                                placeholder="OR#"
-                                                value={item.orNo}
-                                                onChange={(e) => updateItem(index, 'orNo', e.target.value)}
-                                                className="w-full px-1 py-1 bg-slate-900 border border-red-500/50 rounded text-slate-200 focus:ring-1 focus:ring-red-500 focus:outline-none text-xs"
-                                            />
-                                        )}
-                                    </td>
-                                    {/* Address (auto-filled) */}
-                                    <td className="px-1 py-2">
-                                        <span className="text-slate-400 text-[10px] whitespace-normal break-words block max-w-[100px]" title={item.address}>
-                                            {item.address || '-'}
-                                        </span>
-                                    </td>
-                                    {/* COA/Account */}
-                                    <td className="px-1 py-2">
-                                        {readOnly ? (
-                                            <span className="text-slate-200 whitespace-normal break-words">{item.coa || '-'}</span>
-                                        ) : (
-                                            <select
-                                                value={item.coa}
-                                                onChange={(e) => updateItem(index, 'coa', e.target.value)}
-                                                className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-[10px]"
-                                            >
-                                                <option value="">Select COA...</option>
-                                                {coaOptions.map((coa: string) => (
-                                                    <option key={coa} value={coa}>{coa}</option>
-                                                ))}
-                                            </select>
-                                        )}
-                                    </td>
-                                    {/* Description */}
-                                    <td className="px-1 py-2">
-                                        {readOnly ? (
-                                            <span className="text-slate-200 whitespace-normal break-words">{item.description || '-'}</span>
-                                        ) : (
-                                            <input
-                                                type="text"
-                                                placeholder="Description"
-                                                value={item.description}
-                                                onChange={(e) => updateItem(index, 'description', e.target.value)}
-                                                className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-xs"
-                                            />
-                                        )}
-                                    </td>
-                                    {/* VAT */}
-                                    <td className="px-1 py-2">
-                                        {readOnly ? (
-                                            <span className="text-slate-200 text-right block">{formatCurrency(item.vat)}</span>
-                                        ) : (
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={item.vat}
-                                                onChange={(e) => updateItem(index, 'vat', parseFloat(e.target.value) || 0)}
-                                                className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-right text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none text-xs"
-                                            />
-                                        )}
-                                    </td>
-                                    {/* EWT */}
-                                    <td className="px-1 py-2">
-                                        {readOnly ? (
-                                            <span className="text-slate-200 text-right block">{formatCurrency(item.ewt)}</span>
-                                        ) : (
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={item.ewt}
-                                                onChange={(e) => updateItem(index, 'ewt', parseFloat(e.target.value) || 0)}
-                                                className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-right text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none text-xs"
-                                            />
-                                        )}
-                                    </td>
-                                    {/* Amount */}
-                                    <td className="px-1 py-2">
-                                        {readOnly ? (
-                                            <span className="text-white font-medium text-right block">{formatCurrency(item.amount)}</span>
-                                        ) : (
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={item.amount}
-                                                onChange={(e) => updateItem(index, 'amount', parseFloat(e.target.value) || 0)}
-                                                className="w-full px-1 py-1 bg-slate-900 border border-red-500/50 rounded text-right text-white font-medium focus:ring-1 focus:ring-red-500 focus:outline-none text-xs"
-                                            />
-                                        )}
-                                    </td>
-                                    {/* Business Unit */}
-                                    <td className="px-1 py-2">
-                                        {readOnly ? (
-                                            <div className="flex items-center gap-1">
-                                                <span className="text-slate-200 text-xs whitespace-normal break-words">{item.buName || '-'}</span>
-                                                {item.buName && isCorpBu(item.buName) && (
-                                                    <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-1">
-                                                <select
-                                                    value={item.buId || ''}
-                                                    onChange={(e) => handleBuChange(index, e.target.value)}
-                                                    className="flex-1 px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-[10px]"
-                                                >
-                                                    <option value="">Select BU...</option>
-                                                    {businesses.map(b => (
-                                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                                    ))}
-                                                </select>
-                                                {item.buName && isCorpBu(item.buName) && (
-                                                    <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium shrink-0">SHARE</span>
-                                                )}
-                                            </div>
-                                        )}
-                                    </td>
-                                    {/* Delete */}
-                                    {!readOnly && (
-                                        <td className="px-1 py-2 text-center">
-                                            <button
-                                                onClick={() => deleteRow(index)}
-                                                disabled={items.length <= 1}
-                                                className="text-red-400 hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed"
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                            {readOnly ? (
+                                /* Read-only mode: Show PRF items with expense data */
+                                <>
+                                    {(requisition.items || []).map((prfItem, index) => {
+                                        // Get corresponding expense entry (non-additional expenses at the same index)
+                                        const regularExpenses = items.filter((exp: any) => !exp.isAdditionalExpense);
+                                        const expense = regularExpenses[index];
+                                        const qty = prfItem.quantity || 0;
+
+                                        return (
+                                            <tr key={prfItem.itemId || index} className="hover:bg-slate-800/30">
+                                                <td className="px-2 py-2 text-slate-200">{prfItem.name}</td>
+                                                <td className="px-1 py-2 text-right text-slate-400">{qty} {prfItem.uom}</td>
+                                                <td className="px-1 py-2 text-slate-200">{expense?.vendorName || '-'}</td>
+                                                <td className="px-1 py-2 text-slate-400 text-[10px]">{expense?.tin || '-'}</td>
+                                                <td className="px-1 py-2 text-slate-300">{expense?.orNo || '-'}</td>
+                                                <td className="px-1 py-2 text-slate-300">{expense?.description || expense?.coa || '-'}</td>
+                                                <td className="px-1 py-2 text-right text-white font-medium">{formatCurrency(prfItem.actualCost || 0)}</td>
+                                                <td className="px-1 py-2 text-right text-emerald-400">{expense?.vat ? formatCurrency(expense.vat) : '-'}</td>
+                                                <td className="px-1 py-2 text-right text-amber-400">{expense?.ewt ? formatCurrency(expense.ewt) : '-'}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                    {/* Totals Row */}
+                                    <tr className="bg-slate-900/60 font-medium">
+                                        <td colSpan={6} className="px-2 py-2 text-right text-slate-400">Totals:</td>
+                                        <td className="px-1 py-2 text-right text-white font-bold">
+                                            {formatCurrency((requisition.items || []).reduce((sum, item) => sum + (item.actualCost || 0), 0))}
                                         </td>
+                                        <td className="px-1 py-2 text-right text-emerald-400">{formatCurrency(totalVat)}</td>
+                                        <td className="px-1 py-2 text-right text-amber-400">{formatCurrency(totalEwt)}</td>
+                                    </tr>
+                                    {/* Additional Expenses Section in read-only mode */}
+                                    {items.filter((exp: any) => exp.isAdditionalExpense === true && (exp.amount > 0 || exp.vendorName)).length > 0 && (
+                                        <>
+                                            <tr className="bg-slate-800/50">
+                                                <td colSpan={9} className="px-2 py-2 text-sm font-semibold text-yellow-400 uppercase tracking-wider">
+                                                    Additional Expenses
+                                                </td>
+                                            </tr>
+                                            {items
+                                                .filter((exp: any) => exp.isAdditionalExpense === true && (exp.amount > 0 || exp.vendorName))
+                                                .map((expense, index) => (
+                                                    <tr key={expense.id || `add-${index}`} className="hover:bg-slate-800/30">
+                                                        <td className="px-2 py-2 text-slate-300" colSpan={2}>{expense.date || '-'}</td>
+                                                        <td className="px-1 py-2 text-slate-200">{expense.vendorName || '-'}</td>
+                                                        <td className="px-1 py-2 text-slate-400 text-[10px]">{expense.tin || '-'}</td>
+                                                        <td className="px-1 py-2 text-slate-300">{expense.orNo || '-'}</td>
+                                                        <td className="px-1 py-2 text-slate-300">{expense.description || expense.coa || '-'}</td>
+                                                        <td className="px-1 py-2 text-right text-yellow-400 font-medium">{formatCurrency(expense.amount || 0)}</td>
+                                                        <td className="px-1 py-2 text-right text-emerald-400">{expense.vat ? formatCurrency(expense.vat) : '-'}</td>
+                                                        <td className="px-1 py-2 text-right text-amber-400">{expense.ewt ? formatCurrency(expense.ewt) : '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            <tr className="bg-slate-900/60 font-medium">
+                                                <td colSpan={6} className="px-2 py-2 text-right text-slate-400">Additional Expenses Total:</td>
+                                                <td className="px-1 py-2 text-right text-yellow-400 font-bold">{formatCurrency(totalAdditionalExpenses)}</td>
+                                                <td colSpan={2}></td>
+                                            </tr>
+                                        </>
                                     )}
-                                </tr>
-                            ))}
-                            {/* Totals Row */}
-                            <tr className="bg-slate-900/60 font-medium">
-                                <td colSpan={7} className="px-2 py-2 text-right text-slate-400">Totals:</td>
-                                <td className="px-1 py-2 text-right text-emerald-400">{formatCurrency(totalVat)}</td>
-                                <td className="px-1 py-2 text-right text-amber-400">{formatCurrency(totalEwt)}</td>
-                                <td className="px-1 py-2 text-right text-white font-bold">{formatCurrency(totalActual)}</td>
-                                {!readOnly && <td></td>}
-                            </tr>
+                                </>
+                            ) : (
+                                /* Edit mode */
+                                <>
+                                    {items
+                                        .filter(item => item.amount > 0 || item.vendorName || !readOnly)
+                                        .map((item, index) => (
+                                            <tr key={item.id} className="hover:bg-slate-800/30">
+                                                {/* Date */}
+                                                <td className="px-2 py-2">
+                                                    {readOnly ? (
+                                                        <span className="text-slate-200">{item.date}</span>
+                                                    ) : (
+                                                        <input
+                                                            type="date"
+                                                            value={item.date}
+                                                            onChange={(e) => updateItem(index, 'date', e.target.value)}
+                                                            className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none text-xs"
+                                                        />
+                                                    )}
+                                                </td>
+                                                {/* Payee/Vendor */}
+                                                <td className="px-1 py-2">
+                                                    {readOnly ? (
+                                                        <span className="text-slate-200 whitespace-normal break-words">{item.vendorName || '-'}</span>
+                                                    ) : (
+                                                        <select
+                                                            value={item.vendorId}
+                                                            onChange={(e) => handleVendorChange(index, e.target.value)}
+                                                            className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-[10px]"
+                                                        >
+                                                            <option value="">Select...</option>
+                                                            {suppliers.map(s => (
+                                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                                            ))}
+                                                        </select>
+                                                    )}
+                                                </td>
+                                                {/* TIN (auto-filled) */}
+                                                <td className="px-1 py-2">
+                                                    <span className="text-slate-400 text-[10px] whitespace-normal break-words">{item.tin || '-'}</span>
+                                                </td>
+                                                {/* OR No. */}
+                                                <td className="px-1 py-2">
+                                                    {readOnly ? (
+                                                        <span className="text-slate-200 whitespace-normal break-words">{item.orNo || '-'}</span>
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            placeholder="OR#"
+                                                            value={item.orNo}
+                                                            onChange={(e) => updateItem(index, 'orNo', e.target.value)}
+                                                            className="w-full px-1 py-1 bg-slate-900 border border-red-500/50 rounded text-slate-200 focus:ring-1 focus:ring-red-500 focus:outline-none text-xs"
+                                                        />
+                                                    )}
+                                                </td>
+                                                {/* Address (auto-filled) */}
+                                                <td className="px-1 py-2">
+                                                    <span className="text-slate-400 text-[10px] whitespace-normal break-words block max-w-[100px]" title={item.address}>
+                                                        {item.address || '-'}
+                                                    </span>
+                                                </td>
+                                                {/* COA/Account */}
+                                                <td className="px-1 py-2">
+                                                    {readOnly ? (
+                                                        <span className="text-slate-200 whitespace-normal break-words">{item.coa || '-'}</span>
+                                                    ) : (
+                                                        <select
+                                                            value={item.coa}
+                                                            onChange={(e) => updateItem(index, 'coa', e.target.value)}
+                                                            className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-[10px]"
+                                                        >
+                                                            <option value="">Select COA...</option>
+                                                            {coaOptions.map((coa: string) => (
+                                                                <option key={coa} value={coa}>{coa}</option>
+                                                            ))}
+                                                        </select>
+                                                    )}
+                                                </td>
+                                                {/* Description */}
+                                                <td className="px-1 py-2">
+                                                    {readOnly ? (
+                                                        <span className="text-slate-200 whitespace-normal break-words">{item.description || '-'}</span>
+                                                    ) : (
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Description"
+                                                            value={item.description}
+                                                            onChange={(e) => updateItem(index, 'description', e.target.value)}
+                                                            className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-xs"
+                                                        />
+                                                    )}
+                                                </td>
+                                                {/* VAT */}
+                                                <td className="px-1 py-2">
+                                                    {readOnly ? (
+                                                        <span className="text-slate-200 text-right block">{formatCurrency(item.vat)}</span>
+                                                    ) : (
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={item.vat}
+                                                            onChange={(e) => updateItem(index, 'vat', parseFloat(e.target.value) || 0)}
+                                                            className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-right text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none text-xs"
+                                                        />
+                                                    )}
+                                                </td>
+                                                {/* EWT */}
+                                                <td className="px-1 py-2">
+                                                    {readOnly ? (
+                                                        <span className="text-slate-200 text-right block">{formatCurrency(item.ewt)}</span>
+                                                    ) : (
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={item.ewt}
+                                                            onChange={(e) => updateItem(index, 'ewt', parseFloat(e.target.value) || 0)}
+                                                            className="w-full px-1 py-1 bg-slate-900 border border-slate-600 rounded text-right text-white focus:ring-1 focus:ring-emerald-500 focus:outline-none text-xs"
+                                                        />
+                                                    )}
+                                                </td>
+                                                {/* Amount */}
+                                                <td className="px-1 py-2">
+                                                    {readOnly ? (
+                                                        <span className="text-white font-medium text-right block">{formatCurrency(item.amount)}</span>
+                                                    ) : (
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={item.amount}
+                                                            onChange={(e) => updateItem(index, 'amount', parseFloat(e.target.value) || 0)}
+                                                            className="w-full px-1 py-1 bg-slate-900 border border-red-500/50 rounded text-right text-white font-medium focus:ring-1 focus:ring-red-500 focus:outline-none text-xs"
+                                                        />
+                                                    )}
+                                                </td>
+                                                {/* Business Unit */}
+                                                <td className="px-1 py-2">
+                                                    {readOnly ? (
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-slate-200 text-xs whitespace-normal break-words">{item.buName || '-'}</span>
+                                                            {item.buName && isCorpBu(item.buName) && (
+                                                                <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-1">
+                                                            <select
+                                                                value={item.buId || ''}
+                                                                onChange={(e) => handleBuChange(index, e.target.value)}
+                                                                className="flex-1 px-1 py-1 bg-slate-900 border border-slate-600 rounded text-slate-200 focus:ring-1 focus:ring-emerald-500 focus:outline-none text-[10px]"
+                                                            >
+                                                                <option value="">Select BU...</option>
+                                                                {businesses.map(b => (
+                                                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                                                ))}
+                                                            </select>
+                                                            {item.buName && isCorpBu(item.buName) && (
+                                                                <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium shrink-0">SHARE</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                {/* Delete */}
+                                                {!readOnly && (
+                                                    <td className="px-1 py-2 text-center">
+                                                        <button
+                                                            onClick={() => deleteRow(index)}
+                                                            disabled={items.length <= 1}
+                                                            className="text-red-400 hover:text-red-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))}
+                                    {/* Totals Row */}
+                                    <tr className="bg-slate-900/60 font-medium">
+                                        <td colSpan={7} className="px-2 py-2 text-right text-slate-400">Totals:</td>
+                                        <td className="px-1 py-2 text-right text-emerald-400">{formatCurrency(totalVat)}</td>
+                                        <td className="px-1 py-2 text-right text-amber-400">{formatCurrency(totalEwt)}</td>
+                                        <td className="px-1 py-2 text-right text-white font-bold">{formatCurrency(totalActual)}</td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                </>
+                            )}
                         </tbody>
                     </table>
                 </div>
 
                 {/* Mobile Card View - Visible only on mobile */}
                 <div className="md:hidden space-y-3">
-                    {items.map((item, index) => (
-                        <div key={item.id} className="bg-slate-800/50 rounded-lg border border-slate-700 p-4 space-y-3">
-                            <div className="flex justify-between items-start">
-                                <div className="flex-1">
-                                    <p className="text-xs text-slate-400">Date</p>
-                                    <p className="text-sm text-white">{item.date || '-'}</p>
+                    {items
+                        .filter(item => !readOnly || item.amount > 0 || item.vendorName)
+                        .map((item, index) => (
+                            <div key={item.id} className="bg-slate-800/50 rounded-lg border border-slate-700 p-4 space-y-3">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                        <p className="text-xs text-slate-400">Date</p>
+                                        <p className="text-sm text-white">{item.date || '-'}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-xs text-slate-400">Amount</p>
+                                        <p className="text-lg font-bold text-white">{formatCurrency(item.amount)}</p>
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <p className="text-xs text-slate-400">Amount</p>
-                                    <p className="text-lg font-bold text-white">{formatCurrency(item.amount)}</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <p className="text-xs text-slate-400">Payee/Vendor</p>
+                                        <p className="text-sm text-slate-200 whitespace-normal break-words">{item.vendorName || '-'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-slate-400">OR No.</p>
+                                        <p className="text-sm text-slate-200">{item.orNo || '-'}</p>
+                                    </div>
                                 </div>
+                                <div>
+                                    <p className="text-xs text-slate-400">Description</p>
+                                    <p className="text-sm text-slate-200 whitespace-normal break-words">{item.description || '-'}</p>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-center bg-slate-900/50 rounded p-2">
+                                    <div>
+                                        <p className="text-[10px] text-slate-500">VAT</p>
+                                        <p className="text-xs text-emerald-400">{formatCurrency(item.vat)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-500">EWT</p>
+                                        <p className="text-xs text-amber-400">{formatCurrency(item.ewt)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] text-slate-500">BU</p>
+                                        <p className="text-xs text-purple-400 whitespace-normal break-words">{item.buName || '-'}</p>
+                                    </div>
+                                </div>
+                                {!readOnly && (
+                                    <button
+                                        onClick={() => deleteRow(index)}
+                                        disabled={items.length <= 1}
+                                        className="w-full py-2 text-red-400 hover:text-red-300 disabled:opacity-30 flex items-center justify-center gap-1 border border-red-900/30 rounded"
+                                    >
+                                        <Trash2 size={14} /> Remove
+                                    </button>
+                                )}
                             </div>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <p className="text-xs text-slate-400">Payee/Vendor</p>
-                                    <p className="text-sm text-slate-200 whitespace-normal break-words">{item.vendorName || '-'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-slate-400">OR No.</p>
-                                    <p className="text-sm text-slate-200">{item.orNo || '-'}</p>
-                                </div>
-                            </div>
-                            <div>
-                                <p className="text-xs text-slate-400">Description</p>
-                                <p className="text-sm text-slate-200 whitespace-normal break-words">{item.description || '-'}</p>
-                            </div>
-                            <div className="grid grid-cols-3 gap-2 text-center bg-slate-900/50 rounded p-2">
-                                <div>
-                                    <p className="text-[10px] text-slate-500">VAT</p>
-                                    <p className="text-xs text-emerald-400">{formatCurrency(item.vat)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] text-slate-500">EWT</p>
-                                    <p className="text-xs text-amber-400">{formatCurrency(item.ewt)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] text-slate-500">BU</p>
-                                    <p className="text-xs text-purple-400 whitespace-normal break-words">{item.buName || '-'}</p>
-                                </div>
-                            </div>
-                            {!readOnly && (
-                                <button
-                                    onClick={() => deleteRow(index)}
-                                    disabled={items.length <= 1}
-                                    className="w-full py-2 text-red-400 hover:text-red-300 disabled:opacity-30 flex items-center justify-center gap-1 border border-red-900/30 rounded"
-                                >
-                                    <Trash2 size={14} /> Remove
-                                </button>
-                            )}
-                        </div>
-                    ))}
+                        ))}
                     {/* Mobile Totals */}
                     <div className="bg-slate-900/60 rounded-lg p-4 border border-slate-600">
                         <div className="flex justify-between items-center">
@@ -609,6 +704,12 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                         <span className="text-slate-400">Total EWT</span>
                         <span className="text-amber-400">{formatCurrency(totalEwt)}</span>
                     </div>
+                    {totalAdditionalExpenses > 0 && (
+                        <div className="flex justify-between text-sm">
+                            <span className="text-yellow-400">Additional Expenses</span>
+                            <span className="text-yellow-400 font-medium">{formatCurrency(totalAdditionalExpenses)}</span>
+                        </div>
+                    )}
                     <div className="border-t border-slate-600 my-2" />
                     <div className="flex justify-between items-center">
                         {variance >= 0 ? (
@@ -631,24 +732,26 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
             </div>
 
             {/* Submit Button */}
-            {!readOnly && (
-                <button
-                    onClick={handleSubmit}
-                    disabled={isLoading}
-                    className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                    {isLoading ? (
-                        <>
-                            <span className="animate-spin">⏳</span> Submitting...
-                        </>
-                    ) : (
-                        <>
-                            <CheckCircle size={18} /> Submit Liquidation
-                        </>
-                    )}
-                </button>
-            )}
-        </div>
+            {
+                !readOnly && (
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isLoading}
+                        className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {isLoading ? (
+                            <>
+                                <span className="animate-spin">⏳</span> Submitting...
+                            </>
+                        ) : (
+                            <>
+                                <CheckCircle size={18} /> Submit Liquidation
+                            </>
+                        )}
+                    </button>
+                )
+            }
+        </div >
     );
 };
 

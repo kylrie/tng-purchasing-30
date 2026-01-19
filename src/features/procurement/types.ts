@@ -147,6 +147,7 @@ export interface Business {
 
 export interface User {
   id: string;
+  employeeId?: string; // Human-readable ID (e.g., "JDOE-001") - generated from name
   name: string;
   role: RoleType; // Changed from UserRole enum to RoleType for dynamic roles
   permissionLevel?: number; // 1-5, higher is more priviledge
@@ -231,6 +232,7 @@ export interface LiquidationExpense {
   ewt?: number;               // EWT amount
   buId?: string;              // Business Unit ID
   buName?: string;            // Business Unit Name
+  isAdditionalExpense?: boolean; // True if this is an added row (reimbursable to employee)
 }
 
 export interface LiquidationDetails {

@@ -2,6 +2,7 @@ import React from 'react';
 import type { User } from '../../../shared/types/firebase.types';
 import Card from '../../../shared/components/Card';
 import { Check, X } from 'lucide-react';
+import { getAvatarWithFallback } from '../../../shared/utils/avatarUtils';
 
 interface PendingApprovalsViewProps {
   pendingUsers: User[];
@@ -25,7 +26,7 @@ export const PendingApprovalsView: React.FC<PendingApprovalsViewProps> = ({ pend
               {pendingUsers.map((user) => (
                 <div key={user.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
-                    <img src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=random`} alt={user.name} className="w-12 h-12 rounded-full border-2 border-slate-600" />
+                    <img src={getAvatarWithFallback(user.avatar, user.name)} alt={user.name} className="w-12 h-12 rounded-full border-2 border-slate-600" />
                     <div>
                       <h3 className="font-semibold text-white">{user.name}</h3>
                       <p className="text-sm text-slate-400">{user.email}</p>

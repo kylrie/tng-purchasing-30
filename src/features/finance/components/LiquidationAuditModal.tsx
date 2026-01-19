@@ -143,7 +143,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                             </div>
                             <div className="space-y-1">
                                 <span className="text-slate-500 block">Filed By</span>
-                                <span className="text-white font-medium">{liquidation.filedBy}</span>
+                                <span className="text-white font-medium">{liquidation.submittedByName || requisition.requesterName || liquidation.filedBy}</span>
                             </div>
                             <div className="space-y-1">
                                 <span className="text-slate-500 block">Date Filed</span>
@@ -170,133 +170,107 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                     </div>
 
                     {/* Financial Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <FinancialCard
-                            label="PRF Budget"
-                            amount={prfTotal}
-                            colorClass="bg-blue-900/20"
-                            borderClass="border-blue-700/30"
-                            textClass="text-blue-300"
-                        />
-                        <FinancialCard
-                            label="Actual Expenses"
-                            amount={actualTotal}
-                            colorClass="bg-purple-900/20"
-                            borderClass="border-purple-700/30"
-                            textClass="text-purple-300"
-                        />
-                        <FinancialCard
-                            label={isRefund ? 'To Refund (Company)' : 'To Reimburse (Employee)'}
-                            amount={Math.abs(difference)}
-                            colorClass={isRefund ? 'bg-green-900/20' : 'bg-red-900/20'}
-                            borderClass={isRefund ? 'border-green-700/30' : 'border-red-700/30'}
-                            textClass={isRefund ? 'text-green-300' : 'text-red-300'}
-                        />
-                    </div>
+                    {(() => {
+                        // Calculate additional expenses (reimbursable to employee)
+                        const additionalExpenses = (liquidation.expenses || [])
+                            .filter((exp: LiquidationExpense) => exp.isAdditionalExpense)
+                            .reduce((sum: number, exp: LiquidationExpense) => sum + (exp.amount || 0), 0);
 
-                    {/* Items Table */}
-                    <div>
-                        <h3 className="text-lg font-semibold text-white mb-3">Itemized Costs</h3>
-                        <div className="border border-slate-700 rounded-lg overflow-hidden bg-slate-900/30">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
-                                        <tr>
-                                            <th className="px-4 py-3 text-left font-semibold text-slate-400">Item</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-slate-400">Qty</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-slate-400">Budget</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-slate-400">Actual</th>
-                                            <th className="px-4 py-3 text-right font-semibold text-slate-400">Variance</th>
-                                            <th className="px-4 py-3 text-center font-semibold text-slate-400">Receipt</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-700">
-                                        {(requisition.items || []).map((item, index) => {
-                                            const qty = item.quantity || 0;
-                                            const budgeted = (item.price || 0) * qty;
-                                            // actualCost is already the total for this item (not per-unit)
-                                            const actual = item.actualCost || 0;
-                                            const variance = budgeted - actual;
-                                            const isPositiveVariance = variance >= 0;
-
-                                            return (
-                                                <tr key={item.itemId || index} className="hover:bg-slate-800/50 transition-colors">
-                                                    <td className="px-4 py-3 font-medium text-slate-200">{item.name}</td>
-                                                    <td className="px-4 py-3 text-right text-slate-400">{qty} {item.uom}</td>
-                                                    <td className="px-4 py-3 text-right text-slate-300">₱{budgeted.toLocaleString()}</td>
-                                                    <td className="px-4 py-3 text-right text-slate-300">₱{actual.toLocaleString()}</td>
-                                                    <td className={`px-4 py-3 text-right font-mono font-medium ${isPositiveVariance ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {isPositiveVariance ? '+' : ''}{variance.toLocaleString()}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-center">
-                                                        {item.receiptImageUrl ? (
-                                                            <a
-                                                                href={item.receiptImageUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="text-blue-400 hover:text-blue-300 text-xs font-medium hover:underline"
-                                                            >
-                                                                View
-                                                            </a>
-                                                        ) : (
-                                                            <span className="text-slate-600 text-xs italic">None</span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
+                        return (
+                            <div className={`grid grid-cols-1 gap-4 ${additionalExpenses > 0 ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+                                <FinancialCard
+                                    label="PRF Budget"
+                                    amount={prfTotal}
+                                    colorClass="bg-blue-900/20"
+                                    borderClass="border-blue-700/30"
+                                    textClass="text-blue-300"
+                                />
+                                <FinancialCard
+                                    label="Actual Expenses"
+                                    amount={actualTotal}
+                                    colorClass="bg-purple-900/20"
+                                    borderClass="border-purple-700/30"
+                                    textClass="text-purple-300"
+                                />
+                                <FinancialCard
+                                    label={isRefund ? 'To Refund (Company)' : 'To Reimburse (Employee)'}
+                                    amount={Math.abs(difference)}
+                                    colorClass={isRefund ? 'bg-green-900/20' : 'bg-red-900/20'}
+                                    borderClass={isRefund ? 'border-green-700/30' : 'border-red-700/30'}
+                                    textClass={isRefund ? 'text-green-300' : 'text-red-300'}
+                                />
+                                {additionalExpenses > 0 && (
+                                    <FinancialCard
+                                        label="Additional Expenses"
+                                        amount={additionalExpenses}
+                                        colorClass="bg-amber-900/20"
+                                        borderClass="border-amber-700/30"
+                                        textClass="text-amber-300"
+                                    />
+                                )}
                             </div>
-                        </div>
-                    </div>
+                        );
+                    })()}
 
-                    {/* Expense Breakdown - Shows submitted expense details */}
-                    {liquidation.expenses && liquidation.expenses.length > 0 && (
+                    {/* Itemized Costs - Shows PRF items with budget vs actual + expense details */}
+                    {requisition.items && requisition.items.length > 0 && (
                         <div>
-                            <h3 className="text-lg font-semibold text-white mb-3">Expense Breakdown</h3>
+                            <h3 className="text-lg font-semibold text-white mb-3">Itemized Costs</h3>
                             <div className="border border-slate-700 rounded-lg overflow-hidden bg-slate-900/30">
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
-                                        <thead className="bg-slate-900/80 border-b border-slate-700">
+                                        <thead className="bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
                                             <tr>
-                                                <th className="px-3 py-2 text-left font-semibold text-slate-400">Date</th>
+                                                <th className="px-3 py-2 text-left font-semibold text-slate-400">Item</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-slate-400">Qty</th>
                                                 <th className="px-3 py-2 text-left font-semibold text-slate-400">Supplier</th>
                                                 <th className="px-3 py-2 text-left font-semibold text-slate-400">TIN</th>
                                                 <th className="px-3 py-2 text-left font-semibold text-slate-400">OR No.</th>
                                                 <th className="px-3 py-2 text-left font-semibold text-slate-400">Description</th>
-                                                <th className="px-3 py-2 text-right font-semibold text-slate-400">Amount</th>
+                                                <th className="px-3 py-2 text-right font-semibold text-slate-400">Actual Cost</th>
                                                 <th className="px-3 py-2 text-right font-semibold text-slate-400">VAT</th>
                                                 <th className="px-3 py-2 text-right font-semibold text-slate-400">EWT</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-700">
-                                            {liquidation.expenses.map((exp: LiquidationExpense, index: number) => (
-                                                <tr key={exp.id || index} className="hover:bg-slate-800/50 transition-colors">
-                                                    <td className="px-3 py-2 text-slate-300">
-                                                        {exp.date ? new Date(exp.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
-                                                    </td>
-                                                    <td className="px-3 py-2 text-slate-200">{exp.vendorName || '-'}</td>
-                                                    <td className="px-3 py-2 text-slate-400 font-mono text-xs">{exp.tin || '-'}</td>
-                                                    <td className="px-3 py-2 text-slate-300">{exp.orNo || '-'}</td>
-                                                    <td className="px-3 py-2 text-slate-300">{exp.description || exp.coaName || '-'}</td>
-                                                    <td className="px-3 py-2 text-right text-slate-200 font-medium">₱{(exp.amount || 0).toLocaleString()}</td>
-                                                    <td className="px-3 py-2 text-right text-slate-400">{exp.vat ? `₱${exp.vat.toLocaleString()}` : '-'}</td>
-                                                    <td className="px-3 py-2 text-right text-slate-400">{exp.ewt ? `₱${exp.ewt.toLocaleString()}` : '-'}</td>
-                                                </tr>
-                                            ))}
+                                            {requisition.items.map((item, index) => {
+                                                const qty = item.quantity || 0;
+                                                // Get corresponding expense entry (non-additional expenses at the same index)
+                                                const regularExpenses = (liquidation.expenses || [])
+                                                    .filter((exp: LiquidationExpense) => exp.isAdditionalExpense !== true);
+                                                const expense = regularExpenses[index] as LiquidationExpense | undefined;
+
+                                                return (
+                                                    <tr key={item.itemId || index} className="hover:bg-slate-800/50 transition-colors">
+                                                        <td className="px-3 py-2 font-medium text-slate-200">{item.name}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-400">{qty} {item.uom}</td>
+                                                        <td className="px-3 py-2 text-slate-200">{expense?.vendorName || '-'}</td>
+                                                        <td className="px-3 py-2 text-slate-400 font-mono text-xs">{expense?.tin || '-'}</td>
+                                                        <td className="px-3 py-2 text-slate-300">{expense?.orNo || '-'}</td>
+                                                        <td className="px-3 py-2 text-slate-300">{expense?.description || expense?.coaName || '-'}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-200 font-medium">₱{(item.actualCost || 0).toLocaleString()}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-400">{expense?.vat ? `₱${expense.vat.toLocaleString()}` : '-'}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-400">{expense?.ewt ? `₱${expense.ewt.toLocaleString()}` : '-'}</td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                         <tfoot className="bg-slate-900/60 border-t border-slate-600">
                                             <tr>
-                                                <td colSpan={5} className="px-3 py-2 text-right font-semibold text-slate-400">Totals</td>
+                                                <td colSpan={6} className="px-3 py-2 text-right font-semibold text-slate-400">Totals</td>
                                                 <td className="px-3 py-2 text-right text-white font-bold">
-                                                    ₱{liquidation.expenses.reduce((sum: number, e: LiquidationExpense) => sum + (e.amount || 0), 0).toLocaleString()}
+                                                    ₱{(requisition.items || [])
+                                                        .reduce((sum, item) => sum + (item.actualCost || 0), 0).toLocaleString()}
                                                 </td>
                                                 <td className="px-3 py-2 text-right text-slate-300">
-                                                    ₱{liquidation.expenses.reduce((sum: number, e: LiquidationExpense) => sum + (e.vat || 0), 0).toLocaleString()}
+                                                    ₱{(liquidation.expenses || [])
+                                                        .filter((exp: LiquidationExpense) => exp.isAdditionalExpense !== true)
+                                                        .reduce((sum: number, e: LiquidationExpense) => sum + (e.vat || 0), 0).toLocaleString()}
                                                 </td>
                                                 <td className="px-3 py-2 text-right text-slate-300">
-                                                    ₱{liquidation.expenses.reduce((sum: number, e: LiquidationExpense) => sum + (e.ewt || 0), 0).toLocaleString()}
+                                                    ₱{(liquidation.expenses || [])
+                                                        .filter((exp: LiquidationExpense) => exp.isAdditionalExpense !== true)
+                                                        .reduce((sum: number, e: LiquidationExpense) => sum + (e.ewt || 0), 0).toLocaleString()}
                                                 </td>
                                             </tr>
                                         </tfoot>
@@ -305,6 +279,78 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
                             </div>
                         </div>
                     )}
+
+                    {/* Additional Expenses - Only show if there are BOTH regular expenses AND additional expenses */}
+                    {(() => {
+                        const allExpenses = (liquidation.expenses || [])
+                            .filter((exp: LiquidationExpense) => exp.amount > 0 || exp.vendorName);
+
+                        // Check if there are regular expenses (not additional)
+                        const regularExpenses = allExpenses.filter((exp: LiquidationExpense) => exp.isAdditionalExpense !== true);
+
+                        // Only show Additional Expenses section if there ARE regular expenses
+                        // This prevents duplicate display when using backwards compat fallback
+                        if (regularExpenses.length === 0) return null;
+
+                        const additionalExpenseRows = allExpenses
+                            .filter((exp: LiquidationExpense) => exp.isAdditionalExpense === true);
+
+                        if (additionalExpenseRows.length === 0) return null;
+
+                        return (
+                            <div>
+                                <h3 className="text-lg font-semibold text-white mb-3">Additional Expenses</h3>
+                                <div className="border border-slate-700 rounded-lg overflow-hidden bg-slate-900/30">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-slate-900/80 border-b border-slate-700">
+                                                <tr>
+                                                    <th className="px-3 py-2 text-left font-semibold text-slate-400">Date</th>
+                                                    <th className="px-3 py-2 text-left font-semibold text-slate-400">Supplier</th>
+                                                    <th className="px-3 py-2 text-left font-semibold text-slate-400">TIN</th>
+                                                    <th className="px-3 py-2 text-left font-semibold text-slate-400">OR No.</th>
+                                                    <th className="px-3 py-2 text-left font-semibold text-slate-400">Description</th>
+                                                    <th className="px-3 py-2 text-right font-semibold text-slate-400">Amount</th>
+                                                    <th className="px-3 py-2 text-right font-semibold text-slate-400">VAT</th>
+                                                    <th className="px-3 py-2 text-right font-semibold text-slate-400">EWT</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-slate-700">
+                                                {additionalExpenseRows.map((exp: LiquidationExpense, index: number) => (
+                                                    <tr key={exp.id || index} className="hover:bg-slate-800/50 transition-colors">
+                                                        <td className="px-3 py-2 text-slate-300">
+                                                            {exp.date ? new Date(exp.date).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }) : '-'}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-slate-200">{exp.vendorName || '-'}</td>
+                                                        <td className="px-3 py-2 text-slate-400 font-mono text-xs">{exp.tin || '-'}</td>
+                                                        <td className="px-3 py-2 text-slate-300">{exp.orNo || '-'}</td>
+                                                        <td className="px-3 py-2 text-slate-300">{exp.description || exp.coaName || '-'}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-200 font-medium">₱{(exp.amount || 0).toLocaleString()}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-400">{exp.vat ? `₱${exp.vat.toLocaleString()}` : '-'}</td>
+                                                        <td className="px-3 py-2 text-right text-slate-400">{exp.ewt ? `₱${exp.ewt.toLocaleString()}` : '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                            <tfoot className="bg-slate-900/60 border-t border-slate-600">
+                                                <tr>
+                                                    <td colSpan={5} className="px-3 py-2 text-right font-semibold text-slate-400">Totals</td>
+                                                    <td className="px-3 py-2 text-right text-white font-bold">
+                                                        ₱{additionalExpenseRows.reduce((sum: number, e: LiquidationExpense) => sum + (e.amount || 0), 0).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right text-slate-300">
+                                                        ₱{additionalExpenseRows.reduce((sum: number, e: LiquidationExpense) => sum + (e.vat || 0), 0).toLocaleString()}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-right text-slate-300">
+                                                        ₱{additionalExpenseRows.reduce((sum: number, e: LiquidationExpense) => sum + (e.ewt || 0), 0).toLocaleString()}
+                                                    </td>
+                                                </tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* Action Area */}
                     <div className="pt-4 border-t border-slate-700/50">

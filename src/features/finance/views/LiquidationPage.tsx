@@ -29,6 +29,7 @@ interface LiquidationExpenseRow {
     amount: number;
     buId: string;
     buName: string;
+    isAdditionalExpense?: boolean; // True if row was added (not from original PRF items)
 }
 
 // Helper: Format currency
@@ -46,7 +47,7 @@ const getTodayDate = (): string => {
 };
 
 // Helper: Create empty expense row
-const createEmptyExpense = (defaultBuId: string = '', defaultBuName: string = ''): LiquidationExpenseRow => ({
+const createEmptyExpense = (defaultBuId: string = '', defaultBuName: string = '', isAdditional: boolean = false): LiquidationExpenseRow => ({
     id: crypto.randomUUID(),
     date: getTodayDate(),
     supplierId: '',
@@ -62,6 +63,7 @@ const createEmptyExpense = (defaultBuId: string = '', defaultBuName: string = ''
     amount: 0,
     buId: defaultBuId,
     buName: defaultBuName,
+    isAdditionalExpense: isAdditional,
 });
 
 const LiquidationPage: React.FC = () => {
@@ -106,6 +108,7 @@ const LiquidationPage: React.FC = () => {
                 amount: exp.amount || 0,
                 buId: exp.buId || defaultBu.id,
                 buName: exp.buName || defaultBu.name,
+                isAdditionalExpense: exp.isAdditionalExpense || false,
             }));
         }
         // FIX: Create one expense entry per requisition item (not just one empty row)
@@ -204,9 +207,9 @@ const LiquidationPage: React.FC = () => {
         setExpenses(updated);
     };
 
-    // Add expense row
+    // Add expense row (marked as additional expense for reimbursement tracking)
     const addExpenseRow = () => {
-        setExpenses([...expenses, createEmptyExpense(defaultBu.id, defaultBu.name)]);
+        setExpenses([...expenses, createEmptyExpense(defaultBu.id, defaultBu.name, true)]);
     };
 
     // Delete expense row (only for additional rows beyond item count)
@@ -268,6 +271,7 @@ const LiquidationPage: React.FC = () => {
                         amount: exp.amount,
                         buId: exp.buId,
                         buName: exp.buName,
+                        isAdditionalExpense: exp.isAdditionalExpense || false,
                     })),
                 }
             };
@@ -334,6 +338,7 @@ const LiquidationPage: React.FC = () => {
                         amount: exp.amount,
                         buId: exp.buId,
                         buName: exp.buName,
+                        isAdditionalExpense: exp.isAdditionalExpense || false,
                     })),
                 }
             };
@@ -527,8 +532,8 @@ const LiquidationPage: React.FC = () => {
                                     <th className="px-2 py-2 text-left w-20">OR No.</th>
                                     <th className="px-2 py-2 text-left w-28">COA</th>
                                     <th className="px-2 py-2 text-left w-32">Description</th>
-                                    <th className="px-3 py-2 text-right w-40">VAT</th>
-                                    <th className="px-3 py-2 text-right w-40">EWT</th>
+                                    <th className="px-2 py-2 text-right w-28">VAT</th>
+                                    <th className="px-2 py-2 text-right w-28">EWT</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">
@@ -623,23 +628,23 @@ const LiquidationPage: React.FC = () => {
                                                 />
                                             </td>
                                             {/* VAT */}
-                                            <td className="px-3 py-2">
+                                            <td className="px-2 py-2">
                                                 <input
                                                     type="number"
                                                     value={exp?.vat || ''}
                                                     onChange={(e) => updateExpense(index, 'vat', parseFloat(e.target.value) || 0)}
-                                                    className="w-28 bg-slate-700 border-0 rounded px-3 py-2 text-sm text-right"
+                                                    className="w-full bg-slate-700 border-0 rounded px-2 py-1 text-xs text-right"
                                                     placeholder="0.00"
                                                     step="0.01"
                                                 />
                                             </td>
                                             {/* EWT */}
-                                            <td className="px-3 py-2">
+                                            <td className="px-2 py-2">
                                                 <input
                                                     type="number"
                                                     value={exp?.ewt || ''}
                                                     onChange={(e) => updateExpense(index, 'ewt', parseFloat(e.target.value) || 0)}
-                                                    className="w-28 bg-slate-700 border-0 rounded px-3 py-2 text-sm text-right"
+                                                    className="w-full bg-slate-700 border-0 rounded px-2 py-1 text-xs text-right"
                                                     placeholder="0.00"
                                                     step="0.01"
                                                 />
@@ -691,8 +696,8 @@ const LiquidationPage: React.FC = () => {
                                             <th className="px-2 py-2 text-left w-28">COA</th>
                                             <th className="px-2 py-2 text-left w-32">Description</th>
                                             <th className="px-2 py-2 text-right w-24">Amount</th>
-                                            <th className="px-3 py-2 text-right w-40">VAT</th>
-                                            <th className="px-3 py-2 text-right w-40">EWT</th>
+                                            <th className="px-2 py-2 text-right w-28">VAT</th>
+                                            <th className="px-2 py-2 text-right w-28">EWT</th>
                                             {!isReadOnly && <th className="px-2 py-2 text-center w-12">Action</th>}
                                         </tr>
                                     </thead>
@@ -789,29 +794,29 @@ const LiquidationPage: React.FC = () => {
                                                             />
                                                         )}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2">
                                                         {isReadOnly ? (
-                                                            <span className="text-sm text-cyan-400 text-right block">{formatCurrency(exp.vat || 0)}</span>
+                                                            <span className="text-xs text-cyan-400 text-right block">{formatCurrency(exp.vat || 0)}</span>
                                                         ) : (
                                                             <input
                                                                 type="number"
                                                                 value={exp.vat || ''}
                                                                 onChange={(e) => updateExpense(actualIndex, 'vat', parseFloat(e.target.value) || 0)}
-                                                                className="w-28 bg-slate-700 border-0 rounded px-3 py-2 text-sm text-right"
+                                                                className="w-full bg-slate-700 border-0 rounded px-2 py-1 text-xs text-right"
                                                                 placeholder="0.00"
                                                                 step="0.01"
                                                             />
                                                         )}
                                                     </td>
-                                                    <td className="px-3 py-2">
+                                                    <td className="px-2 py-2">
                                                         {isReadOnly ? (
-                                                            <span className="text-sm text-orange-400 text-right block">{formatCurrency(exp.ewt || 0)}</span>
+                                                            <span className="text-xs text-orange-400 text-right block">{formatCurrency(exp.ewt || 0)}</span>
                                                         ) : (
                                                             <input
                                                                 type="number"
                                                                 value={exp.ewt || ''}
                                                                 onChange={(e) => updateExpense(actualIndex, 'ewt', parseFloat(e.target.value) || 0)}
-                                                                className="w-28 bg-slate-700 border-0 rounded px-3 py-2 text-sm text-right"
+                                                                className="w-full bg-slate-700 border-0 rounded px-2 py-1 text-xs text-right"
                                                                 placeholder="0.00"
                                                                 step="0.01"
                                                             />

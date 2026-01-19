@@ -15,6 +15,7 @@ import { FirestoreService, Timestamp } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
 import type { FirestoreUser } from '../types/firebase.types';
 import type { UserRole, UserStatus } from '../../features/procurement/types';
+import { generateEmployeeId } from '../utils/employeeId';
 
 /**
  * Authentication Service
@@ -99,9 +100,13 @@ export class AuthService {
             // Create Firebase Auth user using the secondary app
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
 
+            // Generate human-readable employee ID from name
+            const employeeId = await generateEmployeeId(userData.name);
+
             const newDoc = {
                 email,
                 name: userData.name,
+                employeeId, // Add human-readable ID
                 role: userData.role,
                 businessId: userData.businessId,
                 avatar: userData.avatar || '',

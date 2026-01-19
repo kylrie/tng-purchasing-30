@@ -13,6 +13,7 @@ import { executeWorkflowAction } from '../services/workflowService';
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
 // FIX: Import URL validation utility
 import { isValidUrl } from '../../../shared/utils/validation';
+import { UI_CONSTANTS } from '../../../config/constants';
 
 interface BurfViewProps {
     currentUser: User;
@@ -276,7 +277,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
             // FIX L2: Replaced browser alert() with error state for better UX
             setSaveError("Failed to save requisition. Please try again.");
             // Clear error after 5 seconds
-            setTimeout(() => setSaveError(null), 5000);
+            setTimeout(() => setSaveError(null), UI_CONSTANTS.TOAST_DURATION);
         } finally {
             setIsSubmitting(false);
         }

@@ -6,6 +6,7 @@ import {
 import { useBusinesses } from '../hooks/useBusinesses';
 import { useAuth } from '../../../contexts/AuthContext';
 import { SettingsService, type AllocationRule, type ExpenseSharingSettings as ExpenseSharingSettingsType, type ExpenseAllocation } from '../../../shared/services/settings.service';
+import { UI_CONSTANTS } from '../../../config/constants';
 
 interface ExpenseSharingSettingsProps {
     className?: string;
@@ -197,7 +198,7 @@ const ExpenseSharingSettings: React.FC<ExpenseSharingSettingsProps> = ({ classNa
             await SettingsService.updateExpenseSharingRules(settings, currentUser?.id, currentUser?.name);
 
             setSuccess('Expense sharing rules saved successfully!');
-            setTimeout(() => setSuccess(null), 3000);
+            setTimeout(() => setSuccess(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
         } catch (err) {
             console.error('Error saving expense sharing rules:', err);
             setError('Failed to save expense sharing rules');

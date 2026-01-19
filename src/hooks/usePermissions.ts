@@ -2,7 +2,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermissionsContext } from '../contexts/PermissionsContext';
 import type { Permission } from '../config/permissions';
 import type { Requisition } from '../features/procurement/types';
-import { RequisitionStatus } from '../features/procurement/types';
+import { RequisitionStatus, isSuperAdmin } from '../features/procurement/types';
 
 export const usePermissions = () => {
   const { currentUser } = useAuth();
@@ -14,7 +14,7 @@ export const usePermissions = () => {
     }
 
     // SUPER_ADMIN always has all permissions (bypass Firestore sync issues)
-    if (currentUser.role === 'SUPER_ADMIN') {
+    if (isSuperAdmin(currentUser.role)) {
       return true;
     }
 

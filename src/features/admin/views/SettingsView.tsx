@@ -13,6 +13,7 @@ import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, C
 import { AuthService } from '../../../shared/services/auth.service';
 import { SettingsService, type PCFSettings, type ApproverAssignments, type FoodCostSettings } from '../../../shared/services/settings.service';
 import ExpenseSharingSettings from '../components/ExpenseSharingSettings';
+import TaxSettingsPanel from '../components/TaxSettingsPanel';
 
 interface SettingsViewProps {
     currentUser: User;
@@ -495,6 +496,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         <button onClick={() => setActiveTab('permissions')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'permissions' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Permissions Matrix</button>
                         <button onClick={() => setActiveTab('pcf')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'pcf' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>PCF Settings</button>
                         <button onClick={() => setActiveTab('expense-sharing')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'expense-sharing' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Expense Allocation</button>
+                        <button onClick={() => setActiveTab('tax-settings')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'tax-settings' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Tax Settings</button>
                     </>
                 )}
                 {/* Inventory Tab - Uses permission check (supports dynamic roles) */}
@@ -1574,6 +1576,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     activeTab === 'expense-sharing' && isAdmin && (
                         <div className={cardClass}>
                             <ExpenseSharingSettings />
+                        </div>
+                    )
+                }
+
+                {/* Tax Settings Tab */}
+                {
+                    activeTab === 'tax-settings' && isAdmin && (
+                        <div className={cardClass}>
+                            <TaxSettingsPanel
+                                currentUserId={currentUser.id}
+                                currentUserName={currentUser.name}
+                            />
                         </div>
                     )
                 }

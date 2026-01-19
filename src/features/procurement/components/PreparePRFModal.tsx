@@ -7,6 +7,7 @@ import SearchableDropdown from '../../../shared/components/SearchableDropdown';
 import EditableItemTable from './EditableItemTable';
 // FIX: Import URL sanitization utility for attachment links
 import { sanitizeAttachmentUrl } from '../../../shared/utils/validation';
+import { UI_CONSTANTS } from '../../../config/constants';
 
 interface PreparePRFModalProps {
     requisition: Requisition;
@@ -253,13 +254,13 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             onSubmit(draftRequisition);
             // FIX: Replace alert() with status message
             setStatusMessage({ type: 'success', text: '✅ Draft saved successfully! You can continue editing later.' });
-            setTimeout(() => setStatusMessage(null), 4000);
+            setTimeout(() => setStatusMessage(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
         } catch (error: unknown) {
             // FIX: Replace error: any with unknown and type-safe access
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error('Error saving draft:', error);
             setStatusMessage({ type: 'error', text: `Failed to save draft: ${errorMessage}` });
-            setTimeout(() => setStatusMessage(null), 5000);
+            setTimeout(() => setStatusMessage(null), UI_CONSTANTS.TOAST_DURATION);
         } finally {
             setIsSavingDraft(false);
         }
@@ -357,7 +358,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             // Show user-friendly message with actual error detail
             // FIX: Replace alert() with status message
             setStatusMessage({ type: 'error', text: `Failed to submit PRF: ${errObj.message}` });
-            setTimeout(() => setStatusMessage(null), 5000);
+            setTimeout(() => setStatusMessage(null), UI_CONSTANTS.TOAST_DURATION);
         } finally {
             setIsSubmitting(false);
         }

@@ -171,11 +171,34 @@ const DEFAULT_STORAGE_AREAS: StorageAreaSettings = {
 
 const STORAGE_AREAS_DOC = 'storage_areas';
 
+// =====================================================
+// TAX SETTINGS INTERFACE (Configurable VAT/EWT Defaults)
+// =====================================================
+export interface TaxSettings {
+    defaultVatPercentage: number;   // Default VAT rate (e.g., 12%)
+    defaultEwtPercentage: number;   // Default EWT rate (e.g., 2%)
+    vatOptions: number[];           // Available VAT percentages for dropdown
+    ewtOptions: number[];           // Available EWT percentages for dropdown
+    lastUpdated?: string;
+    updatedBy?: string;
+    updatedByName?: string;
+}
+
+const DEFAULT_TAX_SETTINGS: TaxSettings = {
+    defaultVatPercentage: 12,
+    defaultEwtPercentage: 2,
+    vatOptions: [0, 5, 12],
+    ewtOptions: [1, 2, 5, 10, 15],
+};
+
+const TAX_CONFIG_DOC = 'tax_config';
+
 
 // =====================================================
 // SETTINGS SERVICE
 // =====================================================
 export class SettingsService {
+
     /**
      * Get PCF settings (deadline day, etc.)
      * Returns defaults if not configured
@@ -484,6 +507,57 @@ export class SettingsService {
         await FirestoreService.setDocument(
             SETTINGS_COLLECTION,
             STORAGE_AREAS_DOC,
+            updatePayload
+        );
+    }
+
+    // =====================================================
+    // TAX SETTINGS METHODS
+    // =====================================================
+
+    /**
+     * Get tax settings (VAT/EWT defaults)
+     * Returns defaults if not configured
+     */
+    static async getTaxSettings(): Promise<TaxSettings> {
+        try {
+            const settings = await FirestoreService.getDocument<TaxSettings>(
+                SETTINGS_COLLECTION,
+                TAX_CONFIG_DOC
+            );
+
+            if (!settings) {
+                return { ...DEFAULT_TAX_SETTINGS };
+            }
+
+            return {
+                ...DEFAULT_TAX_SETTINGS,
+                ...settings,
+            };
+        } catch (error) {
+            console.error('[SettingsService] Error fetching tax settings:', error);
+            return { ...DEFAULT_TAX_SETTINGS };
+        }
+    }
+
+    /**
+     * Update tax settings
+     */
+    static async updateTaxSettings(
+        settings: Partial<TaxSettings>,
+        userId?: string,
+        userName?: string
+    ): Promise<void> {
+        const updatePayload: Partial<TaxSettings> = {
+            ...settings,
+            lastUpdated: new Date().toISOString(),
+            updatedBy: userId,
+            updatedByName: userName,
+        };
+
+        await FirestoreService.setDocument(
+            SETTINGS_COLLECTION,
+            TAX_CONFIG_DOC,
             updatePayload
         );
     }

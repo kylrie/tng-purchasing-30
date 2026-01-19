@@ -445,6 +445,54 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                     </table>
                                 </Card>
                             </div>
+
+                            {/* Additional Expenses Table - Show if liquidation has additional expenses */}
+                            {(() => {
+                                const additionalExpenses = (requisition.liquidationDetails?.expenses || [])
+                                    .filter((exp: any) => exp.isAdditionalExpense === true && (exp.amount > 0 || exp.vendorName));
+
+                                if (additionalExpenses.length === 0) return null;
+
+                                const totalAdditional = additionalExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
+
+                                return (
+                                    <div className="mt-6">
+                                        <h3 className="text-sm font-semibold text-yellow-400 mb-3 uppercase tracking-wider">
+                                            Additional Expenses ({additionalExpenses.length})
+                                        </h3>
+                                        <Card className="!p-0 overflow-hidden">
+                                            <table className="w-full text-sm">
+                                                <thead className="bg-slate-800/80 text-xs uppercase text-slate-400">
+                                                    <tr>
+                                                        <th className="px-4 py-3 text-left">Description</th>
+                                                        <th className="px-4 py-3 text-left">Supplier</th>
+                                                        <th className="px-4 py-3 text-right">Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-700">
+                                                    {additionalExpenses.map((exp: any, index: number) => (
+                                                        <tr key={exp.id || index} className="hover:bg-slate-800/40">
+                                                            <td className="px-4 py-3 text-slate-200">{exp.description || exp.coaName || '-'}</td>
+                                                            <td className="px-4 py-3 text-slate-400">{exp.vendorName || '-'}</td>
+                                                            <td className="px-4 py-3 text-right text-yellow-400 font-medium">
+                                                                {formatCurrency(exp.amount || 0)}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                                <tfoot className="bg-yellow-900/20 border-t border-yellow-600/30">
+                                                    <tr>
+                                                        <td colSpan={2} className="px-4 py-3 text-right text-yellow-400 font-semibold">Total Additional</td>
+                                                        <td className="px-4 py-3 text-right text-yellow-400 font-bold text-lg">
+                                                            {formatCurrency(totalAdditional)}
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+                                        </Card>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     )}
 

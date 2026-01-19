@@ -17,6 +17,37 @@ export const firebaseConfig = {
   databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "https://tng-systems.firebaseio.com"
 };
 
+/**
+ * FIX Phase 5: Validate Firebase environment configuration
+ * Logs warnings in production if critical env vars are missing
+ */
+const validateFirebaseConfig = () => {
+  const requiredVars = [
+    { key: 'VITE_FIREBASE_API_KEY', value: firebaseConfig.apiKey },
+    { key: 'VITE_FIREBASE_AUTH_DOMAIN', value: firebaseConfig.authDomain },
+    { key: 'VITE_FIREBASE_PROJECT_ID', value: firebaseConfig.projectId },
+    { key: 'VITE_FIREBASE_APP_ID', value: firebaseConfig.appId },
+  ];
+
+  const missingVars = requiredVars.filter(v => !v.value);
+
+  if (missingVars.length > 0) {
+    const missingKeys = missingVars.map(v => v.key).join(', ');
+
+    if (import.meta.env.PROD) {
+      // In production, log error-level warning
+      console.error(`🚨 CRITICAL: Missing Firebase environment variables: ${missingKeys}`);
+      console.error('🚨 The application may not function correctly. Please check your .env configuration.');
+    } else {
+      // In development, log warning
+      console.warn(`⚠️ Missing Firebase env vars: ${missingKeys}`);
+    }
+  }
+};
+
+// Validate config before initialization
+validateFirebaseConfig();
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 

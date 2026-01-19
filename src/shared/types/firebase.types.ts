@@ -12,6 +12,7 @@ export interface FirestoreDocument {
 export interface FirestoreUser extends FirestoreDocument {
   email: string;
   name: string;
+  employeeId?: string; // Human-readable ID (e.g., "JDOE-001")
   role: UserRole;
   businessId: string;
   businessUnitIds?: string[];
