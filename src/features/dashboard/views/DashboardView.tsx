@@ -68,6 +68,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         }
     }, [hasPermission]);
 
+    // PRF Modal is opened directly by setPreparePRFReq - no redirect needed
+
     // Determine if the user is an approver
     const isApprover = hasPermission('approval:manager:burf') ||
         hasPermission('approval:manager:prf') ||

@@ -207,10 +207,22 @@ export interface RequisitionItem {
   price: number; // Estimated in BURF, Actual in PRF
   remarks?: string; // Item specific justification
 
+  // Budget Integration - COA per item (Phase 1)
+  coaCode?: string; // Chart of Account code
+  coaName?: string; // Account name for display
+
   // Liquidation Data
   actualCost?: number;
   receiptRef?: string;
   receiptImageUrl?: string; // External link (Google Drive)
+}
+
+// Chart of Account for budget integration
+export interface ChartOfAccount {
+  code: string;
+  name: string;
+  type?: string;
+  category?: string;
 }
 
 // FIX: Extracted expense structure as standalone type for reuse
@@ -371,6 +383,12 @@ export interface Requisition {
   // BURF Processing - Track which items have been converted to PRFs
   convertedItemIds?: string[]; // IDs of items already converted to PRF (preserves original items array)
   batchCounter?: number; // Counter for generating batch PRF IDs
+
+  // Budget Integration
+  purchaseType?: 'EVENT' | 'PAR_STOCKING'; // Type of purchase for budget categorization
+  budgetStatus?: 'PENDING' | 'RESERVED' | 'COMMITTED' | 'RELEASED'; // Budget reservation status
+  reservedBudgetAmount?: number; // Amount reserved from budget
+  reservedBudgetId?: string; // Reference to budget reservation record
 
   // New Enhancements
   history?: RequisitionHistory[];

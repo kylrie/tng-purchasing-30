@@ -16,6 +16,8 @@ import FinanceView from './features/finance/views/FinanceView';
 import FinanceOverview from './features/finance/views/FinanceOverview';
 import LiquidationView from './features/finance/views/LiquidationView';
 import LiquidationPage from './features/finance/views/LiquidationPage';
+// Full-screen requisition pages
+import BURFPage from './pages/BURFPage';
 import PCFView from './features/finance/views/PCFView';
 import PCFApprovalView from './features/finance/views/PCFApprovalView';
 import SuppliersView from './features/inventory/views/SuppliersView';
@@ -28,6 +30,7 @@ import VarianceReportView from './features/inventory/views/VarianceReportView';
 import MenuDashboard from './features/menu/views/MenuDashboard';
 import ProductionRecipeView from './features/menu/views/ProductionRecipeView';
 import ChartOfAccountsView from './features/admin/views/ChartOfAccountsView';
+import { BudgetConfigPanel } from './features/finance/components/BudgetConfigPanel';
 import { SettingsView } from './features/admin/views/SettingsView';
 import ActivityLogView from './features/admin/views/ActivityLogView';
 import type { NotificationItem } from './shared/types';
@@ -204,6 +207,18 @@ function ProtectedApp() {
           </ProtectedRoute>
         } />
 
+        {/* Full-screen BURF Page Routes (modal-to-page refactor) */}
+        <Route path="/burf/new" element={
+          <ProtectedRoute permission="requisition:create:burf">
+            <BURFPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/burf/edit/:burfId" element={
+          <ProtectedRoute permission="requisition:edit:draft">
+            <BURFPage />
+          </ProtectedRoute>
+        } />
+
         <Route path="/prf" element={
           <ProtectedRoute permission="module:view:prf">
             <PrfView
@@ -358,6 +373,15 @@ function ProtectedApp() {
         <Route path="/chart-of-accounts" element={
           <ProtectedRoute permission="module:view:coa">
             <ChartOfAccountsView />
+          </ProtectedRoute>
+        } />
+
+        {/* Budget Configuration - FINANCE_HEAD or SUPER_ADMIN */}
+        <Route path="/budgets" element={
+          <ProtectedRoute permission="budget:manage">
+            <div className="p-8">
+              <BudgetConfigPanel businesses={businesses} />
+            </div>
           </ProtectedRoute>
         } />
 

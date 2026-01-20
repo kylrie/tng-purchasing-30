@@ -114,6 +114,9 @@ export const COLLECTIONS = {
   NOTIFICATIONS: 'notifications',
   SETTINGS: 'settings',
   CHART_OF_ACCOUNTS: 'chart_of_accounts',
+  BUDGETS: 'budgets',
+  BUDGET_RESERVATIONS: 'budgetReservations',
+  TRANSACTIONS: 'transactions',
 } as const;
 
 // Query constraints type

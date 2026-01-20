@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Check, Save, Link as LinkIcon, Search, AlertTriangle, Printer, Edit, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown, Paperclip, Loader2, ArrowRightCircle } from 'lucide-react';
 import type { Requisition, RequisitionItem } from '../types';
 import { RequisitionStatus, isSuperAdmin } from '../types';
@@ -39,6 +40,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
     businesses,
     uomOptions
 }) => {
+    const navigate = useNavigate();
     const [isCreating, setIsCreating] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
@@ -197,13 +199,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
     };
 
     const editRequisition = (req: Requisition) => {
-        setDescription(req.description);
-        setRemarks(req.remarks || '');
-        setDateNeeded(req.dateNeeded || '');
-        setAttachmentLink(req.externalLink || req.attachments?.[0] || '');
-        setNewItems(req.items);
-        setEditingId(req.id);
-        setIsCreating(true);
+        // Navigate to full-screen BURF edit page
+        navigate(`/burf/edit/${req.id}`);
     };
 
     const addItem = () => {
@@ -283,7 +280,24 @@ export const BurfView: React.FC<BurfViewProps> = ({
         }
     };
 
-    if (isCreating) {
+    // Redirect to full-screen BURFPage when creating/editing
+    // This replaces the old inline form rendering
+    React.useEffect(() => {
+        if (isCreating) {
+            if (editingId) {
+                navigate(`/burf/edit/${editingId}`);
+            } else {
+                navigate('/burf/new');
+            }
+            setIsCreating(false);
+            setEditingId(null);
+        }
+    }, [isCreating, editingId, navigate]);
+
+    // OLD INLINE FORM REMOVED - Now using full-screen BURFPage
+    // The following block was removed and replaced with the useEffect above
+    const _REMOVED_INLINE_FORM = false;
+    if (_REMOVED_INLINE_FORM) {
         return (
             <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 text-white">
                 <div className="flex items-center gap-4">
@@ -444,7 +458,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             )}
                         </select>
                     )}
-                    <button onClick={() => setIsCreating(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-purple-700 font-medium flex items-center gap-2">
+                    <button onClick={() => navigate('/burf/new')} className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-purple-700 font-medium flex items-center gap-2">
                         <Plus size={18} /> New Request
                     </button>
                 </div>

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Check, ArrowLeft, Loader2, Save, Paperclip, Plus } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Check, ArrowLeft, Loader2, Save, Paperclip, Plus, AlertTriangle } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails, User } from '../types';
 import { RequisitionStatus } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
@@ -8,6 +8,16 @@ import EditableItemTable from './EditableItemTable';
 // FIX: Import URL sanitization utility for attachment links
 import { sanitizeAttachmentUrl } from '../../../shared/utils/validation';
 import { UI_CONSTANTS } from '../../../config/constants';
+import { BudgetService } from '../../finance/services/budget.service';
+
+// Type for budgeted COA options
+interface BudgetedCOA {
+    code: string;
+    name: string;
+    available: number;
+    totalLimit: number;
+    percentage: number;
+}
 
 interface PreparePRFModalProps {
     requisition: Requisition;
@@ -80,6 +90,35 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     // FIX: Replace alert() with inline status message
     const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+    // Budget Integration: COA selection and validation
+    const [budgetedCOAs, setBudgetedCOAs] = useState<BudgetedCOA[]>([]);
+    const [loadingCOAs, setLoadingCOAs] = useState(false);
+    // Single COA for the entire PRF (not per-item)
+    const [selectedCOACode, setSelectedCOACode] = useState<string>('');
+
+    // Fetch budgeted COAs on mount
+    useEffect(() => {
+        const fetchCOAs = async () => {
+            if (!requisition.businessId) return;
+            setLoadingCOAs(true);
+            try {
+                const coas = await BudgetService.getBudgetedCOAs(requisition.businessId);
+                setBudgetedCOAs(coas);
+            } catch (error) {
+                console.error('Error fetching budgeted COAs:', error);
+            } finally {
+                setLoadingCOAs(false);
+            }
+        };
+        fetchCOAs();
+    }, [requisition.businessId]);
+
+    // Get selected COA details for budget check (defined before budgetExceeded, but used with totalAmount which comes later)
+    const selectedCOA = useMemo(() =>
+        budgetedCOAs.find(c => c.code === selectedCOACode),
+        [budgetedCOAs, selectedCOACode]
+    );
+
     // Determine if this is a BURF→PRF conversion (not a Direct PRF or PRF edit)
     // Includes BURF_PARTIALLY_PROCESSED for multi-batch PRF creation
     const isFromBurf = requisition.status === RequisitionStatus.READY_FOR_PRF ||
@@ -144,6 +183,12 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         [totalAmount, ewtAmount]
     );
 
+    // Check if budget is exceeded (for the single selected COA) - defined after totalAmount
+    const budgetExceeded = useMemo(() => {
+        if (!selectedCOA) return false;
+        return totalAmount > selectedCOA.available;
+    }, [selectedCOA, totalAmount]);
+
     const isValid = () => {
         const selectedItems = items.filter(item => selectedItemIds.has(item.itemId));
         const hasSelection = selectedItems.length > 0;
@@ -156,7 +201,10 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
         // Approver is required if there are eligible approvers configured
         const approverValid = eligibleApprovers.length > 0 ? !!designatedApproverId : true;
 
-        return hasSelection && allPricesFilled && supplierValid && approverValid;
+        // Budget validation: if COAs are available, don't allow submission when budget exceeded
+        const budgetValid = !budgetExceeded;
+
+        return hasSelection && allPricesFilled && supplierValid && approverValid && budgetValid;
     };
 
     const handleSupplierSelect = (supplierId: string) => {
@@ -511,6 +559,63 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                             showDelete={false}
                             readOnly={false}
                         />
+                        {/* COA Selection - Single dropdown for entire PRF */}
+                        {budgetedCOAs.length > 0 && (
+                            <div className="mt-4 p-4 bg-purple-900/20 rounded-lg border border-purple-500/30">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex-1">
+                                        <label className="block text-sm font-medium text-purple-300 mb-2">
+                                            Budget Account (COA)
+                                        </label>
+                                        {loadingCOAs ? (
+                                            <div className="flex items-center gap-2 text-slate-400 text-sm">
+                                                <Loader2 size={14} className="animate-spin" />
+                                                Loading budget accounts...
+                                            </div>
+                                        ) : (
+                                            <select
+                                                value={selectedCOACode}
+                                                onChange={(e) => setSelectedCOACode(e.target.value)}
+                                                className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            >
+                                                <option value="">Select Budget Account...</option>
+                                                {budgetedCOAs.map(coa => (
+                                                    <option key={coa.code} value={coa.code}>
+                                                        {coa.code} - {coa.name} (₱{coa.available.toLocaleString()} available)
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Budget Status */}
+                                {selectedCOA && (
+                                    <div className={`mt-3 p-3 rounded-lg ${budgetExceeded ? 'bg-red-900/30 border border-red-500/40' : 'bg-emerald-900/20 border border-emerald-500/30'}`}>
+                                        <div className="flex items-center justify-between text-sm">
+                                            <div className="flex items-center gap-2">
+                                                {budgetExceeded ? (
+                                                    <AlertTriangle size={14} className="text-red-400" />
+                                                ) : (
+                                                    <Check size={14} className="text-emerald-400" />
+                                                )}
+                                                <span className={budgetExceeded ? 'text-red-300' : 'text-emerald-300'}>
+                                                    {budgetExceeded ? 'Budget Exceeded!' : 'Within Budget'}
+                                                </span>
+                                            </div>
+                                            <span className="font-mono text-slate-300">
+                                                ₱{totalAmount.toLocaleString()} / ₱{selectedCOA.available.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        {budgetExceeded && (
+                                            <p className="text-red-400 text-xs mt-2">
+                                                ⚠ This PRF exceeds the available budget by ₱{(totalAmount - selectedCOA.available).toLocaleString()}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Supplier Information */}

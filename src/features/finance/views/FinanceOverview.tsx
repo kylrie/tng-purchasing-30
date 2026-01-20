@@ -33,6 +33,7 @@ import {
     type HighValueTransaction
 } from '../services/finance.dashboard.service';
 import type { Business } from '../../procurement/types';
+import { BudgetDashboardWidget } from '../components/BudgetDashboardWidget';
 
 // ============================================================
 // TYPES
@@ -312,6 +313,16 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
                     />
                 </div>
             )}
+
+            {/* Section 1.5: Budget Utilization Widget */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <BudgetDashboardWidget
+                    title="Budget Utilization"
+                    businessUnitId={selectedBusinessUnit === 'all' ? null : selectedBusinessUnit}
+                    maxVisible={5}
+                    getBusinessUnitName={(buId) => businesses.find(b => b.id === buId)?.name || buId}
+                />
+            </div>
 
             {/* Section 2: Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

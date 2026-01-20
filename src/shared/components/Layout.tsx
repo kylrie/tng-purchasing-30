@@ -32,7 +32,8 @@ import {
     ShoppingBag,
     Boxes,
     Truck,
-    Monitor
+    Monitor,
+    PiggyBank
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -289,10 +290,11 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Master Data',
             icon: Database,
-            canView: hasPermission('module:view:suppliers') || hasPermission('module:view:coa'),
+            canView: hasPermission('module:view:suppliers') || hasPermission('module:view:coa') || hasPermission('budget:manage'),
             children: [
                 { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('module:view:suppliers') },
-                { path: '/chart-of-accounts', label: 'Chart of Accounts', icon: FileSpreadsheet, canView: hasPermission('module:view:coa') }
+                { path: '/chart-of-accounts', label: 'Chart of Accounts', icon: FileSpreadsheet, canView: hasPermission('module:view:coa') },
+                { path: '/budgets', label: 'Budget Configuration', icon: PiggyBank, canView: hasPermission('budget:manage') }
             ]
         },
         {

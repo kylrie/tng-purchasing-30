@@ -74,6 +74,11 @@ export const ALL_PERMISSIONS = [
   'coa:view',           // View Chart of Accounts
   'coa:manage',         // Create, edit, import, toggle active status
 
+  // Budget Control System
+  'budget:view',        // View budget limits for all BU/COA combinations
+  'budget:manage',      // Set/update budget limits (FINANCE_HEAD only)
+  'module:view:budgets', // Access Budget Configuration module
+
   // Module View Permissions
   'module:view:dashboard',
   'module:view:burf',
@@ -470,6 +475,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:finance:br',
     'module:view:finance:check_auth',
     'module:view:liquidation',
+    // Budget Control System - FINANCE_HEAD can manage budgets
+    'budget:view',
+    'budget:manage',
+    'module:view:budgets',
     // Dashboard Widgets
     'dashboard:widget:pending_approvals',
     'dashboard:widget:active_prfs',

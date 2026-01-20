@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil, Loader2 } from 'lucide-react';
+import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil, Loader2, Check } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus, isSuperAdmin } from '../types';
 import { useTaxSettings } from '../../../shared/hooks/useTaxSettings';
@@ -20,6 +20,8 @@ import { RequisitionService, calculateExpenseAllocation } from '../services/requ
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
 // FIX: Import shared isValidUrl instead of defining locally (consolidates URL validation)
 import { isValidUrl } from '../../../shared/utils/validation';
+// Budget integration
+import { BudgetService } from '../../finance/services/budget.service';
 
 
 
@@ -86,6 +88,11 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     // Submission loading state to prevent double-clicks
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Budget Integration: COA selection
+    const [budgetedCOAs, setBudgetedCOAs] = useState<Array<{ code: string; name: string; available: number; totalLimit: number; percentage: number }>>([]);
+    const [loadingCOAs, setLoadingCOAs] = useState(false);
+    const [selectedCOACode, setSelectedCOACode] = useState<string>('');
+
     // ========== BUSINESS UNIT FILTERING LOGIC ==========
     // Determine accessible business units based on user role
     // NOTE: requisition:view:all is for VIEWING - not for CREATING in any BU
@@ -138,6 +145,31 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
             setSelectedBusinessId(accessibleBusinessUnits[0].id);
         }
     }, [accessibleBusinessUnits, initialData]);
+
+    // Fetch budgeted COAs when business unit changes
+    useEffect(() => {
+        const fetchCOAs = async () => {
+            if (!selectedBusinessId) return;
+            setLoadingCOAs(true);
+            try {
+                const coas = await BudgetService.getBudgetedCOAs(selectedBusinessId);
+                setBudgetedCOAs(coas);
+            } catch (error) {
+                console.error('Error fetching budgeted COAs:', error);
+            } finally {
+                setLoadingCOAs(false);
+            }
+        };
+        fetchCOAs();
+        // Clear COA selection when business changes
+        setSelectedCOACode('');
+    }, [selectedBusinessId]);
+
+    // Get selected COA details for budget check
+    const selectedCOA = useMemo(() =>
+        budgetedCOAs.find(c => c.code === selectedCOACode),
+        [budgetedCOAs, selectedCOACode]
+    );
 
 
     // Filter list of eligible approvers by business unit (STRICT MATCH)
@@ -200,6 +232,12 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
         totalAmount - ewtAmount,
         [totalAmount, ewtAmount]
     );
+
+    // Check if budget is exceeded (defined after totalAmount)
+    const budgetExceeded = useMemo(() => {
+        if (!selectedCOA) return false;
+        return totalAmount > selectedCOA.available;
+    }, [selectedCOA, totalAmount]);
 
     // removeItem is now handled by EditableItemTable component
 
@@ -344,6 +382,62 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                 placeholder="Auto-generated if empty"
                             />
                         </div>
+
+                        {/* COA Selection - Single dropdown for entire PRF */}
+                        {budgetedCOAs.length > 0 && (
+                            <div className="col-span-2">
+                                <div className="bg-purple-900/20 p-4 rounded-lg border border-purple-500/30">
+                                    <label className="block text-sm font-medium text-purple-300 mb-2">
+                                        Budget Account (COA)
+                                    </label>
+                                    {loadingCOAs ? (
+                                        <div className="flex items-center gap-2 text-slate-400 text-sm">
+                                            <Loader2 size={14} className="animate-spin" />
+                                            Loading budget accounts...
+                                        </div>
+                                    ) : (
+                                        <select
+                                            value={selectedCOACode}
+                                            onChange={(e) => setSelectedCOACode(e.target.value)}
+                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        >
+                                            <option value="">Select Budget Account...</option>
+                                            {budgetedCOAs.map(coa => (
+                                                <option key={coa.code} value={coa.code}>
+                                                    {coa.code} - {coa.name} (₱{coa.available.toLocaleString()} available)
+                                                </option>
+                                            ))}
+                                        </select>
+                                    )}
+
+                                    {/* Budget Status */}
+                                    {selectedCOA && (
+                                        <div className={`mt-3 p-3 rounded-lg ${budgetExceeded ? 'bg-red-900/30 border border-red-500/40' : 'bg-emerald-900/20 border border-emerald-500/30'}`}>
+                                            <div className="flex items-center justify-between text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    {budgetExceeded ? (
+                                                        <AlertTriangle size={14} className="text-red-400" />
+                                                    ) : (
+                                                        <Check size={14} className="text-emerald-400" />
+                                                    )}
+                                                    <span className={budgetExceeded ? 'text-red-300' : 'text-emerald-300'}>
+                                                        {budgetExceeded ? 'Budget Exceeded!' : 'Within Budget'}
+                                                    </span>
+                                                </div>
+                                                <span className="font-mono text-slate-300">
+                                                    ₱{totalAmount.toLocaleString()} / ₱{selectedCOA.available.toLocaleString()}
+                                                </span>
+                                            </div>
+                                            {budgetExceeded && (
+                                                <p className="text-red-400 text-xs mt-2">
+                                                    ⚠ This PRF exceeds the available budget by ₱{(totalAmount - selectedCOA.available).toLocaleString()}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         <div className="col-span-2">
                             <label className="block text-sm text-slate-400 mb-1">Description</label>
                             <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Purchase of materials" />
@@ -655,6 +749,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [selectedReq, setSelectedReq] = useState<Requisition | null>(null); // Quick Peek drawer state
     const [drawerLoading, setDrawerLoading] = useState(false);
     const { hasPermission } = usePermissions();
+
+    // PRF Modal is opened directly by setPreparePRFReq - no redirect needed
 
     // Handle print - fetch PCF data if it's a PCF Replenishment
     const handlePrint = async (req: Requisition) => {

@@ -788,5 +788,37 @@ service cloud.firestore {
       allow create, update: if isSignedIn();
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
     }
+    
+    // =====================================================
+    // BUDGETS COLLECTION
+    // Budget limits per Business Unit + COA + Fiscal Year
+    // Read: All authenticated users can view budget limits
+    // Write: DENIED - All writes must go through setBudgetLimit Cloud Function
+    // This ensures RBAC (only FINANCE_HEAD can modify) and data validation
+    // =====================================================
+    match /budgets/{budgetId} {
+      // Any authenticated user can read budgets (to see their limits)
+      allow read: if isSignedIn();
+      
+      // All writes MUST go through the setBudgetLimit Cloud Function
+      // This ensures only FINANCE_HEAD or SUPER_ADMIN can modify budgets
+      allow write: if false;
+    }
+    
+    // =====================================================
+    // TRANSACTIONS COLLECTION
+    // Financial transactions that affect budgets
+    // Read: Authenticated users (for reporting)
+    // Write: DENIED - All writes must go through postTransaction Cloud Function
+    // This ensures budget validation before any transaction is recorded
+    // =====================================================
+    match /transactions/{transactionId} {
+      // Authenticated users can read transactions for reporting
+      allow read: if isSignedIn();
+      
+      // All writes MUST go through the postTransaction Cloud Function
+      // This ensures budget limits are validated atomically
+      allow write: if false;
+    }
   }
 }
