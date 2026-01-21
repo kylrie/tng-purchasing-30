@@ -43,7 +43,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({ 
     const [selectedCoa, setSelectedCoa] = useState<string>('');
     const [dateFrom, setDateFrom] = useState<string>('');
     const [dateTo, setDateTo] = useState<string>('');
-    const [pageSize, setPageSize] = useState(50);
+    const [pageSize] = useState(50);
 
     // COA lookup
     const [coaMap, setCoaMap] = useState<Map<string, string>>(new Map());
