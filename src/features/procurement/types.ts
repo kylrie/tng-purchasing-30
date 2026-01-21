@@ -284,6 +284,8 @@ export interface LiquidationDetails {
   auditNotes?: string;
   auditedBy?: string;
   auditDate?: string;
+  auditRemarks?: string;    // Auditor's remarks when clearing the liquidation
+  auditClearedAt?: string;  // Timestamp when audit was cleared
   rejectionReason?: string; // Reason for rejection
   status?: 'PENDING' | 'APPROVED' | 'REJECTED'; // Liquidation status
 }

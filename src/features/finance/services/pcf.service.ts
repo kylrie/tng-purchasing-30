@@ -94,6 +94,8 @@ export interface PCFLiquidation {
     auditReviewedBy?: string;
     auditReviewedByName?: string;
     dateAuditReviewed?: string;
+    auditRemarks?: string;        // Auditor's remarks when approving the liquidation
+    auditClearedAt?: string;      // Timestamp when audit was cleared/approved
     // Late submission tracking
     isLate?: boolean;
     daysLate?: number;

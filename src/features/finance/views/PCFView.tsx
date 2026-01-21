@@ -806,6 +806,44 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                     )}
                                 </div>
                             )}
+
+                            {/* Liquidation Submitted Date */}
+                            {selectedLiquidation.dateSubmitted && (
+                                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                                    <p className="text-xs text-slate-400 mb-1 flex items-center gap-1">
+                                        <Receipt size={12} /> Liquidation Submitted
+                                    </p>
+                                    <p className="text-sm text-blue-400 font-medium">
+                                        {new Date(selectedLiquidation.dateSubmitted).toLocaleString('en-US', {
+                                            month: 'short', day: '2-digit', year: 'numeric',
+                                            hour: 'numeric', minute: '2-digit', hour12: true
+                                        })}
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Audit Cleared Remarks - Show when audit approved */}
+                            {selectedLiquidation.auditRemarks && (
+                                <div className="bg-green-900/20 border border-green-700/50 rounded-lg p-4">
+                                    <h5 className="text-xs font-semibold text-green-400 mb-2 uppercase tracking-wider flex items-center gap-1">
+                                        <CheckCircle size={12} /> Audit Cleared Remarks
+                                    </h5>
+                                    <p className="text-sm text-slate-200 whitespace-pre-wrap">{selectedLiquidation.auditRemarks}</p>
+                                    {selectedLiquidation.auditClearedAt && (
+                                        <p className="text-xs text-green-500 mt-2">
+                                            Cleared on: {new Date(selectedLiquidation.auditClearedAt).toLocaleString('en-US', {
+                                                month: 'short', day: '2-digit', year: 'numeric',
+                                                hour: 'numeric', minute: '2-digit', hour12: true
+                                            })}
+                                        </p>
+                                    )}
+                                    {selectedLiquidation.auditReviewedByName && (
+                                        <p className="text-xs text-slate-500 mt-1">
+                                            Audit reviewed by: {selectedLiquidation.auditReviewedByName}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Footer */}

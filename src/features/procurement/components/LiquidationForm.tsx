@@ -728,30 +728,69 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                             </>
                         )}
                     </div>
+
+                    {/* Liquidation Submitted Date */}
+                    {requisition.liquidationDetails?.submittedAt && (
+                        <>
+                            <div className="border-t border-slate-600 my-2" />
+                            <div className="flex justify-between text-sm">
+                                <span className="text-slate-400 flex items-center gap-1">
+                                    <Receipt size={14} /> Liquidation Submitted
+                                </span>
+                                <span className="text-blue-400 font-medium">
+                                    {new Date(requisition.liquidationDetails.submittedAt).toLocaleString('en-US', {
+                                        month: 'short', day: '2-digit', year: 'numeric',
+                                        hour: 'numeric', minute: '2-digit', hour12: true
+                                    })}
+                                </span>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Audit Cleared Remarks */}
+                    {requisition.liquidationDetails?.auditRemarks && (
+                        <>
+                            <div className="border-t border-slate-600 my-2" />
+                            <div className="bg-green-900/20 rounded-lg p-3 border border-green-700/30">
+                                <h5 className="text-xs font-semibold text-green-400 mb-1 uppercase tracking-wider flex items-center gap-1">
+                                    <CheckCircle size={12} /> Audit Cleared Remarks
+                                </h5>
+                                <p className="text-sm text-slate-200 whitespace-pre-wrap">
+                                    {requisition.liquidationDetails.auditRemarks}
+                                </p>
+                                {requisition.liquidationDetails?.auditClearedAt && (
+                                    <p className="text-xs text-green-500 mt-2">
+                                        Cleared on: {new Date(requisition.liquidationDetails.auditClearedAt).toLocaleString('en-US', {
+                                            month: 'short', day: '2-digit', year: 'numeric',
+                                            hour: 'numeric', minute: '2-digit', hour12: true
+                                        })}
+                                    </p>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
             {/* Submit Button */}
-            {
-                !readOnly && (
-                    <button
-                        onClick={handleSubmit}
-                        disabled={isLoading}
-                        className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                        {isLoading ? (
-                            <>
-                                <span className="animate-spin">⏳</span> Submitting...
-                            </>
-                        ) : (
-                            <>
-                                <CheckCircle size={18} /> Submit Liquidation
-                            </>
-                        )}
-                    </button>
-                )
-            }
-        </div >
+            {!readOnly && (
+                <button
+                    onClick={handleSubmit}
+                    disabled={isLoading}
+                    className="w-full py-3 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                    {isLoading ? (
+                        <>
+                            <span className="animate-spin">⏳</span> Submitting...
+                        </>
+                    ) : (
+                        <>
+                            <CheckCircle size={18} /> Submit Liquidation
+                        </>
+                    )}
+                </button>
+            )}
+        </div>
     );
 };
 
