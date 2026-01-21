@@ -93,6 +93,9 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     const [loadingCOAs, setLoadingCOAs] = useState(false);
     const [selectedCOACode, setSelectedCOACode] = useState<string>('');
 
+    // Date Needed - affects which monthly budget to check
+    const [dateNeeded, setDateNeeded] = useState<string>(initialData?.dateNeeded || '');
+
     // ========== BUSINESS UNIT FILTERING LOGIC ==========
     // Determine accessible business units based on user role
     // NOTE: requisition:view:all is for VIEWING - not for CREATING in any BU
@@ -146,13 +149,15 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
         }
     }, [accessibleBusinessUnits, initialData]);
 
-    // Fetch budgeted COAs when business unit changes
+    // Fetch budgeted COAs when business unit or date changes
     useEffect(() => {
         const fetchCOAs = async () => {
             if (!selectedBusinessId) return;
             setLoadingCOAs(true);
             try {
-                const coas = await BudgetService.getBudgetedCOAs(selectedBusinessId);
+                // Extract month from dateNeeded for budget filtering
+                const targetMonth = dateNeeded ? new Date(dateNeeded).getMonth() + 1 : undefined;
+                const coas = await BudgetService.getBudgetedCOAs(selectedBusinessId, targetMonth);
                 setBudgetedCOAs(coas);
             } catch (error) {
                 console.error('Error fetching budgeted COAs:', error);
@@ -161,9 +166,9 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
             }
         };
         fetchCOAs();
-        // Clear COA selection when business changes
+        // Clear COA selection when business or date changes
         setSelectedCOACode('');
-    }, [selectedBusinessId]);
+    }, [selectedBusinessId, dateNeeded]);
 
     // Get selected COA details for budget check
     const selectedCOA = useMemo(() =>
@@ -381,6 +386,18 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                 onChange={(e) => setCustomId(e.target.value)}
                                 placeholder="Auto-generated if empty"
                             />
+                        </div>
+
+                        {/* Date Needed - Links to Budget Month */}
+                        <div className="bg-cyan-900/20 p-3 rounded-lg border border-cyan-500/30">
+                            <label className="block text-sm font-medium text-cyan-300 mb-1">Date Needed</label>
+                            <input
+                                type="date"
+                                value={dateNeeded}
+                                onChange={(e) => setDateNeeded(e.target.value)}
+                                className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                            />
+                            <p className="text-xs text-cyan-400 mt-1">🎯 Budget availability is based on this month.</p>
                         </div>
 
                         {/* COA Selection - Single dropdown for entire PRF */}
