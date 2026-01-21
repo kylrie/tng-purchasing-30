@@ -7,6 +7,7 @@ import { COLLECTIONS } from '../../../shared/types/firebase.types';
 import { removeUndefinedFields } from '../../../shared/utils/firestore.utils';
 import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
 import { NotificationsService } from '../../../shared/services/notifications.service';
+import { BudgetService } from '../../finance/services/budget.service';
 
 const REQUISITIONS_COLLECTION = COLLECTIONS.REQUISITIONS;
 
@@ -720,13 +721,17 @@ export class RequisitionService {
         // Atomic update within transaction
         transaction.update(docRef, updateData);
 
-        // Return data needed for notification (can't call async inside transaction)
+        // Return data needed for notification and budget reservation (can't call async inside transaction)
         return {
           nextStatus,
           currentApproverId,
           requisitionId,
           description: requisition.description || requisition.projectName || 'Requisition',
           totalAmount: requisition.totalAmount,
+          // Budget reservation data
+          businessId: requisition.businessId,
+          coaCode: requisition.coaCode, // PRF-level COA for budget
+          items: requisition.items, // Items for budget reservation
         };
       }
       return null;
@@ -757,6 +762,47 @@ export class RequisitionService {
       } catch (notificationError) {
         console.error('Failed to create notification:', notificationError);
         // Don't throw - approval succeeded, notification failed is non-critical
+      }
+    }
+
+    // BUDGET RESERVATION: When PRF reaches FOR_CHECK_PREPARATION, reserve the budget
+    if (transactionResult && transactionResult.nextStatus === RequisitionStatus.FOR_CHECK_PREPARATION) {
+      try {
+        // Reserve budget if PRF has COA assigned or items with COAs
+        const items = transactionResult.items || [];
+        const prfCoaCode = transactionResult.coaCode;
+
+        // Build items array for budget reservation
+        // Use PRF-level COA if present, otherwise use item-level COAs
+        const budgetItems = prfCoaCode
+          ? [{ coaCode: prfCoaCode, amount: transactionResult.totalAmount }]
+          : items.map(item => ({
+            coaCode: item.coaCode,
+            amount: (item.price || 0) * (item.quantity || 1)
+          }));
+
+        if (budgetItems.some(item => item.coaCode)) {
+          const reservationId = await BudgetService.reserveBudget(
+            transactionResult.requisitionId,
+            transactionResult.businessId,
+            budgetItems,
+            userId
+          );
+
+          if (reservationId) {
+            // Update PRF with budget reservation status
+            await FirestoreService.updateDocument(REQUISITIONS_COLLECTION, transactionResult.requisitionId, {
+              budgetStatus: 'RESERVED',
+              reservedBudgetId: reservationId,
+              reservedBudgetAmount: transactionResult.totalAmount,
+            });
+            console.log(`✅ Budget reserved for PRF ${transactionResult.requisitionId}: ${reservationId}`);
+          }
+        }
+      } catch (budgetError) {
+        console.error('⚠️ Budget reservation failed (PRF approval succeeded):', budgetError);
+        // Don't throw - approval succeeded, budget reservation failed is non-critical
+        // The budget will need to be manually adjusted if needed
       }
     }
   }
