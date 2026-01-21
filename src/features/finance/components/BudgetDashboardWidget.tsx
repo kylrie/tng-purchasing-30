@@ -10,6 +10,7 @@
  * - Summary statistics
  * - Collapsible for compact view
  * - Self-contained COA name lookup
+ * - Click-to-drill-down PRF list
  */
 
 import React, { useState, useEffect } from 'react';
@@ -19,6 +20,7 @@ import { COLLECTIONS, type ChartOfAccount } from '../../../shared/types/firebase
 import { useBudgetMonitor, type BudgetWithStatus } from '../../../hooks/useBudgetMonitor';
 import { useAuth } from '../../../contexts/AuthContext';
 import { BudgetProgressBar } from './BudgetProgressBar';
+import { BudgetPrfDrawer } from './BudgetPrfDrawer';
 import './BudgetDashboardWidget.css';
 
 interface BudgetDashboardWidgetProps {
@@ -38,6 +40,15 @@ interface BudgetDashboardWidgetProps {
     getBusinessUnitName?: (buId: string) => string;
 }
 
+// Selected budget state for drill-down
+interface SelectedBudget {
+    coaId: string;
+    coaName: string;
+    businessUnitId?: string;
+    fiscalYear?: number;
+    month?: number;
+}
+
 export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
     businessUnitId = null,
     fiscalYear,
@@ -50,6 +61,7 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
     const { currentUser } = useAuth();
     const [expanded, setExpanded] = useState(false);
     const [coaMap, setCoaMap] = useState<Map<string, string>>(new Map());
+    const [selectedBudget, setSelectedBudget] = useState<SelectedBudget | null>(null);
 
     // Fetch COA data for name lookup
     useEffect(() => {
@@ -210,6 +222,13 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
                         currency={budget.currency}
                         status={budget.status}
                         compact={compact}
+                        onClick={() => setSelectedBudget({
+                            coaId: budget.coaId,
+                            coaName: getBudgetLabel(budget),
+                            businessUnitId: budget.businessUnitId,
+                            fiscalYear: budget.fiscalYear,
+                            month: budget.month,
+                        })}
                     />
                 ))}
             </div>
@@ -226,6 +245,17 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
                     }
                 </button>
             )}
+
+            {/* PRF Drill-Down Drawer */}
+            <BudgetPrfDrawer
+                isOpen={selectedBudget !== null}
+                onClose={() => setSelectedBudget(null)}
+                coaId={selectedBudget?.coaId || ''}
+                coaName={selectedBudget?.coaName}
+                businessUnitId={selectedBudget?.businessUnitId}
+                fiscalYear={selectedBudget?.fiscalYear}
+                month={selectedBudget?.month}
+            />
         </div>
     );
 };
