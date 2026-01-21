@@ -389,6 +389,7 @@ export interface Requisition {
   budgetStatus?: 'PENDING' | 'RESERVED' | 'COMMITTED' | 'RELEASED'; // Budget reservation status
   reservedBudgetAmount?: number; // Amount reserved from budget
   reservedBudgetId?: string; // Reference to budget reservation record
+  coaCode?: string; // Chart of Account code for PRF-level budget tracking
 
   // New Enhancements
   history?: RequisitionHistory[];

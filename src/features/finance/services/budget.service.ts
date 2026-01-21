@@ -24,8 +24,57 @@ import {
     where,
     Timestamp
 } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { db, app } from '../../../config/firebase';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
+
+// Initialize Firebase Functions
+const functions = getFunctions(app);
+
+// ============================================================
+// CLOUD FUNCTION INTEGRATION
+// ============================================================
+
+interface PostTransactionInput {
+    amount: number;
+    businessUnitId: string;
+    coaId: string;
+    date: string;
+    description?: string;
+}
+
+interface PostTransactionResult {
+    success: boolean;
+    transactionId: string;
+    newBalance: number;
+    weekNumber: number;
+    message: string;
+}
+
+/**
+ * Post a budget transaction via Cloud Function
+ * This atomically validates and updates the budget in Firestore
+ * 
+ * @param input - Transaction details
+ * @returns Result with new balance and transaction ID
+ * @throws Error if budget is exceeded or validation fails
+ */
+export async function postBudgetTransaction(input: PostTransactionInput): Promise<PostTransactionResult> {
+    try {
+        const postTransaction = httpsCallable<PostTransactionInput, PostTransactionResult>(
+            functions,
+            'postTransaction'
+        );
+
+        const result = await postTransaction(input);
+        return result.data;
+    } catch (error: unknown) {
+        // Extract error message from Firebase Functions error
+        const errorMessage = error instanceof Error ? error.message : 'Budget transaction failed';
+        console.error('Budget transaction error:', error);
+        throw new Error(errorMessage);
+    }
+}
 
 // ============================================================
 // TYPES
@@ -557,7 +606,8 @@ export const BudgetService = {
     reserveBudget,
     releaseBudget,
     commitBudget,
-    getBudgetSummary
+    getBudgetSummary,
+    postBudgetTransaction
 };
 
 export default BudgetService;

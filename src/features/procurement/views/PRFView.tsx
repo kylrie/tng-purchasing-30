@@ -316,6 +316,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                 netAmount: applyEwt ? netAmount : totalAmount,
                 status: status,
                 dateCreated: new Date().toISOString().split('T')[0],
+                dateNeeded: dateNeeded || undefined, // Store date needed for budget month tracking
                 description: sanitizeText(description), // FIX C6: Sanitize
                 remarks: sanitizeText(remarks), // FIX C6: Sanitize
                 // FIX BUG 8: Validate URL before storing to prevent malicious links
@@ -331,6 +332,8 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                 timestamp: new Date().toISOString(),
                 // Corporate expense sharing (if applicable)
                 costAllocation: costAllocation || undefined,
+                // Budget tracking - store COA for audit trail
+                coaCode: selectedCOACode || undefined,
             };
 
             if (initialData && onUpdate) {
@@ -338,6 +341,31 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
             } else if (onCreateRequisition) {
                 await onCreateRequisition(baseReq);
             }
+
+            // POST-SUBMIT BUDGET DEDUCTION
+            // Call Cloud Function to atomically update budget after PRF is saved
+            // Only for non-draft submissions with a selected COA
+            if (!isDraft && selectedCOACode && totalAmount > 0) {
+                try {
+                    const transactionDate = dateNeeded || new Date().toISOString().split('T')[0];
+                    await BudgetService.postBudgetTransaction({
+                        amount: totalAmount,
+                        businessUnitId: selectedBusinessId,
+                        coaId: selectedCOACode,
+                        date: transactionDate,
+                        description: `PRF ${prfId}: ${description || 'Direct PRF Submission'}`
+                    });
+                    console.log(`✅ Budget updated for PRF ${prfId}: ₱${totalAmount.toLocaleString()} from ${selectedCOACode}`);
+                } catch (budgetError: unknown) {
+                    // Log budget error but don't fail the PRF submission
+                    // The PRF is already saved; budget deduction is a secondary operation
+                    console.error('⚠️ Budget deduction failed (PRF was saved):', budgetError);
+                    // Optionally alert user that budget wasn't updated
+                    const errMsg = budgetError instanceof Error ? budgetError.message : 'Unknown error';
+                    alert(`PRF saved, but budget update failed: ${errMsg}\n\nPlease manually adjust the budget if needed.`);
+                }
+            }
+
             onCancel();
         } catch (error: any) {
             console.error('Error saving PRF:', error);

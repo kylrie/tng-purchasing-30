@@ -90,4 +90,5 @@ export const db = effectiveDbId ? getFirestore(app, effectiveDbId) : getFirestor
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();
+export { app }; // Export app for Cloud Functions
 

@@ -362,7 +362,30 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     attachmentLink: attachmentLink ? sanitizeAttachmentUrl(attachmentLink) : undefined,
                     userId: currentUserId,
                     userName: preparedByName,
+                    // Budget tracking fields
+                    coaCode: selectedCOACode || undefined,
+                    dateNeeded: dateNeeded || undefined,
                 });
+
+                // POST-SUBMIT BUDGET DEDUCTION for BURF conversion
+                if (selectedCOACode && totalAmount > 0) {
+                    try {
+                        const transactionDate = dateNeeded || new Date().toISOString().split('T')[0];
+                        await BudgetService.postBudgetTransaction({
+                            amount: totalAmount,
+                            businessUnitId: requisition.businessId,
+                            coaId: selectedCOACode,
+                            date: transactionDate,
+                            description: `PRF from BURF ${requisition.id}: ${requisition.description || 'BURF to PRF Conversion'}`
+                        });
+                        console.log(`✅ Budget updated for BURF->PRF conversion: ₱${totalAmount.toLocaleString()} from ${selectedCOACode}`);
+                    } catch (budgetError: unknown) {
+                        console.error('⚠️ Budget deduction failed (PRF was saved):', budgetError);
+                        const errMsg = budgetError instanceof Error ? budgetError.message : 'Unknown error';
+                        setStatusMessage({ type: 'error', text: `PRF saved, but budget update failed: ${errMsg}` });
+                        setTimeout(() => setStatusMessage(null), UI_CONSTANTS.TOAST_DURATION);
+                    }
+                }
 
                 // Close modal - parent will refresh from Firestore subscription
                 onClose();
@@ -394,9 +417,32 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                         designatedApproverId: designatedApproverId
                     },
                     status: RequisitionStatus.PRF_PENDING_MANAGER,
-                    prfIdentifier
+                    prfIdentifier,
+                    // Budget tracking fields
+                    coaCode: selectedCOACode || undefined,
+                    dateNeeded: dateNeeded || undefined,
                 };
                 onSubmit(updatedRequisition);
+
+                // POST-SUBMIT BUDGET DEDUCTION for non-BURF
+                if (selectedCOACode && totalAmount > 0) {
+                    try {
+                        const transactionDate = dateNeeded || new Date().toISOString().split('T')[0];
+                        await BudgetService.postBudgetTransaction({
+                            amount: totalAmount,
+                            businessUnitId: requisition.businessId,
+                            coaId: selectedCOACode,
+                            date: transactionDate,
+                            description: `PRF ${requisition.id}: ${requisition.description || 'PRF Submission'}`
+                        });
+                        console.log(`✅ Budget updated for PRF ${requisition.id}: ₱${totalAmount.toLocaleString()} from ${selectedCOACode}`);
+                    } catch (budgetError: unknown) {
+                        console.error('⚠️ Budget deduction failed (PRF was saved):', budgetError);
+                        const errMsg = budgetError instanceof Error ? budgetError.message : 'Unknown error';
+                        setStatusMessage({ type: 'error', text: `PRF saved, but budget update failed: ${errMsg}` });
+                        setTimeout(() => setStatusMessage(null), UI_CONSTANTS.TOAST_DURATION);
+                    }
+                }
             }
         } catch (error: unknown) {
             // FIX: Replace error: any with unknown and type-safe access

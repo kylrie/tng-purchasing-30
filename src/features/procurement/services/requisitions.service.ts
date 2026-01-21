@@ -93,6 +93,9 @@ interface CreateBatchPrfParams {
   };
   // FIX: Attachment link to preserve from BURF or user input
   attachmentLink?: string;
+  // Budget tracking fields
+  coaCode?: string; // Chart of Account code for budget deduction
+  dateNeeded?: string; // Date needed for budget month targeting
   userId: string;
   userName: string;
 }
@@ -369,6 +372,8 @@ export class RequisitionService {
           ...(taxFields?.netAmount !== undefined && { netAmount: taxFields.netAmount }),
           // Corporate Expense Sharing: Include allocation if rule exists
           ...(expenseAllocation && { costAllocation: expenseAllocation }),
+          // Budget tracking: Store COA code for audit trail
+          ...(params.coaCode && { coaCode: params.coaCode }),
           prfDetails: {
             supplier: prfDetails.supplier,
             preparedBy: prfDetails.preparedBy,
