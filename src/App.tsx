@@ -20,6 +20,7 @@ import LiquidationPage from './features/finance/views/LiquidationPage';
 import BURFPage from './pages/BURFPage';
 import PCFView from './features/finance/views/PCFView';
 import PCFApprovalView from './features/finance/views/PCFApprovalView';
+import PCFAuditReviewView from './features/finance/views/PCFAuditReviewView';
 import SuppliersView from './features/inventory/views/SuppliersView';
 // StockTakeSession merged into InventoryDashboard
 import InventoryReports from './features/inventory/views/InventoryReports';
@@ -350,6 +351,16 @@ function ProtectedApp() {
         <Route path="/pcf-approvals" element={
           <ProtectedRoute permission="pcf:approve">
             <PCFApprovalView
+              currentUser={currentUser}
+              businesses={businesses}
+              allUsers={users}
+            />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/pcf-audit-review" element={
+          <ProtectedRoute permission="pcf:audit_review">
+            <PCFAuditReviewView
               currentUser={currentUser}
               businesses={businesses}
               allUsers={users}

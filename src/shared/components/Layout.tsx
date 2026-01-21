@@ -33,7 +33,10 @@ import {
     Boxes,
     Truck,
     Monitor,
-    PiggyBank
+    PiggyBank,
+    ShieldCheck,
+    ClipboardCheck,
+    Search
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -211,10 +214,39 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Action Center',
             icon: GitBranch,
-            canView: hasPermission('module:view:approvals'),
+            canView: hasPermission('module:view:approvals') || hasPermission('pcf:approve'),
             children: [
                 { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('module:view:approvals') },
                 { path: '/pcf-approvals', label: 'PCF Approvals', icon: Wallet, canView: hasPermission('pcf:approve') }
+            ]
+        },
+        // ============================================================
+        // AUDIT TEAM MODULE - For Auditors
+        // ============================================================
+        {
+            label: 'Audit Team',
+            icon: ShieldCheck,
+            canView: hasPermission('pcf:audit_review') || hasPermission('liquidation:audit'),
+            children: [
+                // Income Audit sub-group (placeholder for future)
+                {
+                    label: 'Income Audit',
+                    icon: Search,
+                    canView: hasPermission('liquidation:audit'), // TODO: add dedicated income audit permission
+                    children: [
+                        // Placeholder - Coming soon
+                    ]
+                },
+                // Expense Audit sub-group
+                {
+                    label: 'Expense Audit',
+                    icon: ClipboardCheck,
+                    canView: hasPermission('pcf:audit_review') || hasPermission('liquidation:audit'),
+                    children: [
+                        { path: '/pcf-audit-review', label: 'PCF Audit Review', icon: Wallet, canView: hasPermission('pcf:audit_review') },
+                        { path: '/liquidation', label: 'Liquidation Audit', icon: CreditCard, canView: hasPermission('liquidation:audit') }
+                    ]
+                }
             ]
         },
         // ============================================================
@@ -241,11 +273,10 @@ const Layout: React.FC<LayoutProps> = ({
                 {
                     label: 'Expenses',
                     icon: TrendingDown,
-                    canView: hasPermission('module:view:finance') || hasPermission('module:view:liquidation'),
+                    canView: hasPermission('module:view:finance') || hasPermission('module:view:pcf'),
                     children: [
                         // BR Flow - This is the existing FinanceView with Fund Release/Check Prep
                         { path: '/finance/expenses/br-flow', label: 'BR Flow', icon: Scale, canView: hasPermission('module:view:finance') },
-                        { path: '/liquidation', label: 'Liquidations', icon: CreditCard, canView: hasPermission('module:view:liquidation') },
                         { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: hasPermission('module:view:pcf') }
                     ]
                 }

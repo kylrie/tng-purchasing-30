@@ -43,6 +43,7 @@ export const ALL_PERMISSIONS = [
   'pcf:create',
   'pcf:approve',
   'pcf:cancel',       // Cancel PCF liquidations (returns balance)
+  'pcf:audit_review', // Approve PCF at Audit Review stage (auditors only)
 
   // Data Visibility
   'requisition:view:own',
@@ -448,6 +449,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:approvals',
     'module:view:approved',
     'module:view:liquidation',
+    // PCF Audit Review
+    'pcf:audit_review',
+    'module:view:pcf_approvals',
     // Dashboard Widgets
     'dashboard:widget:pending_audit',
     'dashboard:widget:total_spend',

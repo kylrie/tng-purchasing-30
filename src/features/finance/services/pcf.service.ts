@@ -12,6 +12,7 @@ import { SettingsService } from '../../../shared/services/settings.service';
 // =====================================================
 export enum PCFStatus {
     DRAFT = 'DRAFT',
+    AUDIT_REVIEW = 'AUDIT_REVIEW', // Pending Auditor Review (new step between Draft and Pending Approval)
     PENDING_APPROVAL = 'PENDING_APPROVAL',
     APPROVED = 'APPROVED',
     APPROVED_WAITING_RELEASE = 'APPROVED_WAITING_RELEASE',
@@ -89,6 +90,10 @@ export interface PCFLiquidation {
     cancellationReason?: string;
     dateCancelled?: string;
     replenishmentPrfId?: string;
+    // Audit Review tracking (new)
+    auditReviewedBy?: string;
+    auditReviewedByName?: string;
+    dateAuditReviewed?: string;
     // Late submission tracking
     isLate?: boolean;
     daysLate?: number;
@@ -150,6 +155,7 @@ export class PCFService {
         const allLiquidations = await this.getUserLiquidations(userId);
         const activeStatuses = [
             PCFStatus.DRAFT,
+            PCFStatus.AUDIT_REVIEW,
             PCFStatus.PENDING_APPROVAL,
             PCFStatus.APPROVED,
             PCFStatus.APPROVED_WAITING_RELEASE,
@@ -223,7 +229,7 @@ export class PCFService {
             receiptsLink: receiptsLink || '',
             attachments: attachments || [],
             remarks: remarks || '',
-            status: PCFStatus.PENDING_APPROVAL, // Direct submit for approval
+            status: PCFStatus.AUDIT_REVIEW, // Submit for audit review first
             dateCreated: new Date().toISOString(),
             dateSubmitted: new Date().toISOString(),
             // Late submission tracking
@@ -295,13 +301,51 @@ export class PCFService {
         );
 
         await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
-            status: PCFStatus.PENDING_APPROVAL,
+            status: PCFStatus.AUDIT_REVIEW,
             dateSubmitted: new Date().toISOString(),
             isLate,
             daysLate: isLate ? daysLate : 0,
             deadlineDay: settings.deadlineDay,
             expenseMonth,
         });
+    }
+
+    /**
+     * Approve audit review - moves liquidation to PENDING_APPROVAL for manager
+     * Only authorized auditors can perform this action
+     */
+    static async approveAuditReview(
+        liquidationId: string,
+        auditorId: string,
+        auditorName: string
+    ): Promise<void> {
+        const liquidation = await this.getLiquidationById(liquidationId);
+        if (!liquidation) {
+            throw new Error('Liquidation not found');
+        }
+        if (liquidation.status !== PCFStatus.AUDIT_REVIEW) {
+            throw new Error(`Cannot approve audit review: Liquidation is in ${liquidation.status} status`);
+        }
+
+        await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
+            status: PCFStatus.PENDING_APPROVAL,
+            auditReviewedBy: auditorId,
+            auditReviewedByName: auditorName,
+            dateAuditReviewed: new Date().toISOString(),
+        });
+    }
+
+    /**
+     * Get all liquidations pending audit review (for auditor view)
+     */
+    static async getAuditReviewLiquidations(): Promise<PCFLiquidation[]> {
+        const liquidations = await FirestoreService.getDocuments<PCFLiquidation>(
+            PCF_COLLECTION,
+            [where('status', '==', PCFStatus.AUDIT_REVIEW)]
+        );
+        return liquidations.sort((a, b) =>
+            new Date(a.dateCreated).getTime() - new Date(b.dateCreated).getTime()
+        );
     }
 
     /**

@@ -99,6 +99,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     const getStatusBadge = (status: PCFStatus) => {
         const configs: Record<PCFStatus, { bg: string; text: string; icon: React.ReactNode }> = {
             [PCFStatus.DRAFT]: { bg: 'bg-slate-600/30', text: 'text-slate-300', icon: <FileText size={12} /> },
+            [PCFStatus.AUDIT_REVIEW]: { bg: 'bg-rose-600/30', text: 'text-rose-300', icon: <AlertTriangle size={12} /> },
             [PCFStatus.PENDING_APPROVAL]: { bg: 'bg-yellow-600/30', text: 'text-yellow-300', icon: <Clock size={12} /> },
             [PCFStatus.APPROVED]: { bg: 'bg-green-600/30', text: 'text-green-300', icon: <CheckCircle size={12} /> },
             [PCFStatus.APPROVED_WAITING_RELEASE]: { bg: 'bg-blue-600/30', text: 'text-blue-300', icon: <Wallet size={12} /> },

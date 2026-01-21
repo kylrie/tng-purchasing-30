@@ -36,7 +36,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
     const [printLiquidation, setPrintLiquidation] = useState<PCFLiquidation | null>(null);
     const { hasPermission } = usePermissions();
 
-    // Fetch all pending liquidations (manager view)
+    // Fetch all pending liquidations (manager view) - Only PENDING_APPROVAL status
     const loadPendingLiquidations = async () => {
         setLoading(true);
         try {
@@ -50,7 +50,6 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
     };
 
     // Fetch history liquidations (approved, replenished, rejected, cancelled)
-    // Only show own history unless user has pcf:view:all or pcf:view:history:all
     const canViewAllHistory = hasPermission('pcf:view:all') || hasPermission('pcf:view:history:all');
 
     const loadHistoryLiquidations = async () => {
@@ -59,14 +58,11 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             let allLiquidations: PCFLiquidation[];
 
             if (canViewAllHistory) {
-                // User can view all - fetch all liquidations
                 allLiquidations = await PCFService.getAllLiquidations();
             } else {
-                // User can only view their own - fetch only their liquidations
                 allLiquidations = await PCFService.getUserLiquidations(currentUser.id);
             }
 
-            // Filter to show only completed/processed liquidations
             const history = allLiquidations.filter(l =>
                 l.status === PCFStatus.APPROVED ||
                 l.status === PCFStatus.APPROVED_WAITING_RELEASE ||
@@ -627,9 +623,9 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                 )}
                             </div>
 
-                            {/* Fast Track Notice */}
+                            {/* Notice */}
                             <div className="flex items-start gap-2 p-3 bg-blue-900/30 border border-blue-700/30 rounded-lg">
-                                <AlertTriangle size={16} className="text-blue-400 mt-0.5 flex-shrink-0" />
+                                <AlertTriangle size={16} className="text-blue-400" />
                                 <p className="text-xs text-blue-300">
                                     <strong>Fast Track:</strong> Approving creates PRF at "Approved for Payment" status.
                                 </p>
