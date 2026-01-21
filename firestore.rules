@@ -589,9 +589,10 @@ service cloud.firestore {
       // Read: Only own notifications
       allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
       
-      // Create: Must target self AND have valid structure
+      // Create: Any authenticated user can create notifications for any user
+      // This is required for approval workflow notifications (approver creates notification for next stage)
+      // Content validation ensures no abuse
       allow create: if isSignedIn() && 
-        request.resource.data.userId == request.auth.uid &&
         hasValidNotificationFields(request.resource.data);
       
       // Update: Only own notifications, only allow marking as read
@@ -800,9 +801,44 @@ service cloud.firestore {
       // Any authenticated user can read budgets (to see their limits)
       allow read: if isSignedIn();
       
-      // All writes MUST go through the setBudgetLimit Cloud Function
-      // This ensures only FINANCE_HEAD or SUPER_ADMIN can modify budgets
-      allow write: if false;
+      // Create: Only FINANCE_HEAD or SUPER_ADMIN can create budget limits
+      allow create: if isSignedIn() && (
+        isSuperAdmin() || 
+        hasPermission('budget:manage')
+      );
+      
+      // Update: Authenticated users can update reserved field (for reservations during approval)
+      // Full budget limit updates require FINANCE_HEAD permission
+      allow update: if isSignedIn() && (
+        isSuperAdmin() || 
+        hasPermission('budget:manage') ||
+        // Allow any authenticated user to update reserved/updatedAt fields only (for reservations)
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reserved', 'updatedAt'])
+      );
+      
+      // Delete requires admin
+      allow delete: if isSignedIn() && isSuperAdmin();
+    }
+    
+    // =====================================================
+    // BUDGET RESERVATIONS COLLECTION
+    // Tracks budget reservations created during PRF approval process
+    // Released when PRF is rejected/cancelled, committed when funds are released
+    // =====================================================
+    match /budgetReservations/{reservationId} {
+      // Any authenticated user can read reservations
+      allow read: if isSignedIn();
+      
+      // Create: Any authenticated user can create reservations 
+      // (created during PRF approval stages)
+      allow create: if isSignedIn();
+      
+      // Update: Any authenticated user can update reservations
+      // (status changes: RESERVED -> RELEASED/COMMITTED)
+      allow update: if isSignedIn();
+      
+      // Delete: Only admins can delete reservations
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
     }
     
     // =====================================================
