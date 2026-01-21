@@ -805,6 +805,25 @@ export class RequisitionService {
         // The budget will need to be manually adjusted if needed
       }
     }
+
+    // BUDGET COMMIT: When PRF is FUNDS_RELEASED, commit the budget (move reserved → spent)
+    if (transactionResult && transactionResult.nextStatus === RequisitionStatus.FUNDS_RELEASED) {
+      try {
+        await BudgetService.commitBudget(
+          transactionResult.requisitionId,
+          transactionResult.totalAmount // Actual amount (in case it differs from reserved)
+        );
+
+        // Update PRF budget status to COMMITTED
+        await FirestoreService.updateDocument(REQUISITIONS_COLLECTION, transactionResult.requisitionId, {
+          budgetStatus: 'COMMITTED',
+        });
+        console.log(`✅ Budget committed for PRF ${transactionResult.requisitionId}`);
+      } catch (budgetError) {
+        console.error('⚠️ Budget commit failed (Fund Release succeeded):', budgetError);
+        // Don't throw - fund release succeeded, budget commit failed is non-critical
+      }
+    }
   }
 
   /**
@@ -845,9 +864,22 @@ export class RequisitionService {
       transaction.update(docRef, {
         status: RequisitionStatus.REJECTED,
         history: updatedHistory,
+        budgetStatus: requisition.budgetStatus === 'RESERVED' ? 'RELEASED' : requisition.budgetStatus,
         updatedAt: serverTimestamp(),
       });
+
+      // Return requisition ID for budget release
+      return requisitionId;
     });
+
+    // BUDGET RELEASE: When PRF is rejected, release any reserved budget
+    try {
+      await BudgetService.releaseBudget(requisitionId, `Rejected: ${comments}`);
+      console.log(`✅ Budget released for rejected PRF ${requisitionId}`);
+    } catch (budgetError) {
+      console.error('⚠️ Budget release failed (rejection succeeded):', budgetError);
+      // Don't throw - rejection succeeded, budget release failed is non-critical
+    }
   }
 
 
