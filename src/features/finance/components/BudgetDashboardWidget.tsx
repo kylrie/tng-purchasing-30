@@ -205,6 +205,7 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
                         key={budget.id}
                         label={getBudgetLabel(budget)}
                         spent={budget.currentSpent}
+                        reserved={budget.reserved}
                         limit={budget.totalLimit}
                         currency={budget.currency}
                         status={budget.status}

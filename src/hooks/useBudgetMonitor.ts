@@ -20,8 +20,10 @@ export interface BudgetWithStatus {
     businessUnitId: string;
     coaId: string;
     fiscalYear: number;
+    month?: number;
     totalLimit: number;
     currentSpent: number;
+    reserved: number; // Amount reserved (soft hold)
     currency: string;
     // Calculated fields
     percentage: number;
@@ -99,13 +101,15 @@ export function useBudgetMonitor(options: UseBudgetMonitorOptions = {}): UseBudg
                     const data = doc.data();
                     const totalLimit = data.totalLimit || 0;
                     const currentSpent = data.currentSpent || 0;
+                    const reserved = data.reserved || 0;
 
-                    // Calculate percentage (avoid division by zero)
+                    // Calculate percentage including reserved (avoid division by zero)
+                    const totalUtilized = currentSpent + reserved;
                     const percentage = totalLimit > 0
-                        ? Math.round((currentSpent / totalLimit) * 100)
+                        ? Math.round((totalUtilized / totalLimit) * 100)
                         : 0;
 
-                    const remaining = totalLimit - currentSpent;
+                    const remaining = totalLimit - currentSpent - reserved;
                     const status = deriveStatus(percentage);
 
                     return {
@@ -113,8 +117,10 @@ export function useBudgetMonitor(options: UseBudgetMonitorOptions = {}): UseBudg
                         businessUnitId: data.businessUnitId,
                         coaId: data.coaId,
                         fiscalYear: data.fiscalYear,
+                        month: data.month,
                         totalLimit,
                         currentSpent,
+                        reserved,
                         currency: data.currency || 'PHP',
                         percentage,
                         remaining,

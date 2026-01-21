@@ -3,6 +3,7 @@
  * 
  * Styling for budget utilization progress bars with:
  * - Status-based colors (safe/warning/critical)
+ * - Reserved amount segment in amber/orange
  * - Pulse animation for critical budgets
  * - Dark theme styling to match TNG ERP system
  */
@@ -15,11 +16,20 @@
     background: rgba(15, 23, 42, 0.4);
     border-radius: 10px;
     border: 1px solid rgba(71, 85, 105, 0.2);
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.15s, border-color 0.2s;
 }
 
 .budget-progress:hover {
     background: rgba(51, 65, 85, 0.3);
+}
+
+.budget-progress.clickable {
+    cursor: pointer;
+}
+
+.budget-progress.clickable:hover {
+    border-color: rgba(139, 92, 246, 0.4);
+    transform: translateY(-1px);
 }
 
 .budget-progress.compact {
@@ -45,6 +55,30 @@
 
 .compact .budget-progress-label {
     font-size: 0.8125rem;
+}
+
+/* Badges container */
+.budget-progress-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Reserved badge - amber/orange */
+.budget-reserved-badge {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    animation: subtle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes subtle-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
 }
 
 .budget-progress-percentage {
@@ -76,7 +110,7 @@
     height: 10px;
     background: rgba(51, 65, 85, 0.5);
     border-radius: 9999px;
-    overflow: hidden;
+    overflow: visible;
     cursor: pointer;
 }
 
@@ -84,23 +118,39 @@
     height: 6px;
 }
 
-/* Progress bar fill */
+/* Progress bar fill - base styles */
 .budget-progress-bar {
+    position: absolute;
+    top: 0;
     height: 100%;
     border-radius: 9999px;
     transition: width 0.5s ease-out;
 }
 
-.budget-progress-bar.safe {
+/* Spent segment - uses status colors */
+.budget-progress-bar.spent.safe {
     background: linear-gradient(90deg, #22c55e, #16a34a);
 }
 
-.budget-progress-bar.warning {
+.budget-progress-bar.spent.warning {
     background: linear-gradient(90deg, #facc15, #eab308);
 }
 
-.budget-progress-bar.critical {
+.budget-progress-bar.spent.critical {
     background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+/* Reserved segment - amber/orange with stripes */
+.budget-progress-bar.reserved {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(0, 0, 0, 0.1) 4px,
+        rgba(0, 0, 0, 0.1) 8px
+    ), linear-gradient(90deg, #f59e0b, #d97706);
+    border-left: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 /* Pulse animation for critical */
@@ -109,12 +159,10 @@
 }
 
 @keyframes pulse {
-
     0%,
     100% {
         opacity: 1;
     }
-
     50% {
         opacity: 0.7;
     }
@@ -126,11 +174,19 @@
     gap: 0.25rem;
     font-size: 0.75rem;
     margin-top: 0.125rem;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 .budget-spent {
     font-weight: 600;
     color: #a855f7;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+}
+
+.budget-reserved-amount {
+    font-weight: 500;
+    color: #fbbf24;
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
 }
 
@@ -180,6 +236,10 @@
 .tooltip-row strong {
     color: #f1f5f9;
     font-weight: 600;
+}
+
+.tooltip-row.reserved-row strong {
+    color: #fbbf24;
 }
 
 .tooltip-row.negative strong {

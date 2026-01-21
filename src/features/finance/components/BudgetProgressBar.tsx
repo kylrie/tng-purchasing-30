@@ -3,6 +3,7 @@
  * 
  * Visual progress bar showing budget utilization with:
  * - Dynamic color based on status (safe/warning/critical)
+ * - Reserved amount segment in amber/orange
  * - Pulse animation for critical budgets
  * - Tooltip showing exact amounts on hover
  */
@@ -16,6 +17,8 @@ interface BudgetProgressBarProps {
     label: string;
     /** Amount currently spent */
     spent: number;
+    /** Amount reserved (soft hold) */
+    reserved?: number;
     /** Total budget limit */
     limit: number;
     /** Currency code for formatting */
@@ -26,27 +29,36 @@ interface BudgetProgressBarProps {
     showPercentage?: boolean;
     /** Optional: Compact mode for dashboard widgets */
     compact?: boolean;
+    /** Optional: Click handler for drill-down */
+    onClick?: () => void;
 }
 
 export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
     label,
     spent,
+    reserved = 0,
     limit,
     currency,
     status,
     showPercentage = true,
     compact = false,
+    onClick,
 }) => {
     const [showTooltip, setShowTooltip] = useState(false);
 
-    // Calculate percentage (avoid division by zero)
-    const percentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
-    const clampedWidth = Math.min(percentage, 100); // Cap visual width at 100%
+    // Calculate percentages (avoid division by zero)
+    const spentPercentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+    const reservedPercentage = limit > 0 ? Math.round((reserved / limit) * 100) : 0;
+    const totalUtilization = spentPercentage + reservedPercentage;
 
-    // Derive status if not provided
+    // Clamp visual widths
+    const clampedSpentWidth = Math.min(spentPercentage, 100);
+    const clampedReservedWidth = Math.min(reservedPercentage, 100 - clampedSpentWidth);
+
+    // Derive status if not provided (based on total utilization including reserved)
     const derivedStatus: BudgetStatus = status || (
-        percentage >= 100 ? 'critical' :
-            percentage >= 80 ? 'warning' : 'safe'
+        totalUtilization >= 100 ? 'critical' :
+            totalUtilization >= 80 ? 'warning' : 'safe'
     );
 
     // Format currency
@@ -59,17 +71,27 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
         }).format(amount);
     };
 
-    const remaining = limit - spent;
+    const remaining = limit - spent - reserved;
 
     return (
-        <div className={`budget-progress ${compact ? 'compact' : ''}`}>
+        <div
+            className={`budget-progress ${compact ? 'compact' : ''} ${onClick ? 'clickable' : ''}`}
+            onClick={onClick}
+        >
             <div className="budget-progress-header">
                 <span className="budget-progress-label">{label}</span>
-                {showPercentage && (
-                    <span className={`budget-progress-percentage ${derivedStatus}`}>
-                        {percentage}%
-                    </span>
-                )}
+                <div className="budget-progress-badges">
+                    {reserved > 0 && (
+                        <span className="budget-reserved-badge">
+                            Reserved: {formatAmount(reserved)}
+                        </span>
+                    )}
+                    {showPercentage && (
+                        <span className={`budget-progress-percentage ${derivedStatus}`}>
+                            {totalUtilization}%
+                        </span>
+                    )}
+                </div>
             </div>
 
             <div
@@ -77,10 +99,21 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
                 onMouseEnter={() => setShowTooltip(true)}
                 onMouseLeave={() => setShowTooltip(false)}
             >
+                {/* Spent segment */}
                 <div
-                    className={`budget-progress-bar ${derivedStatus} ${derivedStatus === 'critical' ? 'animate-pulse' : ''}`}
-                    style={{ width: `${clampedWidth}%` }}
+                    className={`budget-progress-bar spent ${derivedStatus} ${derivedStatus === 'critical' ? 'animate-pulse' : ''}`}
+                    style={{ width: `${clampedSpentWidth}%` }}
                 />
+                {/* Reserved segment (amber) */}
+                {reserved > 0 && (
+                    <div
+                        className="budget-progress-bar reserved"
+                        style={{
+                            width: `${clampedReservedWidth}%`,
+                            left: `${clampedSpentWidth}%`
+                        }}
+                    />
+                )}
 
                 {/* Tooltip */}
                 {showTooltip && (
@@ -89,13 +122,19 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
                             <span>Spent:</span>
                             <strong>{formatAmount(spent)}</strong>
                         </div>
+                        {reserved > 0 && (
+                            <div className="tooltip-row reserved-row">
+                                <span>Reserved:</span>
+                                <strong>{formatAmount(reserved)}</strong>
+                            </div>
+                        )}
                         <div className="tooltip-row">
                             <span>Budget:</span>
                             <strong>{formatAmount(limit)}</strong>
                         </div>
                         <div className="tooltip-divider" />
                         <div className={`tooltip-row ${remaining < 0 ? 'negative' : ''}`}>
-                            <span>{remaining >= 0 ? 'Remaining:' : 'Over budget:'}</span>
+                            <span>{remaining >= 0 ? 'Available:' : 'Over budget:'}</span>
                             <strong>{formatAmount(Math.abs(remaining))}</strong>
                         </div>
                     </div>
@@ -105,6 +144,9 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
             {!compact && (
                 <div className="budget-progress-footer">
                     <span className="budget-spent">{formatAmount(spent)}</span>
+                    {reserved > 0 && (
+                        <span className="budget-reserved-amount">+ {formatAmount(reserved)} reserved</span>
+                    )}
                     <span className="budget-limit">/ {formatAmount(limit)}</span>
                 </div>
             )}
@@ -113,3 +155,4 @@ export const BudgetProgressBar: React.FC<BudgetProgressBarProps> = ({
 };
 
 export default BudgetProgressBar;
+
