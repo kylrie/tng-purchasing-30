@@ -102,8 +102,10 @@ const generateReservationId = (): string => {
 /**
  * Get budgeted COAs for a Business Unit
  * Returns COAs that have budget limits set for the current fiscal year
+ * @param businessUnitId - The business unit to get budgets for
+ * @param month - Optional month (1-12) to filter by specific budget month (for Date Needed feature)
  */
-export async function getBudgetedCOAs(businessUnitId: string): Promise<Array<{
+export async function getBudgetedCOAs(businessUnitId: string, month?: number): Promise<Array<{
     code: string;
     name: string;
     available: number;
@@ -112,8 +114,8 @@ export async function getBudgetedCOAs(businessUnitId: string): Promise<Array<{
 }>> {
     const fiscalYear = getCurrentFiscalYear();
 
-    // Get all budgets for the business unit
-    const budgetsQuery = query(
+    // Build base query
+    let budgetsQuery = query(
         collection(db, COLLECTIONS.BUDGETS),
         where('businessUnitId', '==', businessUnitId),
         where('fiscalYear', '==', fiscalYear)
@@ -125,6 +127,14 @@ export async function getBudgetedCOAs(businessUnitId: string): Promise<Array<{
 
     budgetsSnapshot.docs.forEach(doc => {
         const data = doc.data();
+
+        // Filter by month if specified (for Date Needed feature)
+        // Budget doc IDs are: {businessId}_{coaId}_{year}_{month}
+        if (month) {
+            const monthFromDoc = data.month || parseInt(doc.id.split('_').pop() || '0', 10);
+            if (monthFromDoc !== month) return; // Skip if month doesn't match
+        }
+
         if (data.totalLimit > 0) {
             budgetedCoaCodes.add(data.coaId);
             budgetMap.set(data.coaId, {

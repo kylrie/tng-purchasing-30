@@ -96,13 +96,18 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
     // Single COA for the entire PRF (not per-item)
     const [selectedCOACode, setSelectedCOACode] = useState<string>('');
 
-    // Fetch budgeted COAs on mount
+    // Date Needed - affects which monthly budget to check
+    const [dateNeeded, setDateNeeded] = useState<string>(requisition.dateNeeded || '');
+
+    // Fetch budgeted COAs on mount and when date changes
     useEffect(() => {
         const fetchCOAs = async () => {
             if (!requisition.businessId) return;
             setLoadingCOAs(true);
             try {
-                const coas = await BudgetService.getBudgetedCOAs(requisition.businessId);
+                // Extract month from dateNeeded for budget filtering
+                const targetMonth = dateNeeded ? new Date(dateNeeded).getMonth() + 1 : undefined;
+                const coas = await BudgetService.getBudgetedCOAs(requisition.businessId, targetMonth);
                 setBudgetedCOAs(coas);
             } catch (error) {
                 console.error('Error fetching budgeted COAs:', error);
@@ -111,7 +116,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
             }
         };
         fetchCOAs();
-    }, [requisition.businessId]);
+    }, [requisition.businessId, dateNeeded]);
 
     // Get selected COA details for budget check (defined before budgetExceeded, but used with totalAmount which comes later)
     const selectedCOA = useMemo(() =>
@@ -501,6 +506,22 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                                         ? 'No Manager found for this BU. Please select an approver.'
                                         : 'Designate who will approve this PRF.'
                                 }
+                            </p>
+                        </div>
+
+                        {/* Date Needed - Links to Budget Month */}
+                        <div className="bg-cyan-900/20 p-4 rounded-lg border border-cyan-500/30">
+                            <label className="block text-sm font-medium text-cyan-300 mb-1">
+                                Date Needed
+                            </label>
+                            <input
+                                type="date"
+                                value={dateNeeded}
+                                onChange={(e) => setDateNeeded(e.target.value)}
+                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 text-white"
+                            />
+                            <p className="text-xs text-cyan-400 mt-1">
+                                🎯 Budget availability is calculated based on this month's budget.
                             </p>
                         </div>
                     </div>
