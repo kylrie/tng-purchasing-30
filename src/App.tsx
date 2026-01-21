@@ -21,6 +21,7 @@ import BURFPage from './pages/BURFPage';
 import PCFView from './features/finance/views/PCFView';
 import PCFApprovalView from './features/finance/views/PCFApprovalView';
 import PCFAuditReviewView from './features/finance/views/PCFAuditReviewView';
+import TransactionHistoryView from './features/finance/views/TransactionHistoryView';
 import SuppliersView from './features/inventory/views/SuppliersView';
 // StockTakeSession merged into InventoryDashboard
 import InventoryReports from './features/inventory/views/InventoryReports';
@@ -393,6 +394,13 @@ function ProtectedApp() {
             <div className="p-8">
               <BudgetConfigPanel businesses={businesses} />
             </div>
+          </ProtectedRoute>
+        } />
+
+        {/* Transaction History - View all budget transactions */}
+        <Route path="/finance/transactions" element={
+          <ProtectedRoute permission="module:view:finance">
+            <TransactionHistoryView businesses={businesses} />
           </ProtectedRoute>
         } />
 
