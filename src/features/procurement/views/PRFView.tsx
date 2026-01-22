@@ -303,7 +303,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                 requesterName: currentUser.name,
                 requesterPhotoUrl: currentUser.avatar || '',
                 businessId: selectedBusinessId,
-                externalLink: attachmentLink && isValidUrl(attachmentLink) ? attachmentLink : undefined, // Store as dedicated field
+                ...(attachmentLink && isValidUrl(attachmentLink) ? { externalLink: attachmentLink } : {}), // Store as dedicated field only if valid
                 items: sanitizeItems(newItems), // FIX C6: Sanitize item names/remarks
                 totalAmount, // Use computed value
                 // VAT/EWT Tax fields

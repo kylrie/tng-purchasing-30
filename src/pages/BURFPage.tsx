@@ -345,7 +345,7 @@ const BURFPage: React.FC = () => {
                 requesterName: currentUser.name,
                 requesterPhotoUrl: currentUser.avatar || '',
                 businessId: currentUser.businessId,
-                externalLink: attachmentLink && isValidUrl(attachmentLink) ? attachmentLink : undefined,
+                ...(attachmentLink && isValidUrl(attachmentLink) ? { externalLink: attachmentLink } : {}),
                 items: sanitizeItems(items) as RequisitionItem[],
                 totalAmount: 0,
                 status,

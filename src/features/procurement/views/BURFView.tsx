@@ -237,8 +237,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 requesterName: currentUser.name,
                 requesterPhotoUrl: currentUser.avatar || '',
                 businessId: currentUser.businessId,
-                // FIX: Only store externalLink if it's a valid URL
-                externalLink: attachmentLink && isValidUrl(attachmentLink) ? attachmentLink : undefined,
+                // FIX: Only store externalLink if it's a valid URL (use spread to avoid undefined)
+                ...(attachmentLink && isValidUrl(attachmentLink) ? { externalLink: attachmentLink } : {}),
                 items: sanitizeItems(newItems), // Sanitize item names and remarks
                 totalAmount: 0,
                 status: status,
