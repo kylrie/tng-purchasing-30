@@ -1,8 +1,9 @@
 import { db } from '../../../config/firebase';
 import { doc, runTransaction, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { RequisitionStatus } from '../../procurement/types';
-import type { RequisitionHistory } from '../../procurement/types';
+import type { RequisitionHistory, Requisition } from '../../procurement/types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
+import { NotificationsService } from '../../../shared/services/notifications.service';
 
 export type WorkflowAction = 'APPROVE' | 'REJECT' | 'CANCEL' | 'REFILE';
 
@@ -27,7 +28,7 @@ export const executeWorkflowAction = async ({
   const ref = doc(db, COLLECTIONS.REQUISITIONS, requisitionId);
 
   // Use transaction to prevent race conditions (Issue #8)
-  await runTransaction(db, async (transaction) => {
+  const transactionResult = await runTransaction(db, async (transaction) => {
     // Fetch current doc within transaction
     const snap = await transaction.get(ref);
     if (!snap.exists()) throw new Error("Requisition not found");
@@ -243,5 +244,52 @@ export const executeWorkflowAction = async ({
 
     // Atomic update within transaction
     transaction.update(ref, updates);
+
+    // Return data needed for notifications (can't call async inside transaction)
+    return {
+      action,
+      nextStatus: updates.status as RequisitionStatus | undefined,
+      requesterId: data.requesterId as string,
+      requesterName: data.requesterName as string,
+      requisitionId,
+      totalAmount: data.totalAmount as number,
+    };
   });
+
+  // NOTIFICATIONS: After transaction completes, notify the requester
+  // This is done outside the transaction because Firestore transactions can't call external services
+  if (transactionResult) {
+    try {
+      if (action === 'APPROVE' && transactionResult.nextStatus) {
+        // Notify the filer that their request was approved and moved forward
+        await NotificationsService.notifyFilerOnStatusChange(
+          {
+            id: requisitionId,
+            requesterId: transactionResult.requesterId,
+            requesterName: transactionResult.requesterName,
+            totalAmount: transactionResult.totalAmount,
+          } as Requisition,
+          transactionResult.nextStatus,
+          user.displayName,
+          true // isApproval = true
+        );
+      } else if (action === 'REJECT') {
+        // Notify the filer that their request was rejected
+        await NotificationsService.notifyFilerOnStatusChange(
+          {
+            id: requisitionId,
+            requesterId: transactionResult.requesterId,
+            requesterName: transactionResult.requesterName,
+            totalAmount: transactionResult.totalAmount,
+          } as Requisition,
+          RequisitionStatus.REJECTED,
+          user.displayName,
+          false // isApproval = false for rejection
+        );
+      }
+    } catch (notificationError) {
+      console.error('[workflowService] Failed to create notification:', notificationError);
+      // Don't throw - the workflow action succeeded, notification is non-critical
+    }
+  }
 };

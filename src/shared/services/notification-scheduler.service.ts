@@ -74,13 +74,39 @@ export class NotificationSchedulerService {
             for (const req of pendingLiquidations) {
                 // Calculate days since fund release
                 // Use type assertion since fundReleaseDate is an extended runtime property
-                const reqData = req as FirestoreRequisition & { id: string; fundReleaseDate?: string };
-                const fundReleaseDate = reqData.fundReleaseDate
-                    ? new Date(reqData.fundReleaseDate)
-                    : req.updatedAt?.toDate() || new Date();
+                const reqData = req as any; // Use any to safely check types
+
+                let releaseDate: Date;
+
+                if (reqData.fundReleaseDate) {
+                    // Handle Firestore Timestamp
+                    if (typeof reqData.fundReleaseDate.toDate === 'function') {
+                        releaseDate = reqData.fundReleaseDate.toDate();
+                    }
+                    // Handle String or Number
+                    else {
+                        releaseDate = new Date(reqData.fundReleaseDate);
+                    }
+                } else {
+                    // Fallback to updatedAt if available, otherwise now
+                    if (req.updatedAt && typeof req.updatedAt.toDate === 'function') {
+                        releaseDate = req.updatedAt.toDate();
+                    } else {
+                        releaseDate = new Date();
+                    }
+                }
+
+                // Check for invalid date
+                if (isNaN(releaseDate.getTime())) {
+                    console.warn(`[NotificationScheduler] Invalid date for requisition ${req.id}`, reqData);
+                    releaseDate = new Date();
+                }
+
                 const daysSinceFundRelease = Math.floor(
-                    (Date.now() - fundReleaseDate.getTime()) / (1000 * 60 * 60 * 24)
+                    (Date.now() - releaseDate.getTime()) / (1000 * 60 * 60 * 24)
                 );
+
+                console.log(`[NotificationScheduler] Processing reminder for ${req.id}, days pending: ${daysSinceFundRelease}`);
 
                 await NotificationsService.createLiquidationReminder(
                     userId,
