@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { PermissionsProvider } from './contexts/PermissionsContext';
+import { DataProvider } from './shared/context/DataContext';
 import Layout from './shared/components/Layout';
 import ProtectedRoute from './shared/components/ProtectedRoute';
 import LoginView from './features/auth/views/LoginView';
@@ -543,10 +544,12 @@ function App() {
       <ErrorBoundary>
         <AuthProvider>
           <PermissionsProvider>
-            <Routes>
-              <Route path="/login" element={<LoginView />} />
-              <Route path="/*" element={<ProtectedApp />} />
-            </Routes>
+            <DataProvider>
+              <Routes>
+                <Route path="/login" element={<LoginView />} />
+                <Route path="/*" element={<ProtectedApp />} />
+              </Routes>
+            </DataProvider>
           </PermissionsProvider>
         </AuthProvider>
       </ErrorBoundary>
