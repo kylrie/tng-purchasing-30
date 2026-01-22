@@ -76,13 +76,30 @@ export class NotificationsService {
         actionUrl?: string;
         metadata?: FirestoreNotification['metadata'];
     }): Promise<string> {
+        // Sanitize metadata to remove undefined values (Firestore doesn't accept undefined)
+        const sanitizedMetadata = data.metadata ?
+            Object.fromEntries(
+                Object.entries(data.metadata).filter(([_, v]) => v !== undefined)
+            ) : undefined;
+
+        // Build the document without undefined fields
         const newDoc: Partial<FirestoreNotification> = {
-            ...data,
+            type: data.type,
+            message: data.message,
+            targetRoles: data.targetRoles,
             read: false,
             priority: data.priority || 'NORMAL',
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now(),
         };
+
+        // Only add optional fields if they have values
+        if (data.requisitionId) newDoc.requisitionId = data.requisitionId;
+        if (data.subType) newDoc.subType = data.subType;
+        if (data.actionUrl) newDoc.actionUrl = data.actionUrl;
+        if (sanitizedMetadata && Object.keys(sanitizedMetadata).length > 0) {
+            newDoc.metadata = sanitizedMetadata as FirestoreNotification['metadata'];
+        }
 
         return await FirestoreService.createDocument<FirestoreNotification>(
             COLLECTIONS.NOTIFICATIONS,
