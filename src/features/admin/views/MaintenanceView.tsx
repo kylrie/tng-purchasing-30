@@ -12,7 +12,7 @@ const MaintenanceView: React.FC = () => {
                 <h1 className="text-3xl font-bold text-slate-900 mb-4">System Under Maintenance</h1>
 
                 <p className="text-slate-500 text-lg mb-8 leading-relaxed">
-                    The TNG Procurement System is currently undergoing scheduled maintenance and upgrades to serve you better.
+                    The Thenextperience ERP System (TES) is currently undergoing scheduled maintenance and upgrades to serve you better.
                 </p>
 
                 <div className="bg-slate-50 rounded-xl p-6 mb-8 text-left space-y-4">

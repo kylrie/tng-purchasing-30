@@ -25,6 +25,8 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
     const [processingId, setProcessingId] = useState<string | null>(null);
     const [rejectModalId, setRejectModalId] = useState<string | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+    const [approveModalId, setApproveModalId] = useState<string | null>(null);
+    const [auditRemarks, setAuditRemarks] = useState('');
     const [selectedLiquidation, setSelectedLiquidation] = useState<PCFLiquidation | null>(null);
     const [printLiquidation, setPrintLiquidation] = useState<PCFLiquidation | null>(null);
 
@@ -48,15 +50,20 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
     const getBusinessName = (businessId: string) => businesses.find(b => b.id === businessId)?.name || 'Unknown';
 
     const handleApproveAuditReview = async (liquidation: PCFLiquidation) => {
-        if (!confirm(`Approve audit review for ${formatCurrency(liquidation.totalAmount)}?\n\nThis will move it to manager approval.`)) {
-            return;
-        }
-        setProcessingId(liquidation.id);
+        // Open the approve modal instead of confirm dialog
+        setApproveModalId(liquidation.id);
+    };
+
+    const handleConfirmApproval = async () => {
+        if (!approveModalId) return;
+        setProcessingId(approveModalId);
         try {
-            await PCFService.approveAuditReview(liquidation.id, currentUser.id, currentUser.name);
+            await PCFService.approveAuditReview(approveModalId, currentUser.id, currentUser.name, auditRemarks);
             alert('✅ Audit Review Approved!\n\nMoved to pending manager approval.');
             await loadAuditReviewLiquidations();
             setSelectedLiquidation(null);
+            setApproveModalId(null);
+            setAuditRemarks('');
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             alert(`Failed to approve: ${message}`);
@@ -333,6 +340,42 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
                                 </button>
                                 <button onClick={handleReject} disabled={!rejectReason.trim() || processingId === rejectModalId} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium disabled:opacity-50">
                                     {processingId === rejectModalId ? 'Rejecting...' : 'Reject'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* Approve Modal */}
+            {approveModalId && (
+                <>
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setApproveModalId(null)} />
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                        <div className="bg-slate-900 rounded-xl border border-slate-700 w-full max-w-md shadow-2xl">
+                            <div className="p-6 border-b border-slate-700">
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <CheckCircle size={24} className="text-green-400" />
+                                    Approve Audit Review
+                                </h2>
+                            </div>
+                            <div className="p-6">
+                                <label className="text-sm text-slate-400 block mb-2">Audit Remarks (Optional)</label>
+                                <textarea
+                                    value={auditRemarks}
+                                    onChange={(e) => setAuditRemarks(e.target.value)}
+                                    placeholder="Add any remarks or notes for this approval..."
+                                    rows={3}
+                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-green-500 focus:outline-none resize-none"
+                                />
+                                <p className="text-xs text-slate-500 mt-2">This will move the liquidation to pending manager approval.</p>
+                            </div>
+                            <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
+                                <button onClick={() => { setApproveModalId(null); setAuditRemarks(''); }} className="px-4 py-2 text-slate-300 hover:text-white">
+                                    Cancel
+                                </button>
+                                <button onClick={handleConfirmApproval} disabled={processingId === approveModalId} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium disabled:opacity-50">
+                                    {processingId === approveModalId ? 'Approving...' : 'Approve'}
                                 </button>
                             </div>
                         </div>

@@ -317,8 +317,8 @@ function ProtectedApp() {
           </ProtectedRoute>
         } />
 
-        <Route path="/liquidation" element={
-          <ProtectedRoute permission="module:view:liquidation">
+        <Route path="/procurement/liquidation" element={
+          <ProtectedRoute permission="liquidation:file:own">
             <LiquidationView
               currentUser={currentUser}
               requisitions={requisitions}
@@ -328,6 +328,23 @@ function ProtectedApp() {
               onUpdateRequisition={updateRequisition}
               allUsers={users}
               suppliers={suppliers}
+              variant="USER"
+            />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/liquidation" element={
+          <ProtectedRoute permission="liquidation:audit">
+            <LiquidationView
+              currentUser={currentUser}
+              requisitions={requisitions}
+              getStatusBadge={getStatusBadge}
+              handleReleaseFunds={handleReleaseFunds}
+              businesses={businesses}
+              onUpdateRequisition={updateRequisition}
+              allUsers={users}
+              suppliers={suppliers}
+              variant="AUDIT"
             />
           </ProtectedRoute>
         } />

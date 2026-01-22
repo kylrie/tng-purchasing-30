@@ -40,117 +40,131 @@ const SCOPED_PERMISSIONS_MAP: Record<string, string[]> = {
   // Empty - all permissions now show individually with clear labels
 };
 
-const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
-  // ═══════════════════════════════════════════════════════════════════════════
-  // REQUISITION CREATION - Scoped Permissions
-  // ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
+// PROCUREMENT MODULE
+// ═══════════════════════════════════════════════════════════════════════════
 
-  // Create BURF (Budget Use Request Form)
+const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
+  // Requisition Creation
   'requisition:create:burf': {
     label: 'Create BURF',
-    category: 'Requisition Creation',
-    description: 'Create new Budget Use Request Forms'
+    category: 'Procurement: Creation',
+    description: 'Allows users to create new Budget Use Request Forms (BURF).'
   },
-
-  // Prepare PRF from approved BURF (Convert BURF → PRF)
   'requisition:prepare:prf': {
     label: 'Prepare PRF (from BURF)',
-    category: 'Requisition Creation',
-    description: 'Convert approved BURFs to Purchase Requisition Forms'
+    category: 'Procurement: Creation',
+    description: 'Allows converting approved BURFs into Purchase Requisition Forms.'
   },
-
-  // Create Direct PRF (without BURF)
   'requisition:create:prf': {
     label: 'Create Direct PRF',
-    category: 'Requisition Creation',
-    description: 'Create PRF directly without a BURF'
+    category: 'Procurement: Creation',
+    description: 'Allows creating PRFs directly without a preceding BURF.'
   },
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // REQUISITION LIFECYCLE
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  // Requisition Lifecycle
-  'requisition:edit:draft': { label: 'Edit Drafts', category: 'Requisition Lifecycle' },
-  'requisition:refile:rejected': { label: 'Refile Rejected', category: 'Requisition Lifecycle' },
-  'requisition:cancel': { label: 'Cancel Requisition', category: 'Requisition Lifecycle' },
-  'requisition:print': { label: 'Print Requisition', category: 'Requisition Lifecycle' },
-
-  // Approval Workflow
-  'approval:manager:burf': { label: 'Manager Approval (BURF)', category: 'Approval Workflow' },
-  'approval:cic:burf': { label: 'CIC Approval', category: 'Approval Workflow' },
-  'approval:manager:prf': { label: 'Manager Approval (PRF)', category: 'Approval Workflow' },
-  'approval:finance_head:br': { label: 'Finance Head BR Approval', category: 'Approval Workflow' },
-  'approval:gm:br': { label: 'GM Budget Review Approval', category: 'Approval Workflow' },
-  'approval:cfo': { label: 'CFO Approval', category: 'Approval Workflow' },
-  'approval:bod': { label: 'BOD Approval', category: 'Approval Workflow' },
-
-  // Finance Workflow
-  'finance:release_funds': {
-    label: 'Release Funds',
-    category: 'Finance Workflow',
-    description: 'Release funds for PRF/PCF after BOD check authorization'
-  },
-  'finance:view_cheque': {
-    label: 'View Cheque Details',
-    category: 'Finance Workflow',
-    description: 'View bank reference and check voucher details'
-  },
-  'finance:upload_check': {
-    label: 'Upload Bank Reference (Check Prep)',
-    category: 'Finance Workflow',
-    description: 'Add bank reference # for BOD check authorization step'
-  },
-  'liquidation:view': { label: 'View Liquidations', category: 'Finance Workflow' },
-  'liquidation:file:own': { label: 'File Own Liquidation', category: 'Finance Workflow' },
-  'liquidation:file:all': { label: 'File All Liquidations', category: 'Finance Workflow' },
-  'liquidation:audit': { label: 'Audit Liquidations', category: 'Finance Workflow' },
-  'liquidation:print': { label: 'Print Liquidation', category: 'Finance Workflow' },
-
-  // PCF (Petty Cash Fund)
-  'pcf:view:own': { label: 'View Own PCF', category: 'Petty Cash Fund' },
-  'pcf:view:all': { label: 'View All PCF Records', category: 'Petty Cash Fund' },
-  'pcf:view:history:all': { label: 'View All PCF History (Per-User)', category: 'Petty Cash Fund' },
-  'pcf:create': { label: 'Create PCF Liquidation', category: 'Petty Cash Fund' },
-  'pcf:approve': { label: 'Approve PCF Liquidations', category: 'Petty Cash Fund' },
-  'pcf:cancel': { label: 'Cancel PCF Liquidation', category: 'Petty Cash Fund' },
+  // Requisition Actions
+  'requisition:edit:draft': { label: 'Edit Drafts', category: 'Procurement: Actions', description: 'Edit requisitions that are still in Draft status.' },
+  'requisition:refile:rejected': { label: 'Refile Rejected', category: 'Procurement: Actions', description: 'Edit and resubmit rejected requisitions.' },
+  'requisition:cancel': { label: 'Cancel Requisition', category: 'Procurement: Actions', description: 'Cancel an active requisition.' },
+  'requisition:print': { label: 'Print Requisition', category: 'Procurement: Actions', description: 'Generate PDF print view of requisitions.' },
 
   // Data Visibility
-  'requisition:view:own': { label: 'View Own Requests', category: 'Data Visibility' },
-  'requisition:view:business_unit': { label: 'View Business Unit', category: 'Data Visibility' },
-  'requisition:view:all': { label: 'View All Requests', category: 'Data Visibility' },
+  'requisition:view:own': { label: 'View Own Requests', category: 'Procurement: Visibility', description: 'View only requisitions created by the user.' },
+  'requisition:view:business_unit': { label: 'View Business Unit', category: 'Procurement: Visibility', description: 'View all requisitions within the user\'s assigned Business Unit.' },
+  'requisition:view:all': { label: 'View All Requests', category: 'Procurement: Visibility', description: 'View all requisitions across all Business Units.' },
 
-  // Supplier Management
-  'supplier:view': { label: 'View Suppliers', category: 'Supplier Management' },
-  'supplier:create': { label: 'Create Supplier', category: 'Supplier Management' },
-  'supplier:edit': { label: 'Edit Supplier', category: 'Supplier Management' },
-  'supplier:delete': { label: 'Delete Supplier', category: 'Supplier Management' },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // APPROVAL WORKFLOW
+  // ═══════════════════════════════════════════════════════════════════════════
 
-  // Admin Functions
-  'admin:manage:users': { label: 'Manage Users', category: 'Admin Functions' },
-  'admin:manage:businesses': { label: 'Manage Businesses', category: 'Admin Functions' },
-  'admin:manage:permissions': { label: 'Manage Permissions', category: 'Admin Functions' },
-  'admin:view:user_approvals': { label: 'View Pending Users', category: 'Admin Functions' },
+  'approval:manager:burf': { label: 'Manager Approval (BURF)', category: 'Approval Chain', description: 'Approve BURFs at the Manager level.' },
+  'approval:cic:burf': { label: 'CIC Approval', category: 'Approval Chain', description: 'Approve BURFs at the CIC (Control) level.' },
+  'approval:manager:prf': { label: 'Manager Approval (PRF)', category: 'Approval Chain', description: 'Approve PRFs at the Manager level.' },
+  'approval:finance_head:br': { label: 'Finance Head BR Approval', category: 'Approval Chain', description: 'Approve Budget Requests at Finance Head level.' },
+  'approval:gm:br': { label: 'GM Budget Review', category: 'Approval Chain', description: 'Approve Budget Requests at General Manager level.' },
+  'approval:cfo': { label: 'CFO Approval', category: 'Approval Chain', description: 'Final financial approval by CFO.' },
+  'approval:bod': { label: 'BOD Approval', category: 'Approval Chain', description: 'Board of Directors approval for high-value items.' },
+  'approval:view:history': { label: 'View Approval History', category: 'Approval Chain', description: 'View the audit trail of approvals.' },
 
-  // Module View Permissions
-  'module:view:dashboard': { label: 'View Dashboard', category: 'Module Access' },
-  'module:view:burf': { label: 'View BURF Module', category: 'Module Access' },
-  'module:view:prf': { label: 'View PRF Module', category: 'Module Access' },
-  'module:view:approvals': { label: 'View Approvals', category: 'Module Access' },
-  'module:view:approved': { label: 'View Approved List', category: 'Module Access' },
-  'module:view:finance': { label: 'View Finance Module', category: 'Module Access' },
-  'module:view:liquidation': { label: 'View Liquidation', category: 'Module Access' },
-  'module:view:pcf': { label: 'View PCF Module', category: 'Module Access' },
-  'module:view:pcf_approvals': { label: 'View PCF Approvals', category: 'Module Access' },
-  'module:view:suppliers': { label: 'View Suppliers', category: 'Module Access' },
-  'module:view:settings': { label: 'View Settings', category: 'Module Access' },
-  'module:view:finance:br': { label: 'View Finance BR Tab', category: 'Module Access' },
-  'module:view:finance:check_auth': { label: 'View Check Authorization Tab', category: 'Module Access' },
-  'module:view:prf_tracker': { label: 'View PRF Tracker', category: 'Module Access' },
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FINANCE & LIQUIDATION
+  // ═══════════════════════════════════════════════════════════════════════════
 
-  // Note: Legacy 'ui:view:*' permissions have been removed - use 'module:view:*' instead
+  'finance:release_funds': { label: 'Release Funds', category: 'Finance Operations', description: 'Mark requests as paid/released.' },
+  'finance:view_cheque': { label: 'View Cheque Details', category: 'Finance Operations', description: 'View check numbers and vouchers.' },
+  'finance:upload_check': { label: 'Check Preparation', category: 'Finance Operations', description: 'Upload check details for BOD authorization.' },
 
-  // Dashboard Widget Visibility
+  'liquidation:view': { label: 'View Liquidations', category: 'Liquidation', description: 'View liquidation reports.' },
+  'liquidation:file:own': { label: 'File Own Liquidation', category: 'Liquidation', description: 'File liquidation for own requests.' },
+  'liquidation:file:all': { label: 'File All Liquidations', category: 'Liquidation', description: 'File liquidation for any request (Admin/Finance).' },
+  'liquidation:audit': { label: 'Audit Liquidations', category: 'Liquidation', description: 'Audit and approve/reject liquidation reports.' },
+  'liquidation:print': { label: 'Print Liquidation', category: 'Liquidation', description: 'Print liquidation reports.' },
+
+  // Petty Cash Fund (PCF)
+  'pcf:view:own': { label: 'View Own PCF', category: 'Petty Cash', description: 'View own PCF requests.' },
+  'pcf:view:all': { label: 'View All PCF', category: 'Petty Cash', description: 'View all PCF requests.' },
+  'pcf:view:history:all': { label: 'View All PCF History', category: 'Petty Cash', description: 'View history of all PCF transactions.' },
+  'pcf:create': { label: 'Create PCF', category: 'Petty Cash', description: 'Create new Petty Cash requests.' },
+  'pcf:approve': { label: 'Approve PCF', category: 'Petty Cash', description: 'Approve Petty Cash requests.' },
+  'pcf:cancel': { label: 'Cancel PCF', category: 'Petty Cash', description: 'Cancel PCF requests.' },
+  'pcf:audit_review': { label: 'PCF Audit Review', category: 'Petty Cash', description: 'Review PCF requests before approval.' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MASTER DATA & ADMIN
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Suppliers
+  'supplier:view': { label: 'View Suppliers', category: 'Master Data: Suppliers' },
+  'supplier:create': { label: 'Create Supplier', category: 'Master Data: Suppliers' },
+  'supplier:edit': { label: 'Edit Supplier', category: 'Master Data: Suppliers' },
+  'supplier:delete': { label: 'Delete Supplier', category: 'Master Data: Suppliers' },
+
+  // Admin
+  'admin:manage:users': { label: 'Manage Users', category: 'System Admin' },
+  'admin:manage:businesses': { label: 'Manage Businesses', category: 'System Admin' },
+  'admin:manage:permissions': { label: 'Manage Permissions', category: 'System Admin' },
+  'admin:view:user_approvals': { label: 'View Pending Users', category: 'System Admin' },
+
+  // Inventory
+  'module:view:inventory': { label: 'Access Inventory', category: 'Inventory' },
+  'inventory:view:items': { label: 'View Items', category: 'Inventory' },
+  'inventory:manage:items': { label: 'Manage Items', category: 'Inventory' },
+  'inventory:manage:assets': { label: 'Manage Assets', category: 'Inventory' },
+  'inventory:manage:storage_areas': { label: 'Manage Storage', category: 'Inventory' },
+  'inventory:view:reports': { label: 'View Reports', category: 'Inventory' },
+  'inventory:manage:uom': { label: 'Manage UOM', category: 'Inventory' },
+
+  // COA & Budget
+  'coa:view': { label: 'View Chart of Accounts', category: 'Finance Config' },
+  'coa:manage': { label: 'Manage COA', category: 'Finance Config' },
+  'budget:view': { label: 'View Budgets', category: 'Finance Config' },
+  'budget:manage': { label: 'Manage Budgets', category: 'Finance Config' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MODULE ACCESS (SIDEBAR VISIBILITY)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  'module:view:dashboard': { label: 'Dashboard', category: 'Module Access' },
+  'module:view:burf': { label: 'BURF Module', category: 'Module Access' },
+  'module:view:prf': { label: 'PRF Module', category: 'Module Access' },
+  'module:view:approvals': { label: 'Approvals', category: 'Module Access' },
+  'module:view:approved': { label: 'Approved List', category: 'Module Access' },
+  'module:view:finance': { label: 'Finance Module', category: 'Module Access' },
+  'module:view:liquidation': { label: 'Liquidation Module', category: 'Module Access' },
+  'module:view:pcf': { label: 'PCF Module', category: 'Module Access' },
+  'module:view:pcf_approvals': { label: 'PCF Approvals', category: 'Module Access' },
+  'module:view:suppliers': { label: 'Suppliers Module', category: 'Module Access' },
+  'module:view:settings': { label: 'Settings Module', category: 'Module Access' },
+  'module:view:finance:br': { label: 'Finance BR Tab', category: 'Module Access' },
+  'module:view:finance:check_auth': { label: 'Check Auth Tab', category: 'Module Access' },
+  'module:view:prf_tracker': { label: 'PRF Tracker', category: 'Module Access' },
+  'module:view:coa': { label: 'COA Module', category: 'Module Access' },
+  'module:view:budgets': { label: 'Budget Module', category: 'Module Access' },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DASHBOARD WIDGETS
+  // ═══════════════════════════════════════════════════════════════════════════
+
   'dashboard:widget:pending_approvals': { label: 'Pending Approvals Card', category: 'Dashboard Widgets' },
   'dashboard:widget:active_prfs': { label: 'Active PRFs Card', category: 'Dashboard Widgets' },
   'dashboard:widget:ready_for_prf': { label: 'Ready for PRF Card', category: 'Dashboard Widgets' },
@@ -158,38 +172,21 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'dashboard:widget:pending_audit': { label: 'Pending Audit Card', category: 'Dashboard Widgets' },
   'dashboard:widget:pcf_approvals': { label: 'PCF Approvals Card', category: 'Dashboard Widgets' },
   'dashboard:widget:overdue_items': { label: 'Overdue Items Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:avg_processing': { label: 'Avg Processing Time Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:completed_month': { label: 'Completed This Month Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:avg_processing': { label: 'Avg Processing Card', category: 'Dashboard Widgets' },
+  'dashboard:widget:completed_month': { label: 'Completed Month Card', category: 'Dashboard Widgets' },
   'dashboard:widget:top_requesters': { label: 'Top Requesters Card', category: 'Dashboard Widgets' },
-  'dashboard:section:pending_list': { label: 'Pending Approvals List', category: 'Dashboard Widgets' },
+
+  'dashboard:section:pending_list': { label: 'Pending List', category: 'Dashboard Widgets' },
   'dashboard:section:ready_for_prf_list': { label: 'Ready for PRF List', category: 'Dashboard Widgets' },
-  'dashboard:section:pending_fund_release': { label: 'Pending Fund Release List', category: 'Dashboard Widgets' },
+  'dashboard:section:pending_fund_release': { label: 'Pending Release List', category: 'Dashboard Widgets' },
   'dashboard:section:pending_audit_list': { label: 'Pending Audit List', category: 'Dashboard Widgets' },
-  'dashboard:section:br_list': { label: 'BR Approvals Widget', category: 'Dashboard Widgets', description: 'Shows Budget Request approvals on Dashboard' },
-  'dashboard:section:finance_head_br': { label: 'Finance Head BR Widget', category: 'Dashboard Widgets', description: 'Shows pending BR for Finance Head approval' },
-  'dashboard:section:gm_br': { label: 'GM Budget Review Widget', category: 'Dashboard Widgets', description: 'Shows pending items for GM budget approval' },
-  'dashboard:section:bod_br': { label: 'BOD Budget Review Widget', category: 'Dashboard Widgets', description: 'Shows pending items for BOD approval' },
-  'dashboard:section:check_auth': { label: 'Check Authorization Widget', category: 'Dashboard Widgets', description: 'Shows Check Authorization items on Dashboard' },
+  'dashboard:section:br_list': { label: 'BR List', category: 'Dashboard Widgets' },
+  'dashboard:section:finance_head_br': { label: 'Finance Head BR', category: 'Dashboard Widgets' },
+  'dashboard:section:gm_br': { label: 'GM BR', category: 'Dashboard Widgets' },
+  'dashboard:section:bod_br': { label: 'BOD BR', category: 'Dashboard Widgets' },
+  'dashboard:section:check_auth': { label: 'Check Auth', category: 'Dashboard Widgets' },
 
-  // PRF Tracker
-  'prf_tracker:view:all': { label: 'View All Requests in Tracker', category: 'PRF Tracker', description: 'Toggle to view all BU requests in PRF Tracker' },
-
-  // Approval History
-  'approval:view:history': { label: 'View Approval History', category: 'Approval Workflow' },
-
-  // Inventory Management
-  'module:view:inventory': { label: 'Access Inventory Module', category: 'Inventory Management' },
-  'inventory:view:items': { label: 'View Inventory Items', category: 'Inventory Management' },
-  'inventory:manage:items': { label: 'Manage Inventory (Add/Edit/Delete)', category: 'Inventory Management' },
-  'inventory:manage:assets': { label: 'Manage Fixed Assets', category: 'Inventory Management', description: 'Add, edit, decommission equipment and machinery' },
-  'inventory:manage:storage_areas': { label: 'Manage Storage Areas', category: 'Inventory Management', description: 'Configure storage locations in Settings' },
-  'inventory:view:reports': { label: 'View Variance Reports', category: 'Inventory Management' },
-  'inventory:manage:uom': { label: 'Manage Units of Measure', category: 'Inventory Management' },
-
-  // Chart of Accounts
-  'coa:view': { label: 'View Chart of Accounts', category: 'Chart of Accounts' },
-  'coa:manage': { label: 'Manage COA (Add/Edit/Import)', category: 'Chart of Accounts' },
-  'module:view:coa': { label: 'Access COA Module', category: 'Chart of Accounts' },
+  'prf_tracker:view:all': { label: 'View All (Tracker)', category: 'Other', description: 'See all requests in PRF Tracker.' },
 };
 
 // Default roles that cannot be deleted (system + original business roles)
@@ -493,13 +490,29 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
                     {!collapsedCategories[category] && items.map((perm) => (
                       <tr key={perm.id} className="hover:bg-slate-800/30 transition-colors group">
                         <td className="px-6 py-3 font-medium text-slate-300 border-r border-slate-700/50 bg-slate-900/95 sticky left-0 z-10 shadow-[1px_0_5px_rgba(0,0,0,0.5)] group-hover:bg-slate-800 transition-colors">
-                          <div className="flex items-center justify-between">
-                            <span>{perm.label}</span>
+                          <div className="flex items-center justify-between group/label">
+                            <div className="flex items-center gap-2">
+                              <span>{perm.label}</span>
+                              {perm.description && (
+                                <div className="relative group/tooltip">
+                                  <div title={perm.description} className="cursor-help">
+                                    <AlertCircle
+                                      size={14}
+                                      className="text-slate-500 hover:text-purple-400"
+                                    />
+                                  </div>
+                                  <div
+                                    className="hidden group-hover/tooltip:block absolute left-full top-1/2 -translate-y-1/2 ml-2 w-64 p-2 bg-slate-800 border border-slate-600 rounded shadow-xl text-xs text-slate-200 z-[100] pointer-events-none"
+                                  >
+                                    {perm.description}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                             <button onClick={() => toggleRow(perm)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-purple-400 transition-opacity" title="Toggle all for this permission">
                               <CheckSquare size={14} />
                             </button>
                           </div>
-                          {perm.description && <div className="text-[10px] text-slate-500 mt-0.5 font-normal">{perm.description}</div>}
                         </td>
                         {(roles || []).map((role: UserRole) => {
                           const isSuper = role === UserRole.SUPER_ADMIN;
@@ -637,7 +650,19 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
                                 const selectedScopes = rolePerms.filter(p => p.startsWith(`${perm.basePermission}:`)).map(p => p.split(':')[2].toUpperCase());
                                 return (
                                   <div key={perm.id} className="flex items-center justify-between py-2 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 px-2 -mx-2 rounded transition-colors">
-                                    <div className="text-sm font-medium text-slate-300">{perm.label}</div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-medium text-slate-300">{perm.label}</span>
+                                      {perm.description && (
+                                        <div className="relative group/tooltip">
+                                          <div title={perm.description} className="cursor-help">
+                                            <AlertCircle size={14} className="text-slate-500 hover:text-purple-400" />
+                                          </div>
+                                          <div className="hidden group-hover/tooltip:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-800 border border-slate-600 rounded shadow-xl text-xs text-slate-200 z-[100] pointer-events-none">
+                                            {perm.description}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                     {selectedRoleForPivot === UserRole.SUPER_ADMIN ? (
                                       <div className="flex items-center gap-2 text-slate-500">
                                         <span className="text-xs">All Types</span>
@@ -661,7 +686,19 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
                                   onClick={() => handlePermissionChange(selectedRoleForPivot, perm.id)}
                                   className="flex items-center justify-between py-2 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 px-2 -mx-2 rounded cursor-pointer transition-colors group"
                                 >
-                                  <div className={`text-sm font-medium transition-colors ${isChecked ? 'text-purple-200' : 'text-slate-400 group-hover:text-slate-300'}`}>{perm.label}</div>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-sm font-medium transition-colors ${isChecked ? 'text-purple-200' : 'text-slate-400 group-hover:text-slate-300'}`}>{perm.label}</span>
+                                    {perm.description && (
+                                      <div className="relative group/tooltip" onClick={(e) => e.stopPropagation()}>
+                                        <div title={perm.description} className="cursor-help">
+                                          <AlertCircle size={14} className="text-slate-500 hover:text-purple-400" />
+                                        </div>
+                                        <div className="hidden group-hover/tooltip:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-800 border border-slate-600 rounded shadow-xl text-xs text-slate-200 z-[100] pointer-events-none">
+                                          {perm.description}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
                                   {selectedRoleForPivot === UserRole.SUPER_ADMIN ? <Lock size={14} className="text-slate-600" /> : (
                                     <div className={`w-9 h-5 rounded-full relative transition-colors duration-200 ease-in-out ${isChecked ? 'bg-purple-600' : 'bg-slate-700'}`}>
                                       <div className={`absolute top-1 left-1 bg-white w-3 h-3 rounded-full shadow-sm transition-transform duration-200 ${isChecked ? 'translate-x-4' : 'translate-x-0'}`} />

@@ -124,10 +124,13 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     // Handle submit from drawer
     // FIX: Replace any[] with PCFExpenseItem[] for type safety
     const handleSubmitLiquidation = async (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => {
+        // DERIVE BU FROM ITEMS: Use the BU from the first item, or fallback to user's BU
+        const liquidationBuId = expenses.length > 0 && expenses[0].buId ? expenses[0].buId : currentUser.businessId;
+
         await PCFService.submitLiquidation(
             currentUser.id,
             currentUser.name,
-            currentUser.businessId,
+            liquidationBuId,
             expenses,
             receiptsLink,
             undefined,
@@ -140,10 +143,13 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     // Handle save draft from drawer
     // FIX: Replace any[] with PCFExpenseItem[] for type safety
     const handleSaveDraft = async (expenses: PCFExpenseItem[], receiptsLink: string, remarks: string) => {
+        // DERIVE BU FROM ITEMS: Use the BU from the first item, or fallback to user's BU
+        const liquidationBuId = expenses.length > 0 && expenses[0].buId ? expenses[0].buId : currentUser.businessId;
+
         await PCFService.createDraftLiquidation(
             currentUser.id,
             currentUser.name,
-            currentUser.businessId,
+            liquidationBuId,
             expenses,
             receiptsLink,
             remarks
@@ -842,6 +848,63 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                             Audit reviewed by: {selectedLiquidation.auditReviewedByName}
                                         </p>
                                     )}
+                                </div>
+                            )}
+
+                            {/* Audit Notes History */}
+                            {selectedLiquidation.auditNotesHistory && selectedLiquidation.auditNotesHistory.length > 0 && (
+                                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                                    <h5 className="text-xs font-semibold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-1">
+                                        <FileText size={12} /> Audit Notes History
+                                    </h5>
+                                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                                        {selectedLiquidation.auditNotesHistory
+                                            .slice()
+                                            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                                            .map((entry, index) => (
+                                                <div
+                                                    key={entry.id || index}
+                                                    className={`p-2 rounded border ${entry.action === 'REJECTED'
+                                                        ? 'bg-red-900/20 border-red-700/30'
+                                                        : entry.action === 'CLEARED'
+                                                            ? 'bg-green-900/20 border-green-700/30'
+                                                            : entry.action === 'REFILE'
+                                                                ? 'bg-blue-900/20 border-blue-700/30'
+                                                                : entry.action === 'APPROVED'
+                                                                    ? 'bg-emerald-900/20 border-emerald-700/30'
+                                                                    : 'bg-slate-700/50 border-slate-600'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <span className={`text-xs font-medium uppercase ${entry.action === 'REJECTED'
+                                                            ? 'text-red-400'
+                                                            : entry.action === 'CLEARED'
+                                                                ? 'text-green-400'
+                                                                : entry.action === 'REFILE'
+                                                                    ? 'text-blue-400'
+                                                                    : entry.action === 'APPROVED'
+                                                                        ? 'text-emerald-400'
+                                                                        : 'text-slate-400'
+                                                            }`}>
+                                                            {entry.action === 'REJECTED' && '❌ '}
+                                                            {entry.action === 'CLEARED' && '✅ '}
+                                                            {entry.action === 'REFILE' && '🔄 '}
+                                                            {entry.action === 'APPROVED' && '✓ '}
+                                                            {entry.action === 'COMMENT' && '💬 '}
+                                                            {entry.action === 'AUDIT_REVIEW' && '🔍 '}
+                                                            {entry.action}
+                                                        </span>
+                                                        <span className="text-xs text-slate-500">
+                                                            {new Date(entry.timestamp).toLocaleDateString('en-US', {
+                                                                month: 'short', day: '2-digit', year: 'numeric'
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-slate-200 whitespace-pre-wrap">{entry.note}</p>
+                                                    <p className="text-xs text-slate-500 mt-1">by {entry.actorName}</p>
+                                                </div>
+                                            ))}
+                                    </div>
                                 </div>
                             )}
                         </div>

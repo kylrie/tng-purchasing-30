@@ -164,7 +164,7 @@ const BURFPrintModal: React.FC<BURFPrintModalProps> = ({ req, onClose, business,
 
             {/* Footer */}
             <div className="mt-8 pt-3 border-t border-slate-200 flex justify-between text-[10px] text-slate-400">
-                <span>Generated via TES (TNG ERP System)</span>
+                <span>Generated via Thenextperience ERP System (TES)</span>
                 <span>Printed: {new Date()?.toLocaleString()}</span>
             </div>
         </>

@@ -14,48 +14,222 @@ input[type="number"] {
   appearance: textfield;
 }
 
+/* Cinematic Motion & Interaction */
+:root {
+  --ease-cinematic: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-magnetic: cubic-bezier(0.33, 1, 0.68, 1);
+  --ease-elastic: cubic-bezier(0.68, -0.6, 0.32, 1.6);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cinematic-bloom {
+  0% {
+    filter: blur(20px);
+    opacity: 0;
+    transform: scale(1.1);
+  }
+
+  100% {
+    filter: blur(0);
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-cinematic-bloom {
+  animation: cinematic-bloom 2s var(--ease-cinematic) both;
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  33% {
+    transform: translateY(-30px) rotate(2deg);
+  }
+
+  66% {
+    transform: translateY(15px) rotate(-1deg);
+  }
+}
+
+.animate-float {
+  animation: float 20s ease-in-out infinite;
+}
+
+@keyframes light-trail {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+.light-trail {
+  position: absolute;
+  width: 100px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #a855f7, #22d3ee, transparent);
+  offset-path: rect(0% 100% 100% 0% round 24px);
+  animation: light-trail 4s linear infinite;
+}
+
+@keyframes text-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0);
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-text-reveal {
+  animation: text-reveal 1.2s var(--ease-out-expo) both;
+}
+
+/* Advanced Masking & Glass */
+.mask-radial-fade {
+  mask-image: radial-gradient(circle at center, black 40%, transparent 90%);
+}
+
+.mask-edge-fade-bottom {
+  mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+}
+
+.glass-cinematic {
+  background: rgba(255, 255, 255, 0.015);
+  backdrop-filter: blur(40px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Entry and Interaction Animations */
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.2s ease-in-out 0s 2;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoom-in-up {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-in {
+  animation-duration: 1200ms;
+  animation-timing-function: var(--ease-cinematic);
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.zoom-in-up {
+  animation-name: zoom-in-up;
+}
+
+.delay-150 {
+  animation-delay: 150ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-450 {
+  animation-delay: 450ms;
+}
+
+.delay-600 {
+  animation-delay: 600ms;
+}
+
+.delay-1000 {
+  animation-delay: 1000ms;
+}
+
+.delay-2000 {
+  animation-delay: 2000ms;
+}
+
 /* Custom animations */
-@keyframes pulse {
+@keyframes pulse-slow {
 
   0%,
   100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-pulse {
-  animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Fast pulse for critical urgency */
-@keyframes pulse-fast {
-
-  0%,
-  100% {
-    opacity: 1;
+    opacity: 0.8;
     transform: scale(1);
   }
 
   50% {
-    opacity: 0.7;
+    opacity: 0.4;
     transform: scale(1.05);
   }
 }
 
-.animate-pulse-fast {
-  animation: pulse-fast 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.delay-1000 {
-  animation-delay: 1s;
-}
-
-.delay-2000 {
-  animation-delay: 2s;
+.animate-pulse-slow {
+  animation: pulse-slow 8s var(--ease-cinematic) infinite;
 }
 
 /* Smooth scrolling */

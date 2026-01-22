@@ -21,6 +21,7 @@ interface LiquidationViewProps {
   onUpdateRequisition: (req: Requisition) => void;
   allUsers: User[];
   suppliers: Supplier[];
+  variant?: 'USER' | 'AUDIT';
 }
 
 export const LiquidationView: React.FC<LiquidationViewProps> = ({
@@ -30,19 +31,25 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   businesses,
   onUpdateRequisition,
   allUsers,
-  suppliers
+  suppliers,
+  variant = 'USER' // Default to USER view if not specified
 }) => {
   const [printReq, setPrintReq] = useState<Requisition | null>(null);
   const [editingLiquidationReq, setEditingLiquidationReq] = useState<Requisition | null>(null);
   const [auditReq, setAuditReq] = useState<Requisition | null>(null);
   const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
-  const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit' | 'my_history' | 'audit_history'>('liquidations');
+
+  // Set initial active tab based on variant
+  const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit' | 'my_history' | 'audit_history'>(
+    variant === 'AUDIT' ? 'for_audit' : 'liquidations'
+  );
+
   const [searchTerm, setSearchTerm] = useState('');
   const [auditHistoryFilter, setAuditHistoryFilter] = useState<'all' | 'rejected' | 'cleared'>('all');
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
 
-  const canView = hasPermission('liquidation:view');
+  const canView = hasPermission('liquidation:view') || hasPermission('liquidation:file:own') || hasPermission('liquidation:audit');
 
   if (!canView) {
     return (
@@ -201,50 +208,65 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     <>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Liquidations</h1>
-          <p className="text-slate-400 text-sm">File and audit liquidation reports for released funds.</p>
+          <h1 className="text-2xl font-bold text-white">
+            {variant === 'AUDIT' ? 'Liquidation Analysis' : 'My Liquidations'}
+          </h1>
+          <p className="text-slate-400 text-sm">
+            {variant === 'AUDIT'
+              ? 'Audit and review filed liquidation reports.'
+              : 'File liquidation reports for released funds and track status.'}
+          </p>
         </div>
 
         <div className="flex border-b border-slate-700 mb-4 overflow-x-auto">
-          <button
-            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'liquidations'
-              ? 'border-b-2 border-cyan-500 text-cyan-400'
-              : 'text-slate-400 hover:text-slate-300'
-              }`}
-            onClick={() => setActiveTab('liquidations')}
-          >
-            My Liquidations
-          </button>
-          <button
-            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'my_history'
-              ? 'border-b-2 border-cyan-500 text-cyan-400'
-              : 'text-slate-400 hover:text-slate-300'
-              }`}
-            onClick={() => setActiveTab('my_history')}
-          >
-            My History ({myHistoryReqs.length})
-          </button>
-          {/* Show For Audit tab to users with liquidation:view - the Audit button itself requires liquidation:audit */}
-          <button
-            className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'for_audit'
-              ? 'border-b-2 border-cyan-500 text-cyan-400'
-              : 'text-slate-400 hover:text-slate-300'
-              }`}
-            onClick={() => setActiveTab('for_audit')}
-          >
-            For Audit ({auditingReqs.length})
-          </button>
-          {/* Audit History tab - only visible to auditors */}
-          {hasPermission('liquidation:audit') && (
-            <button
-              className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'audit_history'
-                ? 'border-b-2 border-cyan-500 text-cyan-400'
-                : 'text-slate-400 hover:text-slate-300'
-                }`}
-              onClick={() => setActiveTab('audit_history')}
-            >
-              Audit History ({auditHistoryReqs.length})
-            </button>
+          {variant === 'USER' && (
+            <>
+              <button
+                className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'liquidations'
+                  ? 'border-b-2 border-cyan-500 text-cyan-400'
+                  : 'text-slate-400 hover:text-slate-300'
+                  }`}
+                onClick={() => setActiveTab('liquidations')}
+              >
+                My Liquidations
+              </button>
+              <button
+                className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'my_history'
+                  ? 'border-b-2 border-cyan-500 text-cyan-400'
+                  : 'text-slate-400 hover:text-slate-300'
+                  }`}
+                onClick={() => setActiveTab('my_history')}
+              >
+                My History ({myHistoryReqs.length})
+              </button>
+            </>
+          )}
+
+          {variant === 'AUDIT' && (
+            <>
+              {/* Show For Audit tab to users with liquidation:view - the Audit button itself requires liquidation:audit */}
+              <button
+                className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'for_audit'
+                  ? 'border-b-2 border-cyan-500 text-cyan-400'
+                  : 'text-slate-400 hover:text-slate-300'
+                  }`}
+                onClick={() => setActiveTab('for_audit')}
+              >
+                For Audit ({auditingReqs.length})
+              </button>
+              {/* Audit History tab - only visible to auditors */}
+              {hasPermission('liquidation:audit') && (
+                <button
+                  className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'audit_history'
+                    ? 'border-b-2 border-cyan-500 text-cyan-400'
+                    : 'text-slate-400 hover:text-slate-300'
+                    }`}
+                  onClick={() => setActiveTab('audit_history')}
+                >
+                  Audit History ({auditHistoryReqs.length})
+                </button>
+              )}
+            </>
           )}
         </div>
 

@@ -861,12 +861,18 @@ export class RequisitionService {
       const updatedHistory = [historyEntry, ...(requisition.history || [])];
 
       // Atomic update within transaction - status + history together
-      transaction.update(docRef, {
+      const updateData: Record<string, unknown> = {
         status: RequisitionStatus.REJECTED,
         history: updatedHistory,
-        budgetStatus: requisition.budgetStatus === 'RESERVED' ? 'RELEASED' : requisition.budgetStatus,
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      // Only update budgetStatus if it exists and was RESERVED
+      if (requisition.budgetStatus === 'RESERVED') {
+        updateData.budgetStatus = 'RELEASED';
+      }
+
+      transaction.update(docRef, updateData);
 
       // Return requisition ID for budget release
       return requisitionId;

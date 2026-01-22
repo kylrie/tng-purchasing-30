@@ -208,6 +208,7 @@ const Layout: React.FC<LayoutProps> = ({
             children: [
                 { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: hasPermission('module:view:burf') },
                 { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('module:view:prf') },
+                { path: '/procurement/liquidation', label: 'My Liquidation', icon: Receipt, canView: hasPermission('liquidation:file:own') },
                 { path: '/prf-tracker', label: 'PRF Tracker', icon: ListChecks, canView: hasPermission('module:view:prf_tracker') }
             ]
         },
@@ -377,7 +378,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </div>
                     <div className={`${isCollapsed ? 'lg:hidden' : 'block'} overflow-hidden transition-all duration-300`}>
                         <h1 className="font-bold text-xl tracking-tight text-white whitespace-nowrap">TES</h1>
-                        <p className="text-xs text-slate-400 font-medium whitespace-nowrap">TNG ERP System</p>
+                        <p className="text-xs text-slate-400 font-medium whitespace-nowrap">Thenextperience ERP System</p>
                     </div>
                 </div>
 

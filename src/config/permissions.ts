@@ -135,6 +135,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'requisition:print',
     'requisition:view:all',
     'liquidation:view',
+    'liquidation:file:own',
     'liquidation:file:all',
     'liquidation:print',
     'finance:view_cheque',
@@ -404,6 +405,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'finance:view_cheque',
     'finance:upload_check',  // Check Preparation step
     'liquidation:view',
+    'liquidation:file:own',
     'liquidation:file:all',
     'liquidation:print',
     'approval:view:history',
@@ -468,6 +470,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'finance:release_funds',
     'finance:view_cheque',
     'liquidation:view',
+    'liquidation:file:own',
     'liquidation:file:all',
     'liquidation:print',
     'module:view:dashboard',

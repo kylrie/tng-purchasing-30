@@ -62,6 +62,16 @@ export interface PCFExpenseItem {
 // =====================================================
 // PCF LIQUIDATION INTERFACE
 // =====================================================
+// Audit note entry for tracking history of audit actions in PCF
+export interface PCFAuditNoteEntry {
+    id: string;                 // Unique ID for the note
+    action: 'REJECTED' | 'CLEARED' | 'REFILE' | 'COMMENT' | 'AUDIT_REVIEW' | 'APPROVED';  // The action taken
+    note: string;               // The auditor's note/reason
+    actorId: string;            // Who performed the action
+    actorName: string;          // Name of the actor
+    timestamp: string;          // When the action was taken (ISO 8601)
+}
+
 export interface PCFLiquidation {
     id: string;
     userId: string;
@@ -96,6 +106,8 @@ export interface PCFLiquidation {
     dateAuditReviewed?: string;
     auditRemarks?: string;        // Auditor's remarks when approving the liquidation
     auditClearedAt?: string;      // Timestamp when audit was cleared/approved
+    // Audit Notes History - accumulates all audit actions
+    auditNotesHistory?: PCFAuditNoteEntry[];
     // Late submission tracking
     isLate?: boolean;
     daysLate?: number;
@@ -319,7 +331,8 @@ export class PCFService {
     static async approveAuditReview(
         liquidationId: string,
         auditorId: string,
-        auditorName: string
+        auditorName: string,
+        auditRemarks?: string
     ): Promise<void> {
         const liquidation = await this.getLiquidationById(liquidationId);
         if (!liquidation) {
@@ -329,11 +342,27 @@ export class PCFService {
             throw new Error(`Cannot approve audit review: Liquidation is in ${liquidation.status} status`);
         }
 
+        // Create audit note entry for history
+        const auditNoteEntry: PCFAuditNoteEntry = {
+            id: `audit-${Date.now()}`,
+            action: 'CLEARED',
+            note: auditRemarks || 'Audit review approved',
+            actorId: auditorId,
+            actorName: auditorName,
+            timestamp: new Date().toISOString()
+        };
+
+        // Append to existing history or create new array
+        const existingHistory = liquidation.auditNotesHistory || [];
+
         await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
             status: PCFStatus.PENDING_APPROVAL,
             auditReviewedBy: auditorId,
             auditReviewedByName: auditorName,
             dateAuditReviewed: new Date().toISOString(),
+            auditRemarks: auditRemarks || '',
+            auditClearedAt: new Date().toISOString(),
+            auditNotesHistory: [...existingHistory, auditNoteEntry]
         });
     }
 
@@ -471,11 +500,28 @@ export class PCFService {
         rejectedByName: string,
         reason: string
     ): Promise<void> {
+        // Get existing liquidation to preserve history
+        const liquidation = await this.getLiquidationById(liquidationId);
+
+        // Create audit note entry for history
+        const auditNoteEntry: PCFAuditNoteEntry = {
+            id: `reject-${Date.now()}`,
+            action: 'REJECTED',
+            note: reason,
+            actorId: rejectedById,
+            actorName: rejectedByName,
+            timestamp: new Date().toISOString()
+        };
+
+        // Append to existing history or create new array
+        const existingHistory = liquidation?.auditNotesHistory || [];
+
         await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
             status: PCFStatus.REJECTED,
             rejectedBy: rejectedById,
             rejectedByName: rejectedByName,
             rejectionReason: reason,
+            auditNotesHistory: [...existingHistory, auditNoteEntry]
         });
     }
 
@@ -520,6 +566,22 @@ export class PCFService {
         const totalEwt = expenses.reduce((sum, e) => sum + e.ewt, 0);
         const netAmount = totalAmount - totalEwt + totalVat;
 
+        // Get existing liquidation to preserve history
+        const liquidation = await this.getLiquidationById(liquidationId);
+
+        // Create audit note entry for refile action
+        const auditNoteEntry: PCFAuditNoteEntry = {
+            id: `refile-${Date.now()}`,
+            action: 'REFILE',
+            note: remarks || 'Liquidation refiled for approval',
+            actorId: liquidation?.userId || '',
+            actorName: liquidation?.userName || '',
+            timestamp: new Date().toISOString()
+        };
+
+        // Append to existing history or create new array
+        const existingHistory = liquidation?.auditNotesHistory || [];
+
         await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
             expenses,
             totalAmount,
@@ -528,12 +590,13 @@ export class PCFService {
             netAmount,
             receiptsLink: receiptsLink || '',
             remarks: remarks || '',
-            status: PCFStatus.PENDING_APPROVAL,
+            status: PCFStatus.AUDIT_REVIEW,
             dateSubmitted: new Date().toISOString(),
             // Clear rejection data
             rejectedBy: null,
             rejectedByName: null,
             rejectionReason: null,
+            auditNotesHistory: [...existingHistory, auditNoteEntry]
         });
     }
 

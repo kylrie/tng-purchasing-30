@@ -247,6 +247,16 @@ export interface LiquidationExpense {
   isAdditionalExpense?: boolean; // True if this is an added row (reimbursable to employee)
 }
 
+// Audit note entry for tracking history of audit actions
+export interface AuditNoteEntry {
+  id: string;                 // Unique ID for the note
+  action: 'REJECTED' | 'CLEARED' | 'REFILE' | 'COMMENT';  // The action taken
+  note: string;               // The auditor's note/reason
+  actorId: string;            // Who performed the action
+  actorName: string;          // Name of the actor
+  timestamp: string;          // When the action was taken (ISO 8601)
+}
+
 export interface LiquidationDetails {
   // Submission info
   submittedBy?: string;
@@ -288,6 +298,9 @@ export interface LiquidationDetails {
   auditClearedAt?: string;  // Timestamp when audit was cleared
   rejectionReason?: string; // Reason for rejection
   status?: 'PENDING' | 'APPROVED' | 'REJECTED'; // Liquidation status
+
+  // Audit Notes History - accumulates all audit actions (rejection, clearance, etc.)
+  auditNotesHistory?: AuditNoteEntry[];
 }
 
 export interface RequisitionHistory {

@@ -769,6 +769,60 @@ const LiquidationForm: React.FC<LiquidationFormProps> = ({
                             </div>
                         </>
                     )}
+
+                    {/* Audit Notes History */}
+                    {requisition.liquidationDetails?.auditNotesHistory && requisition.liquidationDetails.auditNotesHistory.length > 0 && (
+                        <>
+                            <div className="border-t border-slate-600 my-2" />
+                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-600">
+                                <h5 className="text-xs font-semibold text-slate-300 mb-3 uppercase tracking-wider flex items-center gap-1">
+                                    <FileText size={12} /> Audit Notes History
+                                </h5>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {requisition.liquidationDetails.auditNotesHistory
+                                        .slice()
+                                        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+                                        .map((entry, index) => (
+                                            <div
+                                                key={entry.id || index}
+                                                className={`p-2 rounded border ${entry.action === 'REJECTED'
+                                                        ? 'bg-red-900/20 border-red-700/30'
+                                                        : entry.action === 'CLEARED'
+                                                            ? 'bg-green-900/20 border-green-700/30'
+                                                            : entry.action === 'REFILE'
+                                                                ? 'bg-blue-900/20 border-blue-700/30'
+                                                                : 'bg-slate-700/50 border-slate-600'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className={`text-xs font-medium uppercase ${entry.action === 'REJECTED'
+                                                            ? 'text-red-400'
+                                                            : entry.action === 'CLEARED'
+                                                                ? 'text-green-400'
+                                                                : entry.action === 'REFILE'
+                                                                    ? 'text-blue-400'
+                                                                    : 'text-slate-400'
+                                                        }`}>
+                                                        {entry.action === 'REJECTED' && '❌ '}
+                                                        {entry.action === 'CLEARED' && '✅ '}
+                                                        {entry.action === 'REFILE' && '🔄 '}
+                                                        {entry.action === 'COMMENT' && '💬 '}
+                                                        {entry.action}
+                                                    </span>
+                                                    <span className="text-xs text-slate-500">
+                                                        {new Date(entry.timestamp).toLocaleDateString('en-US', {
+                                                            month: 'short', day: '2-digit', year: 'numeric'
+                                                        })}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-slate-200 whitespace-pre-wrap">{entry.note}</p>
+                                                <p className="text-xs text-slate-500 mt-1">by {entry.actorName}</p>
+                                            </div>
+                                        ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 

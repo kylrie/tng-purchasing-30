@@ -1,0 +1,525 @@
+﻿
+> procureflow-enhanced@0.0.0 lint
+> eslint .
+
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\.agent\skills\skills\loki-mode\examples\todo-app-generated\backend\src\routes\todos.ts
+    9:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   50:71  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  129:58  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\.agent\skills\skills\typescript-expert\references\utility-types.ts
+   71:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  178:60  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:68  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:78  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  242:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  251:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  311:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  311:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  333:33  error  '_value' is defined but never used        @typescript-eslint/no-unused-vars
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\scripts\check-permissions.ts
+  30:67  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  32:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\scripts\detect-duplicate-users.ts
+  24:10  error  'e' is defined but never used                        @typescript-eslint/no-unused-vars
+  38:17  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  70:13  error  'duplicateCount' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\App.tsx
+  499:104  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  505:42   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  509:28   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  509:44   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\contexts\AuthContext.tsx
+   26:14  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  141:19  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  186:19  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  222:19  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  241:19  error    Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  285:6   warning  React Hook useEffect has a missing dependency: 'SESSION_TIMEOUT_MS'. Either include it or remove the dependency array           react-hooks/exhaustive-deps
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\contexts\PermissionsContext.tsx
+   25:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+   79:27  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  103:23  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+  121:23  error  Unexpected any. Specify a different type                                                                                        @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\admin\components\PermissionsMatrix.tsx
+  216:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\admin\components\PermissionsMatrix.tsx:216:7
+  214 |   useEffect(() => {
+  215 |     if (!isInitialized && Object.keys(contextPermissions).length > 0) {
+> 216 |       setPermissions(contextPermissions);
+      |       ^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  217 |       setRoles(contextRoles);
+  218 |       setIsInitialized(true);
+  219 |     }  react-hooks/set-state-in-effect
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\admin\hooks\useBusinesses.ts
+  14:9  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\admin\hooks\useBusinesses.ts:14:9
+  12 |
+  13 |     useEffect(() => {
+> 14 |         setLoading(true);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  15 |         const unsubscribe = onSnapshot(businessesCollection, (snapshot) => {
+  16 |             const bizData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
+  17 |             setBusinesses(bizData);  react-hooks/set-state-in-effect
+  25:8  warning  React Hook useEffect has a missing dependency: 'businessesCollection'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\admin\hooks\useUsers.ts
+  28:8  warning  React Hook useEffect has a missing dependency: 'usersCollection'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\admin\views\ActivityLogView.tsx
+  182:73  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\admin\views\ChartOfAccountsView.tsx
+  10:11  error  An empty interface declaration allows any non-nullish value, including literals like `0` and `""`.
+- If that's what you want, disable this lint rule with an inline comment or configure the 'allowInterfaces' rule option.
+- If you want a type meaning "any object", you probably want `object` instead.
+- If you want a type meaning "any value", you probably want `unknown` instead  @typescript-eslint/no-empty-object-type
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\admin\views\SettingsView.tsx
+  176:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\auth\services\authService.ts
+  22:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\components\BudgetConfigPanel.tsx
+  232:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\components\LiquidationPrintModal.tsx
+   98:70   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:58   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:23   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:36   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  211:67   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  216:87   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  251:89   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  254:89   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  257:104  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  258:104  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  262:108  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  263:108  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  270:73   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  270:111  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:73   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  273:111  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  282:75   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  283:47   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  285:84   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  303:68   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  351:73   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  366:94   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\components\PCFPrintModal.tsx
+  58:25  error  Unnecessary escape character: \.  no-useless-escape
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\components\ReleaseFundModal.tsx
+  38:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\components\ReleaseFundModal.tsx:38:7
+  36 |   useEffect(() => {
+  37 |     if (isOpen) {
+> 38 |       setCheckVoucherNumber('');
+     |       ^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  39 |       setCheckVoucherLink('');
+  40 |       setValidationError(null); // FIX: Also reset validation error
+  41 |     }  react-hooks/set-state-in-effect
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\services\budget.service.ts
+  167:9  error  'budgetsQuery' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\services\finance.dashboard.service.ts
+  114:13  error  'requisitions' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\views\FinanceView.tsx
+  144:5   error    React Hook "useEffect" is called conditionally. React Hooks must be called in the exact same order in every component render                                                               react-hooks/rules-of-hooks
+  203:35  error    React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  203:78  warning  React Hook useMemo has a missing dependency: 'applyFilters'. Either include it or remove the dependency array                                                                              react-hooks/exhaustive-deps
+  204:35  error    React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  204:78  warning  React Hook useMemo has a missing dependency: 'applyFilters'. Either include it or remove the dependency array                                                                              react-hooks/exhaustive-deps
+  205:35  error    React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  205:78  warning  React Hook useMemo has a missing dependency: 'applyFilters'. Either include it or remove the dependency array                                                                              react-hooks/exhaustive-deps
+  206:32  error    React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  219:33  error    React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  234:26  error    React Hook "useMemo" is called conditionally. React Hooks must be called in the exact same order in every component render. Did you accidentally call a React Hook after an early return?  react-hooks/rules-of-hooks
+  236:8   warning  React Hook useMemo has a missing dependency: 'applyFilters'. Either include it or remove the dependency array                                                                              react-hooks/exhaustive-deps
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\views\LiquidationPage.tsx
+  144:8   warning  React Hook useEffect has a missing dependency: 'expenses'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  957:40  error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+  958:34  error    Unexpected any. Specify a different type                                                                     @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\views\PCFApprovalView.tsx
+  87:8  warning  React Hook useEffect has a missing dependency: 'loadHistoryLiquidations'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\finance\views\TransactionHistoryView.tsx
+  80:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\components\StockImportModal.tsx
+  59:8  warning  React Hook useCallback has a missing dependency: 'processFile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  67:8  warning  React Hook useCallback has a missing dependency: 'processFile'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\components\VisualCountRow.tsx
+  175:26  error  Error: Cannot create components during render
+
+Components created during render will reset their state each time they are created. Declare components outside of render.
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\components\VisualCountRow.tsx:175:26
+  173 |                         <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+  174 |                     ) : (
+> 175 |                         <CategoryIcon size={24} className="text-purple-400" />
+      |                          ^^^^^^^^^^^^ This component is created during render
+  176 |                     )}
+  177 |                 </div>
+  178 |
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\components\VisualCountRow.tsx:132:26
+  130 |     onCalculatorOpen
+  131 | }) => {
+> 132 |     const CategoryIcon = getCategoryIcon(item);
+      |                          ^^^^^^^^^^^^^^^^^^^^^ The component is created during render here
+  133 |
+  134 |     // Determine which UI to show based on item type
+  135 |     const showSlider = item.type === 'RAW_MATERIAL' || item.type === 'PRODUCTION';  react-hooks/static-components
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\hooks\useSuppliers.ts
+  31:8   warning  React Hook useEffect has a missing dependency: 'suppliersCollection'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  65:25  error    Unexpected any. Specify a different type                                                                                @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\views\InventoryDashboard.tsx
+   69:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\views\InventoryDashboard.tsx:69:9
+  67 |
+  68 |     useEffect(() => {
+> 69 |         setValue(currentValue.toString());
+     |         ^^^^^^^^ Avoid calling setState() directly within an effect
+  70 |     }, [currentValue, isOpen]);
+  71 |
+  72 |     const handleKeyPress = (key: string) => {  react-hooks/set-state-in-effect
+  426:18  error  'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          @typescript-eslint/no-unused-vars
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\views\InventoryReports.tsx
+  303:5  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars')
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\inventory\views\SuppliersView.tsx
+  143:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\menu\services\production-recipe.service.ts
+  199:26  error  'err' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\menu\views\MenuDashboard.tsx
+  147:8  warning  React Hook useEffect has a missing dependency: 'loadMenuItems'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\components\LiquidationForm.tsx
+  110:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  161:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  176:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  321:84  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  349:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  357:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\components\PRFDetailsDrawer.tsx
+  30:48  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\hooks\useRequisitions.ts
+  15:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\hooks\useRequisitions.ts:15:13
+  13 |     useEffect(() => {
+  14 |         if (!currentUser) {
+> 15 |             setLoading(false);
+     |             ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  16 |             return;
+  17 |         }
+  18 |  react-hooks/set-state-in-effect
+  66:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+  78:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\services\requisitions.service.ts
+  298:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  309:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  435:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  958:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  969:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  969:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  976:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\services\workflowService.ts
+  233:9  error  Unexpected lexical declaration in case block  no-case-declarations
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\views\ApprovedView.tsx
+  29:11  warning  The 'approvedStatuses' array makes the dependencies of useMemo Hook (at line 72) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'approvedStatuses' in its own useMemo() Hook  react-hooks/exhaustive-deps
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\views\BURFView.tsx
+  152:25  error    Unexpected any. Specify a different type                                                                                @typescript-eslint/no-explicit-any
+  153:25  error    Unexpected any. Specify a different type                                                                                @typescript-eslint/no-explicit-any
+  167:8   warning  React Hook useMemo has an unnecessary dependency: 'currentUser.role'. Either exclude it or remove the dependency array  react-hooks/exhaustive-deps
+  233:28  error    Unexpected any. Specify a different type                                                                                @typescript-eslint/no-explicit-any
+  697:41  error    Unexpected any. Specify a different type                                                                                @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\views\PRFFormView.tsx
+  50:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\views\PRFView.tsx
+   123:8   warning  React Hook useMemo has a missing dependency: 'hasPermission'. Either include it or remove the dependency array    react-hooks/exhaustive-deps
+   299:28  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   370:25  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   843:25  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   867:25  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   890:59  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   902:25  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   928:25  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  1046:8   warning  React Hook useMemo has a missing dependency: 'historyStatuses'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  1071:25  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  1072:25  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  1289:68  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\features\procurement\views\ProcurementApprovalsView.tsx
+   81:11  warning  The 'approvedStatuses' array makes the dependencies of useMemo Hook (at line 142) change on every render. Move it inside the useMemo callback. Alternatively, wrap the initialization of 'approvedStatuses' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  199:29  error    Unexpected any. Specify a different type                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  221:29  error    Unexpected any. Specify a different type                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  244:25  error    Unexpected any. Specify a different type                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  266:25  error    Unexpected any. Specify a different type                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  292:25  error    Unexpected any. Specify a different type                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\pages\BURFPage.tsx
+  331:9  error  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\scripts\seedBusinessRoles.ts
+  92:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\components\FeatureFlag.tsx
+   48:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  112:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\components\RejectionModal.tsx
+  18:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\components\RejectionModal.tsx:18:13
+  16 |     useEffect(() => {
+  17 |         if (isOpen) {
+> 18 |             setReason('');
+     |             ^^^^^^^^^ Avoid calling setState() directly within an effect
+  19 |         }
+  20 |     }, [isOpen]);
+  21 |  react-hooks/set-state-in-effect
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\components\RequisitionDrawer.tsx
+  144:9    error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\components\RequisitionDrawer.tsx:144:9
+  142 |     // FIX Issue #5: Reset activeTab when requisition changes to prevent stale tab state
+  143 |     useEffect(() => {
+> 144 |         setActiveTab('items');
+      |         ^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  145 |     }, [requisition?.id]);
+  146 |
+  147 |     // Fetch parent BURF if this PRF was converted from a BURF                                                                                                                                                                  react-hooks/set-state-in-effect
+  186:44   error  Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `requisition`, but the source dependencies were [parentBurf, requisition?.history]. Inferred less specific property than source.
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\components\RequisitionDrawer.tsx:186:44
+  184 |     }
+  185 |
+> 186 |     const combinedHistoryEntries = useMemo((): CombinedHistoryEntry[] => {
+      |                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 187 |         const allEntries: CombinedHistoryEntry[] = [];
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 188 |
+      ΓÇª
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 215 |         return allEntries.sort((a, b) => a.sortDate - b.sortDate);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 216 |     }, [parentBurf, requisition?.history]);
+      | ^^^^^^ Could not preserve existing manual memoization
+  217 |
+  218 |     if (!isOpen || !requisition) return null;
+  219 |  react-hooks/preserve-manual-memoization
+  452:51   error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  456:102  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+  473:83   error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\context\DataContext.tsx
+   53:14  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react-refresh/only-export-components
+  114:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\context\DataContext.tsx:114:13
+  112 |     useEffect(() => {
+  113 |         if (!currentUser) {
+> 114 |             setRequisitions([]);
+      |             ^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  115 |             setLoadingRequisitions(false);
+  116 |             return;
+  117 |         }                                                          react-hooks/set-state-in-effect
+  133:32  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  136:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  148:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\context\DataContext.tsx:148:9
+  146 |     // Subscribe to businesses
+  147 |     useEffect(() => {
+> 148 |         setLoadingBusinesses(true);
+      |         ^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  149 |
+  150 |         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreBusiness>(
+  151 |             COLLECTIONS.BUSINESSES,  react-hooks/set-state-in-effect
+  168:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\context\DataContext.tsx:168:9
+  166 |     // Subscribe to suppliers
+  167 |     useEffect(() => {
+> 168 |         setLoadingSuppliers(true);
+      |         ^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  169 |
+  170 |         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreSupplier>(
+  171 |             COLLECTIONS.SUPPLIERS,      react-hooks/set-state-in-effect
+  189:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\context\DataContext.tsx:189:13
+  187 |     useEffect(() => {
+  188 |         if (!currentUser) {
+> 189 |             setNotifications([]);
+      |             ^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  190 |             setLoadingNotifications(false);
+  191 |             return;
+  192 |         }                                                       react-hooks/set-state-in-effect
+  223:27  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  234:75  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  236:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  244:68  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  245:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  258:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  267:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  278:25  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  280:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  291:25  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  293:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  302:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+  316:23  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\hooks\useUOM.ts
+  20:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\hooks\useUOM.ts:20:9
+  18 |     // Set up real-time listener on mount
+  19 |     useEffect(() => {
+> 20 |         setLoading(true);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  21 |         setError(null);
+  22 |
+  23 |         const uomRef = doc(db, UOM_COLLECTION, UOM_DOC_ID);  react-hooks/set-state-in-effect
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\services\counter.service.ts
+  257:58  error  '_value' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\types.ts
+  14:11  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\types\firebase.types.ts
+  123:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\utils\firestore.utils.ts
+  35:46  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  71:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\utils\formErrorHandler.ts
+  65:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\kylri\Documents\TNG SYSTEM\tng-purchasing-30\tng-purchasing-30\src\shared\utils\sanitize.ts
+  72:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+Γ£û 184 problems (165 errors, 19 warnings)
+  2 errors and 1 warning potentially fixable with the `--fix` option.
+

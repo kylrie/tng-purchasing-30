@@ -127,6 +127,7 @@ const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, bus
                     <tr>
                         <th className="border border-slate-900 px-2 py-2 w-32">ITEM CODE</th>
                         <th className="border border-slate-900 px-2 py-2">DESCRIPTION</th>
+                        <th className="border border-slate-900 px-2 py-2 w-28">BU</th>
                         <th className="border border-slate-900 px-2 py-2 w-14">QTY</th>
                         <th className="border border-slate-900 px-2 py-2 w-14">UNIT</th>
                         <th className="border border-slate-900 px-2 py-2 w-20">PRICE</th>
@@ -138,6 +139,7 @@ const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, bus
                         <tr key={index}>
                             <td className="border border-slate-900 px-2 py-1 text-center text-[10px]">{(expense.coaCode || expense.classification || '').substring(0, 12)}</td>
                             <td className="border border-slate-900 px-2 py-1 text-[10px]">{expense.coaName || expense.classification || 'N/A'}: {expense.itemDescription || expense.payeeVendor}</td>
+                            <td className="border border-slate-900 px-2 py-1 text-[9px] text-center">{expense.buName || business?.name || '-'}</td>
                             <td className="border border-slate-900 px-2 py-1 text-center">1</td>
                             <td className="border border-slate-900 px-2 py-1 text-center">lot</td>
                             <td className="border border-slate-900 px-2 py-1 text-right">₱{expense.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -147,6 +149,7 @@ const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, bus
                     {/* Fill empty rows */}
                     {Array.from({ length: emptyRows }).map((_, i) => (
                         <tr key={`empty-${i}`}>
+                            <td className="border border-slate-900 px-2 py-3">&nbsp;</td>
                             <td className="border border-slate-900 px-2 py-3">&nbsp;</td>
                             <td className="border border-slate-900 px-2 py-3">&nbsp;</td>
                             <td className="border border-slate-900 px-2 py-3">&nbsp;</td>
@@ -296,6 +299,76 @@ const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, bus
         </div>
     );
 
+    // Calculate BU breakdown from item-level buId, not user's main business
+    const buBreakdown = useMemo(() => {
+        const breakdown: { [key: string]: { name: string; amount: number; vat: number; ewt: number } } = {};
+
+        liquidation.expenses.forEach(exp => {
+            const buId = exp.buId || liquidation.businessId;
+            const buName = exp.buName || business?.name || 'Main Business';
+
+            if (!breakdown[buId]) {
+                breakdown[buId] = { name: buName, amount: 0, vat: 0, ewt: 0 };
+            }
+            breakdown[buId].amount += exp.amount;
+            breakdown[buId].vat += exp.vat;
+            breakdown[buId].ewt += exp.ewt;
+        });
+
+        return Object.entries(breakdown).map(([id, data]) => ({
+            id,
+            name: data.name,
+            amount: data.amount,
+            vat: data.vat,
+            ewt: data.ewt,
+            netAmount: data.amount - data.ewt
+        }));
+    }, [liquidation.expenses, liquidation.businessId, business?.name]);
+
+    const renderBuBreakdown = () => {
+        if (buBreakdown.length <= 1) return null; // Only show if multiple BUs
+
+        return (
+            <div className="mt-4 border border-slate-900">
+                <div className="bg-slate-100 p-2 font-bold text-[11px] border-b border-slate-900 text-center">
+                    CORP SHARING SUMMARY (By Business Unit)
+                </div>
+                <table className="w-full text-[10px]">
+                    <thead>
+                        <tr className="bg-slate-50">
+                            <th className="border-b border-slate-900 p-2 text-left">Business Unit</th>
+                            <th className="border-b border-slate-900 p-2 text-right">Amount</th>
+                            <th className="border-b border-slate-900 p-2 text-right">VAT</th>
+                            <th className="border-b border-slate-900 p-2 text-right">EWT</th>
+                            <th className="border-b border-slate-900 p-2 text-right font-bold">Net Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {buBreakdown.map((bu, idx) => (
+                            <tr key={bu.id}>
+                                <td className={`p-2 text-left ${idx < buBreakdown.length - 1 ? 'border-b border-slate-300' : ''}`}>
+                                    {bu.name}
+                                </td>
+                                <td className={`p-2 text-right ${idx < buBreakdown.length - 1 ? 'border-b border-slate-300' : ''}`}>
+                                    ₱{bu.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className={`p-2 text-right ${idx < buBreakdown.length - 1 ? 'border-b border-slate-300' : ''}`}>
+                                    ₱{bu.vat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                                <td className={`p-2 text-right text-red-700 ${idx < buBreakdown.length - 1 ? 'border-b border-slate-300' : ''}`}>
+                                    (₱{bu.ewt.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                                </td>
+                                <td className={`p-2 text-right font-bold ${idx < buBreakdown.length - 1 ? 'border-b border-slate-300' : ''}`}>
+                                    ₱{bu.netAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        );
+    };
+
     return (
         <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -354,6 +427,7 @@ const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, bus
                                     <>
                                         {renderFooterTotals()}
                                         {renderSignatures()}
+                                        {renderBuBreakdown()}
 
                                         {totalPages > 1 && (
                                             <div className="mt-2 text-center text-[9px] text-slate-400">

@@ -856,5 +856,36 @@ service cloud.firestore {
       // This ensures budget limits are validated atomically
       allow write: if false;
     }
+    
+    // =====================================================
+    // PCF LIQUIDATIONS COLLECTION
+    // Petty Cash Fund liquidations submitted by employees
+    // =====================================================
+    match /pcf_liquidations/{liquidationId} {
+      // Read: Authenticated users can read their own liquidations,
+      // Admins/Finance can read all
+      allow read: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        hasPermission('pcf:view') ||
+        hasPermission('pcf:approve') ||
+        hasPermission('pcf:audit_review')
+      );
+      
+      // Create: Any authenticated user can create PCF liquidations
+      allow create: if isSignedIn();
+      
+      // Update: Owner can update their own (drafts), 
+      // or users with approve/audit permissions
+      allow update: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        hasPermission('pcf:approve') ||
+        hasPermission('pcf:audit_review')
+      );
+      
+      // Delete: Only admins can delete liquidations
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
   }
 }

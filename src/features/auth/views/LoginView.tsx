@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Mail, Lock, Sparkles, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { ShoppingCart, Mail, Sparkles, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import RegistrationModal from './RegistrationModal';
 import { UserRole } from '../../../shared/types/firebase.types';
@@ -19,6 +19,7 @@ const LoginView = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleFlow, setIsGoogleFlow] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,81 +38,185 @@ const LoginView = () => {
     await completeNewUserRegistration(role, businessId, password);
   };
 
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const { clientX, clientY } = e;
+    const moveX = (clientX - window.innerWidth / 2) / 30;
+    const moveY = (clientY - window.innerHeight / 2) / 30;
+    setMousePos({ x: moveX, y: moveY });
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+    <div
+      className="min-h-screen bg-[#020202] text-white overflow-hidden font-sans selection:bg-cyan-500/30 cursor-default"
+      onMouseMove={handleMouseMove}
+    >
       {isNewUser && <RegistrationModal onRegister={handleRegistrationSubmit} loading={loading} isGoogleSignIn={isGoogleFlow} />}
 
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-2000"></div>
+      {/* Cinematic Background Layer */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+        {/* Deep Background Asset */}
+        <div
+          className="absolute inset-[-10%] transition-transform duration-[1.5s] ease-[cubic-bezier(0.22,1,0.36,1)] saturate-[1.5] brightness-[0.4] blur-[2px]"
+          style={{
+            backgroundImage: 'url("/login-bg.png")',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            transform: `translate3d(${mousePos.x * 0.2}px, ${mousePos.y * 0.2}px, 0) scale(1.1)`
+          }}
+        />
+
+        {/* Dynamic Light Blobs */}
+        <div
+          className="absolute top-[20%] left-[30%] w-[800px] h-[800px] bg-purple-600/10 rounded-full blur-[150px] animate-pulse-slow"
+          style={{ transform: `translate3d(${mousePos.x * 0.5}px, ${mousePos.y * 0.5}px, 0)` }}
+        ></div>
+        <div
+          className="absolute bottom-[10%] right-[20%] w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[130px] animate-pulse-slow delay-1000"
+          style={{ transform: `translate3d(${mousePos.x * -0.3}px, ${mousePos.y * -0.3}px, 0)` }}
+        ></div>
+
+        {/* Cinematic Vignette */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-[#020202] opacity-80"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#020202] via-transparent to-[#020202] opacity-80"></div>
       </div>
 
-      <div className="relative max-w-md w-full">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 rounded-3xl blur-xl"></div>
-        <div className="relative bg-slate-800/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-700/50 overflow-hidden">
-          <div className="p-8 text-center relative">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-cyan-500 to-purple-500"></div>
-            <div className="relative mx-auto w-20 h-20 mb-6">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-2xl blur-lg opacity-60 animate-pulse"></div>
-              <div className="relative bg-gradient-to-br from-purple-600 to-cyan-600 w-20 h-20 rounded-2xl flex items-center justify-center transform hover:scale-110 transition-transform duration-300">
-                <ShoppingCart className="w-10 h-10 text-white" strokeWidth={2.5} />
-              </div>
+      {/* Content Layer: Unified Stage */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6 lg:p-12 animate-cinematic-bloom">
+
+        {/* Logo & Platform Identity */}
+        <div className="flex flex-col items-center mb-10 lg:mb-16 text-center animate-in fade-in zoom-in-up duration-1000">
+          <div className="relative w-20 h-20 mb-8 group">
+            <div className="absolute inset-0 bg-cyan-500/40 rounded-[24px] blur-2xl group-hover:bg-purple-500/40 transition-colors duration-700"></div>
+            <div className="relative w-20 h-20 bg-black/40 backdrop-blur-md rounded-[24px] border border-white/10 flex items-center justify-center overflow-hidden rotate-[-3deg] group-hover:rotate-[3deg] transition-transform duration-700 shadow-2xl">
+              <ShoppingCart className="w-10 h-10 text-white" strokeWidth={1.5} />
+              <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-purple-500/20"></div>
             </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-cyan-400 to-purple-400 bg-clip-text text-transparent mb-2">TES</h1>
-            <p className="text-slate-400 flex items-center justify-center gap-2"><Sparkles className="w-4 h-4" /> TNG ERP System</p>
           </div>
 
-          <div className="p-8 pt-0">
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 flex items-center gap-2"><Mail className="w-4 h-4" /> Email Address</label>
-                <div className="relative">
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500" required />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 glass-pill rounded-full border border-white/5 mb-6">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Next Experience Integrated</span>
+          </div>
+
+          <h1 className="text-[80px] lg:text-[120px] font-black tracking-[-0.08em] leading-[0.8] text-white mb-6">
+            TES<span className="text-cyan-500">.</span>
+          </h1>
+          <p className="text-[12px] font-bold text-slate-500 uppercase tracking-[0.5em] mb-4">Thenextperience ERP System</p>
+          <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+        </div>
+
+        {/* Cinematic Login Stage */}
+        <div className="w-full max-w-[440px] relative group delay-300">
+          {/* Moving Light Trail Border Animation */}
+          <div className="absolute -inset-[1px] rounded-[32px] overflow-hidden pointer-events-none opacity-50">
+            <div className="light-trail"></div>
+          </div>
+
+          <div className="glass-cinematic rounded-[32px] p-8 lg:p-12 shadow-[0_0_100px_-20px_rgba(0,0,0,1)] border border-white/10">
+            <div className="mb-10">
+              <h2 className="text-2xl font-black tracking-tight text-white mb-2">Initialize Session</h2>
+              <p className="text-sm text-slate-500 font-medium">Verify your organizational credentials.</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] ml-1">Identity Access</label>
+                <div className="relative group/input">
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="professional@thenextperience.com"
+                    className="w-full px-6 py-4 bg-white/[0.03] border border-white/5 rounded-2xl text-white placeholder-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-500 font-medium text-sm"
+                    required
+                  />
+                  <Mail className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 group-focus-within/input:text-cyan-400 transition-colors" />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-300 flex items-center gap-2"><Lock className="w-4 h-4" /> Password</label>
-                <div className="relative">
-                  <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 pr-12" required />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300">
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">Security Protocol</label>
+                  <button type="button" className="text-[9px] font-black text-white/30 hover:text-cyan-400 uppercase tracking-widest transition-colors">Reset Key</button>
+                </div>
+                <div className="relative group/input">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    className="w-full px-6 py-5 bg-white/[0.03] border border-white/5 rounded-2xl text-white placeholder-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-500 font-medium text-sm tracking-[0.3em]"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-5 top-1/2 -translate-y-1/2 p-2 text-slate-700 hover:text-white transition-colors duration-200"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
 
               {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
-                  {error}
+                <div className="p-4 bg-red-500/10 border border-red-500/10 rounded-2xl text-red-100 text-[10px] font-black flex items-center gap-3 animate-shake uppercase tracking-widest">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>Security Alert: {error}</span>
                 </div>
               )}
 
-              <button type="submit" disabled={loading} className="w-full group relative px-6 py-3 bg-gradient-to-r from-purple-600 to-cyan-600 text-white rounded-xl font-semibold overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-purple-500/50 disabled:opacity-50">
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  {loading ? (<><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Authenticating...</>) : (<>Sign In <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" /></>)}
-                </span>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full relative group h-16 bg-white text-black hover:bg-slate-50 rounded-2xl font-black transition-all duration-500 disabled:opacity-50 overflow-hidden flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[13px] shadow-[0_20px_40px_-10px_rgba(255,255,255,0.1)] active:scale-[0.98]"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                {loading ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin"></div>
+                    <span>Syndicating...</span>
+                  </div>
+                ) : (
+                  <>
+                    <span>Access Platform</span>
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
+                  </>
+                )}
               </button>
             </form>
 
-            <div className="my-6 flex items-center gap-4">
-              <div className="flex-1 h-px bg-slate-700/50"></div>
-              <span className="text-xs text-slate-500">OR</span>
-              <div className="flex-1 h-px bg-slate-700/50"></div>
+            <div className="my-8 flex items-center gap-4 opacity-30">
+              <div className="flex-1 h-px bg-white/20"></div>
+              <span className="text-[8px] font-black text-white uppercase tracking-[0.4em]">Integrated Auth</span>
+              <div className="flex-1 h-px bg-white/20"></div>
             </div>
 
-            <button onClick={handleGoogleSignIn} disabled={loading} className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-slate-900/50 hover:bg-slate-900 border border-slate-700 rounded-xl text-white font-semibold transition-all duration-300 disabled:opacity-50">
+            <button
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-3 h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-bold transition-all duration-500 disabled:opacity-50 group hover:border-cyan-500/30"
+            >
               <GoogleIcon />
-              Sign in with Google
+              <span className="text-slate-400 group-hover:text-white transition-colors text-[12px] font-black uppercase tracking-widest">Connect Workspace</span>
             </button>
-
-            <div className="mt-6 pt-6 border-t border-slate-700/50 text-center">
-              <p className="text-xs text-slate-500">🔒 Secured by enterprise-grade encryption</p>
-            </div>
           </div>
         </div>
 
-        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-3/4 h-2 bg-gradient-to-r from-purple-500/0 via-cyan-500/50 to-purple-500/0 blur-xl"></div>
+        {/* Global ERP Positioning Footer */}
+        <div className="mt-16 lg:mt-24 flex flex-col items-center gap-8 animate-in fade-in delay-1000">
+          <div className="hidden lg:flex gap-12 text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">
+            <span className="hover:text-cyan-400 cursor-pointer transition-colors duration-500">Finance Control</span>
+            <span className="hover:text-cyan-400 cursor-pointer transition-colors duration-500">Global Supply</span>
+            <span className="hover:text-cyan-400 cursor-pointer transition-colors duration-500">HR Orchestration</span>
+            <span className="hover:text-cyan-400 cursor-pointer transition-colors duration-500">Asset Mgmt</span>
+          </div>
+
+          <div className="flex items-center gap-4 text-[9px] font-bold text-slate-700 italic">
+            <span>Thenextperience Cinematic Ecosystem v3.0</span>
+            <div className="w-1 h-1 bg-slate-800 rounded-full"></div>
+            <span>End-to-End Encryption Enabled</span>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -118,13 +118,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 
     // Allow Super Admin AND Finance role (or anyone with finance:release_funds implicitly via role check)
     // In types.ts, hasGlobalAccess is strict to Super Admin.
-    const canView = hasPermission('module:view:finance');
 
-    if (!canView) {
-        return (
-            <div className="text-center text-slate-400">You do not have permission to view this page.</div>
-        );
-    }
 
     const handleRelease = (req: Requisition) => {
         setSelectedReq(req);
@@ -234,6 +228,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const filteredReqs = useMemo(() => {
         return applyFilters(displayedReqs);
     }, [displayedReqs, searchTerm, selectedBu, businesses, allUsers]);
+
+    const canView = hasPermission('module:view:finance');
+
+    if (!canView) {
+        return (
+            <div className="text-center text-slate-400">You do not have permission to view this page.</div>
+        );
+    }
 
     return (
         <>

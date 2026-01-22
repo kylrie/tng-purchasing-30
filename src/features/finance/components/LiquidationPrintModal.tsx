@@ -428,7 +428,7 @@ const LiquidationPrintModal: React.FC<LiquidationPrintModalProps> = ({ req, onCl
 
                         {/* Footer */}
                         <div className="mt-12 pt-4 border-t border-slate-200 flex justify-between text-[10px] text-slate-400">
-                            <span>Generated via TES (TNG ERP System)</span>
+                            <span>Generated via Thenextperience ERP System (TES)</span>
                             <span>Printed: {new Date()?.toLocaleString()}</span>
                         </div>
 
