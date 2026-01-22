@@ -34,7 +34,7 @@ const FEATURE_FLAGS: Record<string, boolean> = {
     permissions: true,
 
     // Features in development - disabled
-    notifications: false,
+    notifications: true,
     emailIntegration: false,
     advancedReports: false,
     bulkImport: false,

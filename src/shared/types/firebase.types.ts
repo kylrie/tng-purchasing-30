@@ -86,11 +86,26 @@ export interface FirestoreSupplier extends FirestoreDocument {
 
 // Notification document in Firestore
 export interface FirestoreNotification extends FirestoreDocument {
-  type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO';
+  type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO' | 'ALERT' | 'REMINDER' | 'AUDIT';
   message: string;
   requisitionId?: string;
-  targetRoles: UserRole[];
+  targetRoles: (UserRole | string)[];
   read: boolean;
+
+  // Enhanced metadata for rich notifications
+  subType?: 'SUBMITTED' | 'APPROVED' | 'REJECTED' | 'CONVERTED' | 'REFILE' | 'PENDING_ACTION' | 'REMINDER' | 'CLEARED';
+  priority?: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
+  actionUrl?: string;       // Deep link to the relevant page
+  metadata?: {
+    requisitionNumber?: string;
+    requesterName?: string;
+    businessName?: string;
+    amount?: number;
+    stage?: string;         // Current workflow stage
+    actorName?: string;     // Who triggered this notification
+  };
+  expiresAt?: Timestamp;    // Auto-cleanup after this date
+  dismissedBy?: string[];   // Track per-user dismissals for role-based notifications
 }
 
 // Chart of Accounts document

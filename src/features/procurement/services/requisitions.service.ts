@@ -425,7 +425,23 @@ export class RequisitionService {
           updatedAt: serverTimestamp(),
           batchCounter: nextBatchCount // Increment atomic counter
         });
+
+        // Return data for notification
+        return { sourceBurf, newPrfId };
       });
+
+      // NOTIFICATION: Notify the filer that their BURF was converted to PRF
+      try {
+        await NotificationsService.notifyFilerOnConversion(
+          sourceBurfId,
+          newPrfId,
+          params.userId,
+          params.userName
+        );
+      } catch (notificationError) {
+        console.error('Failed to create conversion notification:', notificationError);
+        // Don't throw - conversion succeeded, notification failed is non-critical
+      }
 
       return {
         newPrfId,
@@ -886,6 +902,22 @@ export class RequisitionService {
       console.error('⚠️ Budget release failed (rejection succeeded):', budgetError);
       // Don't throw - rejection succeeded, budget release failed is non-critical
     }
+
+    // NOTIFICATION: Notify the filer that their request was rejected
+    try {
+      const requisition = await this.getRequisitionById(requisitionId);
+      if (requisition) {
+        await NotificationsService.notifyFilerOnStatusChange(
+          requisition,
+          RequisitionStatus.REJECTED,
+          userName,
+          false // isApproval = false for rejection
+        );
+      }
+    } catch (notificationError) {
+      console.error('Failed to create rejection notification:', notificationError);
+      // Don't throw - rejection succeeded, notification failed is non-critical
+    }
   }
 
 
@@ -1039,7 +1071,23 @@ export class RequisitionService {
       sanitizedUpdateData.updatedAt = serverTimestamp();
 
       transaction.update(docRef, sanitizedUpdateData);
+
+      // Return data for notification
+      return { requisitionId, totalActual: payload.totalActual };
     });
+
+    // NOTIFICATION: Notify auditors that a new liquidation needs review
+    try {
+      await NotificationsService.notifyAuditorOnNewItem(
+        'LIQUIDATION',
+        requisitionId,
+        userName,
+        payload.totalActual
+      );
+    } catch (notificationError) {
+      console.error('Failed to create auditor notification:', notificationError);
+      // Don't throw - liquidation succeeded, notification failed is non-critical
+    }
   }
 
 
@@ -1116,7 +1164,24 @@ export class RequisitionService {
           dateReplenished: new Date().toISOString(),
         });
       }
+
+      // Return requisition for notification
+      return requisition;
     });
+
+    // NOTIFICATION: Notify the filer that funds have been released
+    try {
+      const updatedReq = await this.getRequisitionById(requisitionId);
+      if (updatedReq) {
+        await NotificationsService.notifyFilerOnFundRelease(
+          updatedReq,
+          userName || 'Finance'
+        );
+      }
+    } catch (notificationError) {
+      console.error('Failed to create fund release notification:', notificationError);
+      // Don't throw - fund release succeeded, notification failed is non-critical
+    }
   }
 
   /**

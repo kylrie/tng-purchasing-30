@@ -41,6 +41,7 @@ import {
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
 import { UserRole } from '../../shared/types/firebase.types';
+import NotificationBell from './NotificationBell';
 
 interface LayoutProps {
     children: React.ReactNode;
@@ -439,10 +440,15 @@ const Layout: React.FC<LayoutProps> = ({
             </aside>
 
             <main className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
-                <div className="absolute top-4 left-4 z-30 lg:hidden">
-                    <button onClick={() => setIsSidebarOpen(true)} className="text-slate-400 hover:text-white p-2 bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50">
-                        <Menu size={24} />
-                    </button>
+                {/* Top Header Bar with Mobile Menu & Notification Bell */}
+                <div className="flex items-center justify-between p-4 lg:pr-6">
+                    <div className="lg:hidden">
+                        <button onClick={() => setIsSidebarOpen(true)} className="text-slate-400 hover:text-white p-2 bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50">
+                            <Menu size={24} />
+                        </button>
+                    </div>
+                    <div className="flex-1" />
+                    <NotificationBell />
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scroll-smooth">

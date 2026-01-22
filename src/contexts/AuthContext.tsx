@@ -8,6 +8,7 @@ import { auth, db, googleProvider } from '../config/firebase';
 import type { User } from '../shared/types/firebase.types';
 import { UserRole, UserStatus } from '../shared/types/firebase.types';
 import { COLLECTIONS } from '../shared/types/firebase.types';
+import { NotificationSchedulerService } from '../shared/services/notification-scheduler.service';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -102,6 +103,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setCurrentUser(null);
           } else {
             setCurrentUser({ ...userData, id: userDoc.id });
+            // Start notification scheduler when user is authenticated
+            NotificationSchedulerService.onUserLogin(userDoc.id);
           }
         } else if (!isNewUser) {
           setTempFirebaseUser(firebaseUser);
@@ -237,6 +240,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setCurrentUser(null);
       setIsNewUser(false);
       setTempFirebaseUser(null);
+      // Stop notification scheduler on logout
+      NotificationSchedulerService.onUserLogout();
       navigate('/login');
     } catch (err: any) {
       setError(err.message);
