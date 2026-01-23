@@ -32,5 +32,6 @@ export interface NotificationItem {
         actorName?: string;
     };
     dismissedBy?: string[];
+    createdAt?: any; // Firestore Timestamp or Date for sorting
 }
 

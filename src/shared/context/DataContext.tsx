@@ -69,6 +69,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     const [businesses, setBusinesses] = useState<Business[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [userNotifications, setUserNotifications] = useState<NotificationItem[]>([]);
+    const [roleNotifications, setRoleNotifications] = useState<NotificationItem[]>([]);
     const [allUsers, setAllUsers] = useState<User[]>([]);
 
     const [loadingRequisitions, setLoadingRequisitions] = useState(true);
@@ -99,6 +101,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         ...firestoreNotif,
         id: firestoreNotif.id,
         timestamp: firestoreNotif.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        createdAt: firestoreNotif.createdAt,
         targetRoles: firestoreNotif.targetRoles as UserRole[],
     });
 
@@ -124,7 +127,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
                 setRequisitions(firestoreReqs.map(convertRequisition));
                 setLoadingRequisitions(false);
             };
-            
+
             // Pass the additional multi-BU list
             unsubscribe = RequisitionService.subscribeToRequisitions(
                 currentUser.role,
@@ -193,24 +196,49 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
         setLoadingNotifications(true);
 
-        const handleNotifs = (firestoreNotifs: (FirestoreNotification & { id: string })[]) => {
-            setNotifications(firestoreNotifs.map(convertNotification));
+        const handleUserNotifs = (firestoreNotifs: (FirestoreNotification & { id: string })[]) => {
+            setUserNotifications(firestoreNotifs.map(convertNotification));
             setLoadingNotifications(false);
         };
+
+        const handleRoleNotifs = (firestoreNotifs: (FirestoreNotification & { id: string })[]) => {
+            setRoleNotifications(firestoreNotifs.map(convertNotification));
+            setLoadingNotifications(false);
+        };
+
         const handleError = (err: Error) => {
             setError(err.message);
             setLoadingNotifications(false);
         };
 
         // Subscribe to user-specific and role-based notifications
-        const unsubUser = NotificationsService.subscribeToNotifications(currentUser.id, handleNotifs, handleError);
-        const unsubRole = NotificationsService.subscribeToNotifications(currentUser.role, handleNotifs, handleError);
+        const unsubUser = NotificationsService.subscribeToNotifications(currentUser.id, handleUserNotifs, handleError);
+        const unsubRole = NotificationsService.subscribeToNotifications(currentUser.role, handleRoleNotifs, handleError);
 
         return () => {
             unsubUser();
             unsubRole();
         };
     }, [currentUser]);
+
+    // Merge and sort notifications
+    useEffect(() => {
+        const mergedMap = new Map<string, NotificationItem>();
+
+        [...userNotifications, ...roleNotifications].forEach(item => {
+            mergedMap.set(item.id, item);
+        });
+
+        const mergedList = Array.from(mergedMap.values()).sort((a, b) => {
+            // Sort by createdAt desc safely
+            if (a.createdAt && b.createdAt) {
+                return b.createdAt.toMillis() - a.createdAt.toMillis();
+            }
+            return 0;
+        });
+
+        setNotifications(mergedList);
+    }, [userNotifications, roleNotifications]);
 
     // Load all users
     useEffect(() => {
