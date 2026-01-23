@@ -141,7 +141,9 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
 
     // FIX Issue #5: Reset activeTab when requisition changes to prevent stale tab state
     useEffect(() => {
-        setActiveTab('items');
+        if (activeTab !== 'items') {
+            setActiveTab('items');
+        }
     }, [requisition?.id]);
 
     // Fetch parent BURF if this PRF was converted from a BURF

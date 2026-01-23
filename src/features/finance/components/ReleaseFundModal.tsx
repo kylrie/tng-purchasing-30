@@ -35,9 +35,9 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setCheckVoucherNumber('');
-      setCheckVoucherLink('');
-      setValidationError(null); // FIX: Also reset validation error
+      if (checkVoucherNumber !== '') setCheckVoucherNumber('');
+      if (checkVoucherLink !== '') setCheckVoucherLink('');
+      if (validationError !== null) setValidationError(null);
     }
   }, [isOpen]);
 

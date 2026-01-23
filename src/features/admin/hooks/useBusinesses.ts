@@ -11,7 +11,7 @@ export const useBusinesses = () => {
     const businessesCollection = collection(db, COLLECTIONS.BUSINESSES);
 
     useEffect(() => {
-        setLoading(true);
+        // setLoading(true); // Removed to avoid setState in effect, initial state is true
         const unsubscribe = onSnapshot(businessesCollection, (snapshot) => {
             const bizData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
             setBusinesses(bizData);
