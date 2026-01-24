@@ -1117,6 +1117,12 @@ export class RequisitionService {
 
       const requisition = { id: snap.id, ...snap.data() } as Requisition;
 
+      // Verify status allows fund release (Check this BEFORE determining final status)
+      if (requisition.status !== RequisitionStatus.FOR_FUND_RELEASE &&
+        requisition.status !== RequisitionStatus.APPROVED_FOR_PAYMENT) {
+        throw new Error(`Cannot release funds for requisition in status: ${requisition.status}. Expected FOR_FUND_RELEASE.`);
+      }
+
       // Determine final status based on requisition type
       // PCF Replenishments (have linkedPcfId): AUDITED_CLEARED (no liquidation needed)
       // Standard PRFs: FUNDS_RELEASED (needs liquidation)

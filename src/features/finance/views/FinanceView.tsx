@@ -518,18 +518,35 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                     {liq.dateApproved ? new Date(liq.dateApproved).toLocaleDateString() : '-'}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
-                                                    {hasPermission('finance:release_funds') && linkedPrf ? (
-                                                        <button
-                                                            onClick={() => handleRelease(linkedPrf)}
-                                                            className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700 font-medium"
-                                                        >
-                                                            Release Fund
-                                                        </button>
-                                                    ) : (
-                                                        <span className="text-slate-500 text-xs">
-                                                            {linkedPrf ? 'No permission' : 'No PRF linked'}
-                                                        </span>
-                                                    )}
+                                                    {(() => {
+                                                        const isReadyForRelease = linkedPrf && 
+                                                            (linkedPrf.status === RequisitionStatus.FOR_FUND_RELEASE || 
+                                                             linkedPrf.status === RequisitionStatus.APPROVED_FOR_PAYMENT);
+                                                        
+                                                        if (hasPermission('finance:release_funds') && isReadyForRelease) {
+                                                            return (
+                                                                <button
+                                                                    onClick={() => handleRelease(linkedPrf!)}
+                                                                    className="bg-orange-600 text-white px-3 py-1 rounded text-xs hover:bg-orange-700 font-medium"
+                                                                >
+                                                                    Release Fund
+                                                                </button>
+                                                            );
+                                                        } else if (linkedPrf) {
+                                                            return (
+                                                                <div className="flex flex-col items-end gap-1">
+                                                                    <span className="text-[10px] text-slate-500 uppercase font-semibold">Waiting PRF Approval</span>
+                                                                    {getStatusBadge(linkedPrf.status)}
+                                                                </div>
+                                                            );
+                                                        } else {
+                                                            return (
+                                                                <span className="text-slate-500 text-xs text-right block">
+                                                                    No PRF linked
+                                                                </span>
+                                                            );
+                                                        }
+                                                    })()}
                                                 </td>
                                             </tr>
                                         );
