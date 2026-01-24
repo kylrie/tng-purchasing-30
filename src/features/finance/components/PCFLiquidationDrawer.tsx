@@ -216,7 +216,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
 
         // Check required fields
         for (const exp of expenses) {
-            if (!exp.date || !exp.orNo || !exp.amount) {
+            if (!exp.date || !exp.orNo || !exp.amount || !exp.buId) {
                 return false;
             }
         }
