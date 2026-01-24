@@ -587,7 +587,14 @@ service cloud.firestore {
     // =====================================================
     match /notifications/{id} {
       // Read: Only own notifications
-      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Read: Users can read if they are the target (by ID) or their role is targeted
+      allow read: if isSignedIn() && (
+        (resource.data.userId == request.auth.uid) ||
+        (resource.data.targetRoles is list && (
+          resource.data.targetRoles.hasAny([request.auth.uid]) ||
+          resource.data.targetRoles.hasAny([getUserRole()])
+        ))
+      );
       
       // Create: Any authenticated user can create notifications for any user
       // This is required for approval workflow notifications (approver creates notification for next stage)
