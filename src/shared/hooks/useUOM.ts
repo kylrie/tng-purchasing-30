@@ -17,7 +17,7 @@ export const useUOM = () => {
 
     // Set up real-time listener on mount
     useEffect(() => {
-        setLoading(true);
+        // setLoading(true); // Redundant: initialized to true
         setError(null);
 
         const uomRef = doc(db, UOM_COLLECTION, UOM_DOC_ID);

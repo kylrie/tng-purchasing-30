@@ -114,7 +114,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     // Subscribe to requisitions
     useEffect(() => {
         if (!currentUser) {
-            setRequisitions([]);
+            setRequisitions(prev => prev.length === 0 ? prev : []);
             setLoadingRequisitions(false);
             return;
         }
@@ -148,7 +148,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     // Subscribe to businesses
     useEffect(() => {
-        setLoadingBusinesses(true);
+        // setLoadingBusinesses(true); // Redundant: initialized to true
 
         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreBusiness>(
             COLLECTIONS.BUSINESSES,
@@ -168,7 +168,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     // Subscribe to suppliers
     useEffect(() => {
-        setLoadingSuppliers(true);
+        // setLoadingSuppliers(true); // Redundant: initialized to true
 
         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreSupplier>(
             COLLECTIONS.SUPPLIERS,
@@ -189,7 +189,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     // Subscribe to notifications
     useEffect(() => {
         if (!currentUser) {
-            setNotifications([]);
+            setNotifications(prev => prev.length === 0 ? prev : []);
             setLoadingNotifications(false);
             return;
         }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ALL_PERMISSIONS } from '../../../config/permissions';
 import type { Permission } from '../../../config/permissions';
 import { UserRole, SystemRole, DEFAULT_BUSINESS_ROLES } from '../../procurement/types';
@@ -207,17 +207,16 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
   const [viewMode, setViewMode] = useState<'matrix' | 'role'>('role');
   const [selectedRoleForPivot, setSelectedRoleForPivot] = useState<string>('EMPLOYEE');
   const [isDirty, setIsDirty] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
+  // Only sync from context on initial load
+  const isInitialized = useRef(false);
 
-  // Only sync from context on initial load, not on every context change
-  // This prevents race conditions where useEffect overwrites local state after save
   useEffect(() => {
-    if (!isInitialized && Object.keys(contextPermissions).length > 0) {
+    if (!isInitialized.current && Object.keys(contextPermissions).length > 0) {
       setPermissions(contextPermissions);
       setRoles(contextRoles);
-      setIsInitialized(true);
+      isInitialized.current = true;
     }
-  }, [contextPermissions, contextRoles, isInitialized]);
+  }, [contextPermissions, contextRoles]);
 
   // Browser-level warning for unsaved changes
   useEffect(() => {

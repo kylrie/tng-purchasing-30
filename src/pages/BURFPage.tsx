@@ -30,6 +30,7 @@ import { CounterService } from '../shared/services/counter.service';
 import { sanitizeText, sanitizeItems } from '../shared/utils/sanitize';
 import { isValidUrl } from '../shared/utils/validation';
 import { useAuth } from '../contexts/AuthContext';
+import { useUOM } from '../shared/hooks/useUOM';
 import { UI_CONSTANTS } from '../config/constants';
 
 // ============================================================
@@ -177,7 +178,7 @@ const BURFPage: React.FC = () => {
     const [loading, setLoading] = useState(isEditMode);
     const [error, setError] = useState<string | null>(null);
     const [businesses, setBusinesses] = useState<Business[]>([]);
-    const [uomOptions] = useState<string[]>(['pcs', 'kg', 'L', 'box', 'pack', 'roll', 'set', 'unit']);
+    const { uomOptions } = useUOM();
 
     // Form state
     const [description, setDescription] = useState('');

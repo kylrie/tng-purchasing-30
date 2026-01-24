@@ -12,11 +12,11 @@ export const useRequisitions = () => {
 
     useEffect(() => {
         if (!currentUser) {
-            setLoading(false);
+            setLoading(prev => prev ? false : prev);
             return;
         }
 
-        setLoading(true);
+        setLoading(prev => !prev ? true : prev);
 
         // Subscribe using the service which handles RBAC (Role Based Access Control)
         // and Multi-BU logic.

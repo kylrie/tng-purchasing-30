@@ -65,9 +65,7 @@ const CalculatorPopup: React.FC<{
 }> = ({ isOpen, onClose, onSubmit, currentValue, itemName, unit }) => {
     const [value, setValue] = useState(currentValue.toString());
 
-    useEffect(() => {
-        setValue(currentValue.toString());
-    }, [currentValue, isOpen]);
+    // useEffect removed - state initialization handles it, and 'key' prop ensures reset on item change
 
     const handleKeyPress = (key: string) => {
         if (key === 'C') setValue('0');
@@ -724,6 +722,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
             {/* Calculator Modal */}
             {calculatorItem && (
                 <CalculatorPopup
+                    key={calculatorItem.id}
                     isOpen={true}
                     onClose={() => setCalculatorItem(null)}
                     onSubmit={handleCalculatorSubmit}
