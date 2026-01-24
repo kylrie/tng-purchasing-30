@@ -84,7 +84,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     const convertRequisition = (firestoreReq: FirestoreRequisition & { id: string }): Requisition => ({
         ...firestoreReq,
         id: firestoreReq.id,
-        timestamp: firestoreReq.createdAt.toDate().toISOString(), // Convert timestamp to string
+        timestamp: firestoreReq.createdAt && typeof firestoreReq.createdAt.toDate === 'function'
+            ? firestoreReq.createdAt.toDate().toISOString()
+            : new Date().toISOString(),
     });
 
     const convertBusiness = (firestoreBiz: FirestoreBusiness & { id: string }): Business => ({

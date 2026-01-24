@@ -378,6 +378,7 @@ export class NotificationsService {
                 where('requisitionId', '==', requisitionId),
                 where('subType', '==', 'REMINDER'),
                 where('read', '==', false),
+                where('targetRoles', 'array-contains', userId),
             ]
         );
 

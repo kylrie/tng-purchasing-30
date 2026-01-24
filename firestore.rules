@@ -588,7 +588,9 @@ service cloud.firestore {
     match /notifications/{id} {
       // Read: Only own notifications
       // Read: Users can read if they are the target (by ID) or their role is targeted
+      // FIX: Allow SuperAdmin to read all notifications for debugging/system checks
       allow read: if isSignedIn() && (
+        isSuperAdmin() ||
         (resource.data.userId == request.auth.uid) ||
         (resource.data.targetRoles is list && (
           resource.data.targetRoles.hasAny([request.auth.uid]) ||
