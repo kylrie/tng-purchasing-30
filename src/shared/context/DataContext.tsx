@@ -119,7 +119,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             return;
         }
 
-        setLoadingRequisitions(true);
+        // REMOVED: setLoadingRequisitions(true); - Fix for revert issue
+
         let unsubscribe: Unsubscribe;
 
         try {
@@ -132,7 +133,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             unsubscribe = RequisitionService.subscribeToRequisitions(
                 currentUser.role,
                 currentUser.businessId,
-                currentUser.businessUnitIds || [], // Fix: Pass 4th argument
+                currentUser.businessUnitIds || [],
                 processReqs as any
             );
 
@@ -148,7 +149,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     // Subscribe to businesses
     useEffect(() => {
-        // setLoadingBusinesses(true); // Redundant: initialized to true
+        // REMOVED: setLoadingBusinesses(true);
 
         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreBusiness>(
             COLLECTIONS.BUSINESSES,
@@ -168,7 +169,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
     // Subscribe to suppliers
     useEffect(() => {
-        // setLoadingSuppliers(true); // Redundant: initialized to true
+        // REMOVED: setLoadingSuppliers(true);
 
         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreSupplier>(
             COLLECTIONS.SUPPLIERS,
@@ -194,7 +195,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             return;
         }
 
-        setLoadingNotifications(true);
+        // REMOVED: setLoadingNotifications(true);
 
         const handleUserNotifs = (firestoreNotifs: (FirestoreNotification & { id: string })[]) => {
             setUserNotifications(firestoreNotifs.map(convertNotification));
