@@ -660,7 +660,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 id="cfo-approval"
                                 label="CFO Approval"
                                 value={cfoPendingItems.length.toString()}
-                                route="/finance?tab=cfo_pending"
+                                route="/finance?tab=br_pending"
                                 icon={Briefcase}
                                 progress={Math.min(cfoPendingItems.length * 20, 100)}
                                 sparklineData={[1, 1, 2, 1, 2, cfoPendingItems.length]}

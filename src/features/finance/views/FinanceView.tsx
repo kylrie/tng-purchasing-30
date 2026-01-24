@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { Requisition } from '../../procurement/types';
 import { RequisitionStatus, isSuperAdmin } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
@@ -33,10 +34,13 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     businesses,
     allUsers
 }) => {
+    const [searchParams] = useSearchParams();
+    const initialTab = (searchParams.get('tab') as any) || 'br_pending';
+
     const [isReleaseModalOpen, setReleaseModalOpen] = useState(false);
     const [isCheckPrepModalOpen, setCheckPrepModalOpen] = useState(false);
     const [selectedReq, setSelectedReq] = useState<Requisition | null>(null);
-    const [activeTab, setActiveTab] = useState<'prf_pending' | 'prf_released' | 'pcf_pending' | 'pcf_released' | 'br_pending' | 'check_prep' | 'check_pending'>('br_pending');
+    const [activeTab, setActiveTab] = useState<'prf_pending' | 'prf_released' | 'pcf_pending' | 'pcf_released' | 'br_pending' | 'check_prep' | 'check_pending'>(initialTab);
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [pcfLiquidations, setPcfLiquidations] = useState<PCFLiquidation[]>([]);
