@@ -237,7 +237,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             return false;
         })
         .sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime())
-        .slice(0, 5)
         .map(r => {
             let action = 'needs approval';
             if (r.status === RequisitionStatus.BURF_PENDING_MANAGER) action = 'submitted BURF';
