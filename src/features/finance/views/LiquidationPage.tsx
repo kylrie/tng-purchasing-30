@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Receipt, FileText, Link as LinkIcon, CheckCircle, Printer, Save, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { useRequisitions } from '../../procurement/hooks/useRequisitions';
 import { useSuppliers } from '../../inventory/hooks/useSuppliers';
 import { useBusinesses } from '../../admin/hooks/useBusinesses';
@@ -75,6 +76,7 @@ const LiquidationPage: React.FC = () => {
     const { businesses } = useBusinesses();
     const { users } = useUsers();
     const [showPrintModal, setShowPrintModal] = useState(false);
+    const { hasPermission } = usePermissions();
 
     // Find the requisition
     const requisition = useMemo(() => {
@@ -366,6 +368,27 @@ const LiquidationPage: React.FC = () => {
                 </div>
             </div>
         );
+    }
+
+    // Security Check: Ensure user has permission to view this specific liquidation
+    // If user only has "file own" permission, they must be the requester
+    if (currentUser && requisition.requesterId !== currentUser.id) {
+        if (!hasPermission('liquidation:view') && !hasPermission('liquidation:file:all')) {
+            return (
+                <div className="max-w-4xl mx-auto py-12 text-center">
+                    <div className="bg-slate-800/50 rounded-xl p-8">
+                        <h1 className="text-2xl font-bold text-red-400 mb-4">Unauthorized Access</h1>
+                        <p className="text-slate-400 mb-6">You do not have permission to view or file liquidation for this requisition.</p>
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="px-6 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white"
+                        >
+                            Go Back
+                        </button>
+                    </div>
+                </div>
+            );
+        }
     }
 
     // Check if liquidation can be filed (or is already filed for viewing)

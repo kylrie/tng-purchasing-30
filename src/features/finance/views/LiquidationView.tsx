@@ -40,7 +40,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
 
   // Set initial active tab based on variant
-  const [activeTab, setActiveTab] = useState<'liquidations' | 'for_audit' | 'my_history' | 'audit_history'>(
+  const [activeTab, setActiveTab] = useState<'liquidations' | 'all_liquidations' | 'for_audit' | 'my_history' | 'audit_history'>(
     variant === 'AUDIT' ? 'for_audit' : 'liquidations'
   );
 
@@ -102,14 +102,20 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     }
   };
 
-  // Filter for requisitions with funds released or liquidation filed
-  const liquidationReqs = requisitions.filter(
+  // Base filter for requisitions with funds released or liquidation filed
+  const baseLiquidationReqs = requisitions.filter(
     req => [
       RequisitionStatus.FUNDS_RELEASED,
       RequisitionStatus.AUDITED_CLEARED,
       RequisitionStatus.LIQUIDATION_REJECTED
     ].includes(req.status) || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)
   );
+
+  // My Liquidations: Strictly own liquidations (active for filing)
+  const myLiquidationReqs = baseLiquidationReqs.filter(req => req.requesterId === currentUser.id);
+
+  // All Liquidations: All active liquidations (visible if has file:all)
+  const allLiquidationReqs = baseLiquidationReqs;
 
   const auditingReqs = requisitions.filter(
     req => req.status === RequisitionStatus.LIQUIDATION_FILED
@@ -185,9 +191,10 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     return getStatusBadge(req.status);
   };
 
-  const displayedReqs = activeTab === 'liquidations' ? liquidationReqs :
-    activeTab === 'for_audit' ? auditingReqs :
-      activeTab === 'audit_history' ? auditHistoryReqs : myHistoryReqs;
+  const displayedReqs = activeTab === 'liquidations' ? myLiquidationReqs :
+    activeTab === 'all_liquidations' ? allLiquidationReqs :
+      activeTab === 'for_audit' ? auditingReqs :
+        activeTab === 'audit_history' ? auditHistoryReqs : myHistoryReqs;
 
   // Apply search filter
   const filteredReqs = displayedReqs.filter(req => {
@@ -230,6 +237,18 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
               >
                 My Liquidations
               </button>
+              {/* All Liquidations tab - only if has liquidation:file:all */}
+              {hasPermission('liquidation:file:all') && (
+                <button
+                  className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'all_liquidations'
+                    ? 'border-b-2 border-cyan-500 text-cyan-400'
+                    : 'text-slate-400 hover:text-slate-300'
+                    }`}
+                  onClick={() => setActiveTab('all_liquidations')}
+                >
+                  All Liquidations
+                </button>
+              )}
               <button
                 className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'my_history'
                   ? 'border-b-2 border-cyan-500 text-cyan-400'
@@ -352,7 +371,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                       <div className="flex justify-end gap-2">
                         {/* File/Edit Liquidation - Opens in new window */}
                         {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) &&
-                          activeTab === 'liquidations' &&
+                          (activeTab === 'liquidations' || activeTab === 'all_liquidations') &&
                           (req.requesterId === currentUser.id || hasPermission('liquidation:file:all')) && (
                             <button
                               onClick={() => navigate(`/liquidation/${req.id}`)}

@@ -352,7 +352,7 @@ function ProtectedApp() {
 
         {/* Liquidation Page - Full page for filing liquidation (opens in new window) */}
         <Route path="/liquidation/:prfId" element={
-          <ProtectedRoute permission="liquidation:file:all">
+          <ProtectedRoute permission={['liquidation:file:own', 'liquidation:file:all']}>
             <LiquidationPage />
           </ProtectedRoute>
         } />
