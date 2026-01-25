@@ -12,6 +12,7 @@ import { ExternalLink, Search, Wallet, CheckCircle, XCircle, FileText, Printer }
 import { usePermissions } from '../../../hooks/usePermissions';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { executeWorkflowAction } from '../../procurement/services/workflowService';
 import { SettingsService } from '../../../shared/services/settings.service';
 import type { ApproverAssignments } from '../../../shared/services/settings.service';
@@ -44,6 +45,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [pcfLiquidations, setPcfLiquidations] = useState<PCFLiquidation[]>([]);
+    const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
     const [selectedBu, setSelectedBu] = useState<string>('all');
@@ -73,6 +75,18 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 businesses.find(b => b.id === req.businessId)?.name.toLowerCase().includes(term) ||
                 allUsers.find(u => u.id === req.requesterId)?.name.toLowerCase().includes(term)
             );
+        }
+
+        // Date Filter
+        if (dateRange.start && dateRange.end) {
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+
+            filtered = filtered.filter(req => {
+                const reqDate = new Date(req.dateCreated);
+                return reqDate >= start && reqDate <= end;
+            });
         }
 
         return filtered;
@@ -198,9 +212,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     );
 
     // Apply filters to all requisition lists
-    const filteredBrPendingReqs = useMemo(() => applyFilters(brPendingReqs), [brPendingReqs, searchTerm, selectedBu, businesses, allUsers]);
-    const filteredCheckPrepReqs = useMemo(() => applyFilters(checkPrepReqs), [checkPrepReqs, searchTerm, selectedBu, businesses, allUsers]);
-    const filteredCheckAuthReqs = useMemo(() => applyFilters(checkAuthReqs), [checkAuthReqs, searchTerm, selectedBu, businesses, allUsers]);
+    const filteredBrPendingReqs = useMemo(() => applyFilters(brPendingReqs), [brPendingReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
+    const filteredCheckPrepReqs = useMemo(() => applyFilters(checkPrepReqs), [checkPrepReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
+    const filteredCheckAuthReqs = useMemo(() => applyFilters(checkAuthReqs), [checkAuthReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
     const filteredPcfPending = useMemo(() => {
         let filtered = pcfPending;
         if (selectedBu !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBu);
@@ -212,8 +226,17 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 businesses.find(b => b.id === liq.businessId)?.name.toLowerCase().includes(term)
             );
         }
+        if (dateRange.start && dateRange.end) {
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+            filtered = filtered.filter(liq => {
+                const liqDate = new Date(liq.dateCreated || new Date());
+                return liqDate >= start && liqDate <= end;
+            });
+        }
         return filtered;
-    }, [pcfPending, searchTerm, selectedBu, businesses]);
+    }, [pcfPending, searchTerm, selectedBu, businesses, dateRange]);
     const filteredPcfReleased = useMemo(() => {
         let filtered = pcfReleased;
         if (selectedBu !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBu);
@@ -225,13 +248,22 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 businesses.find(b => b.id === liq.businessId)?.name.toLowerCase().includes(term)
             );
         }
+        if (dateRange.start && dateRange.end) {
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+            filtered = filtered.filter(liq => {
+                const liqDate = new Date(liq.dateCreated || new Date());
+                return liqDate >= start && liqDate <= end;
+            });
+        }
         return filtered;
-    }, [pcfReleased, searchTerm, selectedBu, businesses]);
+    }, [pcfReleased, searchTerm, selectedBu, businesses, dateRange]);
 
     // Filter requisitions for PRF tabs (Fund Release)
     const filteredReqs = useMemo(() => {
         return applyFilters(displayedReqs);
-    }, [displayedReqs, searchTerm, selectedBu, businesses, allUsers]);
+    }, [displayedReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
 
     const canView = hasPermission('module:view:finance');
 
@@ -251,6 +283,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     </div>
                     {/* Filters: BU Dropdown + Search Bar */}
                     <div className="flex items-center gap-3">
+                        <DateRangeFilter
+                            onFilterChange={(start, end) => setDateRange({ start, end })}
+                        />
                         {/* BU Filter Dropdown */}
                         <select
                             value={selectedBu}
@@ -519,10 +554,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     {(() => {
-                                                        const isReadyForRelease = linkedPrf && 
-                                                            (linkedPrf.status === RequisitionStatus.FOR_FUND_RELEASE || 
-                                                             linkedPrf.status === RequisitionStatus.APPROVED_FOR_PAYMENT);
-                                                        
+                                                        const isReadyForRelease = linkedPrf &&
+                                                            (linkedPrf.status === RequisitionStatus.FOR_FUND_RELEASE ||
+                                                                linkedPrf.status === RequisitionStatus.APPROVED_FOR_PAYMENT);
+
                                                         if (hasPermission('finance:release_funds') && isReadyForRelease) {
                                                             return (
                                                                 <button

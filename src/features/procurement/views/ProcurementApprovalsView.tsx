@@ -12,6 +12,7 @@ import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import RejectionModal from '../../../shared/components/RejectionModal';
 import BURFPrintModal from '../components/BURFPrintModal';
 import PRFPrintModal from '../components/PRFPrintModal';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 
 interface ProcurementApprovalsViewProps {
     currentUser: User;
@@ -37,6 +38,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [printingReq, setPrintingReq] = useState<Requisition | null>(null);
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null); // Quick Peek drawer
@@ -123,12 +125,27 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 const requester = allUsers.find(u => u.id === req.requesterId)?.name.toLowerCase() || '';
                 const business = businesses.find(b => b.id === req.businessId)?.name.toLowerCase() || '';
 
-                return (
+                const matchesSearch = (
                     req.id.toLowerCase().includes(term) ||
                     req.description.toLowerCase().includes(term) ||
                     requester.includes(term) ||
                     business.includes(term)
                 );
+
+                if (!matchesSearch) return false;
+            }
+
+            // Date Filter
+            if (dateRange.start && dateRange.end) {
+                const reqDate = new Date(req.dateCreated);
+                const start = new Date(dateRange.start);
+                const end = new Date(dateRange.end);
+                // Set end date to end of day
+                end.setHours(23, 59, 59, 999);
+
+                if (reqDate < start || reqDate > end) {
+                    return false;
+                }
             }
 
             return true;
@@ -139,7 +156,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             }
             return new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime();
         });
-    }, [requisitions, activeTab, userApprovalStatuses, approvedStatuses, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission]);
+    }, [requisitions, activeTab, userApprovalStatuses, approvedStatuses, selectedBusinessUnit, searchTerm, currentUser, allUsers, businesses, hasPermission, dateRange]);
 
     // === SECONDARY TABS: Split pending requisitions into categories ===
     // Tab 1: BURF Approvals (BURF_PENDING_MANAGER only)
@@ -434,7 +451,14 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                             className="pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm w-64 focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500"
                         />
                     </div>
+
+                    {/* Date Filter */}
+                    <DateRangeFilter
+                        onFilterChange={(start, end) => setDateRange({ start, end })}
+                    />
                 </div>
+
+
             </div>
 
             <Card className="overflow-hidden !p-0">

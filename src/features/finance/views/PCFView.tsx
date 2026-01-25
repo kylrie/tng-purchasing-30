@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Receipt, Building2, Eye, Users, User as UserIcon, Ban, Printer } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
 import Card from '../../../shared/components/Card';
@@ -6,6 +6,7 @@ import type { User as UserType, Business } from '../../../shared/types';
 import { PCFService, PCFStatus, type PCFLiquidation, type PCFExpenseItem } from '../services/pcf.service';
 import PCFLiquidationDrawer from '../components/PCFLiquidationDrawer';
 import PCFPrintModal from '../components/PCFPrintModal';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { SettingsService, type AllocationRule } from '../../../shared/services/settings.service';
 
@@ -39,6 +40,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     const [viewAll, setViewAll] = useState(false);
     const [detailTab, setDetailTab] = useState<'details' | 'sharing'>('details');
     const [allocationRules, setAllocationRules] = useState<AllocationRule[]>([]);
+    const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
 
     const { hasPermission } = usePermissions();
     // Can view all: Either role-based pcf:view:all OR per-user pcf:view:history:all
@@ -115,6 +117,20 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
             </span>
         );
     };
+
+    // Filter liquidations by date
+    const filteredLiquidations = useMemo(() => {
+        if (!dateRange.start || !dateRange.end) return liquidations;
+
+        const start = new Date(dateRange.start);
+        const end = new Date(dateRange.end);
+        end.setHours(23, 59, 59, 999);
+
+        return liquidations.filter(liq => {
+            const date = new Date(liq.dateCreated);
+            return date >= start && date <= end;
+        });
+    }, [liquidations, dateRange]);
 
     // Get business name
     const getBusinessName = (businessId: string) => {
@@ -391,7 +407,13 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                     Liquidation History
                 </h3>
 
-                {liquidations.length === 0 ? (
+                <div className="mb-4 flex justify-end">
+                    <DateRangeFilter
+                        onFilterChange={(start, end) => setDateRange({ start, end })}
+                    />
+                </div>
+
+                {filteredLiquidations.length === 0 ? (
                     <div className="text-center py-12">
                         <FileText size={48} className="mx-auto text-slate-600 mb-4" />
                         <p className="text-slate-400">No liquidations yet. Create your first one!</p>
@@ -412,7 +434,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">
-                                {liquidations.map((liq) => (
+                                {filteredLiquidations.map((liq) => (
                                     <tr
                                         key={liq.id}
                                         onClick={() => setSelectedLiquidation(liq)}

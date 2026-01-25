@@ -15,6 +15,7 @@ import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import Card from '../../../shared/components/Card';
 import { CounterService } from '../../../shared/services/counter.service';
 import SearchableDropdown from '../../../shared/components/SearchableDropdown';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { RequisitionService, calculateExpenseAllocation } from '../services/requisitions.service';
 // FIX C6: Import sanitization utility to prevent XSS/injection attacks
 import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
@@ -786,6 +787,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [isDirectOpen, setIsDirectOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const [activeTab, setActiveTab] = useState<'drafts' | 'processing' | 'liquidation' | 'history'>('processing');
     const [preparePRFReq, setPreparePRFReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
@@ -1067,6 +1069,16 @@ export const PrfView: React.FC<PrfViewProps> = ({
             (r.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.description || '').toLowerCase().includes(searchTerm.toLowerCase())
         )
+        .filter(r => {
+            if (dateRange.start && dateRange.end) {
+                const reqDate = new Date(r.dateCreated);
+                const start = new Date(dateRange.start);
+                const end = new Date(dateRange.end);
+                end.setHours(23, 59, 59, 999);
+                if (reqDate < start || reqDate > end) return false;
+            }
+            return true;
+        })
         .sort((a, b) => {
             let aValue: any = a[sortField];
             let bValue: any = b[sortField];
@@ -1144,6 +1156,9 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
                         </div>
+                        <DateRangeFilter
+                            onFilterChange={(start, end) => setDateRange({ start, end })}
+                        />
                         {(hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
                             <select
                                 value={selectedBusinessUnit}

@@ -6,6 +6,7 @@ import type { User as UserType, Business } from '../../../shared/types';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
 import { usePermissions } from '../../../hooks/usePermissions';
 import PCFPrintModal from '../components/PCFPrintModal';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 
 interface PCFApprovalViewProps {
     currentUser: UserType;
@@ -34,6 +35,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
     const [selectedLiquidation, setSelectedLiquidation] = useState<PCFLiquidation | null>(null);
     const [viewMode, setViewMode] = useState<'pending' | 'history'>('pending');
     const [printLiquidation, setPrintLiquidation] = useState<PCFLiquidation | null>(null);
+    const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const { hasPermission } = usePermissions();
 
     // Fetch all pending liquidations (manager view) - Only PENDING_APPROVAL status
@@ -88,8 +90,37 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
     // Get pending liquidations count
     const pendingLiquidations = useMemo(() => {
-        return liquidations.filter(l => l.status === PCFStatus.PENDING_APPROVAL);
-    }, [liquidations]);
+        let result = liquidations.filter(l => l.status === PCFStatus.PENDING_APPROVAL);
+
+        if (dateRange.start && dateRange.end) {
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+
+            result = result.filter(l => {
+                const date = new Date(l.dateSubmitted || l.dateCreated);
+                return date >= start && date <= end;
+            });
+        }
+        return result;
+    }, [liquidations, dateRange]);
+
+    // Filter history liquidations
+    const filteredHistory = useMemo(() => {
+        let result = historyLiquidations;
+
+        if (dateRange.start && dateRange.end) {
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+
+            result = result.filter(l => {
+                const date = new Date(l.dateApproved || l.dateCancelled || l.dateCreated);
+                return date >= start && date <= end;
+            });
+        }
+        return result;
+    }, [historyLiquidations, dateRange]);
 
     // Get user by ID
     const getUserById = (userId: string) => {
@@ -238,6 +269,12 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                 </div>
             </div>
 
+            <div className="flex justify-end">
+                <DateRangeFilter
+                    onFilterChange={(start, end) => setDateRange({ start, end })}
+                />
+            </div>
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-gradient-to-br from-yellow-900/30 to-slate-900 border-yellow-700/30">
@@ -366,7 +403,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {historyLiquidations.map((liq) => (
+                                    {filteredHistory.map((liq) => (
                                         <tr key={liq.id} className="border-b border-slate-800 hover:bg-slate-800/30">
                                             <td className="py-3 px-3">
                                                 <span className="font-medium text-white">{liq.userName}</span>

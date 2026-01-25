@@ -8,6 +8,7 @@ import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
 import BURFPrintModal from '../components/BURFPrintModal';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { CounterService } from '../../../shared/services/counter.service';
 import { executeWorkflowAction } from '../services/workflowService';
 // FIX C6: Import sanitization utility to prevent XSS/injection
@@ -47,6 +48,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const { hasPermission } = usePermissions();
 
     // Sorting state
@@ -129,13 +131,29 @@ export const BurfView: React.FC<BurfViewProps> = ({
                     const searchLower = searchTerm.toLowerCase();
                     const requester = allUsers.find(u => u.id === req.requesterId);
                     const business = businesses.find(b => b.id === req.businessId);
-                    return (
+                    if (!(
                         (req.id || '').toLowerCase().includes(searchLower) ||
                         (req.description || '').toLowerCase().includes(searchLower) ||
                         (requester?.name || '').toLowerCase().includes(searchLower) ||
                         (business?.name || '').toLowerCase().includes(searchLower)
-                    );
+                    )) {
+                        return false;
+                    }
                 }
+
+                // Date Filter
+                if (dateRange.start && dateRange.end) {
+                    const reqDate = new Date(req.dateCreated);
+                    const start = new Date(dateRange.start);
+                    const end = new Date(dateRange.end);
+                    // Set end date to end of day
+                    end.setHours(23, 59, 59, 999);
+
+                    if (reqDate < start || reqDate > end) {
+                        return false;
+                    }
+                }
+
                 return true;
             });
 
@@ -164,7 +182,8 @@ export const BurfView: React.FC<BurfViewProps> = ({
             if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit, sortField, sortDirection, hasPermission]);
+
+    }, [visibleRequisitions, searchTerm, allUsers, businesses, currentUser.role, currentUser.businessId, selectedBusinessUnit, sortField, sortDirection, hasPermission, dateRange]);
 
     // Tab-based filtering: Active vs Completed
     const tabbedRequisitions = useMemo(() => {
@@ -439,6 +458,9 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
+                    <DateRangeFilter
+                        onFilterChange={(start, end) => setDateRange({ start, end })}
+                    />
                     {(hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
                         <select
                             value={selectedBusinessUnit}

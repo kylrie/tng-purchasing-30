@@ -4,6 +4,7 @@ import type { Requisition, User, Business } from '../types';
 import { RequisitionStatus } from '../types';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import PRFPrintModal from '../components/PRFPrintModal';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { usePermissions } from '../../../hooks/usePermissions';
 
 interface PRFTrackerViewProps {
@@ -42,6 +43,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
 }) => {
     const { hasPermission } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
+    const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const [businessFilter, setBusinessFilter] = useState<string>('all');
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
     const [viewMode, setViewMode] = useState<'mine' | 'all'>('mine');
@@ -101,8 +103,20 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
             );
         }
 
+        // Apply date filter
+        if (dateRange.start && dateRange.end) {
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+
+            result = result.filter(req => {
+                const reqDate = new Date(req.dateCreated);
+                return reqDate >= start && reqDate <= end;
+            });
+        }
+
         return result;
-    }, [myRequisitions, searchTerm, businessFilter, businesses]);
+    }, [myRequisitions, searchTerm, businessFilter, businesses, dateRange]);
 
     // Get businesses that have requisitions (for filter dropdown)
     const availableBusinesses = useMemo(() => {
@@ -144,6 +158,10 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                                 ))}
                             </select>
                         </div>
+                        {/* Date Filter */}
+                        <DateRangeFilter
+                            onFilterChange={(start: string | null, end: string | null) => setDateRange({ start, end })}
+                        />
                         {/* View Mode Toggle */}
                         {hasPermission('prf_tracker:view:all') && (
                             <div className="flex items-center gap-1 p-1 bg-slate-800 rounded-lg border border-slate-700">

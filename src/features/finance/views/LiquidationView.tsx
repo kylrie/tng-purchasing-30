@@ -10,6 +10,7 @@ import LiquidationPrintModal from '../components/LiquidationPrintModal';
 import LiquidationModal from '../components/LiquidationModal';
 import LiquidationAuditModal from '../components/LiquidationAuditModal';
 import { executeWorkflowAction } from '../../procurement/services/workflowService';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { Printer, Edit, FileText, RefreshCw, CheckCircle, Search } from 'lucide-react';
 
 interface LiquidationViewProps {
@@ -45,6 +46,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   );
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
   const [auditHistoryFilter, setAuditHistoryFilter] = useState<'all' | 'rejected' | 'cleared'>('all');
   const { hasPermission } = usePermissions();
   const navigate = useNavigate();
@@ -209,6 +211,16 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
       req.description?.toLowerCase().includes(search) ||
       req.chequeNumber?.toLowerCase().includes(search)
     );
+  }).filter(req => {
+    if (dateRange.start && dateRange.end) {
+      const reqDate = new Date(req.dateCreated || req.liquidationDetails?.dateFiled || new Date());
+      const start = new Date(dateRange.start);
+      const end = new Date(dateRange.end);
+      end.setHours(23, 59, 59, 999);
+
+      return reqDate >= start && reqDate <= end;
+    }
+    return true;
   });
 
   return (
@@ -305,9 +317,11 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
           </div>
         )}
 
-        {/* Search Bar */}
-        <div className="mb-4">
-          <div className="relative max-w-md">
+        <div className="mb-4 flex gap-2">
+          <DateRangeFilter
+            onFilterChange={(start, end) => setDateRange({ start, end })}
+          />
+          <div className="relative max-w-md flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
             <input
               type="text"

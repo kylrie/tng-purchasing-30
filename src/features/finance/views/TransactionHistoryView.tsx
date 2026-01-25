@@ -12,6 +12,7 @@ import { COLLECTIONS, type ChartOfAccount } from '../../../shared/types/firebase
 import type { Business } from '../../procurement/types';
 import { useAuth } from '../../../contexts/AuthContext';
 import { SystemRole } from '../../procurement/types';
+import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import './TransactionHistoryView.css';
 
 interface Transaction {
@@ -196,20 +197,12 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({ 
                 </div>
 
                 <div className="filter-group">
-                    <label>Date From</label>
-                    <input
-                        type="date"
-                        value={dateFrom}
-                        onChange={e => setDateFrom(e.target.value)}
-                    />
-                </div>
-
-                <div className="filter-group">
-                    <label>Date To</label>
-                    <input
-                        type="date"
-                        value={dateTo}
-                        onChange={e => setDateTo(e.target.value)}
+                    <label>Date Range</label>
+                    <DateRangeFilter
+                        onFilterChange={(start, end) => {
+                            setDateFrom(start || '');
+                            setDateTo(end || '');
+                        }}
                     />
                 </div>
             </div>
