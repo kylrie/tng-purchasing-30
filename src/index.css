@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
 
 /* Hide number input spinners (up/down arrows) */
 /* Chrome, Safari, Edge, Opera */
@@ -20,6 +21,21 @@ input[type="number"] {
   --ease-magnetic: cubic-bezier(0.33, 1, 0.68, 1);
   --ease-elastic: cubic-bezier(0.68, -0.6, 0.32, 1.6);
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Premium Selection Styles */
+::selection {
+  background-color: rgba(167, 139, 250, 0.2);
+  /* violet-400/20 */
+  color: #5b21b6;
+  /* violet-900 */
+}
+
+.dark ::selection {
+  background-color: rgba(34, 211, 238, 0.2);
+  /* cyan-400/20 */
+  color: #cffafe;
+  /* cyan-100 */
 }
 
 @keyframes cinematic-bloom {

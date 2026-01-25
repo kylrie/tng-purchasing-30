@@ -502,11 +502,11 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-                        <Package className="text-purple-400" />
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                        <Package className="text-purple-600 dark:text-purple-400" />
                         Inventory Items
                     </h1>
-                    <p className="text-slate-400 mt-1">
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">
                         View and manage inventory items per Business Unit
                     </p>
                 </div>
@@ -516,7 +516,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                     {/* Download Template */}
                     <button
                         onClick={handleDownloadTemplate}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                        className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
                         title="Download all items with current stock values"
                     >
                         <Download size={16} />
@@ -538,15 +538,15 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                     </label>
 
                     {/* Business Unit Selector */}
-                    <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
-                        <Building2 size={16} className="text-slate-400" />
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
+                        <Building2 size={16} className="text-slate-500 dark:text-slate-400" />
                         <select
                             value={selectedBusinessUnit}
                             onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="bg-transparent text-white focus:outline-none text-sm"
+                            className="bg-transparent text-slate-900 dark:text-white focus:outline-none text-sm"
                         >
                             {businesses.map(bu => (
-                                <option key={bu.id} value={bu.id} className="bg-slate-800">
+                                <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                                     {bu.name}
                                 </option>
                             ))}
@@ -557,8 +557,8 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
             {/* Bulk Actions Bar - Shows when items are selected */}
             {selectedItems.size > 0 && (
-                <div className="bg-purple-500/20 border border-purple-500/40 rounded-xl p-4 flex items-center justify-between">
-                    <span className="text-purple-300 font-medium">
+                <div className="bg-purple-50 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-500/40 rounded-xl p-4 flex items-center justify-between">
+                    <span className="text-purple-700 dark:text-purple-300 font-medium">
                         {selectedItems.size} item(s) selected
                     </span>
                     <div className="flex items-center gap-3">
@@ -570,7 +570,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                         </button>
                         <button
                             onClick={() => setSelectedItems(new Set())}
-                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors"
+                            className="px-4 py-2 bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg text-sm font-medium transition-colors"
                         >
                             Clear Selection
                         </button>
@@ -587,8 +587,8 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                             key={tab.key}
                             onClick={() => setActiveTypeTab(tab.key)}
                             className={`px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTypeTab === tab.key
-                                ? 'bg-purple-500 text-white'
-                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                ? 'bg-purple-600 dark:bg-purple-500 text-white'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
                                 }`}
                         >
                             <TabIcon size={16} />
@@ -600,52 +600,52 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
             {/* Search */}
             <div className="relative max-w-md">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
                 <input
                     type="text"
                     placeholder="Search items by name, SKU, or category..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
                 />
             </div>
 
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Total Items</p>
-                    <p className="text-2xl font-bold text-white">{items.length}</p>
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Total Items</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{items.length}</p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Low Stock</p>
-                    <p className="text-2xl font-bold text-amber-400">
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Low Stock</p>
+                    <p className="text-2xl font-bold text-amber-500 dark:text-amber-400">
                         {items.filter(i => i.currentStock < i.parLevel && i.currentStock > 0).length}
                     </p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Out of Stock</p>
-                    <p className="text-2xl font-bold text-red-400">
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Out of Stock</p>
+                    <p className="text-2xl font-bold text-red-500 dark:text-red-400">
                         {items.filter(i => i.currentStock <= 0).length}
                     </p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Total Value</p>
-                    <p className="text-2xl font-bold text-green-400">
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Total Value</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                         ₱{items.reduce((sum, i) => sum + (i.currentStock * i.costPerUnit), 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </p>
                 </div>
             </div>
 
             {/* Items Table */}
-            <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+            <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-slate-700">
+                            <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80">
                                 <th className="p-4 w-12">
                                     <button
                                         onClick={toggleSelectAll}
-                                        className="text-slate-400 hover:text-white transition-colors"
+                                        className="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                                     >
                                         {selectedItems.size === filteredItems.length && filteredItems.length > 0 ? (
                                             <CheckSquare size={18} />
@@ -654,16 +654,16 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                         )}
                                     </button>
                                 </th>
-                                <th className="text-left p-4 text-slate-400 font-medium text-sm">Item Name</th>
-                                <th className="text-left p-4 text-slate-400 font-medium text-sm">Type</th>
-                                <th className="text-left p-4 text-slate-400 font-medium text-sm">Category</th>
-                                <th className="text-right p-4 text-slate-400 font-medium text-sm">
+                                <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Item Name</th>
+                                <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Type</th>
+                                <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Category</th>
+                                <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">
                                     Current Stock
-                                    <span className="text-xs text-slate-500 block">(Click to edit)</span>
+                                    <span className="text-xs text-slate-400 dark:text-slate-500 block">(Click to edit)</span>
                                 </th>
-                                <th className="text-right p-4 text-slate-400 font-medium text-sm">Par Level</th>
-                                <th className="text-left p-4 text-slate-400 font-medium text-sm">Status</th>
-                                <th className="text-center p-4 text-slate-400 font-medium text-sm">Actions</th>
+                                <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Par Level</th>
+                                <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Status</th>
+                                <th className="text-center p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -676,14 +676,14 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                 </tr>
                             ) : (
                                 filteredItems.map(item => (
-                                    <tr key={item.id} className={`border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors ${selectedItems.has(item.id) ? 'bg-purple-500/10' : ''}`}>
+                                    <tr key={item.id} className={`border-b border-slate-200 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors ${selectedItems.has(item.id) ? 'bg-purple-50 dark:bg-purple-500/10' : ''}`}>
                                         <td className="p-4">
                                             <button
                                                 onClick={() => toggleSelect(item.id)}
-                                                className="text-slate-400 hover:text-white transition-colors"
+                                                className="text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                                             >
                                                 {selectedItems.has(item.id) ? (
-                                                    <CheckSquare size={18} className="text-purple-400" />
+                                                    <CheckSquare size={18} className="text-purple-600 dark:text-purple-400" />
                                                 ) : (
                                                     <Square size={18} />
                                                 )}
@@ -691,12 +691,12 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                         </td>
                                         <td className="p-4">
                                             <div>
-                                                <p className="text-white font-medium">{item.name}</p>
+                                                <p className="text-slate-900 dark:text-white font-medium">{item.name}</p>
                                                 {item.sku && <p className="text-xs text-slate-500">{item.sku}</p>}
                                             </div>
                                         </td>
                                         <td className="p-4">{getTypeBadge(item.type)}</td>
-                                        <td className="p-4 text-slate-300">{item.category}</td>
+                                        <td className="p-4 text-slate-600 dark:text-slate-300">{item.category}</td>
                                         <td className="p-4 text-right">
                                             {editingStockId === item.id ? (
                                                 <div className="flex items-center justify-end gap-2">
@@ -707,21 +707,21 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                                         onChange={(e) => setEditingStockValue(e.target.value)}
                                                         onKeyDown={handleInlineKeyDown}
                                                         onBlur={saveInlineEdit}
-                                                        className="w-20 px-2 py-1 bg-slate-700 border border-cyan-500 rounded text-white text-right focus:outline-none"
+                                                        className="w-20 px-2 py-1 bg-white dark:bg-slate-700 border border-cyan-500 rounded text-slate-900 dark:text-white text-right focus:outline-none"
                                                     />
-                                                    <span className="text-slate-400 text-sm">{item.units.countUnit}</span>
+                                                    <span className="text-slate-500 dark:text-slate-400 text-sm">{item.units.countUnit}</span>
                                                 </div>
                                             ) : (
                                                 <button
                                                     onClick={() => startInlineEdit(item)}
-                                                    className="text-white font-medium hover:text-cyan-400 hover:underline cursor-pointer transition-colors"
+                                                    className="text-slate-900 dark:text-white font-medium hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline cursor-pointer transition-colors"
                                                     title="Click to edit"
                                                 >
                                                     {item.currentStock} {item.units.countUnit}
                                                 </button>
                                             )}
                                         </td>
-                                        <td className="p-4 text-right text-slate-400">
+                                        <td className="p-4 text-right text-slate-500 dark:text-slate-400">
                                             {item.parLevel} {item.units.countUnit}
                                         </td>
                                         <td className="p-4">{getStockStatus(item)}</td>
@@ -729,14 +729,14 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                             <div className="flex items-center justify-center gap-2">
                                                 <button
                                                     onClick={() => handleEdit(item)}
-                                                    className="p-2 hover:bg-slate-600 rounded-lg text-slate-400 hover:text-white transition-colors"
+                                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                                                     title="Edit item"
                                                 >
                                                     <Edit size={16} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(item)}
-                                                    className="p-2 hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+                                                    className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                                                     title="Delete item"
                                                 >
                                                     <Trash2 size={16} />
@@ -768,22 +768,22 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
             {/* Bulk Set Modal */}
             {showBulkModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-md p-6">
-                        <h2 className="text-xl font-bold text-white mb-4">Set Balance for {selectedItems.size} Items</h2>
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md p-6">
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Set Balance for {selectedItems.size} Items</h2>
                         <div className="mb-6">
-                            <label className="block text-sm text-slate-400 mb-2">New Balance Value</label>
+                            <label className="block text-sm text-slate-500 dark:text-slate-400 mb-2">New Balance Value</label>
                             <input
                                 type="number"
                                 value={bulkValue}
                                 onChange={(e) => setBulkValue(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white text-lg focus:outline-none focus:border-purple-500"
+                                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-lg focus:outline-none focus:border-purple-500"
                                 placeholder="Enter value..."
                             />
                         </div>
                         <div className="flex gap-3">
                             <button
                                 onClick={() => setShowBulkModal(false)}
-                                className="flex-1 px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-colors"
+                                className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium rounded-xl transition-colors"
                             >
                                 Cancel
                             </button>

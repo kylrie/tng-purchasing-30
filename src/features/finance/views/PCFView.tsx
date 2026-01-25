@@ -320,54 +320,62 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
             {/* Wallet Cards - SAFETY NET LOGIC */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* PCF Ceiling Card */}
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-blue-900/50 flex items-center justify-center">
-                            <PesoSign size={28} className="text-blue-400" />
+                <Card className="bg-gradient-to-br from-white to-blue-50 dark:from-slate-800 dark:to-slate-900 border-blue-100 dark:border-slate-700 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-blue-500/10 transition-colors"></div>
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                            <PesoSign size={28} className="text-blue-600 dark:text-blue-400" />
                         </div>
                         <div className="flex-1">
-                            <p className="text-xs text-slate-400 uppercase tracking-wider">PCF Ceiling</p>
-                            <p className="text-2xl font-bold text-white">{formatCurrency(pcfCeiling)}</p>
-                            <p className="text-xs text-slate-500">Your allocated revolving fund</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">PCF Ceiling</p>
+                            <p className="text-2xl font-bold text-slate-900 dark:text-white">{formatCurrency(pcfCeiling)}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-500">Your allocated revolving fund</p>
                         </div>
                     </div>
                 </Card>
 
                 {/* Pending/Used Amount */}
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-yellow-700/30">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-yellow-900/50 flex items-center justify-center">
-                            <Clock size={28} className="text-yellow-400" />
+                <Card className="bg-gradient-to-br from-white to-amber-50 dark:from-slate-800 dark:to-slate-900 border-amber-100 dark:border-yellow-700/30 shadow-sm relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 group-hover:bg-amber-500/10 transition-colors"></div>
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-yellow-900/50 flex items-center justify-center">
+                            <Clock size={28} className="text-amber-600 dark:text-yellow-400" />
                         </div>
                         <div className="flex-1">
-                            <p className="text-xs text-slate-400 uppercase tracking-wider">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">
                                 Pending ({walletStats.activeLiquidationsCount})
                             </p>
-                            <p className="text-2xl font-bold text-yellow-400">
+                            <p className="text-2xl font-bold text-amber-600 dark:text-yellow-400">
                                 {formatCurrency(walletStats.activeLiquidationsTotal)}
                             </p>
-                            <p className="text-xs text-slate-500">Awaiting replenishment</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-500">Awaiting replenishment</p>
                         </div>
                     </div>
                 </Card>
 
                 {/* Cash On Hand - Available Balance */}
-                <Card className={`bg-gradient-to-br ${walletStats.cashOnHand > 0 ? 'from-emerald-900/30 to-slate-900 border-emerald-700/50' : 'from-red-900/30 to-slate-900 border-red-700/50'}`}>
-                    <div className="flex items-center gap-4">
-                        <div className={`w-14 h-14 rounded-full flex items-center justify-center ${walletStats.cashOnHand > 0 ? 'bg-emerald-900/50' : 'bg-red-900/50'}`}>
-                            <Wallet size={28} className={walletStats.cashOnHand > 0 ? 'text-emerald-400' : 'text-red-400'} />
+                <Card className={`bg-gradient-to-br relative overflow-hidden group shadow-sm ${walletStats.cashOnHand > 0
+                    ? 'from-white to-emerald-50 border-emerald-100 dark:from-emerald-900/30 dark:to-slate-900 dark:border-emerald-700/50'
+                    : 'from-white to-red-50 border-red-100 dark:from-red-900/30 dark:to-slate-900 dark:border-red-700/50'}`}>
+                    <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 transition-colors ${walletStats.cashOnHand > 0
+                        ? 'bg-emerald-500/5 group-hover:bg-emerald-500/10'
+                        : 'bg-red-500/5 group-hover:bg-red-500/10'
+                        }`}></div>
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className={`w-14 h-14 rounded-full flex items-center justify-center ${walletStats.cashOnHand > 0 ? 'bg-emerald-100 dark:bg-emerald-900/50' : 'bg-red-100 dark:bg-red-900/50'}`}>
+                            <Wallet size={28} className={walletStats.cashOnHand > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'} />
                         </div>
                         <div className="flex-1">
-                            <p className="text-xs text-slate-400 uppercase tracking-wider">Available Balance</p>
-                            <p className={`text-2xl font-bold ${walletStats.cashOnHand > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold">Available Balance</p>
+                            <p className={`text-2xl font-bold ${walletStats.cashOnHand > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                                 {formatCurrency(walletStats.cashOnHand)}
                             </p>
                             {walletStats.cashOnHand <= 0 ? (
-                                <p className="text-xs text-red-400 flex items-center gap-1">
+                                <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
                                     <AlertTriangle size={10} /> Wait for replenishment
                                 </p>
                             ) : (
-                                <p className="text-xs text-emerald-500">Ready for use</p>
+                                <p className="text-xs text-emerald-600 dark:text-emerald-500">Ready for use</p>
                             )}
                         </div>
                     </div>
@@ -375,12 +383,12 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
             </div>
 
             {/* Visual Progress Bar */}
-            <Card className="!py-4">
+            <Card className="!py-4 bg-white dark:bg-slate-800 shadow-sm border border-slate-200 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-400">Fund Utilization</span>
-                    <span className="text-sm text-slate-300">{usedPercent.toFixed(0)}% used</span>
+                    <span className="text-sm text-slate-600 dark:text-slate-400">Fund Utilization</span>
+                    <span className="text-sm text-slate-800 dark:text-slate-300 font-medium">{usedPercent.toFixed(0)}% used</span>
                 </div>
-                <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-3 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div
                         className={`h-full transition-all duration-500 ${usedPercent > 80 ? 'bg-red-500' : usedPercent > 50 ? 'bg-yellow-500' : 'bg-emerald-500'}`}
                         style={{ width: `${usedPercent}%` }}
@@ -393,94 +401,98 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
             </Card>
 
             {/* Safety Net Formula */}
-            <div className="bg-slate-800/30 border border-slate-700 rounded-lg p-4">
-                <p className="text-xs text-slate-400">
-                    <strong className="text-blue-400">Safety Net Calculation:</strong>{' '}
+            <div className="bg-blue-50/50 dark:bg-slate-800/30 border border-blue-100 dark:border-slate-700 rounded-lg p-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                    <strong className="text-blue-600 dark:text-blue-400">Safety Net Calculation:</strong>{' '}
                     Available Balance = Ceiling ({formatCurrency(pcfCeiling)}) − Pending Liquidations ({formatCurrency(walletStats.activeLiquidationsTotal)})
                 </p>
             </div>
 
             {/* Liquidations Table */}
-            <Card>
-                <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
-                    <Receipt size={20} className="text-purple-400" />
-                    Liquidation History
-                </h3>
+            <Card className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm dark:shadow-none overflow-hidden !p-0">
+                <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <h3 className="font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                        <Receipt size={20} className="text-purple-600 dark:text-purple-400" />
+                        Liquidation History
+                    </h3>
 
-                <div className="mb-4 flex justify-end">
-                    <DateRangeFilter
-                        onFilterChange={(start, end) => setDateRange({ start, end })}
-                    />
+                    <div className="flex justify-end">
+                        <DateRangeFilter
+                            onFilterChange={(start, end) => setDateRange({ start, end })}
+                        />
+                    </div>
                 </div>
 
                 {filteredLiquidations.length === 0 ? (
                     <div className="text-center py-12">
-                        <FileText size={48} className="mx-auto text-slate-600 mb-4" />
-                        <p className="text-slate-400">No liquidations yet. Create your first one!</p>
+                        <FileText size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                        <p className="text-slate-500 dark:text-slate-400">No liquidations yet. Create your first one!</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-slate-300">
-                            <thead className="text-xs uppercase text-slate-400 bg-slate-800/80 sticky top-0 z-20 backdrop-blur-sm">
+                        <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                            <thead className="text-xs uppercase text-slate-600 dark:text-slate-400 bg-slate-50/90 dark:bg-slate-900/80 sticky top-0 z-20 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700/50">
                                 <tr>
-                                    <th className="px-4 py-3">Date</th>
-                                    {viewAll && <th className="px-4 py-3">Custodian</th>}
-                                    <th className="px-4 py-3">Business</th>
-                                    <th className="px-4 py-3 text-center">Items</th>
-                                    <th className="px-4 py-3 text-right">Amount</th>
-                                    <th className="px-4 py-3">Status</th>
-                                    <th className="px-4 py-3">PRF</th>
-                                    <th className="px-4 py-3 text-center">Actions</th>
+                                    <th className="px-4 py-3 font-semibold">Date</th>
+                                    {viewAll && <th className="px-4 py-3 font-semibold">Custodian</th>}
+                                    <th className="px-4 py-3 font-semibold">Business</th>
+                                    <th className="px-4 py-3 text-center font-semibold">Items</th>
+                                    <th className="px-4 py-3 text-right font-semibold">Amount</th>
+                                    <th className="px-4 py-3 font-semibold">Status</th>
+                                    <th className="px-4 py-3 font-semibold">PRF</th>
+                                    <th className="px-4 py-3 text-center font-semibold">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-700">
+                            <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                 {filteredLiquidations.map((liq) => (
                                     <tr
                                         key={liq.id}
                                         onClick={() => setSelectedLiquidation(liq)}
-                                        className="hover:bg-slate-800/50 transition-colors cursor-pointer"
+                                        className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
                                     >
-                                        <td className="px-4 py-3">
+                                        <td className="px-4 py-3 text-slate-900 dark:text-white">
                                             {new Date(liq.dateCreated).toLocaleDateString()}
                                         </td>
                                         {viewAll && (
                                             <td className="px-4 py-3">
                                                 <div className="flex items-center gap-2">
-                                                    <UserIcon size={14} className="text-slate-500" />
-                                                    <span className="text-slate-300">{getUserName(liq.userId)}</span>
+                                                    <UserIcon size={14} className="text-slate-400 dark:text-slate-500" />
+                                                    <span className="text-slate-600 dark:text-slate-300">{getUserName(liq.userId)}</span>
                                                 </div>
                                             </td>
                                         )}
-                                        <td className="px-4 py-3 flex items-center gap-2">
-                                            <Building2 size={14} className="text-slate-500" />
-                                            {getBusinessName(liq.businessId)}
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-2">
+                                                <Building2 size={14} className="text-slate-400 dark:text-slate-500" />
+                                                <span className="text-slate-600 dark:text-slate-300">{getBusinessName(liq.businessId)}</span>
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <span className="bg-slate-700 px-2 py-1 rounded text-xs">
+                                            <span className="bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded text-xs text-slate-600 dark:text-slate-300 font-medium">
                                                 {liq.expenses.length}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-3 text-right font-medium">
+                                        <td className="px-4 py-3 text-right font-medium text-slate-900 dark:text-white">
                                             {formatCurrency(liq.totalAmount)}
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="flex items-center gap-2">
                                                 {getStatusBadge(liq.status)}
                                                 {liq.isLate && (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30">
                                                         LATE {liq.daysLate ? `(+${liq.daysLate}d)` : ''}
                                                     </span>
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-3 font-mono text-xs text-purple-400">
+                                        <td className="px-4 py-3 font-mono text-xs text-purple-600 dark:text-purple-400">
                                             {liq.replenishmentPrfId || '-'}
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             <div className="flex items-center justify-center gap-2">
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setPrintLiquidation(liq); }}
-                                                    className="text-slate-400 hover:text-white p-1"
+                                                    className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1"
                                                     title="Print Preview"
                                                 >
                                                     <Printer size={16} />
@@ -542,20 +554,20 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                     />
 
                     {/* Drawer */}
-                    <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col animate-slide-in-right">
+                    <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-50 flex flex-col animate-slide-in-right">
                         {/* Header */}
-                        <div className="p-4 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
                             <div>
-                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <Receipt size={20} className="text-purple-400" />
+                                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <Receipt size={20} className="text-purple-600 dark:text-purple-400" />
                                     Liquidation Details
                                     {selectedLiquidation.isLate && (
-                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-400 border border-red-500/30">
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30">
                                             LATE {selectedLiquidation.daysLate ? `(+${selectedLiquidation.daysLate}d)` : ''}
                                         </span>
                                     )}
                                 </h2>
-                                <p className="text-sm text-slate-400 mt-1">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                                     {new Date(selectedLiquidation.dateCreated).toLocaleDateString('en-US', {
                                         weekday: 'short',
                                         year: 'numeric',
@@ -566,19 +578,19 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                             </div>
                             <button
                                 onClick={() => setSelectedLiquidation(null)}
-                                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                             >
                                 <XCircle size={20} />
                             </button>
                         </div>
 
                         {/* Tabs */}
-                        <div className="flex border-b border-slate-700 px-4 bg-slate-800/30">
+                        <div className="flex border-b border-slate-200 dark:border-slate-700 px-4 bg-slate-50 dark:bg-slate-800/30">
                             <button
                                 onClick={() => setDetailTab('details')}
                                 className={`px-4 py-2 text-sm font-medium transition-colors ${detailTab === 'details'
-                                    ? 'text-purple-400 border-b-2 border-purple-400'
-                                    : 'text-slate-400 hover:text-white'
+                                    ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-500 dark:border-purple-400'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
                                     }`}
                             >
                                 Details
@@ -587,12 +599,12 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                 <button
                                     onClick={() => setDetailTab('sharing')}
                                     className={`px-4 py-2 text-sm font-medium transition-colors flex items-center gap-2 ${detailTab === 'sharing'
-                                        ? 'text-purple-400 border-b-2 border-purple-400'
-                                        : 'text-slate-400 hover:text-white'
+                                        ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-500 dark:border-purple-400'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
                                         }`}
                                 >
                                     BU Sharing
-                                    <span className="px-1.5 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[10px] font-medium">
+                                    <span className="px-1.5 py-0.5 bg-purple-100 dark:bg-purple-600/30 text-purple-600 dark:text-purple-300 rounded text-[10px] font-medium">
                                         {allocationRules.find(r => r.isEnabled)?.allocations.length || 0}
                                     </span>
                                 </button>
@@ -617,20 +629,20 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
 
                             {/* Status & Summary Cards */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                                    <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">Status</p>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Status</p>
                                     <div className="flex items-center gap-2">
                                         {getStatusBadge(selectedLiquidation.status)}
                                         {selectedLiquidation.isLate && (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-500/20 text-red-400">
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400">
                                                 LATE
                                             </span>
                                         )}
                                     </div>
                                 </div>
-                                <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                                    <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">Total Amount</p>
-                                    <p className="text-xl font-bold text-white">{formatCurrency(selectedLiquidation.totalAmount)}</p>
+                                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Total Amount</p>
+                                    <p className="text-xl font-bold text-slate-900 dark:text-white">{formatCurrency(selectedLiquidation.totalAmount)}</p>
                                 </div>
                             </div>
 
@@ -643,11 +655,11 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                             )}
 
                             {/* Business Info */}
-                            <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg">
+                            <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/30 rounded-lg border border-slate-200 dark:border-transparent">
                                 <Building2 size={18} className="text-slate-500" />
                                 <div>
-                                    <p className="text-xs text-slate-400">Business Unit</p>
-                                    <p className="text-white">{getBusinessName(selectedLiquidation.businessId)}</p>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">Business Unit</p>
+                                    <p className="text-slate-900 dark:text-white">{getBusinessName(selectedLiquidation.businessId)}</p>
                                 </div>
                             </div>
 
@@ -656,13 +668,13 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                 <>
                                     {/* Expense Details Section */}
                                     <div>
-                                        <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                            <FileText size={14} className="text-purple-400" />
+                                        <h3 className="text-sm font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                            <FileText size={14} className="text-purple-600 dark:text-purple-400" />
                                             Expense Items ({selectedLiquidation.expenses.length})
                                         </h3>
-                                        <div className="overflow-x-auto border border-slate-700 rounded-lg">
-                                            <table className="w-full text-xs">
-                                                <thead className="bg-slate-800 text-slate-400 uppercase sticky top-0 z-20 backdrop-blur-sm">
+                                        <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">
+                                            <table className="w-full text-xs text-left">
+                                                <thead className="bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase sticky top-0 z-20 backdrop-blur-sm">
                                                     <tr>
                                                         <th className="px-3 py-2 text-left">Date</th>
                                                         <th className="px-3 py-2 text-left">Payee/Vendor</th>
@@ -673,16 +685,16 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                                         <th className="px-3 py-2 text-right">Amount</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody className="divide-y divide-slate-700/50 text-slate-300">
+                                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50 text-slate-700 dark:text-slate-300">
                                                     {selectedLiquidation.expenses.map((exp, i) => {
                                                         const isShared = exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP');
                                                         return (
-                                                            <tr key={i} className="hover:bg-slate-800/30">
+                                                            <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                                                                 <td className="px-3 py-2">{exp.date}</td>
                                                                 <td className="px-3 py-2">{exp.payeeVendor || '-'}</td>
                                                                 <td className="px-3 py-2 font-mono">{exp.orNo}</td>
                                                                 <td className="px-3 py-2">
-                                                                    <span className="bg-slate-700 px-2 py-0.5 rounded text-xs">
+                                                                    <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs">
                                                                         {exp.coaCode || exp.classification || '-'}
                                                                     </span>
                                                                 </td>
@@ -693,7 +705,7 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                                                     <div className="flex items-center gap-1">
                                                                         <span className="text-xs">{exp.buName || '-'}</span>
                                                                         {isShared && (
-                                                                            <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
+                                                                            <span className="px-1 py-0.5 bg-purple-100 dark:bg-purple-600/30 text-purple-600 dark:text-purple-300 rounded text-[8px] font-medium">SHARE</span>
                                                                         )}
                                                                     </div>
                                                                 </td>
@@ -749,29 +761,29 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                                         </div>
 
                                         {/* Per-BU Breakdown */}
-                                        <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-                                            <h4 className="text-sm font-bold text-slate-300 mb-3">Per-BU Share (Based on Allocation Rules)</h4>
+                                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+                                            <h4 className="text-sm font-bold text-slate-500 dark:text-slate-300 mb-3">Per-BU Share (Based on Allocation Rules)</h4>
                                             {activeRule ? (
                                                 <>
                                                     <p className="text-xs text-slate-500 mb-3">
-                                                        From: <span className="text-purple-400">{activeRule.sourceBuName}</span>
+                                                        From: <span className="text-purple-600 dark:text-purple-400">{activeRule.sourceBuName}</span>
                                                     </p>
                                                     <div className="space-y-2">
                                                         {allocatedShares.map((share, idx) => (
-                                                            <div key={idx} className="flex justify-between items-center text-sm bg-slate-700/30 px-3 py-2 rounded">
+                                                            <div key={idx} className="flex justify-between items-center text-sm bg-slate-100 dark:bg-slate-700/30 px-3 py-2 rounded">
                                                                 <div className="flex items-center gap-2">
-                                                                    <span className="text-slate-300 whitespace-normal break-words max-w-[150px]">{share.buName}</span>
-                                                                    <span className="text-xs text-purple-400 bg-purple-900/30 px-2 py-0.5 rounded">
+                                                                    <span className="text-slate-700 dark:text-slate-300 whitespace-normal break-words max-w-[150px]">{share.buName}</span>
+                                                                    <span className="text-xs text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2 py-0.5 rounded">
                                                                         {share.percentage}%
                                                                     </span>
                                                                 </div>
-                                                                <span className="text-emerald-400 font-medium">{formatCurrency(share.amount)}</span>
+                                                                <span className="text-emerald-600 dark:text-emerald-400 font-medium">{formatCurrency(share.amount)}</span>
                                                             </div>
                                                         ))}
                                                     </div>
-                                                    <div className="mt-3 pt-3 border-t border-slate-600 flex justify-between text-sm font-bold">
-                                                        <span className="text-slate-300">Total</span>
-                                                        <span className="text-emerald-400">{formatCurrency(totalLiquidationAmount)}</span>
+                                                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-600 flex justify-between text-sm font-bold">
+                                                        <span className="text-slate-700 dark:text-slate-300">Total</span>
+                                                        <span className="text-emerald-600 dark:text-emerald-400">{formatCurrency(totalLiquidationAmount)}</span>
                                                     </div>
                                                 </>
                                             ) : (

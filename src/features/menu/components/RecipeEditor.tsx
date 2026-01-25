@@ -55,11 +55,11 @@ const IngredientRow: React.FC<{
     const selectedItem = inventoryItems.find(i => i.id === ingredient.inventoryItemId);
 
     return (
-        <div className="flex items-center gap-3 p-3 bg-slate-700/50 rounded-lg">
+        <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600 rounded-lg">
             {/* Item Name */}
             <div className="flex-1 min-w-0">
-                <p className="font-medium text-white truncate">{ingredient.inventoryItemName}</p>
-                <p className="text-xs text-slate-400">
+                <p className="font-medium text-slate-900 dark:text-white truncate">{ingredient.inventoryItemName}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                     {selectedItem?.category} • ₱{ingredient.costPerUnit.toFixed(2)}/{selectedItem?.units.countUnit}
                 </p>
             </div>
@@ -72,7 +72,7 @@ const IngredientRow: React.FC<{
                     step="0.01"
                     value={ingredient.quantity || ''}
                     onChange={(e) => onUpdate(ingredient.id, { quantity: parseFloat(e.target.value) || 0 })}
-                    className="w-20 px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-sm text-right focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    className="w-20 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm text-right focus:ring-2 focus:ring-purple-500 focus:outline-none"
                     placeholder="0"
                 />
 
@@ -80,7 +80,7 @@ const IngredientRow: React.FC<{
                 <select
                     value={ingredient.unit}
                     onChange={(e) => onUpdate(ingredient.id, { unit: e.target.value })}
-                    className="px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    className="px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 >
                     {ingredient.availableUnits.map(unit => (
                         <option key={unit} value={unit}>{unit}</option>
@@ -90,13 +90,13 @@ const IngredientRow: React.FC<{
 
             {/* Cost Display */}
             <div className="w-24 text-right">
-                <span className="text-cyan-400 font-medium">₱{ingredient.totalCost.toFixed(2)}</span>
+                <span className="text-cyan-600 dark:text-cyan-400 font-medium">₱{ingredient.totalCost.toFixed(2)}</span>
             </div>
 
             {/* Remove Button */}
             <button
                 onClick={() => onRemove(ingredient.id)}
-                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded transition-colors"
             >
                 <Trash2 size={16} />
             </button>
@@ -122,7 +122,7 @@ const LiveCostCard: React.FC<{
 
     return (
         <div className={`p-4 rounded-xl border ${bgColor}`}>
-            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
+            <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-2">
                 <PesoSign size={14} />
                 Live Costing
             </h4>
@@ -130,8 +130,8 @@ const LiveCostCard: React.FC<{
             <div className="space-y-3">
                 {/* Total Cost */}
                 <div className="flex justify-between items-center">
-                    <span className="text-slate-300">Recipe Cost</span>
-                    <span className="text-xl font-bold text-white">
+                    <span className="text-slate-600 dark:text-slate-300">Recipe Cost</span>
+                    <span className="text-xl font-bold text-slate-900 dark:text-white">
                         ₱{totalCost.toFixed(2)}
                     </span>
                 </div>
@@ -145,16 +145,16 @@ const LiveCostCard: React.FC<{
                 </div>
 
                 {/* Gross Margin */}
-                <div className="flex justify-between items-center pt-2 border-t border-slate-600/50">
-                    <span className="text-slate-300 flex items-center gap-1">
+                <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-600/50">
+                    <span className="text-slate-600 dark:text-slate-300 flex items-center gap-1">
                         <TrendingUp size={14} />
                         Gross Margin
                     </span>
                     <div className="text-right">
-                        <span className="text-lg font-bold text-white">
+                        <span className="text-lg font-bold text-slate-900 dark:text-white">
                             ₱{grossMargin.toFixed(2)}
                         </span>
-                        <span className="text-sm text-slate-400 ml-2">
+                        <span className="text-sm text-slate-500 dark:text-slate-400 ml-2">
                             ({marginPercent.toFixed(1)}%)
                         </span>
                     </div>
@@ -394,8 +394,8 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
 
     if (!isOpen) return null;
 
-    const inputClass = "w-full p-2.5 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
-    const labelClass = "block text-sm font-medium text-slate-300 mb-1.5";
+    const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-400 dark:placeholder-slate-500";
+    const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
 
     return (
         <>
@@ -404,16 +404,16 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
 
             {/* Modal */}
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            <ChefHat size={20} className="text-purple-400" />
+                    <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <ChefHat size={20} className="text-purple-600 dark:text-purple-400" />
                             {isEditing ? 'Edit Recipe' : 'Create New Recipe'}
                         </h3>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                         >
                             <X size={20} />
                         </button>
@@ -458,7 +458,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                             className={inputClass}
                                         >
                                             {MENU_CATEGORIES.map(cat => (
-                                                <option key={cat} value={cat}>{cat}</option>
+                                                <option key={cat} value={cat} className="bg-white dark:bg-slate-800">{cat}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -498,7 +498,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                 {/* Right Panel - Ingredients */}
                                 <div className="lg:col-span-3 space-y-4">
                                     <div className="flex items-center justify-between">
-                                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-2">
+                                        <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide flex items-center gap-2">
                                             <Package size={14} />
                                             Ingredients ({ingredients.length})
                                         </h4>
@@ -513,14 +513,14 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
 
                                     {/* Ingredient Search */}
                                     {showSearch && (
-                                        <div className="bg-slate-700/50 rounded-lg p-3 space-y-3">
+                                        <div className="bg-slate-100 dark:bg-slate-700/50 rounded-lg p-3 space-y-3 border border-slate-200 dark:border-slate-600">
                                             <div className="relative">
-                                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
                                                 <input
                                                     type="text"
                                                     value={searchQuery}
                                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                                    className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
                                                     placeholder="Search ingredients..."
                                                     autoFocus
                                                 />
@@ -528,7 +528,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
 
                                             <div className="max-h-48 overflow-y-auto space-y-1">
                                                 {filteredInventory.length === 0 ? (
-                                                    <p className="text-sm text-slate-400 text-center py-4">
+                                                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
                                                         No ingredients found
                                                     </p>
                                                 ) : (
@@ -537,13 +537,13 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                                             key={item.id}
                                                             onClick={() => handleAddIngredient(item)}
                                                             disabled={ingredients.some(ing => ing.inventoryItemId === item.id)}
-                                                            className="w-full flex items-center justify-between p-2 rounded hover:bg-slate-600/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-left"
+                                                            className="w-full flex items-center justify-between p-2 rounded hover:bg-slate-200 dark:hover:bg-slate-600/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-left"
                                                         >
                                                             <div>
-                                                                <p className="text-white text-sm">{item.name}</p>
-                                                                <p className="text-xs text-slate-400">{item.category}</p>
+                                                                <p className="text-slate-900 dark:text-white text-sm">{item.name}</p>
+                                                                <p className="text-xs text-slate-500 dark:text-slate-400">{item.category}</p>
                                                             </div>
-                                                            <span className="text-xs text-slate-500">
+                                                            <span className="text-xs text-slate-500 dark:text-slate-500">
                                                                 ₱{item.costPerUnit}/{item.units.countUnit}
                                                             </span>
                                                         </button>
@@ -553,7 +553,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
 
                                             <button
                                                 onClick={() => { setShowSearch(false); setSearchQuery(''); }}
-                                                className="w-full py-1.5 text-sm text-slate-400 hover:text-white transition-colors"
+                                                className="w-full py-1.5 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors"
                                             >
                                                 Cancel
                                             </button>
@@ -563,10 +563,10 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                     {/* Ingredients List */}
                                     <div className="space-y-2">
                                         {ingredients.length === 0 ? (
-                                            <div className="text-center py-12 bg-slate-700/30 rounded-lg border border-dashed border-slate-600">
-                                                <Package size={32} className="mx-auto text-slate-500 mb-2" />
-                                                <p className="text-slate-400 text-sm">No ingredients added yet</p>
-                                                <p className="text-slate-500 text-xs mt-1">Click "Add" to add ingredients</p>
+                                            <div className="text-center py-12 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-dashed border-slate-300 dark:border-slate-600">
+                                                <Package size={32} className="mx-auto text-slate-400 dark:text-slate-500 mb-2" />
+                                                <p className="text-slate-500 dark:text-slate-400 text-sm">No ingredients added yet</p>
+                                                <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Click "Add" to add ingredients</p>
                                             </div>
                                         ) : (
                                             ingredients.map(ing => (
@@ -583,9 +583,9 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
 
                                     {/* Summary Row */}
                                     {ingredients.length > 0 && (
-                                        <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg border border-slate-600">
-                                            <span className="font-medium text-white">Total Ingredient Cost</span>
-                                            <span className="text-xl font-bold text-cyan-400">
+                                        <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-600 shadow-sm dark:shadow-none">
+                                            <span className="font-medium text-slate-700 dark:text-white">Total Ingredient Cost</span>
+                                            <span className="text-xl font-bold text-cyan-600 dark:text-cyan-400">
                                                 ₱{totalCost.toFixed(2)}
                                             </span>
                                         </div>
@@ -596,10 +596,10 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                     </div>
 
                     {/* Footer */}
-                    <div className="flex justify-end gap-3 p-4 border-t border-slate-700">
+                    <div className="flex justify-end gap-3 p-4 border-t border-slate-200 dark:border-slate-700">
                         <button
                             onClick={onClose}
-                            className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                            className="px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg transition-colors"
                         >
                             Cancel
                         </button>

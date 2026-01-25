@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Mail, Sparkles, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { ThemeToggle } from '../../../shared/components/ThemeToggle';
 import { useAuth } from '../../../contexts/AuthContext';
 import RegistrationModal from './RegistrationModal';
 import { UserRole } from '../../../shared/types/firebase.types';
@@ -47,16 +48,21 @@ const LoginView = () => {
 
   return (
     <div
-      className="min-h-screen bg-[#020202] text-white overflow-hidden font-sans selection:bg-cyan-500/30 cursor-default"
+      className="min-h-screen bg-slate-50 dark:bg-[#020202] text-slate-900 dark:text-white overflow-hidden font-sans selection:bg-cyan-500/30 cursor-default transition-colors duration-500"
       onMouseMove={handleMouseMove}
     >
       {isNewUser && <RegistrationModal onRegister={handleRegistrationSubmit} loading={loading} isGoogleSignIn={isGoogleFlow} />}
 
+      {/* Theme Toggle */}
+      <div className="absolute top-6 right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-700 delay-500">
+        <ThemeToggle />
+      </div>
+
       {/* Cinematic Background Layer */}
-      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
-        {/* Deep Background Asset */}
+      <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-opacity duration-700">
+        {/* Deep Background Asset (Dark Only) */}
         <div
-          className="absolute inset-[-10%] transition-transform duration-[1.5s] ease-[cubic-bezier(0.22,1,0.36,1)] saturate-[1.5] brightness-[0.4] blur-[2px]"
+          className="absolute inset-[-10%] transition-transform duration-[1.5s] ease-[cubic-bezier(0.22,1,0.36,1)] saturate-[1.5] brightness-[0.4] blur-[2px] opacity-0 dark:opacity-100"
           style={{
             backgroundImage: 'url("/login-bg.png")',
             backgroundSize: 'cover',
@@ -65,19 +71,26 @@ const LoginView = () => {
           }}
         />
 
-        {/* Dynamic Light Blobs */}
+        {/* Light Mode Soft Gradient (Light Only) */}
         <div
-          className="absolute top-[20%] left-[30%] w-[800px] h-[800px] bg-purple-600/10 rounded-full blur-[150px] animate-pulse-slow"
+          className="absolute inset-0 bg-slate-50 opacity-100 dark:opacity-0 transition-opacity duration-700"
+        />
+
+        {/* Dynamic Light Blobs */}
+        {/* Dynamic Light Blobs (Adaptive) */}
+        <div
+          className="absolute top-[20%] left-[30%] w-[800px] h-[800px] rounded-full blur-[150px] animate-pulse-slow bg-purple-300/30 dark:bg-purple-600/10 mix-blend-multiply dark:mix-blend-normal"
           style={{ transform: `translate3d(${mousePos.x * 0.5}px, ${mousePos.y * 0.5}px, 0)` }}
         ></div>
         <div
-          className="absolute bottom-[10%] right-[20%] w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[130px] animate-pulse-slow delay-1000"
+          className="absolute bottom-[10%] right-[20%] w-[600px] h-[600px] rounded-full blur-[130px] animate-pulse-slow delay-1000 bg-cyan-300/30 dark:bg-cyan-600/10 mix-blend-multiply dark:mix-blend-normal"
           style={{ transform: `translate3d(${mousePos.x * -0.3}px, ${mousePos.y * -0.3}px, 0)` }}
         ></div>
 
         {/* Cinematic Vignette */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-[#020202] opacity-80"></div>
-        <div className="absolute inset-0 bg-gradient-to-r from-[#020202] via-transparent to-[#020202] opacity-80"></div>
+        {/* Cinematic Vignette */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-[#020202] opacity-0 dark:opacity-80 transition-opacity duration-700"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-[#020202] via-transparent to-[#020202] opacity-0 dark:opacity-80 transition-opacity duration-700"></div>
       </div>
 
       {/* Content Layer: Unified Stage */}
@@ -93,16 +106,16 @@ const LoginView = () => {
             </div>
           </div>
 
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 glass-pill rounded-full border border-white/5 mb-6">
-            <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">Next Experience Integrated</span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 dark:border-white/5 mb-6 bg-white/50 dark:bg-white/5 backdrop-blur-sm shadow-sm dark:shadow-none">
+            <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 dark:text-white/50">Next Experience Integrated</span>
           </div>
 
-          <h1 className="text-[80px] lg:text-[120px] font-black tracking-[-0.08em] leading-[0.8] text-white mb-6">
-            TES<span className="text-cyan-500">.</span>
+          <h1 className="text-[80px] lg:text-[120px] font-black tracking-[-0.08em] leading-[0.8] text-slate-900 dark:text-white mb-6 drop-shadow-sm dark:drop-shadow-none">
+            TES<span className="text-cyan-600 dark:text-cyan-500">.</span>
           </h1>
-          <p className="text-[12px] font-bold text-slate-500 uppercase tracking-[0.5em] mb-4">Thenextperience ERP System</p>
-          <div className="h-px w-24 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+          <p className="text-[12px] font-bold text-slate-500 dark:text-slate-500 uppercase tracking-[0.5em] mb-4">Thenextperience ERP System</p>
+          <div className="h-px w-24 bg-gradient-to-r from-transparent via-slate-300 dark:via-white/20 to-transparent"></div>
         </div>
 
         {/* Cinematic Login Stage */}
@@ -112,32 +125,32 @@ const LoginView = () => {
             <div className="light-trail"></div>
           </div>
 
-          <div className="glass-cinematic rounded-[32px] p-8 lg:p-12 shadow-[0_0_100px_-20px_rgba(0,0,0,1)] border border-white/10">
+          <div className="glass-cinematic bg-white/80 dark:bg-white/5 rounded-[32px] p-8 lg:p-12 shadow-2xl dark:shadow-[0_0_100px_-20px_rgba(0,0,0,1)] border border-white/20 dark:border-white/10 backdrop-blur-xl">
             <div className="mb-10">
-              <h2 className="text-2xl font-black tracking-tight text-white mb-2">Initialize Session</h2>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mb-2">Initialize Session</h2>
               <p className="text-sm text-slate-500 font-medium">Verify your organizational credentials.</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-8">
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] ml-1">Identity Access</label>
+                <label className="text-[10px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-[0.2em] ml-1">Identity Access</label>
                 <div className="relative group/input">
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="professional@thenextperience.com"
-                    className="w-full px-6 py-4 bg-white/[0.03] border border-white/5 rounded-2xl text-white placeholder-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-500 font-medium text-sm"
+                    className="w-full px-6 py-4 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-500 font-medium text-sm shadow-sm dark:shadow-none"
                     required
                   />
-                  <Mail className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 group-focus-within/input:text-cyan-400 transition-colors" />
+                  <Mail className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-700 group-focus-within/input:text-cyan-600 dark:group-focus-within/input:text-cyan-400 transition-colors" />
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex justify-between items-center ml-1">
-                  <label className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em]">Security Protocol</label>
-                  <button type="button" className="text-[9px] font-black text-white/30 hover:text-cyan-400 uppercase tracking-widest transition-colors">Reset Key</button>
+                  <label className="text-[10px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-[0.2em]">Security Protocol</label>
+                  <button type="button" className="text-[9px] font-black text-slate-400 dark:text-white/30 hover:text-cyan-600 dark:hover:text-cyan-400 uppercase tracking-widest transition-colors">Reset Key</button>
                 </div>
                 <div className="relative group/input">
                   <input
@@ -145,13 +158,13 @@ const LoginView = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full px-6 py-5 bg-white/[0.03] border border-white/5 rounded-2xl text-white placeholder-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-500 font-medium text-sm tracking-[0.3em]"
+                    className="w-full px-6 py-5 bg-white dark:bg-white/[0.03] border border-slate-200 dark:border-white/5 rounded-2xl text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-500 font-medium text-sm tracking-[0.3em] shadow-sm dark:shadow-none"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 p-2 text-slate-700 hover:text-white transition-colors duration-200"
+                    className="absolute right-5 top-1/2 -translate-y-1/2 p-2 text-slate-400 dark:text-slate-700 hover:text-slate-600 dark:hover:text-white transition-colors duration-200"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -168,7 +181,7 @@ const LoginView = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full relative group h-16 bg-white text-black hover:bg-slate-50 rounded-2xl font-black transition-all duration-500 disabled:opacity-50 overflow-hidden flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[13px] shadow-[0_20px_40px_-10px_rgba(255,255,255,0.1)] active:scale-[0.98]"
+                className="w-full relative group h-16 bg-slate-900 dark:bg-white text-white dark:text-black hover:bg-slate-800 dark:hover:bg-slate-50 rounded-2xl font-black transition-all duration-500 disabled:opacity-50 overflow-hidden flex items-center justify-center gap-3 uppercase tracking-[0.2em] text-[13px] shadow-xl dark:shadow-[0_20px_40px_-10px_rgba(255,255,255,0.1)] active:scale-[0.98]"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 {loading ? (
@@ -186,34 +199,34 @@ const LoginView = () => {
             </form>
 
             <div className="my-8 flex items-center gap-4 opacity-30">
-              <div className="flex-1 h-px bg-white/20"></div>
-              <span className="text-[8px] font-black text-white uppercase tracking-[0.4em]">Integrated Auth</span>
-              <div className="flex-1 h-px bg-white/20"></div>
+              <div className="flex-1 h-px bg-slate-300 dark:bg-white/20"></div>
+              <span className="text-[8px] font-black text-slate-400 dark:text-white uppercase tracking-[0.4em]">Integrated Auth</span>
+              <div className="flex-1 h-px bg-slate-300 dark:bg-white/20"></div>
             </div>
 
             <button
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 h-14 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white font-bold transition-all duration-500 disabled:opacity-50 group hover:border-cyan-500/30"
+              className="w-full flex items-center justify-center gap-3 h-14 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 rounded-2xl text-slate-700 dark:text-white font-bold transition-all duration-500 disabled:opacity-50 group hover:border-cyan-500/30 shadow-sm dark:shadow-none"
             >
               <GoogleIcon />
-              <span className="text-slate-400 group-hover:text-white transition-colors text-[12px] font-black uppercase tracking-widest">Connect Workspace</span>
+              <span className="text-slate-500 dark:text-slate-400 group-hover:text-slate-800 dark:group-hover:text-white transition-colors text-[12px] font-black uppercase tracking-widest">Connect Workspace</span>
             </button>
           </div>
         </div>
 
         {/* Global ERP Positioning Footer */}
         <div className="mt-16 lg:mt-24 flex flex-col items-center gap-8 animate-in fade-in delay-1000">
-          <div className="hidden lg:flex gap-12 text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">
-            <span className="hover:text-cyan-400 cursor-pointer transition-colors duration-500">Finance Control</span>
-            <span className="hover:text-cyan-400 cursor-pointer transition-colors duration-500">Global Supply</span>
-            <span className="hover:text-cyan-400 cursor-pointer transition-colors duration-500">HR Orchestration</span>
-            <span className="hover:text-cyan-400 cursor-pointer transition-colors duration-500">Asset Mgmt</span>
+          <div className="hidden lg:flex gap-12 text-[10px] font-black text-slate-400 dark:text-white/20 uppercase tracking-[0.4em]">
+            <span className="hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer transition-colors duration-500">Finance Control</span>
+            <span className="hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer transition-colors duration-500">Global Supply</span>
+            <span className="hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer transition-colors duration-500">HR Orchestration</span>
+            <span className="hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer transition-colors duration-500">Asset Mgmt</span>
           </div>
 
-          <div className="flex items-center gap-4 text-[9px] font-bold text-slate-700 italic">
+          <div className="flex items-center gap-4 text-[9px] font-bold text-slate-400 dark:text-slate-700 italic">
             <span>Thenextperience Cinematic Ecosystem v3.0</span>
-            <div className="w-1 h-1 bg-slate-800 rounded-full"></div>
+            <div className="w-1 h-1 bg-slate-400 dark:bg-slate-800 rounded-full"></div>
             <span>End-to-End Encryption Enabled</span>
           </div>
         </div>

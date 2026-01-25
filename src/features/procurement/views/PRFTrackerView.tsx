@@ -132,14 +132,59 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
         }));
     }, [filteredReqs]);
 
+    const getColumnHeaderStyles = (color: string) => {
+        const styles: Record<string, string> = {
+            orange: 'bg-orange-50 dark:bg-orange-900/20',
+            amber: 'bg-amber-50 dark:bg-amber-900/20',
+            indigo: 'bg-indigo-50 dark:bg-indigo-900/20',
+            violet: 'bg-violet-50 dark:bg-violet-900/20',
+            rose: 'bg-rose-50 dark:bg-rose-900/20',
+            cyan: 'bg-cyan-50 dark:bg-cyan-900/20',
+            emerald: 'bg-emerald-50 dark:bg-emerald-900/20',
+            purple: 'bg-purple-50 dark:bg-purple-900/20',
+            blue: 'bg-blue-50 dark:bg-blue-900/20',
+        };
+        return styles[color] || 'bg-slate-50 dark:bg-slate-800/30';
+    };
+
+    const getColumnTitleStyles = (color: string) => {
+        const styles: Record<string, string> = {
+            orange: 'text-orange-700 dark:text-orange-400',
+            amber: 'text-amber-700 dark:text-amber-400',
+            indigo: 'text-indigo-700 dark:text-indigo-400',
+            violet: 'text-violet-700 dark:text-violet-400',
+            rose: 'text-rose-700 dark:text-rose-400',
+            cyan: 'text-cyan-700 dark:text-cyan-400',
+            emerald: 'text-emerald-700 dark:text-emerald-400',
+            purple: 'text-purple-700 dark:text-purple-400',
+            blue: 'text-blue-700 dark:text-blue-400',
+        };
+        return styles[color] || 'text-slate-700 dark:text-slate-400';
+    };
+
+    const getColumnBadgeStyles = (color: string) => {
+        const styles: Record<string, string> = {
+            orange: 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300',
+            amber: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300',
+            indigo: 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300',
+            violet: 'bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300',
+            rose: 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300',
+            cyan: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300',
+            emerald: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
+            purple: 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300',
+            blue: 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300',
+        };
+        return styles[color] || 'bg-slate-100 dark:bg-slate-500/20 text-slate-700 dark:text-slate-300';
+    };
+
     return (
         <>
             <div className="space-y-6">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-white">PRF Tracker</h1>
-                        <p className="text-slate-400 text-sm">
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">PRF Tracker</h1>
+                        <p className="text-slate-600 dark:text-slate-400 text-sm">
                             Track your requisitions through the 8-stage approval workflow
                         </p>
                     </div>
@@ -150,7 +195,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                             <select
                                 value={businessFilter}
                                 onChange={(e) => setBusinessFilter(e.target.value)}
-                                className="pl-9 pr-8 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none cursor-pointer min-w-[160px]"
+                                className="pl-9 pr-8 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none cursor-pointer min-w-[160px]"
                             >
                                 <option value="all">All Business Units</option>
                                 {availableBusinesses.map(b => (
@@ -164,12 +209,12 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                         />
                         {/* View Mode Toggle */}
                         {hasPermission('prf_tracker:view:all') && (
-                            <div className="flex items-center gap-1 p-1 bg-slate-800 rounded-lg border border-slate-700">
+                            <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                                 <button
                                     onClick={() => setViewMode('mine')}
                                     className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${viewMode === 'mine'
-                                        ? 'bg-purple-600 text-white'
-                                        : 'text-slate-400 hover:text-white'
+                                        ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-sm'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                         }`}
                                 >
                                     My Requests
@@ -177,8 +222,8 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                                 <button
                                     onClick={() => setViewMode('all')}
                                     className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${viewMode === 'all'
-                                        ? 'bg-purple-600 text-white'
-                                        : 'text-slate-400 hover:text-white'
+                                        ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-sm'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                                         }`}
                                 >
                                     View All
@@ -193,14 +238,14 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                                 placeholder="Search by ID, description..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                             />
                         </div>
                         {/* Stats */}
-                        <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-slate-800/50 rounded-lg border border-slate-700">
+                        <div className="hidden md:flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
                             <RefreshCw size={14} className="text-slate-400" />
-                            <span className="text-sm text-slate-300">
-                                <span className="font-semibold text-white">{filteredReqs.length}</span> items
+                            <span className="text-sm text-slate-600 dark:text-slate-300">
+                                <span className="font-semibold text-slate-900 dark:text-white">{filteredReqs.length}</span> items
                             </span>
                         </div>
                     </div>
@@ -212,15 +257,15 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                         {columnData.map(column => (
                             <div
                                 key={column.id}
-                                className="flex-shrink-0 w-72 bg-slate-800/30 rounded-xl border border-slate-700/50 flex flex-col max-h-[calc(100vh-220px)]"
+                                className="flex-shrink-0 w-72 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700/50 flex flex-col max-h-[calc(100vh-220px)]"
                             >
                                 {/* Column Header */}
-                                <div className={`p-4 border-b border-slate-700/50 bg-${column.color}-900/20 rounded-t-xl`}>
+                                <div className={`p-4 border-b border-slate-200 dark:border-slate-700/50 rounded-t-xl ${getColumnHeaderStyles(column.color)}`}>
                                     <div className="flex items-center justify-between">
-                                        <h3 className={`text-sm font-semibold text-${column.color}-400`}>
+                                        <h3 className={`text-sm font-semibold ${getColumnTitleStyles(column.color)}`}>
                                             {column.label}
                                         </h3>
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium bg-${column.color}-500/20 text-${column.color}-300`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getColumnBadgeStyles(column.color)}`}>
                                             {column.items.length}
                                         </span>
                                     </div>
@@ -229,7 +274,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                                 {/* Column Content */}
                                 <div className="flex-1 overflow-y-auto p-3 space-y-3">
                                     {column.items.length === 0 ? (
-                                        <div className="text-center py-8 text-slate-500 text-sm">
+                                        <div className="text-center py-8 text-slate-400 dark:text-slate-500 text-sm">
                                             No items
                                         </div>
                                     ) : (
@@ -237,20 +282,20 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                                             <div
                                                 key={req.id}
                                                 onClick={() => setDrawerReq(req)}
-                                                className="bg-slate-900/60 rounded-lg p-3 border border-slate-700/50 hover:border-purple-500/50 hover:bg-slate-800/60 cursor-pointer transition-all group"
+                                                className="bg-white dark:bg-slate-900/60 rounded-lg p-3 border border-slate-200 dark:border-slate-700/50 hover:border-purple-500/50 hover:shadow-md hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-all group shadow-sm"
                                             >
                                                 {/* Card Header */}
                                                 <div className="flex items-start justify-between gap-2 mb-2">
-                                                    <span className="text-sm font-mono font-medium text-white group-hover:text-purple-300">
+                                                    <span className="text-sm font-mono font-medium text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-300">
                                                         {req.id}
                                                     </span>
                                                     {(req.isUrgent || req.priority === 'URGENT') && (
-                                                        <AlertTriangle size={14} className="text-red-400 flex-shrink-0" />
+                                                        <AlertTriangle size={14} className="text-red-500 dark:text-red-400 flex-shrink-0" />
                                                     )}
                                                 </div>
 
                                                 {/* Description */}
-                                                <p className="text-xs text-slate-400 line-clamp-2 mb-2">
+                                                <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mb-2">
                                                     {req.description || 'No description'}
                                                 </p>
 
@@ -259,7 +304,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                                                     <span className="text-xs text-slate-500">
                                                         {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
                                                     </span>
-                                                    <span className="text-sm font-semibold text-emerald-400">
+                                                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                                                         {formatCurrency(req.totalAmount || 0)}
                                                     </span>
                                                 </div>
@@ -279,10 +324,10 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
 
                 {/* Empty State */}
                 {filteredReqs.length === 0 && (
-                    <div className="text-center py-16 bg-slate-800/30 rounded-xl border border-slate-700/50">
-                        <Search size={48} className="mx-auto text-slate-600 mb-4" />
-                        <h3 className="text-lg font-medium text-slate-400 mb-2">No requisitions found</h3>
-                        <p className="text-sm text-slate-500">
+                    <div className="text-center py-16 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                        <Search size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                        <h3 className="text-lg font-medium text-slate-500 dark:text-slate-400 mb-2">No requisitions found</h3>
+                        <p className="text-sm text-slate-400 dark:text-slate-500">
                             {searchTerm ? 'Try adjusting your search terms' : 'Your submitted requisitions will appear here'}
                         </p>
                     </div>

@@ -240,17 +240,17 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             {/* Header */}
             <div className="flex justify-between items-start">
                 <div>
-                    <h1 className="text-2xl font-bold text-white">PCF Approvals</h1>
-                    <p className="text-slate-400 text-sm">Review and approve Petty Cash Fund liquidations. Approval auto-creates PRF for replenishment.</p>
+                    <h1 className="text-2xl font-bold text-slate-800 dark:text-white">PCF Approvals</h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Review and approve Petty Cash Fund liquidations. Approval auto-creates PRF for replenishment.</p>
                 </div>
 
                 {/* Toggle Buttons */}
-                <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 border border-slate-200 dark:border-slate-700">
                     <button
                         onClick={() => setViewMode('pending')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${viewMode === 'pending'
-                            ? 'bg-yellow-600 text-white'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-yellow-500 text-white shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                     >
                         <Clock size={16} />
@@ -259,8 +259,8 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                     <button
                         onClick={() => setViewMode('history')}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${viewMode === 'history'
-                            ? 'bg-purple-600 text-white'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700'
                             }`}
                     >
                         <History size={16} />
@@ -277,40 +277,40 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="bg-gradient-to-br from-yellow-900/30 to-slate-900 border-yellow-700/30">
+                <Card className="bg-white dark:bg-gradient-to-br dark:from-yellow-900/30 dark:to-slate-900 border-yellow-200 dark:border-yellow-700/30 shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-yellow-900/50 flex items-center justify-center">
-                            <Clock size={24} className="text-yellow-400" />
+                        <div className="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-900/50 flex items-center justify-center">
+                            <Clock size={24} className="text-yellow-600 dark:text-yellow-400" />
                         </div>
                         <div>
-                            <p className="text-xs text-slate-400 uppercase tracking-wider">Pending Approval</p>
-                            <p className="text-2xl font-bold text-yellow-400">{pendingLiquidations.length}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pending Approval</p>
+                            <p className="text-2xl font-bold text-slate-800 dark:text-yellow-400">{pendingLiquidations.length}</p>
                         </div>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-slate-800 to-slate-900 border-slate-700">
+                <Card className="bg-white dark:bg-gradient-to-br dark:from-slate-800 dark:to-slate-900 border-slate-200 dark:border-slate-700 shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-slate-700/50 flex items-center justify-center">
-                            <PesoSign size={24} className="text-slate-400" />
+                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center">
+                            <PesoSign size={24} className="text-slate-600 dark:text-slate-400" />
                         </div>
                         <div>
-                            <p className="text-xs text-slate-400 uppercase tracking-wider">Total Pending Amount</p>
-                            <p className="text-2xl font-bold text-white">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Pending Amount</p>
+                            <p className="text-2xl font-bold text-slate-800 dark:text-white">
                                 {formatCurrency(pendingLiquidations.reduce((sum, l) => sum + l.totalAmount, 0))}
                             </p>
                         </div>
                     </div>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-purple-900/30 to-slate-900 border-purple-700/30">
+                <Card className="bg-white dark:bg-gradient-to-br dark:from-purple-900/30 dark:to-slate-900 border-purple-200 dark:border-purple-700/30 shadow-sm">
                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-purple-900/50 flex items-center justify-center">
-                            <Wallet size={24} className="text-purple-400" />
+                        <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+                            <Wallet size={24} className="text-purple-600 dark:text-purple-400" />
                         </div>
                         <div>
-                            <p className="text-xs text-slate-400 uppercase tracking-wider">Fast Track</p>
-                            <p className="text-sm text-purple-300">Auto-creates PRF @ APPROVED</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Fast Track</p>
+                            <p className="text-sm text-purple-600 dark:text-purple-300">Auto-creates PRF @ APPROVED</p>
                         </div>
                     </div>
                 </Card>
@@ -321,15 +321,15 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Pending List */}
                     <Card className="lg:col-span-2">
-                        <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
-                            <Clock size={20} className="text-yellow-400" />
+                        <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                            <Clock size={20} className="text-yellow-500 dark:text-yellow-400" />
                             Pending Liquidations
                         </h3>
 
                         {pendingLiquidations.length === 0 ? (
                             <div className="text-center py-12">
-                                <CheckCircle size={48} className="mx-auto text-green-600 mb-4" />
-                                <p className="text-slate-400">No pending PCF liquidations to approve.</p>
+                                <CheckCircle size={48} className="mx-auto text-green-500 dark:text-green-600 mb-4" />
+                                <p className="text-slate-500 dark:text-slate-400">No pending PCF liquidations to approve.</p>
                             </div>
                         ) : (
                             <div className="space-y-3">
@@ -340,24 +340,24 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                             key={liq.id}
                                             onClick={() => setSelectedLiquidation(liq)}
                                             className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedLiquidation?.id === liq.id
-                                                ? 'border-purple-500 bg-purple-900/20'
-                                                : 'border-slate-700 bg-slate-800/30 hover:bg-slate-800/50'
+                                                ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                                                : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 hover:border-purple-300 dark:hover:bg-slate-800/50'
                                                 }`}
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div>
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <User size={14} className="text-slate-500" />
-                                                        <span className="font-medium text-white">{liq.userName}</span>
+                                                        <span className="font-medium text-slate-700 dark:text-white">{liq.userName}</span>
                                                         <span className="text-xs text-slate-500">({user?.role || 'Unknown'})</span>
                                                     </div>
-                                                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                                         <Building2 size={12} />
                                                         {getBusinessName(liq.businessId)}
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="font-bold text-lg text-white">{formatCurrency(liq.totalAmount)}</p>
+                                                    <p className="font-bold text-lg text-slate-800 dark:text-white">{formatCurrency(liq.totalAmount)}</p>
                                                     <p className="text-xs text-slate-500">
                                                         {liq.expenses.length} expense{liq.expenses.length !== 1 ? 's' : ''}
                                                     </p>
@@ -378,21 +378,21 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             ) : (
                 /* History View */
                 <Card>
-                    <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
-                        <History size={20} className="text-purple-400" />
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                        <History size={20} className="text-purple-600 dark:text-purple-400" />
                         Approval History
                     </h3>
 
                     {historyLiquidations.length === 0 ? (
                         <div className="text-center py-12">
-                            <FileText size={48} className="mx-auto text-slate-600 mb-4" />
-                            <p className="text-slate-400">No approval history yet.</p>
+                            <FileText size={48} className="mx-auto text-slate-400 dark:text-slate-600 mb-4" />
+                            <p className="text-slate-500 dark:text-slate-400">No approval history yet.</p>
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
-                                    <tr className="text-left text-xs text-slate-400 uppercase tracking-wider border-b border-slate-700">
+                                    <tr className="text-left text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
                                         <th className="pb-3 px-3">Custodian</th>
                                         <th className="pb-3 px-3">Business Unit</th>
                                         <th className="pb-3 px-3">Amount</th>
@@ -404,34 +404,34 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                 </thead>
                                 <tbody>
                                     {filteredHistory.map((liq) => (
-                                        <tr key={liq.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                                        <tr key={liq.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 text-slate-700 dark:text-slate-300">
                                             <td className="py-3 px-3">
-                                                <span className="font-medium text-white">{liq.userName}</span>
+                                                <span className="font-medium text-slate-900 dark:text-white">{liq.userName}</span>
                                             </td>
-                                            <td className="py-3 px-3 text-slate-400 text-sm">
+                                            <td className="py-3 px-3 text-slate-500 dark:text-slate-400 text-sm">
                                                 {getBusinessName(liq.businessId)}
                                             </td>
-                                            <td className="py-3 px-3 font-bold text-white">
+                                            <td className="py-3 px-3 font-bold text-slate-800 dark:text-white">
                                                 {formatCurrency(liq.totalAmount)}
                                             </td>
                                             <td className="py-3 px-3">
                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${liq.status === PCFStatus.REPLENISHED
-                                                    ? 'bg-emerald-600/20 text-emerald-400'
+                                                    ? 'bg-emerald-100 dark:bg-emerald-600/20 text-emerald-700 dark:text-emerald-400'
                                                     : liq.status === PCFStatus.APPROVED || liq.status === PCFStatus.APPROVED_WAITING_RELEASE
-                                                        ? 'bg-green-600/20 text-green-400'
+                                                        ? 'bg-green-100 dark:bg-green-600/20 text-green-700 dark:text-green-400'
                                                         : liq.status === PCFStatus.REJECTED
-                                                            ? 'bg-red-600/20 text-red-400'
+                                                            ? 'bg-red-100 dark:bg-red-600/20 text-red-700 dark:text-red-400'
                                                             : liq.status === PCFStatus.CANCELLED
-                                                                ? 'bg-orange-600/20 text-orange-400'
-                                                                : 'bg-slate-600/20 text-slate-400'
+                                                                ? 'bg-orange-100 dark:bg-orange-600/20 text-orange-700 dark:text-orange-400'
+                                                                : 'bg-slate-100 dark:bg-slate-600/20 text-slate-700 dark:text-slate-400'
                                                     }`}>
                                                     {liq.status.replace(/_/g, ' ')}
                                                 </span>
                                             </td>
-                                            <td className="py-3 px-3 text-slate-400 text-sm">
+                                            <td className="py-3 px-3 text-slate-500 dark:text-slate-400 text-sm">
                                                 {liq.approvedByName || liq.rejectedByName || liq.cancelledByName || '-'}
                                             </td>
-                                            <td className="py-3 px-3 text-slate-400 text-sm">
+                                            <td className="py-3 px-3 text-slate-500 dark:text-slate-400 text-sm">
                                                 {liq.dateApproved
                                                     ? new Date(liq.dateApproved).toLocaleDateString()
                                                     : liq.dateCancelled
@@ -444,7 +444,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                                 {liq.status === PCFStatus.APPROVED_WAITING_RELEASE && (
                                                     <button
                                                         onClick={() => setCancelModalId(liq.id)}
-                                                        className="text-orange-400 hover:text-orange-300 p-1"
+                                                        className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 p-1"
                                                         title="Cancel this stuck request"
                                                     >
                                                         <Ban size={16} />
@@ -452,7 +452,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                                 )}
                                                 <button
                                                     onClick={() => setPrintLiquidation(liq)}
-                                                    className="text-slate-400 hover:text-white p-1"
+                                                    className="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white p-1"
                                                     title="Print Preview"
                                                 >
                                                     <Printer size={16} />
@@ -477,15 +477,15 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                     />
 
                     {/* Drawer */}
-                    <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col">
+                    <div className="fixed inset-y-0 right-0 w-full max-w-2xl bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-50 flex flex-col">
                         {/* Header */}
-                        <div className="p-4 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
                             <div>
-                                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <FileText size={20} className="text-purple-400" />
+                                <h2 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                    <FileText size={20} className="text-purple-600 dark:text-purple-400" />
                                     PCF Liquidation Details
                                 </h2>
-                                <p className="text-sm text-slate-400 mt-1">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                                     Submitted: {new Date(selectedLiquidation.dateSubmitted || selectedLiquidation.dateCreated).toLocaleDateString('en-US', {
                                         weekday: 'short',
                                         year: 'numeric',
@@ -496,7 +496,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                             </div>
                             <button
                                 onClick={() => setSelectedLiquidation(null)}
-                                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                                className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
                             >
                                 <XCircle size={20} />
                             </button>
@@ -505,15 +505,15 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                         {/* Body - Scrollable */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-6">
                             {/* Custodian Info */}
-                            <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                                <p className="text-xs text-slate-400 uppercase tracking-wider mb-2">Custodian</p>
+                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Custodian</p>
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-purple-900/50 flex items-center justify-center">
-                                        <User size={20} className="text-purple-400" />
+                                    <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+                                        <User size={20} className="text-purple-600 dark:text-purple-400" />
                                     </div>
                                     <div>
-                                        <p className="text-white font-medium text-lg">{selectedLiquidation.userName}</p>
-                                        <p className="text-sm text-slate-400 flex items-center gap-1">
+                                        <p className="text-slate-800 dark:text-white font-medium text-lg">{selectedLiquidation.userName}</p>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1">
                                             <Building2 size={12} />
                                             {getBusinessName(selectedLiquidation.businessId)}
                                         </p>
@@ -523,37 +523,37 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
                             {/* Amount Summary Cards */}
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-slate-800/30 rounded-lg p-3 text-center">
-                                    <p className="text-xs text-slate-400">VAT</p>
-                                    <p className="text-xl font-medium text-white">{formatCurrency(selectedLiquidation.totalVat)}</p>
+                                <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 text-center border border-slate-100 dark:border-transparent">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">VAT</p>
+                                    <p className="text-xl font-medium text-slate-800 dark:text-white">{formatCurrency(selectedLiquidation.totalVat)}</p>
                                 </div>
-                                <div className="bg-slate-800/30 rounded-lg p-3 text-center">
-                                    <p className="text-xs text-slate-400">EWT</p>
-                                    <p className="text-xl font-medium text-white">{formatCurrency(selectedLiquidation.totalEwt)}</p>
+                                <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-3 text-center border border-slate-100 dark:border-transparent">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">EWT</p>
+                                    <p className="text-xl font-medium text-slate-800 dark:text-white">{formatCurrency(selectedLiquidation.totalEwt)}</p>
                                 </div>
                             </div>
 
                             {/* Total Amount Card */}
-                            <div className="bg-gradient-to-r from-purple-900/40 to-slate-800/50 rounded-lg p-4 border border-purple-700/30">
+                            <div className="bg-gradient-to-r from-purple-50 to-white dark:from-purple-900/40 dark:to-slate-800/50 rounded-lg p-4 border border-purple-200 dark:border-purple-700/30">
                                 <div className="flex justify-between items-center">
-                                    <span className="text-slate-300">Total Amount</span>
-                                    <span className="text-2xl font-bold text-white">{formatCurrency(selectedLiquidation.totalAmount)}</span>
+                                    <span className="text-slate-600 dark:text-slate-300">Total Amount</span>
+                                    <span className="text-2xl font-bold text-slate-800 dark:text-white">{formatCurrency(selectedLiquidation.totalAmount)}</span>
                                 </div>
                                 <div className="flex justify-between items-center mt-2">
-                                    <span className="text-xs text-slate-400">Net (Amt - EWT + VAT)</span>
-                                    <span className="text-sm text-slate-300">{formatCurrency(selectedLiquidation.netAmount)}</span>
+                                    <span className="text-xs text-slate-500 dark:text-slate-400">Net (Amt - EWT + VAT)</span>
+                                    <span className="text-sm text-slate-600 dark:text-slate-300">{formatCurrency(selectedLiquidation.netAmount)}</span>
                                 </div>
                             </div>
 
                             {/* Expense Details Table - FIX High #8: Added COA and BU columns */}
                             <div>
-                                <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                    <Receipt size={14} className="text-purple-400" />
+                                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                    <Receipt size={14} className="text-purple-600 dark:text-purple-400" />
                                     Expense Items ({selectedLiquidation.expenses.length})
                                 </h3>
-                                <div className="overflow-x-auto border border-slate-700 rounded-lg">
+                                <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">
                                     <table className="w-full text-xs">
-                                        <thead className="bg-slate-800 text-slate-400 uppercase sticky top-0 z-20 backdrop-blur-sm">
+                                        <thead className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase sticky top-0 z-20 backdrop-blur-sm">
                                             <tr>
                                                 <th className="px-3 py-2 text-left">Date</th>
                                                 <th className="px-3 py-2 text-left">Payee/Vendor</th>
@@ -564,16 +564,16 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                                 <th className="px-3 py-2 text-right">Amount</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-slate-700/50 text-slate-300">
+                                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50 text-slate-700 dark:text-slate-300">
                                             {selectedLiquidation.expenses.map((exp, i) => {
                                                 const isShared = exp.buName?.toUpperCase().includes('ATHOUSANDCONCEPTS') && exp.buName?.toUpperCase().includes('CORP');
                                                 return (
-                                                    <tr key={i} className="hover:bg-slate-800/30">
+                                                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                                                         <td className="px-3 py-2">{exp.date}</td>
                                                         <td className="px-3 py-2">{exp.payeeVendor || '-'}</td>
                                                         <td className="px-3 py-2 font-mono">{exp.orNo}</td>
                                                         <td className="px-3 py-2">
-                                                            <span className="bg-slate-700 px-2 py-0.5 rounded text-xs">
+                                                            <span className="bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded text-xs">
                                                                 {exp.coaCode || exp.classification || '-'}
                                                             </span>
                                                         </td>
@@ -584,7 +584,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                                             <div className="flex items-center gap-1">
                                                                 <span className="text-xs whitespace-normal break-words max-w-[80px]">{exp.buName || '-'}</span>
                                                                 {isShared && (
-                                                                    <span className="px-1 py-0.5 bg-purple-600/30 text-purple-300 rounded text-[8px] font-medium">SHARE</span>
+                                                                    <span className="px-1 py-0.5 bg-purple-100 dark:bg-purple-600/30 text-purple-700 dark:text-purple-300 rounded text-[8px] font-medium">SHARE</span>
                                                                 )}
                                                             </div>
                                                         </td>
@@ -593,10 +593,10 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                                 );
                                             })}
                                         </tbody>
-                                        <tfoot className="bg-slate-800/70 border-t border-slate-600">
+                                        <tfoot className="bg-slate-100 dark:bg-slate-800/70 border-t border-slate-200 dark:border-slate-600">
                                             <tr>
-                                                <td colSpan={6} className="px-3 py-2 text-right font-medium text-slate-300">Total:</td>
-                                                <td className="px-3 py-2 text-right font-bold text-white">{formatCurrency(selectedLiquidation.totalAmount)}</td>
+                                                <td colSpan={6} className="px-3 py-2 text-right font-medium text-slate-600 dark:text-slate-300">Total:</td>
+                                                <td className="px-3 py-2 text-right font-bold text-slate-800 dark:text-white">{formatCurrency(selectedLiquidation.totalAmount)}</td>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -605,13 +605,13 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
                             {/* Receipts Link */}
                             {selectedLiquidation.receiptsLink && (
-                                <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
-                                    <p className="text-xs text-blue-300 mb-2">📎 Receipts/Attachments</p>
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/50 rounded-lg p-4">
+                                    <p className="text-xs text-blue-600 dark:text-blue-300 mb-2">📎 Receipts/Attachments</p>
                                     <a
                                         href={selectedLiquidation.receiptsLink}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-blue-400 hover:text-blue-300 underline text-sm break-all"
+                                        className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300 underline text-sm break-all"
                                     >
                                         {selectedLiquidation.receiptsLink}
                                     </a>
@@ -620,15 +620,15 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
                             {/* Remarks */}
                             {selectedLiquidation.remarks && (
-                                <div className="bg-slate-800/30 rounded-lg p-4 border border-slate-700">
-                                    <p className="text-xs text-slate-400 mb-2">Remarks</p>
-                                    <p className="text-sm text-slate-300">{selectedLiquidation.remarks}</p>
+                                <div className="bg-slate-50 dark:bg-slate-800/30 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">Remarks</p>
+                                    <p className="text-sm text-slate-700 dark:text-slate-300">{selectedLiquidation.remarks}</p>
                                 </div>
                             )}
                         </div>
 
                         {/* Footer with Actions */}
-                        <div className="p-4 border-t border-slate-700 bg-slate-800/50 space-y-4">
+                        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 space-y-4">
                             {/* Action Buttons */}
                             <div className="flex gap-3">
                                 <button
@@ -642,7 +642,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                 <button
                                     onClick={() => setRejectModalId(selectedLiquidation.id)}
                                     disabled={processingId === selectedLiquidation.id}
-                                    className="px-6 bg-red-600/20 hover:bg-red-600/30 text-red-400 py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-red-700/30 transition-colors"
+                                    className="px-6 bg-red-100 dark:bg-red-600/20 hover:bg-red-200 dark:hover:bg-red-600/30 text-red-600 dark:text-red-400 py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-red-200 dark:border-red-700/30 transition-colors"
                                     title="Reject"
                                 >
                                     <XCircle size={18} />
@@ -652,7 +652,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                     <button
                                         onClick={() => setCancelModalId(selectedLiquidation.id)}
                                         disabled={processingId === selectedLiquidation.id}
-                                        className="px-6 bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-orange-700/30 transition-colors"
+                                        className="px-6 bg-orange-100 dark:bg-orange-600/20 hover:bg-orange-200 dark:hover:bg-orange-600/30 text-orange-600 dark:text-orange-400 py-3 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 border border-orange-200 dark:border-orange-700/30 transition-colors"
                                         title="Cancel & Return Balance"
                                     >
                                         <Ban size={18} />
@@ -661,9 +661,9 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                             </div>
 
                             {/* Notice */}
-                            <div className="flex items-start gap-2 p-3 bg-blue-900/30 border border-blue-700/30 rounded-lg">
-                                <AlertTriangle size={16} className="text-blue-400" />
-                                <p className="text-xs text-blue-300">
+                            <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700/30 rounded-lg">
+                                <AlertTriangle size={16} className="text-blue-600 dark:text-blue-400" />
+                                <p className="text-xs text-blue-700 dark:text-blue-300">
                                     <strong>Fast Track:</strong> Approving creates PRF at "Approved for Payment" status.
                                 </p>
                             </div>
@@ -677,32 +677,32 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                 <>
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setRejectModalId(null)} />
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <div className="bg-slate-900 rounded-xl border border-slate-700 w-full max-w-md shadow-2xl">
-                            <div className="p-6 border-b border-slate-700">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <XCircle size={24} className="text-red-400" />
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 w-full max-w-md shadow-2xl">
+                            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                    <XCircle size={24} className="text-red-600 dark:text-red-400" />
                                     Reject PCF Liquidation
                                 </h2>
                             </div>
                             <div className="p-6 space-y-4">
                                 <div>
-                                    <label className="text-sm text-slate-400 block mb-2">Reason for Rejection</label>
+                                    <label className="text-sm text-slate-500 dark:text-slate-400 block mb-2">Reason for Rejection</label>
                                     <textarea
                                         value={rejectReason}
                                         onChange={(e) => setRejectReason(e.target.value)}
                                         placeholder="Please provide a reason..."
                                         rows={3}
-                                        className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-red-500 focus:outline-none resize-none"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-red-500 focus:outline-none resize-none"
                                     />
                                 </div>
                             </div>
-                            <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
+                            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
                                 <button
                                     onClick={() => {
                                         setRejectModalId(null);
                                         setRejectReason('');
                                     }}
-                                    className="px-4 py-2 text-slate-300 hover:text-white"
+                                    className="px-4 py-2 text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white transition-colors"
                                 >
                                     Cancel
                                 </button>
@@ -724,35 +724,35 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                 <>
                     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" onClick={() => setCancelModalId(null)} />
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                        <div className="bg-slate-900 rounded-xl border border-slate-700 w-full max-w-md shadow-2xl">
-                            <div className="p-6 border-b border-slate-700">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <Ban size={24} className="text-orange-400" />
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 w-full max-w-md shadow-2xl">
+                            <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+                                <h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                    <Ban size={24} className="text-orange-600 dark:text-orange-400" />
                                     Cancel PCF Liquidation
                                 </h2>
-                                <p className="text-sm text-slate-400 mt-2">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
                                     Cancelling will permanently close this liquidation and return the amount to the custodian's available balance.
                                 </p>
                             </div>
                             <div className="p-6 space-y-4">
                                 <div>
-                                    <label className="text-sm text-slate-400 block mb-2">Reason for Cancellation</label>
+                                    <label className="text-sm text-slate-500 dark:text-slate-400 block mb-2">Reason for Cancellation</label>
                                     <textarea
                                         value={cancelReason}
                                         onChange={(e) => setCancelReason(e.target.value)}
                                         placeholder="Please provide a reason..."
                                         rows={3}
-                                        className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-orange-500 focus:outline-none resize-none"
                                     />
                                 </div>
                             </div>
-                            <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
+                            <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3">
                                 <button
                                     onClick={() => {
                                         setCancelModalId(null);
                                         setCancelReason('');
                                     }}
-                                    className="px-4 py-2 text-slate-300 hover:text-white"
+                                    className="px-4 py-2 text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white transition-colors"
                                 >
                                     Close
                                 </button>

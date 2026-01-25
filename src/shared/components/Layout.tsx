@@ -41,6 +41,7 @@ import {
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
 import { UserRole } from '../../shared/types/firebase.types';
+import { ThemeToggle } from './ThemeToggle';
 import NotificationBell from './NotificationBell';
 
 interface LayoutProps {
@@ -117,7 +118,7 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
             <div>
                 <button
                     onClick={() => toggleMenu(item.label)}
-                    className={`w-full flex items-center ${isCollapsed && level === 0 ? 'lg:justify-center lg:px-2' : `justify-between pr-4 ${paddingLeft}`} gap-3 ${pyClass} rounded-xl transition-all duration-200 group ${hasActiveChild ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white font-semibold border border-purple-500/50' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'} relative`}
+                    className={`w-full flex items-center ${isCollapsed && level === 0 ? 'lg:justify-center lg:px-2' : `justify-between pr-4 ${paddingLeft}`} gap-3 ${pyClass} rounded-xl transition-all duration-200 group ${hasActiveChild ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-purple-700 dark:text-white font-semibold border border-purple-200 dark:border-purple-500/50 shadow-sm dark:shadow-none' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white font-medium'} relative`}
                     title={isCollapsed ? item.label : ''}
                 >
                     <div className={`flex items-center gap-3 ${isCollapsed && level === 0 ? 'lg:justify-center' : ''}`}>
@@ -163,13 +164,13 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
     return (
         <button
             onClick={() => item.path && onNavigate(item.path)}
-            className={`w-full flex items-center ${isCollapsed && level === 0 ? 'lg:justify-center lg:px-2' : `${paddingLeft} pr-4`} gap-3 ${pyClass} rounded-xl transition-all duration-200 group ${isActive ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-white font-semibold border border-purple-500/50' : 'text-slate-400 hover:bg-slate-700/50 hover:text-white font-medium'} relative`}
+            className={`w-full flex items-center ${isCollapsed && level === 0 ? 'lg:justify-center lg:px-2' : `${paddingLeft} pr-4`} gap-3 ${pyClass} rounded-xl transition-all duration-200 group ${isActive ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-purple-700 dark:text-white font-semibold border border-purple-200 dark:border-purple-500/50 shadow-sm dark:shadow-none' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white font-medium'} relative`}
             title={isCollapsed ? item.label : ''}
         >
             <div className={`flex items-center gap-3 ${isCollapsed && level === 0 ? 'lg:justify-center' : ''}`}>
                 <item.icon
                     size={iconSize}
-                    className={`transition-colors flex-shrink-0 ${isActive ? 'text-purple-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                    className={`transition-colors flex-shrink-0 ${isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'}`}
                     strokeWidth={isActive ? 2.5 : 2}
                 />
                 <span className={`${isCollapsed && level === 0 ? 'lg:hidden' : 'block'} ${textSize} whitespace-nowrap transition-all duration-300`}>
@@ -195,6 +196,14 @@ const Layout: React.FC<LayoutProps> = ({
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
+    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        const { clientX, clientY } = e;
+        const moveX = (clientX - window.innerWidth / 2) / 30;
+        const moveY = (clientY - window.innerHeight / 2) / 30;
+        setMousePos({ x: moveX, y: moveY });
+    };
 
     // ============================================================
     // NAVIGATION CONFIGURATION - Supports 3 levels
@@ -355,7 +364,79 @@ const Layout: React.FC<LayoutProps> = ({
     };
 
     return (
-        <div className="flex h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden font-sans text-white relative">
+        <div
+            className="flex h-screen bg-transparent text-slate-900 dark:text-white overflow-hidden font-sans relative"
+            onMouseMove={handleMouseMove}
+        >
+            {/* Cinematic Background Layer */}
+            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-opacity duration-700">
+                {/* DARK MODE: Deep Background Asset */}
+                <div
+                    className="absolute inset-[-10%] transition-transform duration-[1.5s] ease-[cubic-bezier(0.22,1,0.36,1)] saturate-[1.5] brightness-[0.4] blur-[2px] opacity-0 dark:opacity-100"
+                    style={{
+                        backgroundImage: 'url("/login-bg.png")',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        transform: `translate3d(${mousePos.x * 0.2}px, ${mousePos.y * 0.2}px, 0) scale(1.1)`
+                    }}
+                />
+
+                {/* LIGHT MODE: Ultra-Premium Ethereal Glass Background */}
+                <div className="absolute inset-0 opacity-100 dark:opacity-0 transition-opacity duration-700">
+                    {/* Base Warmth */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/80 via-white to-cyan-50/80" />
+
+                    {/* Mesh Gradient 1: Soft Violet (Moving) */}
+                    <div
+                        className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-violet-200/40 rounded-full blur-[120px] animate-pulse-slow mix-blend-multiply"
+                        style={{ transform: `translate3d(${mousePos.x * 0.3}px, ${mousePos.y * 0.3}px, 0)` }}
+                    />
+
+                    {/* Mesh Gradient 2: Bright Blue (Moving) */}
+                    <div
+                        className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-200/40 rounded-full blur-[120px] animate-pulse-slow delay-700 mix-blend-multiply"
+                        style={{ transform: `translate3d(${mousePos.x * -0.2}px, ${mousePos.y * -0.2}px, 0)` }}
+                    />
+
+                    {/* Mesh Gradient 3: Fresh Cyan (Center) */}
+                    <div
+                        className="absolute top-[40%] left-[40%] w-[30%] h-[30%] bg-cyan-200/30 rounded-full blur-[100px] animate-pulse-slow delay-1000 mix-blend-multiply"
+                        style={{ transform: `translate3d(${mousePos.x * 0.1}px, ${mousePos.y * 0.1}px, 0)` }}
+                    />
+
+                    {/* Texture: Subtle Noise Overlay (Removes bandings, adds realism) */}
+                    <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay pointer-events-none"
+                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` }}
+                    />
+
+                    {/* Mouse Spotlight (Subtle highlight following cursor) */}
+                    <div
+                        className="absolute w-[600px] h-[600px] bg-white/40 rounded-full blur-[80px] pointer-events-none mix-blend-soft-light transition-transform duration-75"
+                        style={{
+                            left: '50%',
+                            top: '50%',
+                            transform: `translate(${mousePos.x * 30 - 300}px, ${mousePos.y * 30 - 300}px)`
+                        }}
+                    />
+                </div>
+
+                {/* NOTE: Previous shared blobs removed in favor of the new bespoke light/dark implementations */}
+
+                {/* DARK MODE: Deep Blobs (Re-added here since shared block was removed) */}
+                <div
+                    className="absolute top-[20%] left-[30%] w-[800px] h-[800px] rounded-full blur-[150px] animate-pulse-slow bg-purple-600/10 opacity-0 dark:opacity-100 transition-opacity duration-700"
+                    style={{ transform: `translate3d(${mousePos.x * 0.5}px, ${mousePos.y * 0.5}px, 0)` }}
+                ></div>
+                <div
+                    className="absolute bottom-[10%] right-[20%] w-[600px] h-[600px] rounded-full blur-[130px] animate-pulse-slow delay-1000 bg-cyan-600/10 opacity-0 dark:opacity-100 transition-opacity duration-700"
+                    style={{ transform: `translate3d(${mousePos.x * -0.3}px, ${mousePos.y * -0.3}px, 0)` }}
+                ></div>
+
+                {/* Cinematic Vignette (Dark Mode Only) */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-[#020202] opacity-0 dark:opacity-80 transition-opacity duration-700"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-[#020202] via-transparent to-[#020202] opacity-0 dark:opacity-80 transition-opacity duration-700"></div>
+            </div>
+
             {isSidebarOpen && (
                 <div
                     className="fixed inset-0 bg-black/50 z-40 lg:hidden backdrop-blur-sm"
@@ -364,27 +445,33 @@ const Layout: React.FC<LayoutProps> = ({
             )}
 
             <aside
-                className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'lg:w-20 w-72' : 'w-72'} bg-slate-800/50 backdrop-blur-md border-r border-slate-700/50 shadow-2xl transform transition-all duration-300 ease-in-out lg:static lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                className={`fixed inset-y-0 left-0 z-50 ${isCollapsed ? 'lg:w-20 w-72' : 'w-72'} 
+                bg-white/80 dark:bg-slate-900/60 
+                backdrop-blur-3xl dark:backdrop-blur-xl 
+                border-r border-indigo-50/50 dark:border-slate-700/50 
+                shadow-[0_0_40px_-10px_rgba(139,92,246,0.1)] dark:shadow-[0_0_40px_-10px_rgba(0,0,0,0.5)]
+                transform transition-all duration-500 cubic-bezier(0.22, 1, 0.36, 1) 
+                lg:static lg:translate-x-0 flex flex-col ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="hidden lg:flex absolute -right-3 top-20 bg-slate-800 border border-slate-700 rounded-full p-1 text-slate-400 hover:text-white cursor-pointer z-50 shadow-md"
+                    className="hidden lg:flex absolute -right-3 top-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full p-1 text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-white cursor-pointer z-50 shadow-md"
                 >
                     {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                 </button>
 
-                <div className={`p-6 flex items-center gap-3 border-b border-slate-700/50 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
+                <div className={`p-6 flex items-center gap-3 border-b border-slate-200 dark:border-slate-700/50 ${isCollapsed ? 'lg:justify-center lg:px-2' : ''}`}>
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-purple-500/20 flex-shrink-0">
                         <ShoppingCart className="w-6 h-6 text-white" />
                     </div>
                     <div className={`${isCollapsed ? 'lg:hidden' : 'block'} overflow-hidden transition-all duration-300`}>
-                        <h1 className="font-bold text-xl tracking-tight text-white whitespace-nowrap">TES</h1>
-                        <p className="text-xs text-slate-400 font-medium whitespace-nowrap">Thenextperience ERP System</p>
+                        <h1 className="font-bold text-xl tracking-tight text-slate-900 dark:text-white whitespace-nowrap">TES</h1>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Thenextperience ERP System</p>
                     </div>
                 </div>
 
                 {/* Navigation - Using recursive SidebarItem */}
-                <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
+                <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
                     {navItems.filter(item => item.canView).map((item) => (
                         <SidebarItem
                             key={item.path || item.label}
@@ -399,10 +486,10 @@ const Layout: React.FC<LayoutProps> = ({
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-slate-700/50">
-                    <div className={`bg-slate-900/50 rounded-xl p-4 border border-slate-700/50 mb-3 ${isCollapsed ? 'lg:p-2 lg:flex lg:justify-center' : ''}`}>
+                <div className="p-4 border-t border-slate-200 dark:border-slate-700/50">
+                    <div className={`bg-slate-100 dark:bg-slate-900/50 rounded-xl p-4 border border-slate-200 dark:border-slate-700/50 mb-3 ${isCollapsed ? 'lg:p-2 lg:flex lg:justify-center' : ''}`}>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-sm font-bold flex-shrink-0 overflow-hidden text-white">
                                 {currentUser.avatar ? (
                                     <img src={currentUser.avatar} alt={currentUser.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -410,8 +497,8 @@ const Layout: React.FC<LayoutProps> = ({
                                 )}
                             </div>
                             <div className={`flex-1 min-w-0 ${isCollapsed ? 'lg:hidden' : 'block'}`}>
-                                <p className="text-sm font-bold text-white truncate">{currentUser.name}</p>
-                                <p className="text-xs text-slate-400 truncate">{currentUser.role.replace(/_/g, ' ')}</p>
+                                <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{currentUser.name}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{currentUser.role.replace(/_/g, ' ')}</p>
                             </div>
                         </div>
                     </div>
@@ -421,7 +508,7 @@ const Layout: React.FC<LayoutProps> = ({
                                 navigate('/settings');
                                 setIsSidebarOpen(false);
                             }}
-                            className="flex items-center justify-center gap-2 p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700/50 text-slate-300 hover:text-white transition-colors"
+                            className="flex items-center justify-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700/50 text-slate-500 dark:text-slate-300 hover:text-purple-600 dark:hover:text-white transition-colors shadow-sm dark:shadow-none"
                             title="Account Settings"
                         >
                             <Settings size={18} />
@@ -429,7 +516,7 @@ const Layout: React.FC<LayoutProps> = ({
                         </button>
                         <button
                             onClick={onLogout}
-                            className="flex items-center justify-center gap-2 p-2 rounded-lg bg-slate-800 hover:bg-red-900/30 border border-slate-700/50 text-slate-300 hover:text-red-400 transition-colors"
+                            className="flex items-center justify-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 border border-slate-200 dark:border-slate-700/50 text-slate-500 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 transition-colors shadow-sm dark:shadow-none"
                             title="Sign Out"
                         >
                             <LogOut size={18} />
@@ -439,16 +526,21 @@ const Layout: React.FC<LayoutProps> = ({
                 </div>
             </aside>
 
-            <main className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300">
+            <main className="flex-1 flex flex-col overflow-hidden relative transition-all duration-300 z-10">
+                {/* Light Mode Static Gradient - Removed in favor of dynamic background layer */}
+
                 {/* Top Header Bar with Mobile Menu & Notification Bell */}
                 <div className="flex items-center justify-between p-4 lg:pr-6">
                     <div className="lg:hidden">
-                        <button onClick={() => setIsSidebarOpen(true)} className="text-slate-400 hover:text-white p-2 bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-lg border border-slate-700/50">
+                        <button onClick={() => setIsSidebarOpen(true)} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white p-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-lg shadow-sm border border-slate-200 dark:border-slate-700/50">
                             <Menu size={24} />
                         </button>
                     </div>
                     <div className="flex-1" />
-                    <NotificationBell />
+                    <div className="flex items-center gap-4">
+                        <ThemeToggle />
+                        <NotificationBell />
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scroll-smooth">

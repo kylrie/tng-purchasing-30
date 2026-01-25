@@ -477,16 +477,16 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
 
     return (
-        <div className="space-y-8 text-white min-h-screen">
+        <div className="space-y-8 text-slate-800 dark:text-white min-h-screen">
             {/* Welcome Section */}
             <div className="flex justify-between items-end">
                 <div>
                     <h1 className="text-2xl font-bold">Dashboard Overview</h1>
-                    <p className="text-slate-300">Welcome back, {currentUser.name}! Here's what's happening today.</p>
+                    <p className="text-slate-500 dark:text-slate-300">Welcome back, {currentUser.name}! Here's what's happening today.</p>
                 </div>
                 <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-400 uppercase tracking-wider">{currentUser.role.replace(/_/g, ' ')}</p>
-                    <p className="text-xs text-slate-500">{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{currentUser.role.replace(/_/g, ' ')}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-500">{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 </div>
             </div>
 
@@ -779,20 +779,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         (hasPermission('dashboard:section:gm_br') && gmBRItems.length > 0) ||
                         (hasPermission('dashboard:section:bod_br') && bodBRItems.length > 0) ? (
                         <div className="mb-6">
-                            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                                 <FileText size={14} />
                                 Budget Review Queue
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {/* Finance Head BR Widget - Full Style */}
                                 {hasPermission('dashboard:section:finance_head_br') && financeHeadBRItems.length > 0 && (
-                                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-indigo-500/30 shadow-lg flex flex-col">
-                                        <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                                <FileText className="text-indigo-400" size={20} />
+                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-indigo-200/60 dark:border-indigo-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.1)] dark:shadow-none flex flex-col">
+                                        <div className="p-6 flex justify-between items-center border-b border-indigo-100 dark:border-slate-700/50">
+                                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                                <FileText className="text-indigo-600 dark:text-indigo-400" size={20} />
                                                 Finance Head BR
                                             </h3>
-                                            <span className="text-xs font-medium bg-indigo-900/30 text-indigo-400 px-2 py-1 rounded-full border border-indigo-500/20">
+                                            <span className="text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 py-1 rounded-full border border-indigo-200 dark:border-indigo-500/20">
                                                 {financeHeadBRItems.length} Pending
                                             </span>
                                         </div>
@@ -805,14 +805,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <div
                                                             key={req.id}
                                                             onClick={() => setDrawerReq(req)}
-                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-indigo-500/30 transition-all cursor-pointer"
+                                                            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-indigo-500/30 hover:shadow-md transition-all cursor-pointer group"
                                                         >
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <div>
-                                                                    <span className="text-xs font-mono text-indigo-400 bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-500/10">{req.id}</span>
+                                                                    <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-500/10">{req.id}</span>
                                                                     <h4
                                                                         onClick={() => setDrawerReq(req)}
-                                                                        className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-indigo-300"
+                                                                        className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-indigo-600 dark:group-hover:text-indigo-300"
                                                                     >
                                                                         {req.description}
                                                                     </h4>
@@ -820,30 +820,30 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                                 <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                             </div>
                                                             <div className="flex items-center justify-between text-xs mb-2">
-                                                                <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                                <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                                <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                                <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
                                                             {req.prfDetails?.supplier?.name && (
                                                                 <div className="flex items-center text-xs mb-2">
                                                                     <span className="text-slate-500">Supplier:</span>
-                                                                    <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                                    <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
                                                                 </div>
                                                             )}
                                                             <div className="flex items-center justify-between text-xs mb-3">
-                                                                <span className="font-semibold px-2 py-0.5 rounded bg-indigo-900/30 text-indigo-400 border border-indigo-500/20">
+                                                                <span className="font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
                                                                     {business?.name || 'N/A'}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
                                                                 <button
                                                                     onClick={(e) => handleApprove(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                                 >
                                                                     <CheckCircle size={14} /> Approve
                                                                 </button>
                                                                 <button
                                                                     onClick={(e) => handleRejectClick(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                                 >
                                                                     <XCircle size={14} /> Reject
                                                                 </button>
@@ -858,13 +858,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                                 {/* GM Budget Review Widget - Full Style */}
                                 {hasPermission('dashboard:section:gm_br') && gmBRItems.length > 0 && (
-                                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-violet-500/30 shadow-lg flex flex-col">
-                                        <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                                <FileText className="text-violet-400" size={20} />
+                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-violet-200/60 dark:border-violet-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.1)] dark:shadow-none flex flex-col">
+                                        <div className="p-6 flex justify-between items-center border-b border-violet-100 dark:border-slate-700/50">
+                                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                                <FileText className="text-violet-600 dark:text-violet-400" size={20} />
                                                 GM Budget Review
                                             </h3>
-                                            <span className="text-xs font-medium bg-violet-900/30 text-violet-400 px-2 py-1 rounded-full border border-violet-500/20">
+                                            <span className="text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 px-2 py-1 rounded-full border border-violet-200 dark:border-violet-500/20">
                                                 {gmBRItems.length} Pending
                                             </span>
                                         </div>
@@ -877,14 +877,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <div
                                                             key={req.id}
                                                             onClick={() => setDrawerReq(req)}
-                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-violet-500/30 transition-all cursor-pointer"
+                                                            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-violet-500/30 hover:shadow-md transition-all cursor-pointer group"
                                                         >
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <div>
-                                                                    <span className="text-xs font-mono text-violet-400 bg-violet-900/20 px-1.5 py-0.5 rounded border border-violet-500/10">{req.id}</span>
+                                                                    <span className="text-xs font-mono text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 px-1.5 py-0.5 rounded border border-violet-200 dark:border-violet-500/10">{req.id}</span>
                                                                     <h4
                                                                         onClick={() => setDrawerReq(req)}
-                                                                        className="font-medium text-slate-200 mt-1 group-hover:text-white transition-colors truncate max-w-[250px] cursor-pointer hover:text-violet-300"
+                                                                        className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-violet-600 dark:group-hover:text-violet-300"
                                                                     >
                                                                         {req.description}
                                                                     </h4>
@@ -892,30 +892,30 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                                 <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                             </div>
                                                             <div className="flex items-center justify-between text-xs mb-2">
-                                                                <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                                <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                                <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                                <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
                                                             {req.prfDetails?.supplier?.name && (
                                                                 <div className="flex items-center text-xs mb-2">
                                                                     <span className="text-slate-500">Supplier:</span>
-                                                                    <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                                    <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
                                                                 </div>
                                                             )}
                                                             <div className="flex items-center justify-between text-xs mb-3">
-                                                                <span className="font-semibold px-2 py-0.5 rounded bg-violet-900/30 text-violet-400 border border-violet-500/20">
+                                                                <span className="font-semibold px-2 py-0.5 rounded bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-500/20">
                                                                     {business?.name || 'N/A'}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
                                                                 <button
                                                                     onClick={(e) => handleApprove(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                                 >
                                                                     <CheckCircle size={14} /> Approve
                                                                 </button>
                                                                 <button
                                                                     onClick={(e) => handleRejectClick(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                                 >
                                                                     <XCircle size={14} /> Reject
                                                                 </button>
@@ -930,13 +930,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                                 {/* BOD Budget Review Widget - Full Style */}
                                 {hasPermission('dashboard:section:bod_br') && bodBRItems.length > 0 && (
-                                    <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-rose-500/30 shadow-lg flex flex-col">
-                                        <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                                <FileText className="text-rose-400" size={20} />
+                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-rose-200/60 dark:border-rose-500/30 shadow-[0_8px_30px_-6px_rgba(244,63,94,0.1)] dark:shadow-none flex flex-col">
+                                        <div className="p-6 flex justify-between items-center border-b border-rose-100 dark:border-slate-700/50">
+                                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                                <FileText className="text-rose-500 dark:text-rose-400" size={20} />
                                                 BOD Budget Review
                                             </h3>
-                                            <span className="text-xs font-medium bg-rose-900/30 text-rose-400 px-2 py-1 rounded-full border border-rose-500/20">
+                                            <span className="text-xs font-medium bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-full border border-rose-200 dark:border-rose-500/20">
                                                 {bodBRItems.length} Pending
                                             </span>
                                         </div>
@@ -949,14 +949,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <div
                                                             key={req.id}
                                                             onClick={() => setDrawerReq(req)}
-                                                            className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-rose-500/30 transition-all cursor-pointer"
+                                                            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-rose-500/30 hover:shadow-md transition-all cursor-pointer group"
                                                         >
                                                             <div className="flex justify-between items-start mb-2">
                                                                 <div>
-                                                                    <span className="text-xs font-mono text-rose-400 bg-rose-900/20 px-1.5 py-0.5 rounded border border-rose-500/10">{req.id}</span>
+                                                                    <span className="text-xs font-mono text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-500/10">{req.id}</span>
                                                                     <h4
                                                                         onClick={() => setDrawerReq(req)}
-                                                                        className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-rose-300"
+                                                                        className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-rose-600 dark:group-hover:text-rose-300"
                                                                     >
                                                                         {req.description}
                                                                     </h4>
@@ -964,30 +964,30 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                                 <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                             </div>
                                                             <div className="flex items-center justify-between text-xs mb-2">
-                                                                <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                                <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                                <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                                <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
                                                             {req.prfDetails?.supplier?.name && (
                                                                 <div className="flex items-center text-xs mb-2">
                                                                     <span className="text-slate-500">Supplier:</span>
-                                                                    <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                                    <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
                                                                 </div>
                                                             )}
                                                             <div className="flex items-center justify-between text-xs mb-3">
-                                                                <span className="font-semibold px-2 py-0.5 rounded bg-rose-900/30 text-rose-400 border border-rose-500/20">
+                                                                <span className="font-semibold px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20">
                                                                     {business?.name || 'N/A'}
                                                                 </span>
                                                             </div>
-                                                            <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
                                                                 <button
                                                                     onClick={(e) => handleApprove(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                                 >
                                                                     <CheckCircle size={14} /> Approve
                                                                 </button>
                                                                 <button
                                                                     onClick={(e) => handleRejectClick(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                                 >
                                                                     <XCircle size={14} /> Reject
                                                                 </button>
@@ -1006,18 +1006,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     {/* === CHECK AUTHORIZATION SECTION === */}
                     {hasPermission('dashboard:section:check_auth') && checkAuthItems.length > 0 && (
                         <div className="mb-6">
-                            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                                 <ShieldCheck size={14} />
                                 Check Authorization Queue
                             </h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-amber-500/30 shadow-lg flex flex-col">
-                                    <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                            <ShieldCheck className="text-amber-400" size={20} />
+                                <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-amber-200/60 dark:border-amber-500/30 shadow-[0_8px_30px_-6px_rgba(245,158,11,0.1)] dark:shadow-none flex flex-col">
+                                    <div className="p-6 flex justify-between items-center border-b border-amber-100 dark:border-slate-700/50">
+                                        <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                            <ShieldCheck className="text-amber-500 dark:text-amber-400" size={20} />
                                             Check Authorization
                                         </h3>
-                                        <span className="text-xs font-medium bg-amber-900/30 text-amber-400 px-2 py-1 rounded-full border border-amber-500/20">
+                                        <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-full border border-amber-200 dark:border-amber-500/20">
                                             {checkAuthItems.length} Pending
                                         </span>
                                     </div>
@@ -1030,14 +1030,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                     <div
                                                         key={req.id}
                                                         onClick={() => setDrawerReq(req)}
-                                                        className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-amber-500/30 transition-all cursor-pointer"
+                                                        className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-amber-500/30 hover:shadow-md transition-all cursor-pointer group"
                                                     >
                                                         <div className="flex justify-between items-start mb-2">
                                                             <div>
-                                                                <span className="text-xs font-mono text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-500/10">{req.id}</span>
+                                                                <span className="text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-500/10">{req.id}</span>
                                                                 <h4
                                                                     onClick={() => setDrawerReq(req)}
-                                                                    className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-amber-300"
+                                                                    className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-amber-600 dark:group-hover:text-amber-300"
                                                                 >
                                                                     {req.description}
                                                                 </h4>
@@ -1045,24 +1045,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                             <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                         </div>
                                                         <div className="flex items-center justify-between text-xs mb-2">
-                                                            <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                            <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                            <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                            <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                         </div>
                                                         {req.prfDetails?.supplier?.name && (
                                                             <div className="flex items-center text-xs mb-2">
                                                                 <span className="text-slate-500">Supplier:</span>
-                                                                <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                                <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
                                                             </div>
                                                         )}
                                                         <div className="flex items-center justify-between text-xs mb-3">
-                                                            <span className="font-semibold px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-500/20">
+                                                            <span className="font-semibold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
                                                                 {business?.name || 'N/A'}
                                                             </span>
                                                         </div>
-                                                        <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                        <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
                                                             <button
                                                                 onClick={(e) => handleApprove(req, e)}
-                                                                className="flex-1 py-1.5 px-3 rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                                className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-amber-600/20 text-emerald-600 dark:text-amber-400 hover:bg-emerald-100 dark:hover:bg-amber-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                             >
                                                                 <CheckCircle size={14} /> Authorize Check
                                                             </button>
@@ -1080,29 +1080,29 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     <div className={`grid grid-cols-1 ${isApprover ? 'lg:grid-cols-3' : 'lg:grid-cols-1 max-w-4xl mx-auto'} gap-8`}>
                         {/* Pending Approvals - Only visible with permission */}
                         {hasPermission('dashboard:section:pending_list') && (
-                            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-purple-500/30 shadow-lg flex flex-col">
+                            <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-purple-200/60 dark:border-purple-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.1)] dark:shadow-none flex flex-col">
                                 {/* Header with View All */}
-                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <Clock className="text-purple-400" size={20} />
+                                <div className="p-6 flex justify-between items-center border-b border-purple-100 dark:border-slate-700/50">
+                                    <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                        <Clock className="text-purple-600 dark:text-purple-400" size={20} />
                                         Pending Approvals
                                     </h3>
-                                    <button onClick={() => navigate('/procurement-approvals')} className="text-xs font-medium bg-slate-700 hover:bg-slate-600 px-3 py-1.5 rounded-full text-white transition-colors">View All</button>
+                                    <button onClick={() => navigate('/procurement-approvals')} className="text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 px-3 py-1.5 rounded-full text-slate-600 dark:text-white transition-colors">View All</button>
                                 </div>
 
                                 {/* Secondary Tab Bar - Filtered by Permission */}
-                                <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-slate-700/30 flex-wrap">
+                                <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-purple-50 dark:border-slate-700/30 flex-wrap">
                                     {hasPermission('approval:manager:burf') && (
                                         <button
                                             onClick={() => setPendingApprovalTab('burf')}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'burf'
-                                                ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
-                                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                                ? 'bg-orange-50 dark:bg-orange-600/20 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-500/30'
+                                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50'
                                                 }`}
                                         >
                                             BURF
                                             {burfApprovals.length > 0 && (
-                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                                     }`}>
                                                     {burfApprovals.length}
                                                 </span>
@@ -1113,13 +1113,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                         <button
                                             onClick={() => setPendingApprovalTab('cic')}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'cic'
-                                                ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
-                                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                                ? 'bg-cyan-50 dark:bg-cyan-600/20 text-cyan-600 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-500/30'
+                                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50'
                                                 }`}
                                         >
                                             CIC
                                             {cicReviews.length > 0 && (
-                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                                     }`}>
                                                     {cicReviews.length}
                                                 </span>
@@ -1131,13 +1131,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                         <button
                                             onClick={() => setPendingApprovalTab('prf')}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'prf'
-                                                ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                                ? 'bg-purple-50 dark:bg-purple-600/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30'
+                                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50'
                                                 }`}
                                         >
                                             PRF
                                             {prfApprovals.length > 0 && (
-                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                                     }`}>
                                                     {prfApprovals.length}
                                                 </span>
@@ -1148,13 +1148,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                         <button
                                             onClick={() => setPendingApprovalTab('gmprf')}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'gmprf'
-                                                ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
-                                                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+                                                ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
+                                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50'
                                                 }`}
                                         >
                                             GM PRF
                                             {gmPrfApprovals.length > 0 && (
-                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-600 text-slate-300'
+                                                <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingApprovalTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                                     }`}>
                                                     {gmPrfApprovals.length}
                                                 </span>
@@ -1174,14 +1174,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 <div
                                                     key={activity.id}
                                                     onClick={() => setDrawerReq(activity.rawRequisition)}
-                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-purple-500/30 transition-all cursor-pointer"
+                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-purple-500/30 hover:shadow-md transition-all cursor-pointer group"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
-                                                            <span className="text-xs font-mono text-purple-400 bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-500/10">{activity.id}</span>
+                                                            <span className="text-xs font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-500/10">{activity.id}</span>
                                                             <h4
                                                                 onClick={() => setDrawerReq(activity.rawRequisition)}
-                                                                className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-purple-300"
+                                                                className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-purple-600 dark:group-hover:text-purple-300"
                                                             >
                                                                 {activity.target}
                                                             </h4>
@@ -1189,27 +1189,27 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <span className="text-xs text-slate-500">{activity.time}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-2">
-                                                        <span className="text-slate-400">{requester?.name || activity.user}</span>
-                                                        <span className="text-slate-300 font-medium">₱{req?.totalAmount?.toLocaleString() || '0'}</span>
+                                                        <span className="text-slate-600 dark:text-slate-400">{requester?.name || activity.user}</span>
+                                                        <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req?.totalAmount?.toLocaleString() || '0'}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-3">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-purple-900/30 text-purple-400 border border-purple-500/20">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
                                                             {business?.name || 'N/A'}
                                                         </span>
-                                                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${activity.status.includes('PENDING') ? 'bg-orange-900/30 text-orange-400 border border-orange-500/20' : 'bg-cyan-900/30 text-cyan-400 border border-cyan-500/20'}`}>
+                                                        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${activity.status.includes('PENDING') ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-500/20' : 'bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-500/20'}`}>
                                                             {activity.status.replace(/_/g, ' ')}
                                                         </span>
                                                     </div>
-                                                    <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
                                                         <button
                                                             onClick={(e) => handleApprove(activity.rawRequisition, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                         >
                                                             <CheckCircle size={14} /> Approve
                                                         </button>
                                                         <button
                                                             onClick={(e) => handleRejectClick(activity.rawRequisition, e)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                         >
                                                             <XCircle size={14} /> Reject
                                                         </button>
@@ -1219,7 +1219,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                         })}
                                         {/* Tab-specific empty states */}
                                         {getActiveTabItems().length === 0 && (
-                                            <div className="flex flex-col items-center justify-center py-12 text-slate-500">
+                                            <div className="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-500">
                                                 <Clock size={48} className="mb-4 opacity-20" />
                                                 <p className="text-sm">
                                                     {pendingApprovalTab === 'burf' && 'No pending BURF approvals found.'}
@@ -1236,13 +1236,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                         {/* Ready for PRF - Visible to Purchasing Officers */}
                         {hasPermission('dashboard:section:ready_for_prf_list') && readyForPrfItems.length > 0 && (
-                            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-blue-500/30 shadow-lg flex flex-col">
-                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <FileText className="text-blue-400" size={20} />
+                            <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-blue-200 dark:border-blue-500/30 shadow-lg flex flex-col">
+                                <div className="p-6 flex justify-between items-center border-b border-blue-100 dark:border-slate-700/50">
+                                    <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                        <FileText className="text-blue-600 dark:text-blue-400" size={20} />
                                         Ready for PRF
                                     </h3>
-                                    <span className="text-xs font-medium bg-blue-900/30 text-blue-400 px-2 py-1 rounded-full border border-blue-500/20">
+                                    <span className="text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-1 rounded-full border border-blue-200 dark:border-blue-500/20">
                                         {readyForPrfItems.length} Pending
                                     </span>
                                 </div>
@@ -1255,14 +1255,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 <div
                                                     key={req.id}
                                                     onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-blue-500/30 transition-all cursor-pointer"
+                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-blue-500/30 hover:shadow-md transition-all cursor-pointer group"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
-                                                            <span className="text-xs font-mono text-blue-400 bg-blue-900/20 px-1.5 py-0.5 rounded border border-blue-500/10">{req.id}</span>
+                                                            <span className="text-xs font-mono text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-500/10">{req.id}</span>
                                                             <h4
                                                                 onClick={() => setDrawerReq(req)}
-                                                                className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-blue-300"
+                                                                className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-blue-600 dark:group-hover:text-blue-300"
                                                             >
                                                                 {req.description}
                                                             </h4>
@@ -1270,18 +1270,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-2">
-                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                        <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                        <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-3">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-blue-900/30 text-blue-400 border border-blue-500/20">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
                                                             {business?.name || 'N/A'}
                                                         </span>
                                                     </div>
-                                                    <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
                                                         <button
                                                             onClick={() => setPreparePRFReq(req)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-blue-50 dark:bg-blue-600/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                         >
                                                             <FileText size={14} /> Prepare PRF
                                                         </button>
@@ -1296,13 +1296,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                         {/* Pending Fund Release - Visible to Finance */}
                         {hasPermission('dashboard:section:pending_fund_release') && pendingFundReleaseItems.length > 0 && (
-                            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-emerald-500/30 shadow-lg flex flex-col">
-                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <PesoSign className="text-emerald-400" size={20} />
+                            <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-emerald-200 dark:border-emerald-500/30 shadow-lg flex flex-col">
+                                <div className="p-6 flex justify-between items-center border-b border-emerald-100 dark:border-slate-700/50">
+                                    <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                        <PesoSign className="text-emerald-600 dark:text-emerald-400" size={20} />
                                         Pending Fund Release
                                     </h3>
-                                    <span className="text-xs font-medium bg-emerald-900/30 text-emerald-400 px-2 py-1 rounded-full border border-emerald-500/20">
+                                    <span className="text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-2 py-1 rounded-full border border-emerald-200 dark:border-emerald-500/20">
                                         {pendingFundReleaseItems.length} Pending
                                     </span>
                                 </div>
@@ -1315,14 +1315,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 <div
                                                     key={req.id}
                                                     onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-emerald-500/30 transition-all cursor-pointer"
+                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-emerald-500/30 hover:shadow-md transition-all cursor-pointer group"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
-                                                            <span className="text-xs font-mono text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/10">{req.id}</span>
+                                                            <span className="text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/10">{req.id}</span>
                                                             <h4
                                                                 onClick={() => setDrawerReq(req)}
-                                                                className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-emerald-300"
+                                                                className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-emerald-600 dark:group-hover:text-emerald-300"
                                                             >
                                                                 {req.description}
                                                             </h4>
@@ -1330,24 +1330,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-2">
-                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                        <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                        <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                     </div>
                                                     {req.prfDetails?.supplier?.name && (
                                                         <div className="flex items-center text-xs mb-2">
                                                             <span className="text-slate-500">Supplier:</span>
-                                                            <span className="text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                            <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
                                                         </div>
                                                     )}
                                                     <div className="flex items-center justify-between text-xs mb-3">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-emerald-900/30 text-emerald-400 border border-emerald-500/20">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
                                                             {business?.name || 'N/A'}
                                                         </span>
                                                     </div>
-                                                    <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
                                                         <button
                                                             onClick={() => setReleaseFundReq(req)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                         >
                                                             <PesoSign size={14} /> Release Funds
                                                         </button>
@@ -1365,13 +1365,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                         {/* Pending Audit - Visible to Auditors */}
                         {hasPermission('dashboard:section:pending_audit_list') && pendingAuditItems.length > 0 && (
-                            <div className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-amber-500/30 shadow-lg flex flex-col">
-                                <div className="p-6 flex justify-between items-center border-b border-slate-700/50">
-                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                        <Receipt className="text-amber-400" size={20} />
+                            <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-amber-200 dark:border-amber-500/30 shadow-lg flex flex-col">
+                                <div className="p-6 flex justify-between items-center border-b border-amber-100 dark:border-slate-700/50">
+                                    <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                        <Receipt className="text-amber-500 dark:text-amber-400" size={20} />
                                         Pending Audit
                                     </h3>
-                                    <span className="text-xs font-medium bg-amber-900/30 text-amber-400 px-2 py-1 rounded-full border border-amber-500/20">
+                                    <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 px-2 py-1 rounded-full border border-amber-200 dark:border-amber-500/20">
                                         {pendingAuditItems.length} Pending
                                     </span>
                                 </div>
@@ -1384,14 +1384,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 <div
                                                     key={req.id}
                                                     onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-700/30 border border-slate-700/50 hover:border-amber-500/30 transition-all cursor-pointer"
+                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-amber-500/30 hover:shadow-md transition-all cursor-pointer group"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
-                                                            <span className="text-xs font-mono text-amber-400 bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-500/10">{req.id}</span>
+                                                            <span className="text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-500/10">{req.id}</span>
                                                             <h4
                                                                 onClick={() => setDrawerReq(req)}
-                                                                className="font-medium text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer hover:text-amber-300"
+                                                                className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-amber-600 dark:group-hover:text-amber-300"
                                                             >
                                                                 {req.description}
                                                             </h4>
@@ -1399,18 +1399,18 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-2">
-                                                        <span className="text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                        <span className="text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                        <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
+                                                        <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-3">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-amber-900/30 text-amber-400 border border-amber-500/20">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
                                                             {business?.name || 'N/A'}
                                                         </span>
                                                     </div>
-                                                    <div className="flex gap-2 pt-3 border-t border-slate-700/50">
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
                                                         <button
                                                             onClick={() => setAuditReq(req)}
-                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
+                                                            className="flex-1 py-1.5 px-3 rounded-lg bg-amber-50 dark:bg-amber-600/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
                                                         >
                                                             <Receipt size={14} /> Start Audit
                                                         </button>

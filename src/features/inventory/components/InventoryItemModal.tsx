@@ -189,8 +189,8 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 
     if (!isOpen) return null;
 
-    const inputClass = "w-full p-2.5 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
-    const labelClass = "block text-sm font-medium text-slate-300 mb-1.5";
+    const inputClass = "w-full p-2.5 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-400 dark:placeholder-slate-500";
+    const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5";
     const errorClass = "text-xs text-red-400 mt-1";
 
     return (
@@ -200,16 +200,16 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 
             {/* Modal */}
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                     {/* Header */}
-                    <div className="flex items-center justify-between p-4 border-b border-slate-700 sticky top-0 bg-slate-800 z-10">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            <Package size={20} className="text-purple-400" />
+                    <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Package size={20} className="text-purple-600 dark:text-purple-400" />
                             {isEditing ? 'Edit Inventory Item' : 'Add New Item'}
                         </h3>
                         <button
                             onClick={onClose}
-                            className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                         >
                             <X size={20} />
                         </button>
@@ -227,7 +227,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 
                         {/* Basic Info Section */}
                         <div>
-                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                            <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">
                                 Basic Information
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -300,7 +300,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 
                         {/* Storage Areas Section */}
                         <div>
-                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                            <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">
                                 Storage Areas
                             </h4>
                             <div className="flex flex-wrap gap-2">
@@ -310,8 +310,8 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                         type="button"
                                         onClick={() => handleStorageAreaToggle(area)}
                                         className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.storageAreas.includes(area)
-                                            ? 'bg-purple-500 text-white'
-                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            ? 'bg-purple-600 dark:bg-purple-500 text-white'
+                                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                                             }`}
                                     >
                                         {area}
@@ -325,7 +325,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 
                         {/* Unit Configuration Section */}
                         <div>
-                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                            <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">
                                 Unit Configuration
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -379,7 +379,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 
                         {/* Stock Settings Section */}
                         <div>
-                            <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                            <h4 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">
                                 Stock Settings
                             </h4>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -441,11 +441,11 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                         </div>
 
                         {/* Footer */}
-                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                                className="px-4 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg transition-colors"
                             >
                                 Cancel
                             </button>

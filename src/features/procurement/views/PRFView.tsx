@@ -378,10 +378,10 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
 
     return (
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <Card className="w-full max-w-3xl animate-in zoom-in-95 duration-200 !p-0 max-h-[90vh] flex flex-col">
-                <div className="flex justify-between items-center p-6 border-b border-slate-700">
-                    <h3 className="text-lg font-bold text-white">{initialData ? 'Edit PRF' : 'Create Direct PRF'}</h3>
-                    <button onClick={onCancel} className="text-slate-400 hover:text-white">
+            <Card className="w-full max-w-3xl animate-in zoom-in-95 duration-200 !p-0 max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <div className="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-700">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">{initialData ? 'Edit PRF' : 'Create Direct PRF'}</h3>
+                    <button onClick={onCancel} className="text-slate-400 hover:text-slate-800 dark:hover:text-white">
                         <X size={20} />
                     </button>
                 </div>
@@ -392,7 +392,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                             <label className="block text-sm text-slate-400 mb-1">Business Unit</label>
                             {canSelectBusiness ? (
                                 <select
-                                    className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                                     value={selectedBusinessId}
                                     onChange={(e) => setSelectedBusinessId(e.target.value)}
                                 >
@@ -401,7 +401,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                     ))}
                                 </select>
                             ) : (
-                                <div className="w-full p-2 bg-slate-800/50 border border-slate-600 rounded text-slate-300 cursor-not-allowed">
+                                <div className="w-full p-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-600 rounded text-slate-500 dark:text-slate-300 cursor-not-allowed">
                                     {businesses.find(b => b.id === selectedBusinessId)?.name || `Unknown Business Unit${import.meta.env.DEV ? ` (ID: ${selectedBusinessId})` : ''}`}
                                 </div>
                             )}
@@ -410,7 +410,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                             <label className="block text-sm text-slate-400 mb-1">Custom PRF ID (Optional)</label>
                             <input
                                 type="text"
-                                className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white placeholder-slate-500"
+                                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500"
                                 value={customId}
                                 onChange={(e) => setCustomId(e.target.value)}
                                 placeholder="Auto-generated if empty"
@@ -424,7 +424,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                 type="date"
                                 value={dateNeeded}
                                 onChange={(e) => setDateNeeded(e.target.value)}
-                                className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white focus:ring-2 focus:ring-cyan-500 focus:outline-none"
                             />
                             <p className="text-xs text-cyan-400 mt-1">🎯 Budget availability is based on this month.</p>
                         </div>
@@ -445,7 +445,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                         <select
                                             value={selectedCOACode}
                                             onChange={(e) => setSelectedCOACode(e.target.value)}
-                                            className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
                                         >
                                             <option value="">Select Budget Account...</option>
                                             {budgetedCOAs.map(coa => (
@@ -485,13 +485,13 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                             </div>
                         )}
                         <div className="col-span-2">
-                            <label className="block text-sm text-slate-400 mb-1">Description</label>
-                            <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Purchase of materials" />
+                            <label className="block text-sm text-slate-500 dark:text-slate-400 mb-1">Description</label>
+                            <input className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white" value={description} onChange={e => setDescription(e.target.value)} placeholder="e.g. Purchase of materials" />
                         </div>
                         <div className="col-span-2">
-                            <label className="block text-sm text-slate-400 mb-1">Remarks (Optional)</label>
+                            <label className="block text-sm text-slate-500 dark:text-slate-400 mb-1">Remarks (Optional)</label>
                             <textarea
-                                className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white placeholder-slate-500 resize-none"
+                                className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 resize-none"
                                 rows={2}
                                 value={remarks}
                                 onChange={e => setRemarks(e.target.value)}
@@ -505,7 +505,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                     <select
                                         value={designatedApproverId}
                                         onChange={(e) => setDesignatedApproverId(e.target.value)}
-                                        className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-white"
+                                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white"
                                     >
                                         <option value="">-- Choose Approver --</option>
                                         {eligibleApprovers.map(approver => (
@@ -544,14 +544,14 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm text-slate-400 mb-1">Supplier Name</label>
+                                    <label className="block text-sm text-slate-500 dark:text-slate-400 mb-1">Supplier Name</label>
                                     {createNewSupplier ? (
                                         <input
                                             type="text"
                                             value={supplierDetails.name}
                                             onChange={(e) => setSupplierDetails({ ...supplierDetails, name: e.target.value })}
                                             placeholder="Enter supplier name"
-                                            className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                            className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white"
                                         />
                                     ) : (
                                         <SearchableDropdown
@@ -564,11 +564,11 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                     )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm text-slate-400 mb-1">Payment Mode</label>
+                                    <label className="block text-sm text-slate-500 dark:text-slate-400 mb-1">Payment Mode</label>
                                     <select
                                         value={supplierDetails.paymentMode}
                                         onChange={(e) => setSupplierDetails({ ...supplierDetails, paymentMode: e.target.value })}
-                                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                        className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white"
                                     >
                                         <option value="">Select Mode</option>
                                         <option value="Cash">Cash</option>
@@ -584,7 +584,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                         value={supplierDetails.tin}
                                         onChange={(e) => setSupplierDetails({ ...supplierDetails, tin: e.target.value })}
                                         placeholder="000-000-000"
-                                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                        className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white"
                                     />
                                 </div>
                                 <div>
@@ -594,7 +594,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                         value={supplierDetails.terms || ''}
                                         onChange={(e) => setSupplierDetails({ ...supplierDetails, terms: e.target.value })}
                                         placeholder="e.g. 30 Days"
-                                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                        className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white"
                                     />
                                 </div>
                                 <div className="col-span-2">
@@ -604,14 +604,14 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                                         value={supplierDetails.address}
                                         onChange={(e) => setSupplierDetails({ ...supplierDetails, address: e.target.value })}
                                         placeholder="Registered Address"
-                                        className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                                        className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white"
                                     />
                                 </div>
                             </div>
                         </div>
                         <div>
-                            <label className="block text-sm text-slate-400 mb-1">Attachments (Link)</label>
-                            <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={attachmentLink} onChange={e => setAttachmentLink(e.target.value)} placeholder="https://..." />
+                            <label className="block text-sm text-slate-500 dark:text-slate-400 mb-1">Attachments (Link)</label>
+                            <input className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white" value={attachmentLink} onChange={e => setAttachmentLink(e.target.value)} placeholder="https://..." />
                         </div>
                     </div>
 
@@ -619,28 +619,28 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                         <h4 className="text-sm font-bold text-slate-300 mb-2">Items</h4>
                         <div className="flex gap-2 items-end mb-2">
                             <div className="flex-1">
-                                <label className="block text-xs text-slate-400 mb-1">Item Name</label>
-                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Item Name" value={tempItem.name} onChange={e => setTempItem({ ...tempItem, name: e.target.value })} />
+                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Item Name</label>
+                                <input className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm" placeholder="Item Name" value={tempItem.name} onChange={e => setTempItem({ ...tempItem, name: e.target.value })} />
                             </div>
                             <div className="w-20">
-                                <label className="block text-xs text-slate-400 mb-1">Qty</label>
+                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Qty</label>
                                 {/* FIX BUG 5: Handle empty string by defaulting to 0 or keeping undefined */}
-                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" type="number" placeholder="Qty" value={tempItem.quantity} onChange={e => {
+                                <input className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm" type="number" placeholder="Qty" value={tempItem.quantity} onChange={e => {
                                     const val = e.target.value;
                                     setTempItem({ ...tempItem, quantity: val === '' ? 0 : parseFloat(val) || 0 });
                                 }} />
                             </div>
                             <div className="w-24">
-                                <label className="block text-xs text-slate-400 mb-1">Price</label>
+                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Price</label>
                                 {/* FIX BUG 5: Handle empty string by defaulting to 0 */}
-                                <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" placeholder="Price" type="number" value={tempItem.price} onChange={e => {
+                                <input className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm" placeholder="Price" type="number" value={tempItem.price} onChange={e => {
                                     const val = e.target.value;
                                     setTempItem({ ...tempItem, price: val === '' ? 0 : parseFloat(val) || 0 });
                                 }} />
                             </div>
                             <div className="w-24">
-                                <label className="block text-xs text-slate-400 mb-1">UOM</label>
-                                <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" value={tempItem.uom} onChange={e => setTempItem({ ...tempItem, uom: e.target.value })}>
+                                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">UOM</label>
+                                <select className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm" value={tempItem.uom} onChange={e => setTempItem({ ...tempItem, uom: e.target.value })}>
                                     {uomOptions.map((u: string) => <option key={u} value={u}>{u}</option>)}
                                 </select>
                             </div>
@@ -742,14 +742,14 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                     </div>
                 </div>
 
-                <div className="p-6 border-t border-slate-700 flex justify-end gap-3">
-                    <button onClick={onCancel} className="px-4 py-2 text-slate-300 hover:text-white">Cancel</button>
+                <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-900 rounded-b-2xl">
+                    <button onClick={onCancel} className="px-4 py-2 text-slate-500 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white">Cancel</button>
 
                     {/* Save as Draft button - no validation required */}
                     <button
                         onClick={() => handleSubmit(true)}
                         disabled={isSubmitting}
-                        className="border border-slate-600 text-slate-300 px-4 py-2 rounded font-medium hover:bg-slate-700 hover:text-white flex items-center gap-2 disabled:opacity-50"
+                        className="border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 px-4 py-2 rounded font-medium hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white flex items-center gap-2 disabled:opacity-50"
                     >
                         {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                         {isSubmitting ? 'Saving...' : 'Save as Draft'}
@@ -1125,11 +1125,11 @@ export const PrfView: React.FC<PrfViewProps> = ({
         <div className="space-y-6 text-white">
             {/* Late Liquidation Alert Banner */}
             {overdueCount > 0 && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex items-center gap-3">
-                    <AlertTriangle className="text-red-400 flex-shrink-0" size={24} />
+                <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-4 flex items-center gap-3">
+                    <AlertTriangle className="text-red-500 dark:text-red-400 flex-shrink-0" size={24} />
                     <div>
-                        <p className="font-bold text-red-400">Action Required</p>
-                        <p className="text-sm text-red-300">
+                        <p className="font-bold text-red-600 dark:text-red-400">Action Required</p>
+                        <p className="text-sm text-red-600 dark:text-red-300">
                             You have {overdueCount} overdue liquidation{overdueCount > 1 ? 's' : ''}. Please file them immediately.
                         </p>
                     </div>
@@ -1143,14 +1143,14 @@ export const PrfView: React.FC<PrfViewProps> = ({
             <div className="space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold">PRF Management</h1>
-                        <p className="text-slate-300">Prepare, approve, and manage Purchase Requisition Forms.</p>
+                        <h1 className="text-2xl font-bold text-slate-800 dark:text-white">PRF Management</h1>
+                        <p className="text-slate-500 dark:text-slate-300">Prepare, approve, and manage Purchase Requisition Forms.</p>
                     </div>
                     <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
                         <div className="relative flex-1 md:flex-none">
                             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input
-                                className="pl-10 p-2 border border-slate-700 rounded-lg text-sm w-full md:w-64 bg-slate-800 focus:ring-purple-500"
+                                className="pl-10 p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm w-full md:w-64 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-purple-500 shadow-sm dark:shadow-none"
                                 placeholder="Search PRF..."
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
@@ -1163,7 +1163,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                             <select
                                 value={selectedBusinessUnit}
                                 onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                                className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
+                                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 shadow-sm dark:shadow-none"
                             >
                                 <option value="all">{hasPermission('requisition:view:all') ? 'All Business Units' : 'All My Business Units'}</option>
                                 {hasPermission('requisition:view:all') ? (
@@ -1188,7 +1188,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
             </div>
 
             {/* Workflow Tab Navigation */}
-            <div className="flex border-b border-slate-700 mb-4 overflow-x-auto">
+            <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4 overflow-x-auto">
                 <button
                     className={`py-2 px-4 text-sm font-medium whitespace-nowrap flex items-center gap-2 ${activeTab === 'drafts'
                         ? 'border-b-2 border-amber-500 text-amber-400'
@@ -1233,10 +1233,10 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 </button>
             </div>
 
-            <Card className="overflow-hidden !p-0">
+            <Card className="overflow-hidden !p-0 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
                 <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                    <table className="w-full text-left text-sm text-slate-800 dark:text-slate-200">
+                        <thead className="bg-slate-50 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
                             <tr>
                                 <th
                                     className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
@@ -1287,7 +1287,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-700">
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {filteredAndSortedReqs.map(req => {
                                 const business = businesses.find(b => b.id === req.businessId);
                                 // Use denormalized requesterName, fallback to lookup for legacy data
@@ -1315,26 +1315,26 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                 return (
                                     <tr
                                         key={req.id}
-                                        className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                        className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                                         onClick={(e) => {
                                             // Don't open drawer if clicking action buttons
                                             if ((e.target as HTMLElement).closest('button, a')) return;
                                             setSelectedReq(req);
                                         }}
                                     >
-                                        <td className="px-6 py-4 font-medium text-slate-200 whitespace-nowrap">{req.id}</td>
-                                        <td className="px-6 py-4 text-slate-300 text-xs">{business?.name || 'N/A'}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-200 whitespace-nowrap">{req.id}</td>
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300 text-xs">{business?.name || 'N/A'}</td>
                                         {/* Requested By - using denormalized name, fallback to lookup for legacy data */}
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 overflow-hidden">
+                                                <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 overflow-hidden">
                                                     {req.requesterPhotoUrl ? (
                                                         <img src={req.requesterPhotoUrl} alt={requesterName} className="w-full h-full object-cover" />
                                                     ) : (
                                                         requesterName.charAt(0).toUpperCase()
                                                     )}
                                                 </div>
-                                                <span className="text-slate-200">{requesterName}</span>
+                                                <span className="text-slate-700 dark:text-slate-200">{requesterName}</span>
                                             </div>
                                         </td>
                                         {/* Processed By - the admin who prepared the PRF */}
@@ -1350,8 +1350,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                 <span className="text-slate-600">-</span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 text-slate-200 max-w-[200px] truncate\" title={req.description}>{req.description || '-'}</td>
-                                        <td className="px-6 py-4 text-slate-400">{req.items.length} items</td>
+                                        <td className="px-6 py-4 text-slate-700 dark:text-slate-200 max-w-[200px] truncate" title={req.description}>{req.description || '-'}</td>
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-400">{req.items.length} items</td>
                                         {/* Date Needed - safe formatting handles Timestamps and ISO strings */}
                                         <td className="px-6 py-4 text-xs">
                                             <div className="flex items-center gap-2">
@@ -1463,7 +1463,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                                 <ExternalLink size={16} />
                                                             </a>
                                                         )}
-                                                        <button onClick={() => handlePrint(req)} className="text-slate-400 p-1 hover:text-white" title="Print PRF"><Printer size={16} /></button>
+                                                        <button onClick={() => handlePrint(req)} className="text-slate-400 p-1 hover:text-purple-600 dark:hover:text-white" title="Print PRF"><Printer size={16} /></button>
                                                     </div>
                                                 )}
                                             </div>

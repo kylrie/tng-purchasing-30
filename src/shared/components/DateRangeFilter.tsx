@@ -61,8 +61,8 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onFilterChange
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${hasFilter
-                            ? 'bg-cyan-900/30 border-cyan-500/50 text-cyan-400'
-                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-300'
+                        ? 'bg-cyan-50 dark:bg-cyan-900/30 border-cyan-200 dark:border-cyan-500/50 text-cyan-700 dark:text-cyan-400'
+                        : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
                         }`}
                 >
                     <Calendar size={16} />
@@ -75,7 +75,7 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onFilterChange
                                 e.stopPropagation();
                                 clearFilter();
                             }}
-                            className="ml-1 p-0.5 hover:bg-slate-700 rounded-full"
+                            className="ml-1 p-0.5 hover:bg-cyan-100 dark:hover:bg-slate-700 rounded-full"
                         >
                             <X size={14} />
                         </div>
@@ -89,52 +89,52 @@ export const DateRangeFilter: React.FC<DateRangeFilterProps> = ({ onFilterChange
                         className="fixed inset-0 z-40"
                         onClick={() => setIsExpanded(false)}
                     ></div>
-                    <div className="absolute top-full left-0 mt-2 z-50 w-72 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-4">
+                    <div className="absolute top-full left-0 mt-2 z-50 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl p-4">
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-xs text-slate-400 font-medium uppercase">Date Range</label>
+                                <label className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase">Date Range</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     <input
                                         type="date"
                                         value={startDate}
                                         onChange={(e) => setStartDate(e.target.value)}
-                                        className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-cyan-500 outline-none"
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-1 focus:ring-cyan-500 outline-none"
                                         placeholder="Start"
                                     />
                                     <input
                                         type="date"
                                         value={endDate}
                                         onChange={(e) => setEndDate(e.target.value)}
-                                        className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-sm text-white focus:ring-1 focus:ring-cyan-500 outline-none"
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-2 py-1.5 text-sm text-slate-900 dark:text-white focus:ring-1 focus:ring-cyan-500 outline-none"
                                         placeholder="End"
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs text-slate-400 font-medium uppercase">Quick Select</label>
+                                <label className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase">Quick Select</label>
                                 <div className="grid grid-cols-2 gap-2">
                                     <button
                                         onClick={() => handleQuickSelect('today')}
-                                        className="px-2 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors"
+                                        className="px-2 py-1.5 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded text-slate-600 dark:text-slate-300 transition-colors"
                                     >
                                         Today
                                     </button>
                                     <button
                                         onClick={() => handleQuickSelect('this_month')}
-                                        className="px-2 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors"
+                                        className="px-2 py-1.5 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded text-slate-600 dark:text-slate-300 transition-colors"
                                     >
                                         This Month
                                     </button>
                                     <button
                                         onClick={() => handleQuickSelect('last_month')}
-                                        className="px-2 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors"
+                                        className="px-2 py-1.5 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded text-slate-600 dark:text-slate-300 transition-colors"
                                     >
                                         Last Month
                                     </button>
                                     <button
                                         onClick={() => handleQuickSelect('this_year')}
-                                        className="px-2 py-1.5 text-xs bg-slate-700 hover:bg-slate-600 rounded text-slate-300 transition-colors"
+                                        className="px-2 py-1.5 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded text-slate-600 dark:text-slate-300 transition-colors"
                                     >
                                         This Year
                                     </button>

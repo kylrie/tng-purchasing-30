@@ -441,31 +441,33 @@ export const BurfView: React.FC<BurfViewProps> = ({
     }
 
     return (
-        <div className="space-y-6 text-white">
-            <div className="flex justify-between items-center print:hidden">
+        <div className="space-y-6 text-slate-800 dark:text-white pb-20 md:pb-0">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:hidden">
                 <div>
                     <h1 className="text-2xl font-bold">BURF Management</h1>
-                    <p className="text-sm text-slate-300">Manage initial requests and Business Unit approvals.</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-300">Manage initial requests and Business Unit approvals.</p>
                 </div>
-                <div className="flex gap-2">
-                    <div className="relative">
+                <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                    <div className="relative flex-grow md:flex-grow-0">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input
                             type="text"
                             placeholder="Search requisitions..."
-                            className="pl-10 pr-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 w-64 focus:ring-2 focus:ring-purple-500"
+                            className="pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white w-full md:w-64 focus:ring-2 focus:ring-purple-500 shadow-sm dark:shadow-none"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <DateRangeFilter
-                        onFilterChange={(start, end) => setDateRange({ start, end })}
-                    />
+                    <div className="flex-grow md:flex-grow-0">
+                        <DateRangeFilter
+                            onFilterChange={(start, end) => setDateRange({ start, end })}
+                        />
+                    </div>
                     {(hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
                         <select
                             value={selectedBusinessUnit}
                             onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="px-4 py-2 border border-slate-700 rounded-lg text-sm bg-slate-800 focus:ring-2 focus:ring-purple-500"
+                            className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 flex-grow md:flex-grow-0 shadow-sm dark:shadow-none"
                         >
                             <option value="all">{hasPermission('requisition:view:all') ? 'All Business Units' : 'All My Business Units'}</option>
                             {hasPermission('requisition:view:all') ? (
@@ -480,24 +482,24 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             )}
                         </select>
                     )}
-                    <button onClick={() => navigate('/burf/new')} className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-purple-700 font-medium flex items-center gap-2">
-                        <Plus size={18} /> New Request
+                    <button onClick={() => navigate('/burf/new')} className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-purple-700 font-medium flex items-center justify-center gap-2 flex-grow md:flex-grow-0 w-full md:w-auto mt-2 md:mt-0">
+                        <Plus size={18} /> <span className="md:hidden">Create </span>New Request
                     </button>
                 </div>
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex gap-1 border-b border-slate-700">
+            <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
                 <button
                     onClick={() => setActiveTab('active')}
                     className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${activeTab === 'active'
-                        ? 'text-purple-400 border-b-2 border-purple-500 -mb-px'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-500 -mb-px'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                 >
                     Active Requests
                     {activeCount > 0 && (
-                        <span className="ml-2 px-2 py-0.5 text-xs bg-purple-500/20 text-purple-300 rounded-full">
+                        <span className="ml-2 px-2 py-0.5 text-xs bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 rounded-full">
                             {activeCount}
                         </span>
                     )}
@@ -505,24 +507,25 @@ export const BurfView: React.FC<BurfViewProps> = ({
                 <button
                     onClick={() => setActiveTab('completed')}
                     className={`px-4 py-2.5 text-sm font-medium transition-colors relative flex items-center gap-1.5 ${activeTab === 'completed'
-                        ? 'text-sky-400 border-b-2 border-sky-500 -mb-px'
-                        : 'text-slate-400 hover:text-slate-200'
+                        ? 'text-sky-600 dark:text-sky-400 border-b-2 border-sky-600 dark:border-sky-500 -mb-px'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
                         }`}
                 >
                     <ArrowRightCircle size={14} />
                     Converted to PRF
                     {completedCount > 0 && (
-                        <span className="ml-1 px-2 py-0.5 text-xs bg-sky-500/20 text-sky-300 rounded-full">
+                        <span className="ml-1 px-2 py-0.5 text-xs bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 rounded-full">
                             {completedCount}
                         </span>
                     )}
                 </button>
             </div>
 
-            <Card className="overflow-hidden !p-0">
+            {/* Desktop Table View */}
+            <Card className="overflow-hidden !p-0 hidden md:block bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700">
                 <div className="max-h-[600px] overflow-y-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                    <table className="w-full text-left text-sm text-slate-800 dark:text-slate-200">
+                        <thead className="bg-slate-50 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700">
                             <tr>
                                 <th
                                     className="px-6 py-4 cursor-pointer hover:text-purple-400 transition-colors"
@@ -577,7 +580,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-700">
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {tabbedRequisitions.map(req => {
                                 // Use denormalized requesterName, fallback to lookup for legacy data
                                 const requesterName = req.requesterName || allUsers.find(u => u.id === req.requesterId)?.name || 'Unknown';
@@ -588,33 +591,33 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                 return (
                                     <tr
                                         key={req.id}
-                                        className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                        className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                                         onClick={(e) => {
                                             // Don't open drawer if clicking action buttons
                                             if ((e.target as HTMLElement).closest('button, a')) return;
                                             openDrawer(req);
                                         }}
                                     >
-                                        <td className="px-6 py-4 font-medium text-slate-200">{req.id}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-200">{req.id}</td>
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-slate-200">{req.description}</div>
-                                            <div className="text-xs text-slate-400">{req.items.length} items</div>
+                                            <div className="font-medium text-slate-800 dark:text-slate-200">{req.description}</div>
+                                            <div className="text-xs text-slate-500 dark:text-slate-400">{req.items.length} items</div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-300 font-medium text-xs">{business?.name || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300 font-medium text-xs">{business?.name || 'N/A'}</td>
                                         {/* FIXED: Use denormalized requesterName directly */}
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 overflow-hidden">
+                                                <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 overflow-hidden">
                                                     {req.requesterPhotoUrl ? (
                                                         <img src={req.requesterPhotoUrl} alt={requesterName} className="w-full h-full object-cover" />
                                                     ) : (
                                                         requesterName.charAt(0).toUpperCase()
                                                     )}
                                                 </div>
-                                                <span className="text-slate-200">{requesterName}</span>
+                                                <span className="text-slate-700 dark:text-slate-200">{requesterName}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-300 text-xs">
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300 text-xs">
                                             <div className="flex items-center gap-2">
                                                 <span>{req.dateNeeded ? new Date(req.dateNeeded).toLocaleDateString() : '-'}</span>
                                                 {req.priority === 'URGENT' && (
@@ -653,7 +656,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                         </td>
                                         <td className="px-6 py-4 text-right" onClick={e => e.stopPropagation()}>
                                             <div className="flex justify-end gap-2 items-center">
-                                                <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-white p-1" title="Print BURF">
+                                                <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-purple-600 dark:hover:text-white p-1" title="Print BURF">
                                                     <Printer size={16} />
                                                 </button>
 
@@ -690,6 +693,108 @@ export const BurfView: React.FC<BurfViewProps> = ({
                     </table>
                 </div>
             </Card>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+                {tabbedRequisitions.length === 0 ? (
+                    <div className="text-center py-12 bg-white dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none">
+                        {activeTab === 'completed' ? (
+                            <div className="flex flex-col items-center gap-2 text-slate-500">
+                                <ArrowRightCircle size={32} className="text-slate-400 dark:text-slate-600" />
+                                <p className="text-sm">No BURFs converted to PRF yet.</p>
+                            </div>
+                        ) : (
+                            <p className="text-slate-500 dark:text-slate-400 italic">No active requisitions found.</p>
+                        )}
+                    </div>
+                ) : (
+                    tabbedRequisitions.map(req => {
+                        const requesterName = req.requesterName || allUsers.find(u => u.id === req.requesterId)?.name || 'Unknown';
+                        const business = businesses.find(b => b.id === req.businessId);
+                        const isOwner = req.requesterId === currentUser.id;
+                        const canEdit = (isOwner && (req.status === RequisitionStatus.DRAFT || req.status === RequisitionStatus.REJECTED));
+
+                        return (
+                            <div
+                                key={req.id}
+                                className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 active:scale-[0.98] transition-transform shadow-sm dark:shadow-none"
+                                onClick={() => openDrawer(req)}
+                            >
+                                <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-mono text-xs text-purple-600 dark:text-purple-400">{req.id}</span>
+                                            {req.priority === 'URGENT' && (
+                                                <span className="text-[10px] bg-red-500/20 text-red-500 dark:text-red-400 font-bold px-1.5 py-0.5 rounded-full uppercase">Urgent</span>
+                                            )}
+                                        </div>
+                                        <h3 className="font-medium text-slate-800 dark:text-white mt-1 line-clamp-1">{req.description}</h3>
+                                    </div>
+                                    <div onClick={e => e.stopPropagation()}>
+                                        {getStatusBadge(req.status)}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 text-sm text-slate-500 dark:text-slate-400 mb-4">
+                                    <div className="flex justify-between">
+                                        <span>Business:</span>
+                                        <span className="text-slate-800 dark:text-slate-300">{business?.name || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Needed:</span>
+                                        <span className="text-slate-800 dark:text-slate-300">{req.dateNeeded ? new Date(req.dateNeeded).toLocaleDateString() : '-'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Items:</span>
+                                        <span className="text-slate-800 dark:text-slate-300">{req.items.length}</span>
+                                    </div>
+                                    {(req.externalLink || req.attachments?.[0]) && (
+                                        <div className="flex justify-between pt-1">
+                                            <span>Attachments:</span>
+                                            <a
+                                                href={req.externalLink || req.attachments?.[0]}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-500 dark:text-blue-400 flex items-center gap-1 text-xs hover:underline"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <Paperclip size={12} /> View Link
+                                            </a>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300 overflow-hidden">
+                                            {req.requesterPhotoUrl ? (
+                                                <img src={req.requesterPhotoUrl} alt={requesterName} className="w-full h-full object-cover" />
+                                            ) : (
+                                                requesterName.charAt(0).toUpperCase()
+                                            )}
+                                        </div>
+                                        <span className="text-xs text-slate-600 dark:text-slate-400 truncate max-w-[100px]">{requesterName}</span>
+                                    </div>
+
+                                    <div className="flex gap-3" onClick={e => e.stopPropagation()}>
+                                        <button onClick={() => setPrintReq(req)} className="text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-white p-2 bg-slate-100 dark:bg-slate-700/50 rounded-full transition-colors">
+                                            <Printer size={16} />
+                                        </button>
+                                        {canEdit && (
+                                            <button
+                                                onClick={() => editRequisition(req)}
+                                                className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 p-2 bg-blue-500/10 rounded-full transition-colors"
+                                            >
+                                                {req.status === RequisitionStatus.REJECTED ? <RefreshCw size={16} /> : <Edit size={16} />}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
 
             {printReq && <BURFPrintModal req={printReq} onClose={() => setPrintReq(null)} business={businesses.find(b => b.id === printReq.businessId)} requester={allUsers.find(u => u.id === printReq.requesterId)} />}
 

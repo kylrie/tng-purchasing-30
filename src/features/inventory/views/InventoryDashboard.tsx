@@ -83,20 +83,20 @@ const CalculatorPopup: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-4">
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 w-full max-w-sm shadow-2xl">
-                <div className="flex items-center justify-between p-4 border-b border-slate-700">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-sm shadow-2xl">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
                     <div>
-                        <h3 className="font-semibold text-white">{itemName}</h3>
-                        <p className="text-sm text-slate-400">Enter count in {unit}s</p>
+                        <h3 className="font-semibold text-slate-900 dark:text-white">{itemName}</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Enter count in {unit}s</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg">
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
                         <X size={20} className="text-slate-400" />
                     </button>
                 </div>
 
                 <div className="p-4">
-                    <div className="bg-slate-900 rounded-xl p-4 text-right">
-                        <span className="text-3xl font-bold text-white">{value}</span>
+                    <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 text-right">
+                        <span className="text-3xl font-bold text-slate-900 dark:text-white">{value}</span>
                         <span className="text-xl text-slate-400 ml-2">{unit}s</span>
                     </div>
                 </div>
@@ -106,10 +106,10 @@ const CalculatorPopup: React.FC<{
                         <button
                             key={idx}
                             onClick={() => key && handleKeyPress(key)}
-                            className={`h-14 rounded-xl font-semibold text-lg transition-all ${key === 'C' ? 'bg-red-500/20 text-red-400'
-                                : key === '⌫' ? 'bg-amber-500/20 text-amber-400'
+                            className={`h-14 rounded-xl font-semibold text-lg transition-all ${key === 'C' ? 'bg-red-500/10 dark:bg-red-500/20 text-red-500 dark:text-red-400'
+                                : key === '⌫' ? 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400'
                                     : key === '' ? 'invisible'
-                                        : 'bg-slate-700 text-white hover:bg-slate-600'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-600'
                                 }`}
                         >
                             {key}
@@ -155,18 +155,18 @@ const ReviewPanel: React.FC<{
     });
 
     return (
-        <div className="bg-slate-800/80 backdrop-blur-md rounded-xl border border-slate-700 p-6 sticky top-4">
-            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <Check size={20} className="text-cyan-400" />
+        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl border border-slate-200 dark:border-slate-700 p-6 sticky top-4 shadow-sm dark:shadow-none">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <Check size={20} className="text-cyan-500 dark:text-cyan-400" />
                 Review & Submit
             </h3>
 
             <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
-                    <span className="text-slate-400">Items Counted</span>
-                    <span className="text-white font-medium">{countedItemsCount} / {totalItems}</span>
+                    <span className="text-slate-500 dark:text-slate-400">Items Counted</span>
+                    <span className="text-slate-900 dark:text-white font-medium">{countedItemsCount} / {totalItems}</span>
                 </div>
-                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div
                         className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 transition-all"
                         style={{ width: `${totalItems > 0 ? (countedItemsCount / totalItems) * 100 : 0}%` }}
@@ -176,8 +176,8 @@ const ReviewPanel: React.FC<{
 
             <div className="space-y-3 mb-6">
                 <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Total Value</span>
-                    <span className="text-2xl font-bold text-white">
+                    <span className="text-slate-500 dark:text-slate-400">Total Value</span>
+                    <span className="text-2xl font-bold text-slate-900 dark:text-white">
                         ₱{totalValue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </span>
                 </div>
@@ -206,7 +206,7 @@ const ReviewPanel: React.FC<{
                 <button
                     onClick={onCancel}
                     disabled={isSubmitting}
-                    className="w-full py-3 bg-slate-700 text-slate-300 font-medium rounded-xl hover:bg-slate-600 flex items-center justify-center gap-2"
+                    className="w-full py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center gap-2 transition-colors"
                 >
                     <X size={18} />
                     Cancel Session
@@ -488,22 +488,22 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-                        <Package className="text-purple-400" />
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                        <Package className="text-purple-600 dark:text-purple-400" />
                         Inventory Dashboard
                     </h1>
-                    <p className="text-slate-400 mt-1">
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">
                         Multi-business inventory management
                     </p>
                 </div>
 
                 {/* Business Unit Selector */}
                 <div className="flex items-center gap-3">
-                    <Building2 size={20} className="text-slate-400" />
+                    <Building2 size={20} className="text-slate-500 dark:text-slate-400" />
                     <select
                         value={selectedBusinessUnit}
                         onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                        className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500"
+                        className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
                     >
                         {businesses.map(bu => (
                             <option key={bu.id} value={bu.id}>
@@ -540,7 +540,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                     <button
                         onClick={handleExport}
                         disabled={items.length === 0}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
+                        className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
                     >
                         <Download size={16} />
                         Export
@@ -577,8 +577,8 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                             key={tab.key}
                             onClick={() => setActiveTypeTab(tab.key)}
                             className={`px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTypeTab === tab.key
-                                ? 'bg-purple-500 text-white'
-                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                ? 'bg-purple-600 dark:bg-purple-500 text-white'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
                                 }`}
                         >
                             <TabIcon size={16} />
@@ -634,7 +634,7 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                             onClick={() => setActiveStorageArea(area)}
                             className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeStorageArea === area
                                 ? 'bg-cyan-500 text-white'
-                                : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+                                : 'bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'
                                 }`}
                         >
                             {area}
@@ -649,13 +649,13 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                     <div className="lg:col-span-2 space-y-4">
                         {/* Search */}
                         <div className="relative">
-                            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
                             <input
                                 type="text"
                                 placeholder="Search items..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
                             />
                         </div>
 
@@ -663,8 +663,8 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                         <div className="space-y-4">
                             {filteredItems.length === 0 ? (
                                 <div className="text-center py-12">
-                                    <Package size={48} className="text-slate-600 mx-auto mb-4" />
-                                    <p className="text-slate-400">No items found for {currentBusiness?.name || 'this business'}</p>
+                                    <Package size={48} className="text-slate-400 dark:text-slate-600 mx-auto mb-4" />
+                                    <p className="text-slate-500 dark:text-slate-400">No items found for {currentBusiness?.name || 'this business'}</p>
                                 </div>
                             ) : (
                                 filteredItems.map(item => {
@@ -700,18 +700,18 @@ const InventoryDashboard: React.FC<InventoryDashboardProps> = ({ currentUser, bu
                 </div>
             ) : (
                 /* No Active Session */
-                <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-8 text-center">
+                <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-8 text-center shadow-sm dark:shadow-none">
                     <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mx-auto mb-6">
-                        <Package size={36} className="text-purple-400" />
+                        <Package size={36} className="text-purple-600 dark:text-purple-400" />
                     </div>
-                    <h2 className="text-xl font-bold text-white mb-2">Ready to Count?</h2>
-                    <p className="text-slate-400 max-w-md mx-auto mb-6">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Ready to Count?</h2>
+                    <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
                         Start a counting session for <strong>{currentBusiness?.name || 'selected business'}</strong>.
                         Items are filtered by type tabs above.
                     </p>
                     <button
                         onClick={startSession}
-                        className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto"
+                        className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-purple-500/20"
                     >
                         <Play size={20} />
                         Start Counting Session

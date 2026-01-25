@@ -95,8 +95,8 @@ const AccountModal: React.FC<AccountModalProps> = ({ account, isOpen, onClose, o
 
     if (!isOpen) return null;
 
-    const inputClass = "w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
-    const labelClass = "block text-sm font-medium text-slate-300 mb-1";
+    const inputClass = "w-full p-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-400 dark:placeholder-slate-500";
+    const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1";
 
     // Get unique values for dropdowns
     const accountTypes = [...new Set(existingAccounts.map(a => a.accountType).filter(Boolean))].sort();
@@ -108,20 +108,20 @@ const AccountModal: React.FC<AccountModalProps> = ({ account, isOpen, onClose, o
         <>
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={onClose} />
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            {isEditing ? <Edit2 size={20} className="text-yellow-400" /> : <Plus size={20} className="text-green-400" />}
+                <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            {isEditing ? <Edit2 size={20} className="text-yellow-500 dark:text-yellow-400" /> : <Plus size={20} className="text-green-600 dark:text-green-400" />}
                             {isEditing ? 'Edit Account' : 'Add New Account'}
                         </h3>
-                        <button onClick={onClose} className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white">
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors">
                             <X size={20} />
                         </button>
                     </div>
 
                     <form onSubmit={handleSubmit} className="p-4 space-y-4">
                         {error && (
-                            <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-red-300 text-sm flex items-center gap-2">
+                            <div className="p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700/50 rounded-lg text-red-600 dark:text-red-300 text-sm flex items-center gap-2">
                                 <AlertTriangle size={16} />
                                 {error}
                             </div>
@@ -139,7 +139,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ account, isOpen, onClose, o
                                     placeholder="e.g., 1111001"
                                     disabled={isEditing}
                                 />
-                                {isEditing && <p className="text-xs text-slate-500 mt-1">Code cannot be changed</p>}
+                                {isEditing && <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Code cannot be changed</p>}
                             </div>
 
                             {/* Name */}
@@ -237,8 +237,8 @@ const AccountModal: React.FC<AccountModalProps> = ({ account, isOpen, onClose, o
                                     type="button"
                                     onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
                                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${formData.isActive
-                                        ? 'bg-green-900/30 text-green-300 border border-green-700/50'
-                                        : 'bg-slate-700 text-slate-400 border border-slate-600'
+                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700/50'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600'
                                         }`}
                                 >
                                     {formData.isActive ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
@@ -247,11 +247,11 @@ const AccountModal: React.FC<AccountModalProps> = ({ account, isOpen, onClose, o
                             </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                                className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg transition-colors"
                             >
                                 Cancel
                             </button>
@@ -518,54 +518,54 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
 
         return (
             <React.Fragment key={account.code}>
-                <tr className={`hover:bg-slate-800/50 transition-colors ${!account.isActive ? 'opacity-50' : ''}`}>
-                    <td className="px-4 py-2 font-mono font-medium text-purple-300" style={{ paddingLeft: `${16 + depth * 24}px` }}>
+                <tr className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${!account.isActive ? 'opacity-50' : ''}`}>
+                    <td className="px-4 py-2 font-mono font-medium text-purple-600 dark:text-purple-300" style={{ paddingLeft: `${16 + depth * 24}px` }}>
                         <div className="flex items-center gap-2">
                             {hasChildren ? (
-                                <button onClick={() => toggleNode(account.name || account.code)} className="p-0.5 hover:bg-slate-700 rounded">
+                                <button onClick={() => toggleNode(account.name || account.code)} className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400">
                                     {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                                 </button>
                             ) : <span className="w-5" />}
                             {account.code}
                         </div>
                     </td>
-                    <td className="px-4 py-2 text-white font-medium">{account.name}</td>
+                    <td className="px-4 py-2 text-slate-900 dark:text-white font-medium">{account.name}</td>
                     <td className="px-4 py-2">
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-slate-700 text-slate-300">{account.accountType}</span>
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{account.accountType}</span>
                     </td>
-                    <td className="px-4 py-2 text-slate-400 text-sm">{account.classification}</td>
+                    <td className="px-4 py-2 text-slate-500 dark:text-slate-400 text-sm">{account.classification}</td>
                     <td className="px-4 py-2">
                         <div className="flex items-center gap-1">
-                            <button onClick={() => handleEdit(account)} className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-yellow-400" title="Edit">
+                            <button onClick={() => handleEdit(account)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400" title="Edit">
                                 <Edit2 size={14} />
                             </button>
-                            <button onClick={() => handleToggleActive(account)} className={`p-1.5 hover:bg-slate-700 rounded ${account.isActive ? 'text-green-400' : 'text-slate-500'}`} title={account.isActive ? 'Deactivate' : 'Activate'}>
+                            <button onClick={() => handleToggleActive(account)} className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${account.isActive ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`} title={account.isActive ? 'Deactivate' : 'Activate'}>
                                 {account.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
                             </button>
-                            <button onClick={() => setDeleteConfirm(account.code)} className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400" title="Delete">
+                            <button onClick={() => setDeleteConfirm(account.code)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Delete">
                                 <Trash2 size={14} />
                             </button>
                         </div>
                     </td>
                 </tr>
                 {hasChildren && isExpanded && children.map((child: ChartOfAccount) => renderTreeNode(child, depth + 1))}
-            </React.Fragment>
+            </React.Fragment >
         );
     };
 
-    const cardClass = "bg-slate-800/50 backdrop-blur-xl p-6 rounded-xl shadow-lg border border-slate-700";
-    const inputClass = "w-full p-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500";
+    const cardClass = "bg-white dark:bg-slate-800/50 backdrop-blur-xl p-6 rounded-xl shadow-sm dark:shadow-lg border border-slate-200 dark:border-slate-700";
+    const inputClass = "w-full p-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-400 dark:placeholder-slate-500";
 
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h3 className="font-bold text-lg flex items-center gap-2 text-white">
-                        <FileSpreadsheet size={20} className="text-purple-400" />
+                    <h3 className="font-bold text-lg flex items-center gap-2 text-slate-900 dark:text-white">
+                        <FileSpreadsheet size={20} className="text-purple-600 dark:text-purple-400" />
                         Chart of Accounts
                     </h3>
-                    <p className="text-sm text-slate-400 mt-1">
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                         {accounts.length} accounts • {accounts.filter(a => a.isActive).length} active
                     </p>
                 </div>
@@ -575,8 +575,8 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
                         <Plus size={16} />
                         Add Account
                     </button>
-                    <button onClick={loadAccounts} disabled={loading} className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50">
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                    <button onClick={loadAccounts} disabled={loading} className="px-3 py-2 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white border border-slate-300 dark:border-transparent rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50">
+                        <RefreshCw size={16} className={`text-slate-500 dark:text-slate-300 ${loading ? 'animate-spin' : ''}`} />
                         Refresh
                     </button>
                     <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 cursor-pointer transition-colors">
@@ -589,32 +589,32 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
 
             {/* Import Result */}
             {importResult && (
-                <div className={`p-4 rounded-lg border flex items-start gap-3 ${importResult.success ? 'bg-green-900/30 border-green-700/50' : 'bg-red-900/30 border-red-700/50'}`}>
-                    {importResult.success ? <Check size={20} className="text-green-400 mt-0.5" /> : <AlertTriangle size={20} className="text-red-400 mt-0.5" />}
-                    <p className={importResult.success ? 'text-green-300' : 'text-red-300'}>{importResult.message}</p>
-                    <button onClick={() => setImportResult(null)} className="ml-auto text-slate-400 hover:text-white">×</button>
+                <div className={`p-4 rounded-lg border flex items-start gap-3 ${importResult.success ? 'bg-green-100 dark:bg-green-900/30 border-green-200 dark:border-green-700/50' : 'bg-red-100 dark:bg-red-900/30 border-red-200 dark:border-red-700/50'}`}>
+                    {importResult.success ? <Check size={20} className="text-green-600 dark:text-green-400 mt-0.5" /> : <AlertTriangle size={20} className="text-red-600 dark:text-red-400 mt-0.5" />}
+                    <p className={importResult.success ? 'text-green-800 dark:text-green-300' : 'text-red-800 dark:text-red-300'}>{importResult.message}</p>
+                    <button onClick={() => setImportResult(null)} className="ml-auto text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white">×</button>
                 </div>
             )}
 
             {/* Search and Filters */}
             <div className="flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">
-                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
                     <input type="text" className={`${inputClass} pl-10`} placeholder="Search by code, name, type..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
                 <div className="relative">
-                    <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                    <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="pl-9 pr-8 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:outline-none appearance-none cursor-pointer min-w-[180px]">
+                    <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
+                    <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="pl-9 pr-8 py-2 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none appearance-none cursor-pointer min-w-[180px]">
                         <option value="">All Types</option>
                         {accountTypes.map(type => <option key={type} value={type}>{type}</option>)}
                     </select>
                 </div>
-                <button onClick={() => setShowTreeView(!showTreeView)} className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${showTreeView ? 'bg-purple-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                <button onClick={() => setShowTreeView(!showTreeView)} className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors ${showTreeView ? 'bg-purple-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-transparent hover:bg-slate-50 dark:hover:bg-slate-600'}`}>
                     <ChevronRight size={16} className={showTreeView ? 'rotate-90' : ''} />
                     Tree View
                 </button>
                 {showTreeView && (
-                    <button onClick={expandAll} className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors">
+                    <button onClick={expandAll} className="px-3 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg text-sm font-medium transition-colors">
                         Expand All
                     </button>
                 )}
@@ -624,17 +624,17 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
             <div className={cardClass}>
                 {loading ? (
                     <div className="flex items-center justify-center py-12">
-                        <Loader2 size={32} className="text-purple-400 animate-spin" />
+                        <Loader2 size={32} className="text-purple-600 dark:text-purple-400 animate-spin" />
                     </div>
                 ) : filteredAccounts.length === 0 ? (
                     <div className="text-center py-12">
-                        <FileSpreadsheet size={48} className="mx-auto text-slate-600 mb-4" />
-                        <p className="text-slate-400">{searchQuery || filterType ? 'No accounts match your filters.' : 'No accounts found.'}</p>
+                        <FileSpreadsheet size={48} className="mx-auto text-slate-400 dark:text-slate-600 mb-4" />
+                        <p className="text-slate-500 dark:text-slate-400">{searchQuery || filterType ? 'No accounts match your filters.' : 'No accounts found.'}</p>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-slate-300">
-                            <thead className="bg-slate-900/80 text-slate-400 uppercase text-xs sticky top-0 z-20 backdrop-blur-sm">
+                        <table className="w-full text-sm text-left text-slate-600 dark:text-slate-300">
+                            <thead className="bg-slate-50 dark:bg-slate-900/80 text-slate-500 dark:text-slate-400 uppercase text-xs sticky top-0 z-20 backdrop-blur-sm">
                                 <tr>
                                     <th className="px-4 py-3">Code</th>
                                     <th className="px-4 py-3">Name</th>
@@ -648,22 +648,22 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
                                     treeData.roots.filter(r => !filterType || r.accountType === filterType).map(account => renderTreeNode(account))
                                 ) : (
                                     filteredAccounts.map((account) => (
-                                        <tr key={account.code} className={`hover:bg-slate-800/50 transition-colors ${!account.isActive ? 'opacity-50' : ''}`}>
-                                            <td className="px-4 py-2 font-mono font-medium text-purple-300">{account.code}</td>
-                                            <td className="px-4 py-2 text-white font-medium">{account.name}</td>
+                                        <tr key={account.code} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${!account.isActive ? 'opacity-50' : ''}`}>
+                                            <td className="px-4 py-2 font-mono font-medium text-purple-600 dark:text-purple-300">{account.code}</td>
+                                            <td className="px-4 py-2 text-slate-900 dark:text-white font-medium">{account.name}</td>
                                             <td className="px-4 py-2">
-                                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-slate-700 text-slate-300">{account.accountType}</span>
+                                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">{account.accountType}</span>
                                             </td>
-                                            <td className="px-4 py-2 text-slate-400 text-sm">{account.classification}</td>
+                                            <td className="px-4 py-2 text-slate-500 dark:text-slate-400 text-sm">{account.classification}</td>
                                             <td className="px-4 py-2">
                                                 <div className="flex items-center gap-1">
-                                                    <button onClick={() => handleEdit(account)} className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-yellow-400" title="Edit">
+                                                    <button onClick={() => handleEdit(account)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400" title="Edit">
                                                         <Edit2 size={14} />
                                                     </button>
-                                                    <button onClick={() => handleToggleActive(account)} className={`p-1.5 hover:bg-slate-700 rounded ${account.isActive ? 'text-green-400' : 'text-slate-500'}`} title={account.isActive ? 'Deactivate' : 'Activate'}>
+                                                    <button onClick={() => handleToggleActive(account)} className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${account.isActive ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`} title={account.isActive ? 'Deactivate' : 'Activate'}>
                                                         {account.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
                                                     </button>
-                                                    <button onClick={() => setDeleteConfirm(account.code)} className="p-1.5 hover:bg-slate-700 rounded text-slate-400 hover:text-red-400" title="Delete">
+                                                    <button onClick={() => setDeleteConfirm(account.code)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Delete">
                                                         <Trash2 size={14} />
                                                     </button>
                                                 </div>
@@ -677,7 +677,7 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
                 )}
 
                 {!loading && filteredAccounts.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-slate-700 text-sm text-slate-400">
+                    <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 text-sm text-slate-500 dark:text-slate-400">
                         Showing {filteredAccounts.length} of {accounts.length} accounts
                     </div>
                 )}
@@ -697,16 +697,16 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
                 <>
                     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={() => setDeleteConfirm(null)} />
                     <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                        <div className="bg-slate-800 rounded-xl shadow-2xl border border-slate-700 p-6 max-w-md">
-                            <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-4">
-                                <AlertTriangle size={20} className="text-red-400" />
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-6 max-w-md">
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-4">
+                                <AlertTriangle size={20} className="text-red-600 dark:text-red-400" />
                                 Delete Account?
                             </h3>
-                            <p className="text-slate-300 mb-6">
-                                Are you sure you want to delete account <span className="font-mono text-purple-400">{deleteConfirm}</span>? This action cannot be undone.
+                            <p className="text-slate-500 dark:text-slate-300 mb-6">
+                                Are you sure you want to delete account <span className="font-mono text-purple-600 dark:text-purple-400">{deleteConfirm}</span>? This action cannot be undone.
                             </p>
                             <div className="flex justify-end gap-3">
-                                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors">
+                                <button onClick={() => setDeleteConfirm(null)} className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg transition-colors">
                                     Cancel
                                 </button>
                                 <button onClick={() => handleDelete(deleteConfirm)} className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg flex items-center gap-2 transition-colors">

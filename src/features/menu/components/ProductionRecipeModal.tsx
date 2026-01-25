@@ -183,26 +183,26 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-800 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
                     <div className="flex items-center gap-3">
-                        <div className="p-2.5 bg-gradient-to-br from-amber-500/20 to-orange-500/20 rounded-xl">
-                            <Factory size={24} className="text-amber-400" />
+                        <div className="p-2.5 bg-gradient-to-br from-amber-500/10 to-orange-500/10 dark:from-amber-500/20 dark:to-orange-500/20 rounded-xl">
+                            <Factory size={24} className="text-amber-600 dark:text-amber-400" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                                 {recipe ? 'Edit Production Recipe' : 'New Production Recipe'}
                             </h2>
-                            <p className="text-sm text-slate-400">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
                                 Create recipes for production items
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                        className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                     >
                         <X size={20} />
                     </button>
@@ -220,21 +220,21 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                     {/* Basic Info */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm text-slate-400 mb-2">Recipe Name *</label>
+                            <label className="block text-sm text-slate-700 dark:text-slate-400 mb-2">Recipe Name *</label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="e.g., Simple Syrup"
-                                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm text-slate-400 mb-2">Category</label>
+                            <label className="block text-sm text-slate-700 dark:text-slate-400 mb-2">Category</label>
                             <select
                                 value={category}
                                 onChange={(e) => setCategory(e.target.value as ProductionCategory)}
-                                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                             >
                                 {PRODUCTION_CATEGORIES.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
@@ -244,37 +244,37 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-sm text-slate-400 mb-2">Description</label>
+                        <label className="block text-sm text-slate-700 dark:text-slate-400 mb-2">Description</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             placeholder="Optional description..."
                             rows={2}
-                            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-amber-500 resize-none"
+                            className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-500 resize-none"
                         />
                     </div>
 
                     {/* Yield */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm text-slate-400 mb-2">Yield Quantity</label>
+                            <label className="block text-sm text-slate-700 dark:text-slate-400 mb-2">Yield Quantity</label>
                             <input
                                 type="number"
                                 value={yieldQuantity}
                                 onChange={(e) => setYieldQuantity(parseFloat(e.target.value) || 0)}
                                 min="0.01"
                                 step="0.1"
-                                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm text-slate-400 mb-2">Unit</label>
+                            <label className="block text-sm text-slate-700 dark:text-slate-400 mb-2">Unit</label>
                             <input
                                 type="text"
                                 value={yieldUnit}
                                 onChange={(e) => setYieldUnit(e.target.value)}
                                 placeholder="e.g., ml, kg, serving"
-                                className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-xl text-white focus:outline-none focus:border-amber-500"
+                                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
                             />
                         </div>
                     </div>
@@ -282,7 +282,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                     {/* Ingredients */}
                     <div>
                         <div className="flex items-center justify-between mb-3">
-                            <label className="text-sm text-slate-400">Ingredients</label>
+                            <label className="text-sm text-slate-700 dark:text-slate-400">Ingredients</label>
                             <button
                                 onClick={() => setShowIngredientPicker(true)}
                                 className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
@@ -294,16 +294,16 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
 
                         {/* Ingredient Picker */}
                         {showIngredientPicker && (
-                            <div className="mb-4 p-4 bg-slate-900/50 rounded-xl border border-slate-600">
+                            <div className="mb-4 p-4 bg-white dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-600 shadow-sm">
                                 <div className="relative mb-3">
-                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
                                     <input
                                         type="text"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         placeholder="Search raw materials..."
                                         autoFocus
-                                        className="w-full pl-9 pr-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-amber-500"
+                                        className="w-full pl-9 pr-4 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-amber-500"
                                     />
                                 </div>
                                 <div className="max-h-48 overflow-y-auto space-y-1">
@@ -316,10 +316,10 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                             <button
                                                 key={item.id}
                                                 onClick={() => addIngredient(item)}
-                                                className="w-full text-left px-3 py-2 hover:bg-slate-700 rounded-lg flex items-center justify-between transition-colors"
+                                                className="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg flex items-center justify-between transition-colors"
                                             >
-                                                <span className="text-white text-sm">{item.name}</span>
-                                                <span className="text-slate-400 text-xs flex items-center gap-1">
+                                                <span className="text-slate-900 dark:text-white text-sm">{item.name}</span>
+                                                <span className="text-slate-500 dark:text-slate-400 text-xs flex items-center gap-1">
                                                     <PesoSign size={10} />
                                                     {item.costPerUnit.toFixed(2)}/{item.units.countUnit}
                                                 </span>
@@ -329,7 +329,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                 </div>
                                 <button
                                     onClick={() => { setShowIngredientPicker(false); setSearchQuery(''); }}
-                                    className="mt-2 text-sm text-slate-400 hover:text-white"
+                                    className="mt-2 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white"
                                 >
                                     Cancel
                                 </button>
@@ -338,7 +338,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
 
                         {/* Ingredient List */}
                         {ingredients.length === 0 ? (
-                            <div className="text-center py-8 bg-slate-900/30 rounded-xl border border-dashed border-slate-600">
+                            <div className="text-center py-8 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-dashed border-slate-300 dark:border-slate-600">
                                 <p className="text-slate-500">No ingredients added yet</p>
                             </div>
                         ) : (
@@ -346,9 +346,9 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                 {ingredients.map((ing, index) => (
                                     <div
                                         key={ing.inventoryItemId}
-                                        className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-xl"
+                                        className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800"
                                     >
-                                        <div className="flex-1 text-white font-medium text-sm">
+                                        <div className="flex-1 text-slate-900 dark:text-white font-medium text-sm">
                                             {ing.inventoryItemName}
                                         </div>
                                         <input
@@ -357,21 +357,21 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                             onChange={(e) => updateIngredient(index, parseFloat(e.target.value) || 0, ing.unit)}
                                             min="0.01"
                                             step="0.1"
-                                            className="w-20 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm text-center"
+                                            className="w-20 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm text-center focus:outline-none focus:border-amber-500"
                                         />
                                         <input
                                             type="text"
                                             value={ing.unit}
                                             onChange={(e) => updateIngredient(index, ing.quantity, e.target.value)}
-                                            className="w-20 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm text-center"
+                                            className="w-20 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm text-center focus:outline-none focus:border-amber-500"
                                         />
-                                        <div className="w-24 text-right text-amber-400 text-sm flex items-center justify-end gap-1">
+                                        <div className="w-24 text-right text-amber-600 dark:text-amber-400 text-sm flex items-center justify-end gap-1">
                                             <PesoSign size={12} />
                                             {ing.totalCost.toFixed(2)}
                                         </div>
                                         <button
                                             onClick={() => removeIngredient(index)}
-                                            className="p-1 text-slate-400 hover:text-red-400 transition-colors"
+                                            className="p-1 text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -382,18 +382,18 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                     </div>
 
                     {/* Cost Summary */}
-                    <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl p-4">
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4">
                         <div className="grid grid-cols-2 gap-4 text-center">
                             <div>
-                                <p className="text-sm text-slate-400 mb-1">Total Cost</p>
-                                <p className="text-2xl font-bold text-white flex items-center justify-center gap-1">
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Total Cost</p>
+                                <p className="text-2xl font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1">
                                     <PesoSign size={20} />
                                     {totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                             <div>
-                                <p className="text-sm text-slate-400 mb-1">Cost per {yieldUnit}</p>
-                                <p className="text-2xl font-bold text-amber-400 flex items-center justify-center gap-1">
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Cost per {yieldUnit}</p>
+                                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
                                     <PesoSign size={20} />
                                     {costPerUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </p>
@@ -403,10 +403,10 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-700">
+                <div className="flex items-center justify-end gap-3 p-6 border-t border-slate-200 dark:border-slate-700">
                     <button
                         onClick={onClose}
-                        className="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-medium rounded-xl transition-colors"
+                        className="px-6 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium rounded-xl transition-colors"
                     >
                         Cancel
                     </button>

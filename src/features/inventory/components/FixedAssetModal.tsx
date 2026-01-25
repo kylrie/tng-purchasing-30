@@ -345,30 +345,30 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
 
     if (!isOpen) return null;
 
-    const inputClass = "w-full p-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-teal-500 focus:outline-none placeholder-slate-500";
-    const labelClass = "block text-sm font-medium text-slate-300 mb-1";
+    const inputClass = "w-full p-3 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-teal-500 focus:outline-none placeholder-slate-400 dark:placeholder-slate-500";
+    const labelClass = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1";
 
     return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-700 shadow-2xl">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-700 shadow-2xl">
                 {/* Header */}
-                <div className="sticky top-0 bg-slate-800 border-b border-slate-700 p-6 flex items-center justify-between">
+                <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-6 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-teal-500/20 rounded-lg">
-                            <Monitor className="text-teal-400" size={24} />
+                        <div className="p-2 bg-teal-500/10 dark:bg-teal-500/20 rounded-lg">
+                            <Monitor className="text-teal-600 dark:text-teal-400" size={24} />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold text-white">
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                                 {isEditing ? 'Edit Asset' : 'Add New Asset'}
                             </h2>
-                            <p className="text-sm text-slate-400">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
                                 {isEditing ? 'Update asset details' : 'Add equipment, machinery, or furniture'}
                             </p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                     >
                         <X size={20} />
                     </button>
@@ -384,9 +384,9 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                         </div>
                     )}
                     {/* Basic Info Section */}
-                    <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700 space-y-4">
-                        <h3 className="font-semibold text-white flex items-center gap-2">
-                            <Monitor size={16} className="text-teal-400" />
+                    <div className="bg-slate-50 dark:bg-slate-900/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-4">
+                        <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <Monitor size={16} className="text-teal-600 dark:text-teal-400" />
                             Basic Information
                         </h3>
 
@@ -413,7 +413,7 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                                     onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as InventoryCategory }))}
                                 >
                                     {ASSET_CATEGORIES.map(cat => (
-                                        <option key={cat} value={cat} className="bg-slate-800">{cat}</option>
+                                        <option key={cat} value={cat} className="bg-white dark:bg-slate-800">{cat}</option>
                                     ))}
                                 </select>
                             </div>
@@ -455,7 +455,7 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                                     onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as AssetStatus }))}
                                 >
                                     {ASSET_STATUSES.map(status => (
-                                        <option key={status} value={status} className="bg-slate-800">{status}</option>
+                                        <option key={status} value={status} className="bg-white dark:bg-slate-800">{status}</option>
                                     ))}
                                 </select>
                             </div>
@@ -463,9 +463,9 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                     </div>
 
                     {/* Purchase & Depreciation Section */}
-                    <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700 space-y-4">
-                        <h3 className="font-semibold text-white flex items-center gap-2">
-                            <TrendingDown size={16} className="text-amber-400" />
+                    <div className="bg-slate-50 dark:bg-slate-900/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-4">
+                        <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <TrendingDown size={16} className="text-amber-500 dark:text-amber-400" />
                             Purchase & Depreciation
                         </h3>
 
@@ -513,7 +513,7 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                                     }}
                                 >
                                     {USEFUL_LIFE_PRESETS.map(preset => (
-                                        <option key={preset.value} value={preset.value} className="bg-slate-800">
+                                        <option key={preset.value} value={preset.value} className="bg-white dark:bg-slate-800">
                                             {preset.label}
                                         </option>
                                     ))}
@@ -562,46 +562,46 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
 
                         {/* Depreciation Summary Card */}
                         {formData.purchasePrice > 0 && formData.purchaseDate && (
-                            <div className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 rounded-xl p-4 border border-amber-700/30 mt-4">
-                                <h4 className="text-sm font-semibold text-amber-300 mb-3 flex items-center gap-2">
+                            <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 rounded-xl p-4 border border-amber-200 dark:border-amber-700/30 mt-4">
+                                <h4 className="text-sm font-semibold text-amber-700 dark:text-amber-300 mb-3 flex items-center gap-2">
                                     <TrendingDown size={14} />
                                     Depreciation Summary (Straight-Line Method)
                                 </h4>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                     <div>
-                                        <p className="text-amber-200/70">Annual Depreciation</p>
-                                        <p className="text-white font-bold flex items-center gap-1">
+                                        <p className="text-amber-600/70 dark:text-amber-200/70">Annual Depreciation</p>
+                                        <p className="text-slate-900 dark:text-white font-bold flex items-center gap-1">
                                             <PesoSign size={14} />
                                             {depreciation.annualDepreciation.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-amber-200/70">Accumulated</p>
-                                        <p className="text-white font-bold flex items-center gap-1">
+                                        <p className="text-amber-600/70 dark:text-amber-200/70">Accumulated</p>
+                                        <p className="text-slate-900 dark:text-white font-bold flex items-center gap-1">
                                             <PesoSign size={14} />
                                             {depreciation.accumulatedDepreciation.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-amber-200/70">Current Book Value</p>
-                                        <p className={`font-bold flex items-center gap-1 ${depreciation.isFullyDepreciated ? 'text-red-400' : 'text-green-400'}`}>
+                                        <p className="text-amber-600/70 dark:text-amber-200/70">Current Book Value</p>
+                                        <p className={`font-bold flex items-center gap-1 ${depreciation.isFullyDepreciated ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                             <PesoSign size={14} />
                                             {depreciation.currentBookValue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                         </p>
                                     </div>
                                     <div>
-                                        <p className="text-amber-200/70">% Depreciated</p>
-                                        <p className="text-white font-bold">
+                                        <p className="text-amber-600/70 dark:text-amber-200/70">% Depreciated</p>
+                                        <p className="text-slate-900 dark:text-white font-bold">
                                             {depreciation.percentDepreciated.toFixed(1)}%
                                         </p>
                                     </div>
                                 </div>
                                 {depreciation.isFullyDepreciated && (
-                                    <div className="mt-3 px-3 py-2 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-xs">
+                                    <div className="mt-3 px-3 py-2 bg-red-100 dark:bg-red-500/20 border border-red-200 dark:border-red-500/30 rounded-lg text-red-600 dark:text-red-300 text-xs">
                                         ⚠️ This asset is fully depreciated
                                     </div>
                                 )}
-                                <p className="text-xs text-amber-200/50 mt-3">
+                                <p className="text-xs text-amber-600/60 dark:text-amber-200/50 mt-3">
                                     Asset age: {Math.floor(depreciation.ageInMonths / 12)} years, {depreciation.ageInMonths % 12} months
                                 </p>
                             </div>
@@ -609,9 +609,9 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                     </div>
 
                     {/* Assignment & Location Section */}
-                    <div className="bg-slate-900/30 rounded-xl p-4 border border-slate-700 space-y-4">
-                        <h3 className="font-semibold text-white flex items-center gap-2">
-                            <User size={16} className="text-blue-400" />
+                    <div className="bg-slate-50 dark:bg-slate-900/30 rounded-xl p-4 border border-slate-200 dark:border-slate-700 space-y-4">
+                        <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                            <User size={16} className="text-blue-500 dark:text-blue-400" />
                             Assignment & Location
                         </h3>
 
@@ -625,9 +625,9 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                                         value={formData.assignedToId}
                                         onChange={(e) => handleUserSelect(e.target.value)}
                                     >
-                                        <option value="" className="bg-slate-800">-- Not Assigned --</option>
+                                        <option value="" className="bg-white dark:bg-slate-800">-- Not Assigned --</option>
                                         {allUsers.map(user => (
-                                            <option key={user.id} value={user.id} className="bg-slate-800">
+                                            <option key={user.id} value={user.id} className="bg-white dark:bg-slate-800">
                                                 {user.name}
                                             </option>
                                         ))}
@@ -673,10 +673,10 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="sticky bottom-0 bg-slate-800 border-t border-slate-700 p-6 flex items-center justify-end gap-3">
+                <div className="sticky bottom-0 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-6 flex items-center justify-end gap-3">
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors"
+                        className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg font-medium transition-colors"
                     >
                         Cancel
                     </button>

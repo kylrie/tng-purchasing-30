@@ -11,7 +11,6 @@ import { db } from '../../../config/firebase';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 import type { Requisition } from '../../procurement/types';
 import { RequisitionStatus } from '../../procurement/types';
-import './BudgetPrfDrawer.css';
 
 interface BudgetPrfDrawerProps {
     /** Whether the drawer is open */
@@ -171,77 +170,94 @@ export const BudgetPrfDrawer: React.FC<BudgetPrfDrawerProps> = ({
     return (
         <>
             {/* Backdrop */}
-            <div className="budget-drawer-backdrop" onClick={onClose} />
+            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 animate-in fade-in active:animate-out fade-out" onClick={onClose} />
 
             {/* Drawer */}
-            <div className={`budget-drawer ${isOpen ? 'open' : ''}`}>
-                <div className="budget-drawer-header">
-                    <div className="drawer-title-section">
-                        <h3>PRFs Using Budget</h3>
-                        <span className="drawer-coa-name">{coaName || coaId}</span>
+            <div className={`fixed inset-y-0 right-0 w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-50 flex flex-col transition-transform duration-300 transform ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                    <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-slate-800 dark:text-white text-lg">PRFs Using Budget</h3>
+                        <span className="block text-sm text-purple-600 dark:text-purple-400 font-medium truncate mt-1">{coaName || coaId}</span>
                     </div>
-                    <button className="drawer-close-btn" onClick={onClose}>
+                    <button
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        onClick={onClose}
+                    >
                         ✕
                     </button>
                 </div>
 
-                <div className="budget-drawer-summary">
-                    <div className="summary-item">
-                        <span className="summary-label">Total PRFs</span>
-                        <span className="summary-value">{prfs.length}</span>
+                {/* Summary */}
+                <div className="flex border-b border-slate-200 dark:border-slate-700">
+                    <div className="flex-1 p-4 text-center border-r border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                        <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Total PRFs</span>
+                        <span className="block text-xl font-bold text-slate-800 dark:text-white">{prfs.length}</span>
                     </div>
-                    <div className="summary-item">
-                        <span className="summary-label">Total Amount</span>
-                        <span className="summary-value amount">{formatCurrency(totalAmount)}</span>
+                    <div className="flex-1 p-4 text-center hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                        <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">Total Amount</span>
+                        <span className="block text-xl font-bold text-slate-800 dark:text-white">{formatCurrency(totalAmount)}</span>
                     </div>
                 </div>
 
-                <div className="budget-drawer-content">
+                <div className="flex-1 overflow-y-auto p-4 bg-slate-50/50 dark:bg-transparent">
                     {loading && (
-                        <div className="drawer-loading">
-                            <div className="loading-spinner" />
-                            <span>Loading PRFs...</span>
+                        <div className="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-500 gap-3">
+                            <div className="w-8 h-8 rounded-full border-2 border-slate-300 dark:border-slate-600 border-t-purple-500 animate-spin" />
+                            <span className="text-sm">Loading PRFs...</span>
                         </div>
                     )}
 
                     {error && (
-                        <div className="drawer-error">
+                        <div className="p-4 rounded-lg bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 text-center text-rose-600 dark:text-rose-400 text-sm">
                             <span>⚠️ {error}</span>
                         </div>
                     )}
 
                     {!loading && !error && prfs.length === 0 && (
-                        <div className="drawer-empty">
+                        <div className="text-center py-12 text-slate-500 dark:text-slate-400 italic text-sm">
                             <span>No PRFs found using this budget</span>
                         </div>
                     )}
 
                     {!loading && !error && prfs.length > 0 && (
-                        <div className="prf-list">
+                        <div className="flex flex-col gap-3">
                             {prfs.map(prf => {
                                 const statusDisplay = getStatusDisplay(prf.status);
                                 return (
-                                    <div key={prf.id} className="prf-item">
-                                        <div className="prf-item-header">
-                                            <span className="prf-id">{prf.id}</span>
+                                    <div key={prf.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm hover:shadow-md transition-all">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <span className="font-mono text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded">{prf.id}</span>
                                             <span
-                                                className="prf-status"
-                                                style={{ backgroundColor: `${statusDisplay.color}20`, color: statusDisplay.color }}
+                                                className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide border border-transparent"
+                                                style={{
+                                                    backgroundColor: `${statusDisplay.color}15`,
+                                                    color: statusDisplay.color,
+                                                    borderColor: `${statusDisplay.color}30`
+                                                }}
                                             >
                                                 {statusDisplay.label}
                                             </span>
                                         </div>
-                                        <div className="prf-item-body">
-                                            <div className="prf-description">{prf.description}</div>
-                                            <div className="prf-meta">
-                                                <span className="prf-requester">{prf.requesterName}</span>
-                                                <span className="prf-date">{formatDate(prf.dateCreated)}</span>
+                                        <div className="mb-3">
+                                            <div className="font-medium text-slate-800 dark:text-white text-sm line-clamp-2 mb-1">{prf.description}</div>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+                                                <span className="flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                                                    {prf.requesterName}
+                                                </span>
+                                                <span className="flex items-center gap-1">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                                                    {formatDate(prf.dateCreated)}
+                                                </span>
                                             </div>
                                         </div>
-                                        <div className="prf-item-footer">
-                                            <span className="prf-amount">{formatCurrency(prf.totalAmount)}</span>
+                                        <div className="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-700/50">
+                                            <span className="font-bold text-slate-800 dark:text-white">{formatCurrency(prf.totalAmount)}</span>
                                             {prf.budgetStatus && (
-                                                <span className={`prf-budget-status ${prf.budgetStatus.toLowerCase()}`}>
+                                                <span className={`text-[10px] uppercase font-bold tracking-wider ${prf.budgetStatus === 'RESERVED' ? 'text-amber-500' :
+                                                    prf.budgetStatus === 'COMMITTED' ? 'text-emerald-500' : 'text-slate-400'
+                                                    }`}>
                                                     {prf.budgetStatus}
                                                 </span>
                                             )}

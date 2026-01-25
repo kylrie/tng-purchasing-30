@@ -319,17 +319,17 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold">Action Center</h1>
-                        <p className="text-slate-400 text-sm">Review pending requests and approval history.</p>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Action Center</h1>
+                        <p className="text-slate-600 dark:text-slate-400 text-sm">Review pending requests and approval history.</p>
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex gap-2 bg-slate-800/50 p-1 rounded-lg border border-slate-700">
+                    <div className="flex gap-2 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
                         <button
                             onClick={() => setActiveTab('pending')}
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'pending'
-                                ? 'bg-purple-600 text-white shadow-lg'
-                                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-sm'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700'
                                 }`}
                         >
                             Pending Approvals
@@ -338,8 +338,8 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                             <button
                                 onClick={() => setActiveTab('history')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'history'
-                                    ? 'bg-purple-600 text-white shadow-lg'
-                                    : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                    ? 'bg-white dark:bg-purple-600 text-purple-600 dark:text-white shadow-sm'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-700'
                                     }`}
                             >
                                 History
@@ -355,7 +355,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                             <select
                                 value={selectedBusinessUnit}
                                 onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                                className="appearance-none pl-4 pr-10 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                                className="appearance-none pl-4 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
                             >
                                 <option value="all">All Business Units</option>
                                 {businesses.map(b => (
@@ -373,13 +373,13 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                 <button
                                     onClick={() => setPendingSubTab('burf')}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'burf'
-                                        ? 'bg-orange-600/20 text-orange-300 border border-orange-500/30'
-                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                        ? 'bg-orange-100 dark:bg-orange-600/20 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-500/30'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-transparent'
                                         }`}
                                 >
                                     BURF
                                     {burfApprovals.length > 0 && (
-                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-600 text-slate-300'
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'burf' ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                             }`}>
                                             {burfApprovals.length}
                                         </span>
@@ -390,13 +390,13 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                 <button
                                     onClick={() => setPendingSubTab('cic')}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'cic'
-                                        ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/30'
-                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                        ? 'bg-cyan-100 dark:bg-cyan-600/20 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-500/30'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-transparent'
                                         }`}
                                 >
                                     CIC
                                     {cicReviews.length > 0 && (
-                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-600 text-slate-300'
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'cic' ? 'bg-cyan-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                             }`}>
                                             {cicReviews.length}
                                         </span>
@@ -407,13 +407,13 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                 <button
                                     onClick={() => setPendingSubTab('prf')}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'prf'
-                                        ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
-                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                        ? 'bg-purple-100 dark:bg-purple-600/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-transparent'
                                         }`}
                                 >
                                     PRF
                                     {prfApprovals.length > 0 && (
-                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-600 text-slate-300'
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'prf' ? 'bg-purple-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                             }`}>
                                             {prfApprovals.length}
                                         </span>
@@ -424,13 +424,13 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                 <button
                                     onClick={() => setPendingSubTab('gmprf')}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'gmprf'
-                                        ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30'
-                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50 border border-transparent'
+                                        ? 'bg-indigo-100 dark:bg-indigo-600/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
+                                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50 border border-transparent'
                                         }`}
                                 >
                                     GM PRF
                                     {gmPrfApprovals.length > 0 && (
-                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-600 text-slate-300'
+                                        <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${pendingSubTab === 'gmprf' ? 'bg-indigo-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300'
                                             }`}>
                                             {gmPrfApprovals.length}
                                         </span>
@@ -448,7 +448,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                             placeholder="Search ID, Desc, User..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm w-64 focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-500"
+                            className="pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm w-64 text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none placeholder-slate-400 dark:placeholder-slate-500"
                         />
                     </div>
 
@@ -461,10 +461,10 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
             </div>
 
-            <Card className="overflow-hidden !p-0">
+            <Card className="overflow-hidden !p-0 bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm dark:shadow-none">
                 <div className="max-h-[600px] overflow-y-auto">
-                    <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
+                    <table className="w-full text-left text-sm text-slate-800 dark:text-slate-200">
+                        <thead className="bg-slate-50/90 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-20 backdrop-blur-sm">
                             <tr>
                                 <th className="px-6 py-4">ID</th>
                                 <th className="px-6 py-4">Type</th>
@@ -477,7 +477,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                 <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-700">
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {displayRequisitions.map(req => {
                                 const requester = allUsers.find(u => u.id === req.requesterId);
                                 const business = businesses.find(b => b.id === req.businessId);
@@ -486,36 +486,36 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                 return (
                                     <tr
                                         key={req.id}
-                                        className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                                        className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer"
                                         onClick={(e) => {
                                             // Don't open drawer if clicking action buttons
                                             if ((e.target as HTMLElement).closest('button, a')) return;
                                             setDrawerReq(req);
                                         }}
                                     >
-                                        <td className="px-6 py-4 font-medium text-white">{req.id}</td>
+                                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{req.id}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${isPrf ? 'bg-purple-500/20 text-purple-300' : 'bg-orange-500/20 text-orange-300'}`}>
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${isPrf ? 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-transparent' : 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-transparent'}`}>
                                                 {isPrf ? 'PRF' : 'BURF'}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-300">
+                                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                             <div className="truncate max-w-[200px]" title={req.description}>{req.description}</div>
-                                            {req.priority === 'URGENT' && <span className="text-[10px] text-orange-400 font-bold block mt-1">URGENT</span>}
+                                            {req.priority === 'URGENT' && <span className="text-[10px] text-orange-500 dark:text-orange-400 font-bold block mt-1">URGENT</span>}
                                         </td>
-                                        <td className="px-6 py-4 font-medium text-emerald-400">
+                                        <td className="px-6 py-4 font-medium text-emerald-600 dark:text-emerald-400">
                                             {business?.currency} {req.totalAmount?.toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4 text-slate-400 text-xs">{business?.name || 'N/A'}</td>
+                                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">{business?.name || 'N/A'}</td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">
+                                                <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-300">
                                                     {(requester?.name || '?').charAt(0)}
                                                 </div>
-                                                <span className="text-slate-300 text-xs">{requester?.name || 'Unknown'}</span>
+                                                <span className="text-slate-600 dark:text-slate-300 text-xs">{requester?.name || 'Unknown'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 text-slate-400 text-xs">
+                                        <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                                             {new Date(req.dateCreated).toLocaleDateString()}
                                         </td>
                                         <td className="px-6 py-4">
@@ -525,7 +525,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                             <div className="flex justify-end gap-2">
                                                 <button
                                                     onClick={(e) => handlePrintClick(req, e)}
-                                                    className="p-2 text-blue-400 hover:bg-blue-900/20 rounded-lg transition-colors"
+                                                    className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                                                     title="View Details / Print"
                                                 >
                                                     <Printer size={18} />
@@ -534,14 +534,14 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                                     <>
                                                         <button
                                                             onClick={(e) => handleRejectClick(req, e)}
-                                                            className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
+                                                            className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                                                             title="Reject"
                                                         >
                                                             <XCircle size={18} />
                                                         </button>
                                                         <button
                                                             onClick={(e) => handleApprove(req, e)}
-                                                            className="p-2 text-green-400 hover:bg-green-900/20 rounded-lg transition-colors"
+                                                            className="p-2 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                                                             title="Approve"
                                                         >
                                                             <CheckCircle size={18} />
@@ -555,7 +555,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                             })}
                             {filteredRequisitions.length === 0 && (
                                 <tr>
-                                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500 italic">
+                                    <td colSpan={9} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400 italic">
                                         {activeTab === 'pending'
                                             ? 'No pending approvals found matching your filters.'
                                             : 'No approved requisitions found matching your filters.'}

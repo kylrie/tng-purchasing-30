@@ -300,22 +300,22 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
             )}
 
             {/* Drawer - Expanded width for 10-column table */}
-            <div className="fixed inset-y-0 right-0 w-[95vw] max-w-[1600px] bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col">
+            <div className="fixed inset-y-0 right-0 w-[95vw] max-w-[1600px] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-50 flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/50">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50">
                     <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            {editingId ? <Edit3 size={24} className="text-yellow-400" /> : <Receipt size={24} className="text-purple-400" />}
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            {editingId ? <Edit3 size={24} className="text-amber-500 dark:text-yellow-400" /> : <Receipt size={24} className="text-purple-600 dark:text-purple-400" />}
                             {title || (editingId ? 'Edit PCF Liquidation' : 'New PCF Liquidation')}
                         </h2>
-                        <p className="text-sm text-slate-400 mt-1">
-                            Available: <span className="text-emerald-400 font-semibold">{formatCurrency(cashOnHand)}</span>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                            Available: <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{formatCurrency(cashOnHand)}</span>
                             {' '}of {formatCurrency(pcfCeiling)}
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                        className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                     >
                         <X size={24} />
                     </button>
@@ -326,21 +326,21 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                     {/* Expense Table */}
                     <div>
                         <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                                <FileText size={16} className="text-purple-400" />
+                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                                <FileText size={16} className="text-purple-600 dark:text-purple-400" />
                                 Expense Details (10-Column Audit Format)
                             </h3>
                             <button
                                 onClick={addExpenseRow}
-                                className="text-purple-400 hover:text-purple-300 text-sm flex items-center gap-1 px-3 py-1 border border-purple-600/50 rounded-lg hover:bg-purple-900/20"
+                                className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 text-sm flex items-center gap-1 px-3 py-1 border border-purple-600/50 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/20"
                             >
                                 <Plus size={14} /> Add Row
                             </button>
                         </div>
 
-                        <div className="overflow-x-auto border border-slate-700 rounded-lg">
+                        <div className="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-lg">
                             <table className="w-full text-sm" style={{ minWidth: '1350px' }}>
-                                <thead className="bg-slate-800 text-xs uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                                <thead className="bg-slate-50 dark:bg-slate-800 text-xs uppercase text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-3 py-3 text-left" style={{ width: '130px' }}>Date</th>
                                         <th className="px-3 py-3 text-left" style={{ width: '160px' }}>Payee/Vendor</th>
@@ -356,9 +356,9 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                         <th className="px-2 py-3" style={{ width: '40px' }}></th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700/50">
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
                                     {expenses.map((expense, index) => (
-                                        <tr key={expense.id} className="hover:bg-slate-800/30">
+                                        <tr key={expense.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                                             {/* Date with Today button */}
                                             <td className="px-3 py-2">
                                                 <div className="flex items-center gap-1">
@@ -366,11 +366,11 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                         type="date"
                                                         value={expense.date}
                                                         onChange={(e) => updateExpense(index, 'date', e.target.value)}
-                                                        className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                        className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                     />
                                                     <button
                                                         onClick={() => setTodayDate(index)}
-                                                        className="p-1 text-slate-500 hover:text-purple-400"
+                                                        className="p-1 text-slate-400 dark:text-slate-500 hover:text-purple-600 dark:hover:text-purple-400"
                                                         title="Set Today"
                                                     >
                                                         <Calendar size={12} />
@@ -385,7 +385,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="Vendor name"
                                                     value={expense.payeeVendor}
                                                     onChange={(e) => updateExpense(index, 'payeeVendor', e.target.value)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -396,7 +396,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="TIN"
                                                     value={expense.tin}
                                                     onChange={(e) => updateExpense(index, 'tin', e.target.value)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -407,7 +407,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="OR#"
                                                     value={expense.orNo}
                                                     onChange={(e) => updateExpense(index, 'orNo', e.target.value)}
-                                                    className={`w-full px-2 py-1.5 bg-slate-800 border rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none ${!expense.orNo ? 'border-red-600/50' : 'border-slate-600'
+                                                    className={`w-full px-2 py-1.5 bg-white dark:bg-slate-800 border rounded text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none ${!expense.orNo ? 'border-red-500/50' : 'border-slate-300 dark:border-slate-600'
                                                         }`}
                                                 />
                                             </td>
@@ -419,7 +419,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="Address"
                                                     value={expense.completeAddress}
                                                     onChange={(e) => updateExpense(index, 'completeAddress', e.target.value)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -447,7 +447,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="Description"
                                                     value={expense.itemDescription}
                                                     onChange={(e) => updateExpense(index, 'itemDescription', e.target.value)}
-                                                    className="w-full px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -460,7 +460,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.vat || ''}
                                                     onChange={(e) => updateExpense(index, 'vat', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -473,7 +473,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.ewt || ''}
                                                     onChange={(e) => updateExpense(index, 'ewt', parseFloat(e.target.value) || 0)}
-                                                    className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                 />
                                             </td>
 
@@ -486,7 +486,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                     placeholder="0.00"
                                                     value={expense.amount || ''}
                                                     onChange={(e) => updateExpense(index, 'amount', parseFloat(e.target.value) || 0)}
-                                                    className={`w-full px-3 py-2 bg-slate-800 border rounded text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none ${!expense.amount ? 'border-red-600/50' : 'border-slate-600'
+                                                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border rounded text-slate-900 dark:text-white text-sm text-right focus:ring-1 focus:ring-purple-500 focus:outline-none ${!expense.amount ? 'border-red-500/50' : 'border-slate-300 dark:border-slate-600'
                                                         }`}
                                                 />
                                             </td>
@@ -506,7 +506,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                                             };
                                                             setExpenses(updated);
                                                         }}
-                                                        className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-600 rounded text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
+                                                        className="flex-1 px-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-xs focus:ring-1 focus:ring-purple-500 focus:outline-none"
                                                     >
                                                         <option value="">Select BU...</option>
                                                         {businesses.map(b => (
@@ -534,8 +534,8 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                 </tbody>
 
                                 {/* Totals Footer */}
-                                <tfoot className="bg-slate-800/70 border-t border-slate-600">
-                                    <tr className="text-slate-300 font-medium">
+                                <tfoot className="bg-slate-50 dark:bg-slate-800/70 border-t border-slate-200 dark:border-slate-600">
+                                    <tr className="text-slate-600 dark:text-slate-300 font-medium">
                                         <td colSpan={8} className="px-2 py-3 text-right text-sm">
                                             Totals:
                                         </td>
@@ -545,7 +545,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                                         <td className="px-2 py-3 text-right text-sm">
                                             {formatCurrency(totals.totalEwt)}
                                         </td>
-                                        <td className="px-2 py-3 text-right text-sm font-bold text-white">
+                                        <td className="px-2 py-3 text-right text-sm font-bold text-slate-900 dark:text-white">
                                             {formatCurrency(totals.totalAmount)}
                                         </td>
                                         <td></td>
@@ -607,7 +607,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                             placeholder="https://drive.google.com/..."
                             value={receiptsLink}
                             onChange={(e) => setReceiptsLink(e.target.value)}
-                            className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                            className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                         />
                     </div>
 
@@ -621,23 +621,23 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                             value={remarks}
                             onChange={(e) => setRemarks(e.target.value)}
                             rows={2}
-                            className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none"
+                            className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none"
                         />
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="p-4 border-t border-slate-700 bg-slate-800/50 flex items-center justify-between">
-                    <div className="text-sm text-slate-400">
+                <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex items-center justify-between">
+                    <div className="text-sm text-slate-500 dark:text-slate-400">
                         {expenses.length} expense{expenses.length !== 1 ? 's' : ''} | Total:
-                        <span className={`font-bold ml-1 ${exceedsCashOnHand ? 'text-red-400' : 'text-white'}`}>
+                        <span className={`font-bold ml-1 ${exceedsCashOnHand ? 'text-red-500 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
                             {formatCurrency(totals.totalAmount)}
                         </span>
                     </div>
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="px-4 py-2 text-slate-300 hover:text-white transition-colors"
+                            className="px-4 py-2 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
                         >
                             Cancel
                         </button>
@@ -645,7 +645,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                             <button
                                 onClick={handleSaveDraft}
                                 disabled={savingDraft || submitting}
-                                className="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors border border-slate-600"
+                                className="px-5 py-2 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-colors border border-slate-300 dark:border-slate-600"
                             >
                                 <FileText size={18} />
                                 {savingDraft ? 'Saving...' : 'Save Draft'}

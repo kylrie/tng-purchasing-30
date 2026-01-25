@@ -78,16 +78,16 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
             />
 
             {/* Drawer */}
-            <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-slate-900 border-l border-slate-700 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="fixed inset-y-0 right-0 w-full max-w-lg bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-slate-700">
+                <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
                     <div>
-                        <h2 className="text-xl font-bold text-white">{requisition.id}</h2>
-                        <p className="text-sm text-slate-400">{requisition.description || 'No description'}</p>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">{requisition.id}</h2>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{requisition.description || 'No description'}</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+                        className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                     >
                         <X size={20} />
                     </button>
@@ -97,10 +97,10 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {/* Supplier Info */}
                     {requisition.prfDetails?.supplier && (
-                        <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                            <h3 className="text-sm font-semibold text-slate-300 mb-2 uppercase tracking-wider">Supplier</h3>
-                            <p className="text-white font-medium">{requisition.prfDetails.supplier.name}</p>
-                            <p className="text-sm text-slate-400">{requisition.prfDetails.supplier.address || 'No address'}</p>
+                        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                            <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-300 mb-2 uppercase tracking-wider">Supplier</h3>
+                            <p className="text-slate-900 dark:text-white font-medium">{requisition.prfDetails.supplier.name}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">{requisition.prfDetails.supplier.address || 'No address'}</p>
                             {requisition.prfDetails.supplier.tin && (
                                 <p className="text-xs text-slate-500 mt-1">TIN: {requisition.prfDetails.supplier.tin}</p>
                             )}
@@ -109,10 +109,10 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
 
                     {/* Items Table */}
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">Items ({(requisition.items || []).length})</h3>
-                        <Card className="!p-0 overflow-hidden">
+                        <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-300 mb-3 uppercase tracking-wider">Items ({(requisition.items || []).length})</h3>
+                        <Card className="!p-0 overflow-hidden border border-slate-200 dark:border-slate-700">
                             <table className="w-full text-sm">
-                                <thead className="bg-slate-800/80 text-xs uppercase text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                                <thead className="bg-slate-50 dark:bg-slate-800/80 text-xs uppercase text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-4 py-3 text-left">Item</th>
                                         <th className="px-4 py-3 text-center">Qty</th>
@@ -120,13 +120,13 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
                                         <th className="px-4 py-3 text-right">Total</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700">
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                     {(requisition.items || []).map((item, index) => (
-                                        <tr key={item.itemId || index} className="hover:bg-slate-800/40">
-                                            <td className="px-4 py-3 text-slate-200">{item.name}</td>
-                                            <td className="px-4 py-3 text-center text-slate-400">{item.quantity} {item.uom}</td>
-                                            <td className="px-4 py-3 text-right text-slate-400">{formatCurrency(item.price || 0)}</td>
-                                            <td className="px-4 py-3 text-right text-white font-medium">
+                                        <tr key={item.itemId || index} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                                            <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{item.name}</td>
+                                            <td className="px-4 py-3 text-center text-slate-600 dark:text-slate-400">{item.quantity} {item.uom}</td>
+                                            <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-400">{formatCurrency(item.price || 0)}</td>
+                                            <td className="px-4 py-3 text-right text-slate-900 dark:text-white font-medium">
                                                 {formatCurrency((item.price || 0) * (item.quantity || 0))}
                                             </td>
                                         </tr>
@@ -147,30 +147,30 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
                     {/* Approval History Timeline */}
                     {requisition.history && requisition.history.length > 0 && (
                         <div>
-                            <h3 className="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wider">History</h3>
+                            <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-300 mb-3 uppercase tracking-wider">History</h3>
                             <div className="relative pl-6">
                                 {/* Timeline line */}
-                                <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-slate-700" />
+                                <div className="absolute left-2 top-2 bottom-2 w-0.5 bg-slate-200 dark:bg-slate-700" />
 
                                 <div className="space-y-4">
                                     {requisition.history.map((entry: RequisitionHistory, index: number) => (
                                         <div key={index} className="relative">
                                             {/* Timeline dot */}
-                                            <div className="absolute -left-4 mt-1 p-1 bg-slate-900 rounded-full border border-slate-700">
+                                            <div className="absolute -left-4 mt-1 p-1 bg-white dark:bg-slate-900 rounded-full border border-slate-200 dark:border-slate-700">
                                                 {getTimelineIcon(entry.action, entry.stage)}
                                             </div>
 
-                                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 border border-slate-200 dark:border-slate-700/50">
                                                 <div className="flex items-center justify-between mb-1">
-                                                    <span className="text-sm font-medium text-white">{entry.action}</span>
+                                                    <span className="text-sm font-medium text-slate-900 dark:text-white">{entry.action}</span>
                                                     <span className="text-xs text-slate-500">{formatDate(entry.date)}</span>
                                                 </div>
-                                                <div className="flex items-center gap-2 text-xs text-slate-400">
+                                                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                                                     <User size={12} />
                                                     <span>{entry.actorName || 'System'}</span>
                                                 </div>
                                                 {entry.comments && (
-                                                    <p className="text-xs text-slate-500 mt-2 italic">"{entry.comments}"</p>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 italic">"{entry.comments}"</p>
                                                 )}
                                             </div>
                                         </div>
@@ -183,7 +183,7 @@ const PRFDetailsDrawer: React.FC<PRFDetailsDrawerProps> = ({
 
                 {/* Actions Footer */}
                 {(canApprove || canReject || canCancel) && (
-                    <div className="p-6 border-t border-slate-700 flex justify-between gap-3">
+                    <div className="p-6 border-t border-slate-200 dark:border-slate-700 flex justify-between gap-3 bg-slate-50 dark:bg-slate-900">
                         {/* Left side: SuperAdmin Cancel Button */}
                         <div>
                             {canCancel && requisition.status !== RequisitionStatus.CANCELLED && (

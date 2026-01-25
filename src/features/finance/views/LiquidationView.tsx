@@ -105,26 +105,26 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   };
 
   // Base filter for requisitions with funds released or liquidation filed
-  const baseLiquidationReqs = requisitions.filter(
+  const baseLiquidationReqs = React.useMemo(() => requisitions.filter(
     req => [
       RequisitionStatus.FUNDS_RELEASED,
       RequisitionStatus.AUDITED_CLEARED,
       RequisitionStatus.LIQUIDATION_REJECTED
     ].includes(req.status) || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)
-  );
+  ), [requisitions]);
 
   // My Liquidations: Strictly own liquidations (active for filing)
-  const myLiquidationReqs = baseLiquidationReqs.filter(req => req.requesterId === currentUser.id);
+  const myLiquidationReqs = React.useMemo(() => baseLiquidationReqs.filter(req => req.requesterId === currentUser.id), [baseLiquidationReqs, currentUser.id]);
 
   // All Liquidations: All active liquidations (visible if has file:all)
   const allLiquidationReqs = baseLiquidationReqs;
 
-  const auditingReqs = requisitions.filter(
+  const auditingReqs = React.useMemo(() => requisitions.filter(
     req => req.status === RequisitionStatus.LIQUIDATION_FILED
-  );
+  ), [requisitions]);
 
   // My History: All liquidations filed by current user (pending, approved, or rejected)
-  const myHistoryReqs = requisitions.filter(
+  const myHistoryReqs = React.useMemo(() => requisitions.filter(
     req => {
       // Must be filed by current user OR user is the preparer (for BURF-converted PRFs)
       const isMyLiquidation =
@@ -145,10 +145,10 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     const dateA = a.liquidationDetails?.dateFiled || a.dateCreated;
     const dateB = b.liquidationDetails?.dateFiled || b.dateCreated;
     return new Date(dateB).getTime() - new Date(dateA).getTime();
-  });
+  }), [requisitions, currentUser.id]);
 
   // Audit History: All audited liquidations (for auditors to review history)
-  const auditHistoryReqs = requisitions.filter(req => {
+  const auditHistoryReqs = React.useMemo(() => requisitions.filter(req => {
     if (auditHistoryFilter === 'rejected') {
       return req.status === RequisitionStatus.LIQUIDATION_REJECTED;
     }
@@ -165,7 +165,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     const dateA = a.liquidationDetails?.auditDate || a.dateCreated;
     const dateB = b.liquidationDetails?.auditDate || b.dateCreated;
     return new Date(dateB).getTime() - new Date(dateA).getTime();
-  });
+  }), [requisitions, auditHistoryFilter]);
 
   // Custom liquidation status badge function
   const getLiquidationStatusBadge = (req: Requisition) => {
@@ -199,7 +199,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
         activeTab === 'audit_history' ? auditHistoryReqs : myHistoryReqs;
 
   // Apply search filter
-  const filteredReqs = displayedReqs.filter(req => {
+  const filteredReqs = React.useMemo(() => displayedReqs.filter(req => {
     if (!searchTerm.trim()) return true;
     const search = searchTerm.toLowerCase();
     const businessName = businesses.find(b => b.id === req.businessId)?.name || '';
@@ -221,23 +221,23 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
       return reqDate >= start && reqDate <= end;
     }
     return true;
-  });
+  }), [displayedReqs, searchTerm, dateRange, businesses, allUsers]);
 
   return (
     <>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             {variant === 'AUDIT' ? 'Liquidation Analysis' : 'My Liquidations'}
           </h1>
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-600 dark:text-slate-400 text-sm">
             {variant === 'AUDIT'
               ? 'Audit and review filed liquidation reports.'
               : 'File liquidation reports for released funds and track status.'}
           </p>
         </div>
 
-        <div className="flex border-b border-slate-700 mb-4 overflow-x-auto">
+        <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4 overflow-x-auto">
           {variant === 'USER' && (
             <>
               <button
@@ -304,11 +304,11 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
         {/* Filter for Audit History tab */}
         {activeTab === 'audit_history' && (
           <div className="mb-4 flex items-center gap-3">
-            <label className="text-sm text-slate-400">Filter by status:</label>
+            <label className="text-sm text-slate-600 dark:text-slate-400">Filter by status:</label>
             <select
               value={auditHistoryFilter}
               onChange={(e) => setAuditHistoryFilter(e.target.value as 'all' | 'rejected' | 'cleared')}
-              className="px-3 py-1.5 bg-slate-800 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
             >
               <option value="all">All</option>
               <option value="rejected">Rejected</option>
@@ -322,21 +322,21 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
             onFilterChange={(start, end) => setDateRange({ start, end })}
           />
           <div className="relative max-w-md flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by PRF ID, requester, business unit..."
-              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             />
           </div>
         </div>
 
-        <Card className="!p-0">
+        <Card className="!p-0 overflow-hidden bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm dark:shadow-none">
           <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-            <table className="w-full text-left text-sm text-white">
-              <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+            <table className="w-full text-left text-sm text-slate-800 dark:text-slate-200">
+              <thead className="bg-slate-50/90 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-600 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm border-b border-slate-200 dark:border-slate-700/50">
                 <tr>
                   <th className="px-6 py-4">PRF ID</th>
                   <th className="px-6 py-4">Business Unit</th>
@@ -348,37 +348,37 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700">
+              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {filteredReqs.map(req => (
                   <tr
                     key={req.id}
-                    className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                    className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                     onClick={(e) => {
                       // Don't open drawer if clicking action buttons
                       if ((e.target as HTMLElement).closest('button, a')) return;
                       setDrawerReq(req);
                     }}
                   >
-                    <td className="px-6 py-4 font-medium">{req.id}</td>
-                    <td className="px-6 py-4 text-slate-300">
+                    <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">{req.id}</td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 text-slate-300">
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                       {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
                     </td>
-                    <td className="px-6 py-4">₱{req.totalAmount?.toLocaleString()}</td>
-                    <td className="px-6 py-4 text-purple-400 font-medium">{req.chequeNumber || '-'}</td>
+                    <td className="px-6 py-4 font-medium text-slate-700 dark:text-slate-200">₱{req.totalAmount?.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-purple-600 dark:text-purple-400 font-medium">{req.chequeNumber || '-'}</td>
                     <td className="px-6 py-4">
                       {activeTab === 'my_history' ? getLiquidationStatusBadge(req) : getStatusBadge(req.status)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-red-400">
+                    <td className="px-6 py-4 text-sm text-red-500 dark:text-red-400">
                       {(req.status === RequisitionStatus.LIQUIDATION_REJECTED || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)) ? (
                         <span className="flex items-center gap-1">
                           {/* Import AlertTriangle if not already imported, or use existing icon */}
                           {req.liquidationDetails?.rejectionReason || req.liquidationDetails?.auditNotes || 'No reason provided'}
                         </span>
                       ) : (
-                        <span className="text-slate-600">-</span>
+                        <span className="text-slate-400 dark:text-slate-600">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -389,7 +389,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                           (req.requesterId === currentUser.id || hasPermission('liquidation:file:all')) && (
                             <button
                               onClick={() => navigate(`/liquidation/${req.id}`)}
-                              className="text-cyan-400 hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-700 bg-cyan-900/50 hover:bg-cyan-800/50"
+                              className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/50 hover:bg-cyan-100 dark:hover:bg-cyan-800/50"
                             >
                               {req.status === RequisitionStatus.FUNDS_RELEASED ? (
                                 <><FileText size={14} /> File Liquidation</>
@@ -414,7 +414,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                         {(req.status === RequisitionStatus.LIQUIDATION_REJECTED || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)) && (
                           <button
                             onClick={() => navigate(`/liquidation/${req.id}`)}
-                            className="text-orange-400 hover:text-orange-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-orange-700 bg-orange-900/50 hover:bg-orange-800/50"
+                            className="text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-orange-200 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/50 hover:bg-orange-100 dark:hover:bg-orange-800/50"
                           >
                             <RefreshCw size={14} /> Re-file Liquidation
                           </button>
@@ -422,7 +422,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
 
                         {/* Print Button */}
                         {req.liquidationDetails && (
-                          <button onClick={() => setPrintReq(req)} className="text-slate-400 hover:text-white p-1" title="Print Liquidation">
+                          <button onClick={() => setPrintReq(req)} className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white p-1" title="Print Liquidation">
                             <Printer size={16} />
                           </button>
                         )}
@@ -432,7 +432,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                 ))}
                 {filteredReqs.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500 italic">
+                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400 italic">
                       {searchTerm ? 'No matching liquidations found.' : 'No liquidations to display.'}
                     </td>
                   </tr>

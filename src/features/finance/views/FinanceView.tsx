@@ -269,7 +269,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 
     if (!canView) {
         return (
-            <div className="text-center text-slate-400">You do not have permission to view this page.</div>
+            <div className="text-center text-slate-500 dark:text-slate-400">You do not have permission to view this page.</div>
         );
     }
 
@@ -278,8 +278,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
             <div className="space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Finance - Fund Release</h1>
-                        <p className="text-slate-400 text-sm">Release funds for approved PRF requisitions.</p>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Finance - Fund Release</h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm">Release funds for approved PRF requisitions.</p>
                     </div>
                     {/* Filters: BU Dropdown + Search Bar */}
                     <div className="flex items-center gap-3">
@@ -290,7 +290,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         <select
                             value={selectedBu}
                             onChange={(e) => setSelectedBu(e.target.value)}
-                            className="bg-slate-800 border border-slate-700 rounded-lg text-white text-sm py-2 px-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm py-2 px-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         >
                             <option value="all">All Business Units</option>
                             {businesses.map(bu => (
@@ -305,20 +305,20 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                 placeholder="Search by ID, description..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                                className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                             />
                         </div>
                     </div>
                 </div>
 
-                <div className="flex border-b border-slate-700 mb-4 overflow-x-auto">
+                <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4 overflow-x-auto">
                     {/* 1. BR (Budget Request) Section - Steps 3-5 */}
-                    <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
-                        <span className="text-xs text-slate-500 px-2">BR</span>
+                    <div className="flex items-center gap-1 border-r border-slate-300 dark:border-slate-600 pr-2 mr-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 px-2">BR</span>
                         <button
                             className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'br_pending'
-                                ? 'border-b-2 border-emerald-500 text-emerald-400'
-                                : 'text-slate-400 hover:text-slate-300'
+                                ? 'border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
                                 }`}
                             onClick={() => setActiveTab('br_pending')}
                         >
@@ -327,12 +327,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     </div>
                     {/* 2. Check Preparation Section - Step 6 (Finance uploads check) */}
                     {hasPermission('finance:upload_check') && (
-                        <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
-                            <span className="text-xs text-slate-500 px-2"><FileText size={12} className="inline mr-1" />Check Prep</span>
+                        <div className="flex items-center gap-1 border-r border-slate-300 dark:border-slate-600 pr-2 mr-2">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 px-2"><FileText size={12} className="inline mr-1" />Check Prep</span>
                             <button
                                 className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'check_prep'
-                                    ? 'border-b-2 border-cyan-500 text-cyan-400'
-                                    : 'text-slate-400 hover:text-slate-300'
+                                    ? 'border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
                                     }`}
                                 onClick={() => setActiveTab('check_prep')}
                             >
@@ -341,12 +341,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         </div>
                     )}
                     {/* 3. Check Authorization Section - Step 7 (BOD authorizes check) */}
-                    <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
-                        <span className="text-xs text-slate-500 px-2">Check Auth</span>
+                    <div className="flex items-center gap-1 border-r border-slate-300 dark:border-slate-600 pr-2 mr-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 px-2">Check Auth</span>
                         <button
                             className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'check_pending'
-                                ? 'border-b-2 border-amber-500 text-amber-400'
-                                : 'text-slate-400 hover:text-slate-300'
+                                ? 'border-b-2 border-amber-500 text-amber-600 dark:text-amber-400'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
                                 }`}
                             onClick={() => setActiveTab('check_pending')}
                         >
@@ -355,12 +355,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     </div>
                     {/* 3. PCF Section */}
                     {hasPermission('module:view:pcf') && (
-                        <div className="flex items-center gap-1 border-r border-slate-600 pr-2 mr-2">
-                            <span className="text-xs text-slate-500 px-2"><Wallet size={12} className="inline mr-1" />PCF</span>
+                        <div className="flex items-center gap-1 border-r border-slate-300 dark:border-slate-600 pr-2 mr-2">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 px-2"><Wallet size={12} className="inline mr-1" />PCF</span>
                             <button
                                 className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'pcf_pending'
-                                    ? 'border-b-2 border-orange-500 text-orange-400'
-                                    : 'text-slate-400 hover:text-slate-300'
+                                    ? 'border-b-2 border-orange-500 text-orange-600 dark:text-orange-400'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
                                     }`}
                                 onClick={() => setActiveTab('pcf_pending')}
                             >
@@ -368,8 +368,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                             </button>
                             <button
                                 className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'pcf_released'
-                                    ? 'border-b-2 border-emerald-500 text-emerald-400'
-                                    : 'text-slate-400 hover:text-slate-300'
+                                    ? 'border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
                                     }`}
                                 onClick={() => setActiveTab('pcf_released')}
                             >
@@ -379,11 +379,11 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     )}
                     {/* 4. PRF Fund Release Section */}
                     <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-500 px-2">Fund Release</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 px-2">Fund Release</span>
                         <button
                             className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'prf_pending'
-                                ? 'border-b-2 border-purple-500 text-purple-400'
-                                : 'text-slate-400 hover:text-slate-300'
+                                ? 'border-b-2 border-purple-500 text-purple-600 dark:text-purple-400'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
                                 }`}
                             onClick={() => setActiveTab('prf_pending')}
                         >
@@ -391,8 +391,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         </button>
                         <button
                             className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'prf_released'
-                                ? 'border-b-2 border-purple-500 text-purple-400'
-                                : 'text-slate-400 hover:text-slate-300'
+                                ? 'border-b-2 border-purple-500 text-purple-600 dark:text-purple-400'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300'
                                 }`}
                             onClick={() => setActiveTab('prf_released')}
                         >
@@ -405,8 +405,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {(activeTab === 'prf_pending' || activeTab === 'prf_released') && (
                     <Card className="!p-0">
                         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                            <table className="w-full text-left text-sm text-white">
-                                <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-slate-900 dark:text-white">
+                                <thead className="bg-slate-50 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-6 py-4">PRF ID</th>
                                         <th className="px-6 py-4">Business Unit</th>
@@ -418,32 +418,32 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4 text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700">
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                     {filteredReqs.map(req => (
                                         <tr
                                             key={req.id}
-                                            className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                            className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                                             onClick={(e) => {
                                                 if ((e.target as HTMLElement).closest('button, a')) return;
                                                 setDrawerReq(req);
                                             }}
                                         >
                                             <td className="px-6 py-4 font-medium">{req.id}</td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 <div className="truncate max-w-[200px]" title={req.description}>
                                                     {req.description}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                            <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 font-semibold">
                                                 ₱{req.totalAmount?.toLocaleString()}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-400 text-xs">
+                                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                                                 {activeTab === 'prf_pending'
                                                     ? new Date(req.dateCreated).toLocaleDateString()
                                                     : (req.fundReleaseDate ? new Date(req.fundReleaseDate).toLocaleDateString() : '-')
@@ -476,7 +476,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                     )}
                                                     {activeTab === 'prf_released' && (
                                                         <div className="flex flex-col items-end gap-1">
-                                                            <span className="text-xs text-slate-400">Cheque: <span className="text-white font-mono">{req.chequeNumber || '-'}</span></span>
+                                                            <span className="text-xs text-slate-500 dark:text-slate-400">Cheque: <span className="text-slate-900 dark:text-white font-mono">{req.chequeNumber || '-'}</span></span>
                                                             {req.chequeImageUrl && (
                                                                 <a
                                                                     href={req.chequeImageUrl}
@@ -509,8 +509,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {activeTab === 'pcf_pending' && (
                     <Card className="!p-0">
                         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                            <table className="w-full text-left text-sm text-white">
-                                <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-slate-900 dark:text-white">
+                                <thead className="bg-slate-50 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-6 py-4">PRF Reference</th>
                                         <th className="px-6 py-4">Custodian</th>
@@ -521,27 +521,27 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4 text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700">
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                     {filteredPcfPending.map(liq => {
                                         // Find the linked PRF for this PCF to enable release action
                                         const linkedPrf = requisitions.find(r => r.id === liq.replenishmentPrfId);
                                         return (
                                             <tr
                                                 key={liq.id}
-                                                className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                                className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                                                 onClick={(e) => {
                                                     if ((e.target as HTMLElement).closest('button')) return;
                                                     if (linkedPrf) setDrawerReq(linkedPrf);
                                                 }}
                                             >
-                                                <td className="px-6 py-4 font-medium font-mono text-cyan-400">
+                                                <td className="px-6 py-4 font-medium font-mono text-cyan-600 dark:text-cyan-400">
                                                     {liq.replenishmentPrfId || liq.id?.substring(0, 8)}
                                                 </td>
-                                                <td className="px-6 py-4 text-white">{liq.userName}</td>
-                                                <td className="px-6 py-4 text-slate-300">
+                                                <td className="px-6 py-4 text-slate-900 dark:text-white">{liq.userName}</td>
+                                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                     {businesses.find(b => b.id === liq.businessId)?.name || 'N/A'}
                                                 </td>
-                                                <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                                <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 font-semibold">
                                                     ₱{liq.totalAmount?.toLocaleString()}
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -549,7 +549,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                         PENDING RELEASE
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-slate-400 text-xs">
+                                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                                                     {liq.dateApproved ? new Date(liq.dateApproved).toLocaleDateString() : '-'}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
@@ -603,8 +603,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {activeTab === 'pcf_released' && (
                     <Card className="!p-0">
                         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                            <table className="w-full text-left text-sm text-white">
-                                <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-slate-900 dark:text-white">
+                                <thead className="bg-slate-50 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-6 py-4">PRF Reference</th>
                                         <th className="px-6 py-4">Custodian</th>
@@ -616,25 +616,25 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4">Released</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700">
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                     {filteredPcfReleased.map(liq => {
                                         const linkedPrf = requisitions.find(r => r.id === liq.replenishmentPrfId);
                                         return (
                                             <tr
                                                 key={liq.id}
-                                                className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                                className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                                                 onClick={() => {
                                                     if (linkedPrf) setDrawerReq(linkedPrf);
                                                 }}
                                             >
-                                                <td className="px-6 py-4 font-medium font-mono text-cyan-400">
+                                                <td className="px-6 py-4 font-medium font-mono text-cyan-600 dark:text-cyan-400">
                                                     {liq.replenishmentPrfId || liq.id?.substring(0, 8)}
                                                 </td>
-                                                <td className="px-6 py-4 text-white">{liq.userName}</td>
-                                                <td className="px-6 py-4 text-slate-300">
+                                                <td className="px-6 py-4 text-slate-900 dark:text-white">{liq.userName}</td>
+                                                <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                     {businesses.find(b => b.id === liq.businessId)?.name || 'N/A'}
                                                 </td>
-                                                <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                                <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 font-semibold">
                                                     ₱{liq.totalAmount?.toLocaleString()}
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -645,13 +645,13 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                         {liq.status.replace(/_/g, ' ')}
                                                     </span>
                                                 </td>
-                                                <td className="px-6 py-4 text-slate-400 text-xs">
+                                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                                                     {liq.dateCreated ? new Date(liq.dateCreated).toLocaleDateString() : '-'}
                                                 </td>
-                                                <td className="px-6 py-4 text-slate-400 text-xs">
+                                                <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                                                     {liq.dateApproved ? new Date(liq.dateApproved).toLocaleDateString() : '-'}
                                                 </td>
-                                                <td className="px-6 py-4 text-emerald-400 text-xs">
+                                                <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 text-xs">
                                                     {linkedPrf?.fundReleaseDate ? new Date(linkedPrf.fundReleaseDate).toLocaleDateString() : '-'}
                                                 </td>
                                             </tr>
@@ -674,8 +674,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {activeTab === 'br_pending' && (
                     <Card className="!p-0">
                         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                            <table className="w-full text-left text-sm text-white">
-                                <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-slate-900 dark:text-white">
+                                <thead className="bg-slate-50 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-6 py-4">PRF ID</th>
                                         <th className="px-6 py-4">Business Unit</th>
@@ -688,34 +688,34 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4 text-center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700">
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                     {filteredBrPendingReqs.map(req => (
                                         <tr
                                             key={req.id}
-                                            className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                            className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                                             onClick={() => setDrawerReq(req)}
                                         >
                                             <td className="px-6 py-4 font-medium">{req.id}</td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 <div className="truncate max-w-[200px]" title={req.description}>
                                                     {req.description}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 <div className="truncate max-w-[150px]" title={req.prfDetails?.supplier?.name || 'N/A'}>
                                                     {req.prfDetails?.supplier?.name || <span className="text-slate-500 italic">N/A</span>}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                            <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 font-semibold">
                                                 ₱{req.totalAmount?.toLocaleString()}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-400 text-xs">
+                                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                                                 {new Date(req.dateCreated).toLocaleDateString()}
                                             </td>
                                             <td className="px-6 py-4">
@@ -805,8 +805,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {activeTab === 'check_prep' && (
                     <Card className="!p-0">
                         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                            <table className="w-full text-left text-sm text-white">
-                                <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-slate-900 dark:text-white">
+                                <thead className="bg-slate-50 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-6 py-4">PRF ID</th>
                                         <th className="px-6 py-4">Business Unit</th>
@@ -819,37 +819,37 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4 text-right">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700">
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                     {filteredCheckPrepReqs.map(req => (
                                         <tr
                                             key={req.id}
-                                            className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                            className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                                             onClick={(e) => {
                                                 if ((e.target as HTMLElement).closest('button')) return;
                                                 setDrawerReq(req);
                                             }}
                                         >
                                             <td className="px-6 py-4 font-medium">{req.id}</td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 <div className="truncate max-w-[200px]" title={req.description}>
                                                     {req.description}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 <div className="truncate max-w-[150px]" title={req.prfDetails?.supplier?.name || 'N/A'}>
                                                     {req.prfDetails?.supplier?.name || <span className="text-slate-500 italic">N/A</span>}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                            <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 font-semibold">
                                                 ₱{req.totalAmount?.toLocaleString()}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-400 text-xs">
+                                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400 text-xs">
                                                 {new Date(req.dateCreated).toLocaleDateString()}
                                             </td>
                                             <td className="px-6 py-4">
@@ -891,8 +891,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                 {activeTab === 'check_pending' && (
                     <Card className="!p-0">
                         <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-                            <table className="w-full text-left text-sm text-white">
-                                <thead className="bg-slate-900/80 text-xs uppercase font-semibold text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
+                            <table className="w-full text-left text-sm text-slate-900 dark:text-white">
+                                <thead className="bg-slate-50 dark:bg-slate-900/80 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 sticky top-0 z-20 backdrop-blur-sm">
                                     <tr>
                                         <th className="px-6 py-4">PRF ID</th>
                                         <th className="px-6 py-4">Business Unit</th>
@@ -905,36 +905,36 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                         <th className="px-6 py-4 text-center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-700">
+                                <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                                     {filteredCheckAuthReqs.map(req => (
                                         <tr
                                             key={req.id}
-                                            className="hover:bg-slate-800/60 cursor-pointer transition-colors"
+                                            className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
                                             onClick={() => setDrawerReq(req)}
                                         >
                                             <td className="px-6 py-4 font-medium">{req.id}</td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 {businesses.find(b => b.id === req.businessId)?.name || 'N/A'}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 {allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId}
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 <div className="truncate max-w-[200px]" title={req.description}>
                                                     {req.description}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-slate-300">
+                                            <td className="px-6 py-4 text-slate-600 dark:text-slate-300">
                                                 <div className="truncate max-w-[150px]" title={req.prfDetails?.supplier?.name || 'N/A'}>
                                                     {req.prfDetails?.supplier?.name || <span className="text-slate-500 italic">N/A</span>}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-emerald-400 font-semibold">
+                                            <td className="px-6 py-4 text-emerald-600 dark:text-emerald-400 font-semibold">
                                                 ₱{req.totalAmount?.toLocaleString()}
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col gap-1">
-                                                    <span className="text-white font-mono">{req.chequeNumber || '-'}</span>
+                                                    <span className="text-slate-900 dark:text-white font-mono">{req.chequeNumber || '-'}</span>
                                                     {req.chequeImageUrl && (
                                                         <a
                                                             href={req.chequeImageUrl}

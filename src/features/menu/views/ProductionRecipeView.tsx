@@ -36,15 +36,15 @@ const RecipeCard: React.FC<{
     onDelete: (recipe: ProductionRecipe) => void;
 }> = ({ recipe, onEdit, onDelete }) => {
     return (
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 hover:border-amber-500/50 transition-all">
+        <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-amber-500/50 transition-all shadow-sm dark:shadow-none">
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-amber-500/20 rounded-lg">
-                        <Factory size={20} className="text-amber-400" />
+                    <div className="p-2 bg-amber-50 dark:bg-amber-500/20 rounded-lg">
+                        <Factory size={20} className="text-amber-500 dark:text-amber-400" />
                     </div>
                     <div>
-                        <h3 className="font-semibold text-white">{recipe.name}</h3>
+                        <h3 className="font-semibold text-slate-900 dark:text-white">{recipe.name}</h3>
                         <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
                             {recipe.category}
                         </span>
@@ -53,13 +53,13 @@ const RecipeCard: React.FC<{
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() => onEdit(recipe)}
-                        className="p-2 hover:bg-slate-600 rounded-lg text-slate-400 hover:text-white transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                     >
                         <Edit size={16} />
                     </button>
                     <button
                         onClick={() => onDelete(recipe)}
-                        className="p-2 hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+                        className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                     >
                         <Trash2 size={16} />
                     </button>
@@ -67,25 +67,25 @@ const RecipeCard: React.FC<{
             </div>
 
             {/* Yield Info */}
-            <div className="bg-slate-900/50 rounded-lg p-3 mb-3">
+            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 mb-3">
                 <p className="text-xs text-slate-500 mb-1">Yield</p>
-                <p className="text-lg font-bold text-white">
+                <p className="text-lg font-bold text-slate-900 dark:text-white">
                     {recipe.yieldQuantity} {recipe.yieldUnit}
                 </p>
             </div>
 
             {/* Cost Info */}
             <div className="grid grid-cols-2 gap-3">
-                <div className="bg-slate-900/50 rounded-lg p-3 text-center">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 text-center">
                     <p className="text-xs text-slate-500 mb-1">Total Cost</p>
-                    <p className="text-sm font-medium text-white flex items-center justify-center gap-1">
+                    <p className="text-sm font-medium text-slate-900 dark:text-white flex items-center justify-center gap-1">
                         <PesoSign size={14} />
                         {recipe.calculatedCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </p>
                 </div>
-                <div className="bg-slate-900/50 rounded-lg p-3 text-center">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 text-center">
                     <p className="text-xs text-slate-500 mb-1">Cost/Unit</p>
-                    <p className="text-sm font-medium text-amber-400 flex items-center justify-center gap-1">
+                    <p className="text-sm font-medium text-amber-500 dark:text-amber-400 flex items-center justify-center gap-1">
                         <PesoSign size={14} />
                         {recipe.costPerUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </p>
@@ -93,7 +93,7 @@ const RecipeCard: React.FC<{
             </div>
 
             {/* Ingredients count */}
-            <div className="mt-3 pt-3 border-t border-slate-700">
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
                 <p className="text-xs text-slate-500">
                     {recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? 's' : ''}
                 </p>
@@ -196,11 +196,11 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses 
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-                        <Factory className="text-amber-400" />
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                        <Factory className="text-amber-500 dark:text-amber-400" />
                         Production Recipes
                     </h1>
-                    <p className="text-slate-400 mt-1">
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">
                         Create recipes for production items (syrups, mixes, prep items)
                     </p>
                 </div>
@@ -209,22 +209,22 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses 
                 <div className="flex flex-wrap items-center gap-3">
                     <button
                         onClick={handleAddNew}
-                        className="px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
+                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
                     >
                         <Plus size={18} />
                         New Recipe
                     </button>
 
                     {/* Business Unit Selector */}
-                    <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
-                        <Building2 size={16} className="text-slate-400" />
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
+                        <Building2 size={16} className="text-slate-500 dark:text-slate-400" />
                         <select
                             value={selectedBusinessUnit}
                             onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="bg-transparent text-white focus:outline-none text-sm"
+                            className="bg-transparent text-slate-900 dark:text-white focus:outline-none text-sm"
                         >
                             {businesses.map(bu => (
-                                <option key={bu.id} value={bu.id} className="bg-slate-800">
+                                <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                                     {bu.name}
                                 </option>
                             ))}
@@ -235,31 +235,31 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses 
 
             {/* Search */}
             <div className="relative max-w-md">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
                 <input
                     type="text"
                     placeholder="Search recipes..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
                 />
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Total Recipes</p>
-                    <p className="text-2xl font-bold text-white">{recipes.length}</p>
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Total Recipes</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{recipes.length}</p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Categories Used</p>
-                    <p className="text-2xl font-bold text-amber-400">
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Categories Used</p>
+                    <p className="text-2xl font-bold text-amber-500 dark:text-amber-400">
                         {new Set(recipes.map(r => r.category)).size}
                     </p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Avg Cost/Recipe</p>
-                    <p className="text-2xl font-bold text-white flex items-center gap-1">
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Avg Cost/Recipe</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-1">
                         <PesoSign size={20} />
                         {recipes.length > 0
                             ? (recipes.reduce((sum, r) => sum + r.calculatedCost, 0) / recipes.length).toFixed(2)
@@ -267,17 +267,17 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses 
                         }
                     </p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Raw Materials</p>
-                    <p className="text-2xl font-bold text-blue-400">{inventoryItems.length}</p>
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Raw Materials</p>
+                    <p className="text-2xl font-bold text-blue-500 dark:text-blue-400">{inventoryItems.length}</p>
                 </div>
             </div>
 
             {/* Recipes Grid */}
             {filteredRecipes.length === 0 ? (
-                <div className="text-center py-16 bg-slate-800/30 rounded-xl border border-slate-700">
-                    <Package size={48} className="mx-auto mb-4 text-slate-600" />
-                    <p className="text-slate-400 mb-4">
+                <div className="text-center py-16 bg-white dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none">
+                    <Package size={48} className="mx-auto mb-4 text-slate-400 dark:text-slate-600" />
+                    <p className="text-slate-500 dark:text-slate-400 mb-4">
                         {searchQuery ? 'No recipes match your search' : 'No production recipes yet'}
                     </p>
                     {!searchQuery && (

@@ -21,7 +21,6 @@ import { useBudgetMonitor, type BudgetWithStatus } from '../../../hooks/useBudge
 import { useAuth } from '../../../contexts/AuthContext';
 import { BudgetProgressBar } from './BudgetProgressBar';
 import { BudgetPrfDrawer } from './BudgetPrfDrawer';
-import './BudgetDashboardWidget.css';
 
 interface BudgetDashboardWidgetProps {
     /** Filter by specific Business Unit ID (null for all) */
@@ -133,12 +132,12 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
 
     if (loading) {
         return (
-            <div className={`budget-widget ${compact ? 'compact' : ''}`}>
-                <div className="budget-widget-header">
-                    <h3>{title}</h3>
+            <div className={`bg-white dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm transition-colors ${compact ? 'p-4' : 'p-6'}`}>
+                <div className="flex justify-between items-center mb-5">
+                    <h3 className={`font-bold text-slate-800 dark:text-white ${compact ? 'text-base' : 'text-lg'}`}>{title}</h3>
                 </div>
-                <div className="budget-widget-loading">
-                    <div className="loading-spinner" />
+                <div className="flex flex-col items-center justify-center p-8 gap-3 text-slate-400 dark:text-slate-500">
+                    <div className="w-8 h-8 rounded-full border-2 border-slate-200 dark:border-slate-700 border-t-purple-500 animate-spin" />
                     <span>Loading budgets...</span>
                 </div>
             </div>
@@ -147,11 +146,11 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
 
     if (error) {
         return (
-            <div className={`budget-widget ${compact ? 'compact' : ''} error`}>
-                <div className="budget-widget-header">
-                    <h3>{title}</h3>
+            <div className={`bg-white dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm transition-colors ${compact ? 'p-4' : 'p-6'}`}>
+                <div className="flex justify-between items-center mb-5">
+                    <h3 className={`font-bold text-slate-800 dark:text-white ${compact ? 'text-base' : 'text-lg'}`}>{title}</h3>
                 </div>
-                <div className="budget-widget-error">
+                <div className="p-6 text-center text-rose-500 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-lg">
                     <span>⚠️ {error}</span>
                 </div>
             </div>
@@ -160,11 +159,11 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
 
     if (budgets.length === 0) {
         return (
-            <div className={`budget-widget ${compact ? 'compact' : ''}`}>
-                <div className="budget-widget-header">
-                    <h3>{title}</h3>
+            <div className={`bg-white dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm transition-colors ${compact ? 'p-4' : 'p-6'}`}>
+                <div className="flex justify-between items-center mb-5">
+                    <h3 className={`font-bold text-slate-800 dark:text-white ${compact ? 'text-base' : 'text-lg'}`}>{title}</h3>
                 </div>
-                <div className="budget-widget-empty">
+                <div className="p-8 text-center text-slate-500 dark:text-slate-400 italic">
                     <span>No budgets configured for this period.</span>
                 </div>
             </div>
@@ -172,18 +171,18 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
     }
 
     return (
-        <div className={`budget-widget ${compact ? 'compact' : ''}`}>
+        <div className={`bg-white dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-200 dark:border-slate-700/50 shadow-sm transition-colors ${compact ? 'p-4' : 'p-6'}`}>
             {/* Header with title and alerts */}
-            <div className="budget-widget-header">
-                <h3>{title}</h3>
-                <div className="budget-widget-alerts">
+            <div className="flex justify-between items-center mb-5">
+                <h3 className={`font-bold text-slate-800 dark:text-white ${compact ? 'text-base' : 'text-lg'}`}>{title}</h3>
+                <div className="flex gap-2">
                     {criticalCount > 0 && (
-                        <span className="alert-badge critical">
+                        <span className="px-3 py-1 text-[11px] font-bold rounded-full uppercase tracking-wide bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-500/40 animate-pulse">
                             {criticalCount} Critical
                         </span>
                     )}
                     {warningCount > 0 && (
-                        <span className="alert-badge warning">
+                        <span className="px-3 py-1 text-[11px] font-bold rounded-full uppercase tracking-wide bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/40">
                             {warningCount} Warning
                         </span>
                     )}
@@ -191,19 +190,19 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
             </div>
 
             {/* Summary stats */}
-            <div className="budget-widget-summary">
-                <div className="summary-stat">
-                    <span className="stat-label">Total Budget</span>
-                    <span className="stat-value">{formatCurrency(totalBudget)}</span>
+            <div className={`flex flex-wrap gap-4 p-4 mb-5 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700/30 ${compact ? 'p-3 gap-3' : ''}`}>
+                <div className="flex-1 min-w-[30%] text-center flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Budget</span>
+                    <span className={`font-bold text-slate-900 dark:text-slate-100 ${compact ? 'text-[15px]' : 'text-base'}`}>{formatCurrency(totalBudget)}</span>
                 </div>
-                <div className="summary-stat">
-                    <span className="stat-label">Total Spent</span>
-                    <span className="stat-value">{formatCurrency(totalSpent)}</span>
+                <div className="flex-1 min-w-[30%] text-center flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Total Spent</span>
+                    <span className={`font-bold text-slate-900 dark:text-slate-100 ${compact ? 'text-[15px]' : 'text-base'}`}>{formatCurrency(totalSpent)}</span>
                 </div>
-                <div className="summary-stat">
-                    <span className="stat-label">Overall</span>
-                    <span className={`stat-value percentage ${overallPercentage >= 100 ? 'critical' :
-                        overallPercentage >= 80 ? 'warning' : 'safe'
+                <div className="flex-1 min-w-[30%] text-center flex flex-col">
+                    <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Overall</span>
+                    <span className={`font-bold font-mono ${compact ? 'text-[15px]' : 'text-base'} ${overallPercentage >= 100 ? 'text-rose-600 dark:text-rose-400' :
+                        overallPercentage >= 80 ? 'text-amber-500 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
                         }`}>
                         {overallPercentage}%
                     </span>
@@ -211,7 +210,7 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
             </div>
 
             {/* Budget list */}
-            <div className="budget-widget-list">
+            <div className={`flex flex-col gap-2 overflow-y-auto ${compact ? 'max-h-[280px]' : 'max-h-[400px]'}`}>
                 {visibleBudgets.map(budget => (
                     <BudgetProgressBar
                         key={budget.id}
@@ -236,7 +235,7 @@ export const BudgetDashboardWidget: React.FC<BudgetDashboardWidgetProps> = ({
             {/* See more / See less toggle */}
             {hasMore && (
                 <button
-                    className="budget-widget-toggle"
+                    className="block w-full mt-4 p-2.5 text-sm font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-500/20 hover:text-purple-700 dark:hover:text-purple-300 transition-all"
                     onClick={() => setExpanded(!expanded)}
                 >
                     {expanded

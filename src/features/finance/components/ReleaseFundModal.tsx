@@ -58,16 +58,17 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
       <Card className="w-full max-w-md p-6">
-        <h2 className="text-2xl font-bold text-white mb-4">Release Funds</h2>
-        <p className="text-slate-400 mb-6">
-          Confirm fund release for PRF: <span className="font-bold text-purple-400">{requisition.id}</span>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">Release Funds</h2>
+        <p className="text-slate-500 dark:text-slate-400 mb-6">
+          Confirm fund release for PRF: <span className="font-bold text-purple-600 dark:text-purple-400">{requisition.id}</span>
         </p>
 
         {/* Display Amount */}
-        <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 mb-4">
+        {/* Display Amount */}
+        <div className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700 mb-4">
           <div className="flex justify-between items-center">
-            <span className="text-slate-400 text-sm">Amount to Release</span>
-            <span className="text-emerald-400 font-bold text-xl">
+            <span className="text-slate-500 dark:text-slate-400 text-sm">Amount to Release</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold text-xl">
               ₱{requisition.totalAmount?.toLocaleString()}
             </span>
           </div>
@@ -82,13 +83,13 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
 
         {/* Bank Reference Info from Check Prep */}
         {hasBankRefInfo && (
-          <div className="mb-4 p-4 bg-slate-900/50 rounded-lg border border-slate-700">
+          <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700">
             <p className="text-xs text-slate-500 uppercase mb-2 font-medium">From Check Prep</p>
             <div className="flex items-center gap-3 mb-2">
-              <FileText className="text-amber-400" size={18} />
+              <FileText className="text-amber-500 dark:text-amber-400" size={18} />
               <div>
                 <p className="text-xs text-slate-500">Bank Ref #</p>
-                <p className="text-white font-mono font-medium">{bankRefNumber}</p>
+                <p className="text-slate-900 dark:text-white font-mono font-medium">{bankRefNumber}</p>
               </div>
             </div>
             {bankRefLink && (
@@ -108,9 +109,9 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
         {/* Check Voucher Input Section */}
         <div className="space-y-4 mb-6">
           <div>
-            <label htmlFor="checkVoucherNumber" className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="checkVoucherNumber" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               <Hash className="w-4 h-4 inline mr-2" />
-              Check Voucher # <span className="text-red-400">*</span>
+              Check Voucher # <span className="text-red-500 dark:text-red-400">*</span>
             </label>
             <input
               id="checkVoucherNumber"
@@ -118,12 +119,12 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
               value={checkVoucherNumber}
               onChange={(e) => setCheckVoucherNumber(e.target.value)}
               placeholder="Enter check voucher number"
-              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
           </div>
 
           <div>
-            <label htmlFor="checkVoucherLink" className="block text-sm font-medium text-slate-300 mb-2">
+            <label htmlFor="checkVoucherLink" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               <LinkIcon className="w-4 h-4 inline mr-2" />
               Voucher Link <span className="text-slate-500">(optional)</span>
             </label>
@@ -133,7 +134,7 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
               value={checkVoucherLink}
               onChange={(e) => setCheckVoucherLink(e.target.value)}
               placeholder="https://drive.google.com/..."
-              className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              className="w-full px-4 py-3 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
             />
             <p className="text-xs text-slate-500 mt-1">
               Paste a Google Drive link to the voucher document
@@ -141,8 +142,8 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
-          <button onClick={onClose} className="px-6 py-2 text-slate-300 font-medium hover:bg-slate-700 rounded-lg">
+        <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <button onClick={onClose} className="px-6 py-2 text-slate-500 dark:text-slate-300 font-medium hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
             Cancel
           </button>
           <button

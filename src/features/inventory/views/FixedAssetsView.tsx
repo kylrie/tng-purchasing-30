@@ -66,10 +66,10 @@ const calculateBookValue = (asset: InventoryItem): { bookValue: number; percentD
 
 const StatusBadge: React.FC<{ status: AssetStatus }> = ({ status }) => {
     const config: Record<AssetStatus, { bg: string; text: string; Icon: typeof CheckCircle }> = {
-        'Active': { bg: 'bg-green-500/20', text: 'text-green-400', Icon: CheckCircle },
-        'Broken': { bg: 'bg-red-500/20', text: 'text-red-400', Icon: XCircle },
-        'In Repair': { bg: 'bg-amber-500/20', text: 'text-amber-400', Icon: Wrench },
-        'Decommissioned': { bg: 'bg-slate-500/20', text: 'text-slate-400', Icon: Archive }
+        'Active': { bg: 'bg-green-500/20', text: 'text-green-600 dark:text-green-400', Icon: CheckCircle },
+        'Broken': { bg: 'bg-red-500/20', text: 'text-red-500 dark:text-red-400', Icon: XCircle },
+        'In Repair': { bg: 'bg-amber-500/20', text: 'text-amber-500 dark:text-amber-400', Icon: Wrench },
+        'Decommissioned': { bg: 'bg-slate-500/20', text: 'text-slate-500 dark:text-slate-400', Icon: Archive }
     };
 
     const { bg, text, Icon } = config[status] || config['Active'];
@@ -203,11 +203,11 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-                        <Monitor className="text-teal-400" />
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                        <Monitor className="text-teal-500 dark:text-teal-400" />
                         Fixed Assets
                     </h1>
-                    <p className="text-slate-400 mt-1">
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">
                         Track equipment, machinery, and furniture
                     </p>
                 </div>
@@ -223,15 +223,15 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
                     </button>
 
                     {/* Business Unit Selector */}
-                    <div className="flex items-center gap-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2">
-                        <Building2 size={16} className="text-slate-400" />
+                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
+                        <Building2 size={16} className="text-slate-500 dark:text-slate-400" />
                         <select
                             value={selectedBusinessUnit}
                             onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="bg-transparent text-white focus:outline-none text-sm"
+                            className="bg-transparent text-slate-900 dark:text-white focus:outline-none text-sm"
                         >
                             {businesses.map(bu => (
-                                <option key={bu.id} value={bu.id} className="bg-slate-800">
+                                <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                                     {bu.name}
                                 </option>
                             ))}
@@ -242,58 +242,58 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
 
             {/* Search */}
             <div className="relative max-w-md">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
                 <input
                     type="text"
                     placeholder="Search by name, serial #, category..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
+                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
                 />
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Total Assets</p>
-                    <p className="text-2xl font-bold text-white">{assets.length}</p>
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Total Assets</p>
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{assets.length}</p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm">Purchase Value</p>
-                    <p className="text-2xl font-bold text-slate-300 flex items-center gap-1">
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">Purchase Value</p>
+                    <p className="text-2xl font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
                         <PesoSign size={18} />
                         {totalValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
                     </p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm flex items-center gap-1">
-                        <TrendingDown size={14} className="text-amber-400" /> Book Value
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm flex items-center gap-1">
+                        <TrendingDown size={14} className="text-amber-500 dark:text-amber-400" /> Book Value
                     </p>
-                    <p className="text-2xl font-bold text-teal-400 flex items-center gap-1">
+                    <p className="text-2xl font-bold text-teal-600 dark:text-teal-400 flex items-center gap-1">
                         <PesoSign size={18} />
                         {totalBookValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
                     </p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm flex items-center gap-1"><CheckCircle size={14} className="text-green-400" /> Active</p>
-                    <p className="text-2xl font-bold text-green-400">{activeCount}</p>
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm flex items-center gap-1"><CheckCircle size={14} className="text-green-500 dark:text-green-400" /> Active</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">{activeCount}</p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm flex items-center gap-1"><Wrench size={14} className="text-amber-400" /> In Repair</p>
-                    <p className="text-2xl font-bold text-amber-400">{inRepairCount}</p>
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm flex items-center gap-1"><Wrench size={14} className="text-amber-500 dark:text-amber-400" /> In Repair</p>
+                    <p className="text-2xl font-bold text-amber-500 dark:text-amber-400">{inRepairCount}</p>
                 </div>
-                <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-                    <p className="text-slate-400 text-sm flex items-center gap-1"><AlertTriangle size={14} className="text-red-400" /> Broken</p>
-                    <p className="text-2xl font-bold text-red-400">{brokenCount}</p>
+                <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm flex items-center gap-1"><AlertTriangle size={14} className="text-red-500 dark:text-red-400" /> Broken</p>
+                    <p className="text-2xl font-bold text-red-500 dark:text-red-400">{brokenCount}</p>
                 </div>
             </div>
 
             {/* Assets Table */}
-            <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+            <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
                 {filteredAssets.length === 0 ? (
                     <div className="text-center py-16">
-                        <Monitor size={48} className="mx-auto mb-4 text-slate-600" />
-                        <p className="text-slate-400 mb-4">
+                        <Monitor size={48} className="mx-auto mb-4 text-slate-400 dark:text-slate-600" />
+                        <p className="text-slate-500 dark:text-slate-400 mb-4">
                             {searchQuery ? 'No assets match your search' : 'No fixed assets yet'}
                         </p>
                         {!searchQuery && (
@@ -308,25 +308,25 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full">
-                            <thead className="bg-slate-900/50 border-b border-slate-700">
+                            <thead className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
                                 <tr>
-                                    <th className="text-left text-xs font-semibold text-slate-400 uppercase p-4">Asset</th>
-                                    <th className="text-left text-xs font-semibold text-slate-400 uppercase p-4">Tag / Serial #</th>
-                                    <th className="text-left text-xs font-semibold text-slate-400 uppercase p-4">Category</th>
-                                    <th className="text-left text-xs font-semibold text-slate-400 uppercase p-4">Purchase Date</th>
-                                    <th className="text-right text-xs font-semibold text-slate-400 uppercase p-4">Book Value</th>
-                                    <th className="text-left text-xs font-semibold text-slate-400 uppercase p-4">Status</th>
-                                    <th className="text-left text-xs font-semibold text-slate-400 uppercase p-4">Assigned To</th>
-                                    <th className="text-right text-xs font-semibold text-slate-400 uppercase p-4">Actions</th>
+                                    <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase p-4">Asset</th>
+                                    <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase p-4">Tag / Serial #</th>
+                                    <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase p-4">Category</th>
+                                    <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase p-4">Purchase Date</th>
+                                    <th className="text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase p-4">Book Value</th>
+                                    <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase p-4">Status</th>
+                                    <th className="text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase p-4">Assigned To</th>
+                                    <th className="text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase p-4">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-700">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                                 {filteredAssets.map(asset => (
-                                    <tr key={asset.id} className="hover:bg-slate-700/30 transition-colors">
+                                    <tr key={asset.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                                         {/* Asset Name + Image */}
                                         <td className="p-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center overflow-hidden">
+                                                <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-lg flex items-center justify-center overflow-hidden">
                                                     {asset.imageUrl ? (
                                                         <img
                                                             src={asset.imageUrl}
@@ -334,11 +334,11 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
                                                             className="w-full h-full object-cover"
                                                         />
                                                     ) : (
-                                                        <Monitor size={20} className="text-slate-400" />
+                                                        <Monitor size={20} className="text-slate-500 dark:text-slate-400" />
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <p className="font-medium text-white">{asset.name}</p>
+                                                    <p className="font-medium text-slate-900 dark:text-white">{asset.name}</p>
                                                     <p className="text-xs text-slate-500">Qty: {asset.currentStock}</p>
                                                 </div>
                                             </div>
@@ -346,19 +346,19 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
 
                                         {/* Serial Number */}
                                         <td className="p-4">
-                                            <span className="font-mono text-sm text-slate-300">
+                                            <span className="font-mono text-sm text-slate-600 dark:text-slate-300">
                                                 {asset.assetDetails?.serialNumber || asset.sku || '-'}
                                             </span>
                                         </td>
 
                                         {/* Category */}
                                         <td className="p-4">
-                                            <span className="text-slate-300">{asset.category}</span>
+                                            <span className="text-slate-700 dark:text-slate-300">{asset.category}</span>
                                         </td>
 
                                         {/* Purchase Date */}
                                         <td className="p-4">
-                                            <span className="text-slate-300">
+                                            <span className="text-slate-700 dark:text-slate-300">
                                                 {formatDate(asset.assetDetails?.purchaseDate)}
                                             </span>
                                         </td>
@@ -370,7 +370,7 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
                                                 const purchasePrice = asset.assetDetails?.purchasePrice || asset.costPerUnit * asset.currentStock;
                                                 return (
                                                     <div>
-                                                        <p className={`font-medium flex items-center justify-end gap-1 ${percentDepreciated >= 100 ? 'text-red-400' : 'text-green-400'}`}>
+                                                        <p className={`font-medium flex items-center justify-end gap-1 ${percentDepreciated >= 100 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                                             <PesoSign size={14} />
                                                             {bookValue.toLocaleString('en-PH', { minimumFractionDigits: 0 })}
                                                         </p>
@@ -391,7 +391,7 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
 
                                         {/* Assigned To */}
                                         <td className="p-4">
-                                            <span className="text-slate-300">
+                                            <span className="text-slate-700 dark:text-slate-300">
                                                 {asset.assetDetails?.assignedTo || '-'}
                                             </span>
                                         </td>
@@ -401,14 +401,14 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
                                             <div className="flex items-center justify-end gap-1">
                                                 <button
                                                     onClick={() => handleEditAsset(asset)}
-                                                    className="p-2 hover:bg-slate-600 rounded-lg text-slate-400 hover:text-white transition-colors"
+                                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                                                     title="Edit Asset"
                                                 >
                                                     <Edit size={16} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDecommissionAsset(asset)}
-                                                    className="p-2 hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-400 transition-colors"
+                                                    className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                                                     title="Decommission Asset"
                                                 >
                                                     <Archive size={16} />

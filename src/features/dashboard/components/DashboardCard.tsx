@@ -177,11 +177,16 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
                 onClick={() => navigate(route)}
                 onMouseEnter={() => setShowPreview(true)}
                 onMouseLeave={() => setShowPreview(false)}
-                className={`w-full p-3 rounded-xl bg-slate-800/80 border border-slate-700/50 
-                    shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.05)]
-                    hover:shadow-[inset_1px_1px_2px_rgba(0,0,0,0.3),inset_-1px_-1px_2px_rgba(255,255,255,0.03),0_0_15px_rgba(139,92,246,0.15)]
-                    hover:border-purple-500/30
-                    transition-all duration-300 group text-left flex flex-col items-center ${urgencyClass}`}
+                className={`w-full p-3 rounded-xl 
+                    bg-white/80 dark:bg-slate-800/80 
+                    backdrop-blur-xl 
+                    border border-slate-200/60 dark:border-slate-700/50 
+                    shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-[inset_2px_2px_4px_rgba(0,0,0,0.4),inset_-2px_-2px_4px_rgba(255,255,255,0.05)]
+                    hover:shadow-[0_8px_30px_-6px_rgba(139,92,246,0.15)] dark:hover:shadow-[0_0_15px_rgba(139,92,246,0.15)]
+                    hover:border-purple-300/50 dark:hover:border-purple-500/30
+                    hover:-translate-y-1 transform
+                    transition-all duration-300 ease-out 
+                    group text-left flex flex-col items-center ${urgencyClass}`}
             >
                 {/* Trend Indicator - Top Right */}
                 {trendPercent !== undefined && (
@@ -211,18 +216,18 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
                     strokeWidth={3}
                     gradientColors={gradientColors}
                 >
-                    <div className={`p-1 rounded-lg bg-slate-700/50 ${iconColor}`}>
+                    <div className={`p-1 rounded-lg bg-slate-100 dark:bg-slate-700/50 ${iconColor}`}>
                         <Icon size={16} />
                     </div>
                 </ProgressRing>
 
                 {/* Value */}
-                <div className="mt-1.5 text-xl font-bold text-white group-hover:scale-105 transition-transform">
+                <div className="mt-1.5 text-xl font-bold text-slate-800 dark:text-white group-hover:scale-105 transition-transform">
                     {value}
                 </div>
 
                 {/* Label */}
-                <div className="text-[10px] font-medium text-slate-300">
+                <div className="text-[10px] font-medium text-slate-500 dark:text-slate-300">
                     {label}
                 </div>
 
@@ -235,7 +240,7 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
                             e.stopPropagation();
                             onFilterChange?.(e.target.value);
                         }}
-                        className="mt-1 w-full px-1.5 py-0.5 text-[10px] bg-slate-700/50 border border-slate-600/50 rounded text-slate-300 focus:outline-none focus:border-purple-500/50"
+                        className="mt-1 w-full px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600/50 rounded text-slate-600 dark:text-slate-300 focus:outline-none focus:border-purple-500/50"
                     >
                         {filterOptions.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -255,12 +260,12 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 
             {/* Hover Preview Tooltip */}
             {showPreview && previewItems.length > 0 && (
-                <div className="absolute z-50 top-full left-0 right-0 mt-1 p-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl">
-                    <div className="text-[10px] font-semibold text-slate-400 mb-1">Quick Preview</div>
+                <div className="absolute z-50 top-full left-0 right-0 mt-1 p-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl">
+                    <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Quick Preview</div>
                     {previewItems.slice(0, 3).map((item, idx) => (
-                        <div key={item.id} className={`text-xs text-slate-300 py-0.5 ${idx > 0 ? 'border-t border-slate-700/50' : ''}`}>
+                        <div key={item.id} className={`text-xs text-slate-600 dark:text-slate-300 py-0.5 ${idx > 0 ? 'border-t border-slate-100 dark:border-slate-700/50' : ''}`}>
                             <div className="font-medium truncate">{item.title}</div>
-                            {item.subtitle && <div className="text-[10px] text-slate-500 truncate">{item.subtitle}</div>}
+                            {item.subtitle && <div className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{item.subtitle}</div>}
                         </div>
                     ))}
                 </div>
@@ -268,12 +273,12 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
 
             {/* Expanded Breakdown */}
             {isExpanded && breakdown.length > 0 && (
-                <div className="mt-1 p-2 bg-slate-800/60 border border-slate-700/50 rounded-lg">
-                    <div className="text-[10px] font-semibold text-slate-400 mb-1">Breakdown</div>
+                <div className="mt-1 p-2 bg-white/50 dark:bg-slate-800/60 border border-slate-200/50 dark:border-slate-700/50 rounded-lg">
+                    <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Breakdown</div>
                     {breakdown.map((item, idx) => (
                         <div key={idx} className="flex justify-between items-center text-xs py-0.5">
-                            <span className="text-slate-300">{item.label}</span>
-                            <span className={item.color || 'text-slate-400'}>{item.count}</span>
+                            <span className="text-slate-600 dark:text-slate-300">{item.label}</span>
+                            <span className={item.color || 'text-slate-500 dark:text-slate-400'}>{item.count}</span>
                         </div>
                     ))}
                 </div>

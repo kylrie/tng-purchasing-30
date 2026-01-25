@@ -77,20 +77,20 @@ const HealthCard: React.FC<HealthCardProps> = ({
 
             <div className="relative">
                 <div className="flex items-center justify-between mb-4">
-                    <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                    <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm shadow-sm">
                         {icon}
                     </div>
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/30 ${trendColor}`}>
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded-full bg-slate-900/30 text-white shadow-sm ${trendColor}`}>
                         <TrendIcon size={14} />
                         <span className="text-xs font-semibold">{Math.abs(trend).toFixed(1)}%</span>
                     </div>
                 </div>
 
-                <p className="text-white/70 text-sm font-medium mb-1">{title}</p>
-                <p className={`text-3xl font-bold ${isNegative ? 'text-rose-200' : 'text-white'}`}>
+                <p className="text-white/90 text-sm font-medium mb-1">{title}</p>
+                <p className={`text-3xl font-bold ${isNegative ? 'text-rose-100' : 'text-white'} drop-shadow-sm`}>
                     {value}
                 </p>
-                <p className="text-white/50 text-xs mt-2">vs last month</p>
+                <p className="text-white/70 text-xs mt-2">vs last month</p>
             </div>
         </div>
     );
@@ -108,16 +108,16 @@ const CustomBarTooltip: React.FC<{
     if (!active || !payload) return null;
 
     return (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-xl">
-            <p className="text-white font-semibold mb-2">{label}</p>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-xl">
+            <p className="text-slate-800 dark:text-white font-semibold mb-2">{label}</p>
             {payload.map((entry, index) => (
                 <div key={index} className="flex items-center gap-2 text-sm">
                     <div
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: entry.color }}
                     />
-                    <span className="text-slate-400 capitalize">{entry.name}:</span>
-                    <span className="text-white font-medium">
+                    <span className="text-slate-600 dark:text-slate-400 capitalize">{entry.name}:</span>
+                    <span className="text-slate-900 dark:text-white font-medium">
                         {FinanceDashboardService.formatCurrency(entry.value)}
                     </span>
                 </div>
@@ -138,15 +138,15 @@ const CustomPieTooltip: React.FC<{
 
     const data = payload[0];
     return (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 shadow-xl">
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 shadow-xl">
             <div className="flex items-center gap-2">
                 <div
                     className="w-3 h-3 rounded-full"
                     style={{ backgroundColor: data.payload.color }}
                 />
-                <span className="text-white font-semibold">{data.name}</span>
+                <span className="text-slate-800 dark:text-white font-semibold">{data.name}</span>
             </div>
-            <p className="text-slate-400 text-sm mt-1">
+            <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">
                 {FinanceDashboardService.formatFullCurrency(data.value)}
             </p>
         </div>
@@ -161,18 +161,18 @@ const TransactionRow: React.FC<{ transaction: HighValueTransaction }> = ({ trans
     const isIncome = transaction.type === 'income';
 
     return (
-        <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl hover:bg-slate-700/50 transition-colors">
+        <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-800/50 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border border-slate-100 dark:border-transparent shadow-sm dark:shadow-none">
             <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-lg ${isIncome ? 'bg-emerald-500/20' : 'bg-rose-500/20'}`}>
+                <div className={`p-2 rounded-lg ${isIncome ? 'bg-emerald-100 dark:bg-emerald-500/20' : 'bg-rose-100 dark:bg-rose-500/20'}`}>
                     {isIncome ? (
-                        <TrendingUp size={18} className="text-emerald-400" />
+                        <TrendingUp size={18} className="text-emerald-500 dark:text-emerald-400" />
                     ) : (
-                        <TrendingDown size={18} className="text-rose-400" />
+                        <TrendingDown size={18} className="text-rose-500 dark:text-rose-400" />
                     )}
                 </div>
                 <div>
-                    <p className="text-white font-medium">{transaction.description}</p>
-                    <p className="text-slate-400 text-sm flex items-center gap-2">
+                    <p className="text-slate-800 dark:text-white font-medium">{transaction.description}</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm flex items-center gap-2">
                         <span>{transaction.category}</span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
@@ -182,7 +182,7 @@ const TransactionRow: React.FC<{ transaction: HighValueTransaction }> = ({ trans
                     </p>
                 </div>
             </div>
-            <p className={`text-lg font-bold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <p className={`text-lg font-bold ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                 {isIncome ? '+' : '-'}{FinanceDashboardService.formatFullCurrency(transaction.amount)}
             </p>
         </div>
@@ -267,7 +267,7 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
                     <select
                         value={selectedBusinessUnit}
                         onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                        className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-purple-500"
+                        className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-white focus:outline-none focus:border-purple-500 shadow-sm dark:shadow-none"
                     >
                         <option value="all">All Business Units</option>
                         {businesses.map(bu => (
@@ -327,23 +327,23 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
             {/* Section 2: Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Chart A: Cash Flow Trends (Bar Chart) */}
-                <div className="lg:col-span-3 bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
-                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                        <Receipt size={20} className="text-purple-400" />
+                <div className="lg:col-span-3 bg-white dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 min-w-0 shadow-sm dark:shadow-none">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                        <Receipt size={20} className="text-purple-600 dark:text-purple-400" />
                         Cash Flow Trends (Last 6 Months)
                     </h3>
-                    <div className="h-80">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-80 w-full min-w-0">
+                        <ResponsiveContainer width="99%" height="100%" minWidth={0}>
                             <BarChart data={cashFlowData} barGap={8}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#cbd5e1" className="dark:stroke-slate-700" />
                                 <XAxis
                                     dataKey="month"
-                                    tick={{ fill: '#94a3b8', fontSize: 12 }}
-                                    axisLine={{ stroke: '#475569' }}
+                                    tick={{ fill: '#64748b', fontSize: 12 }}
+                                    axisLine={{ stroke: '#94a3b8' }}
                                 />
                                 <YAxis
-                                    tick={{ fill: '#94a3b8', fontSize: 12 }}
-                                    axisLine={{ stroke: '#475569' }}
+                                    tick={{ fill: '#64748b', fontSize: 12 }}
+                                    axisLine={{ stroke: '#94a3b8' }}
                                     tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`}
                                 />
                                 <Tooltip content={<CustomBarTooltip />} />
@@ -375,13 +375,13 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
                 </div>
 
                 {/* Chart B: Expense Distribution (Donut Chart) */}
-                <div className="lg:col-span-2 bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
-                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                        <TrendingDown size={20} className="text-rose-400" />
+                <div className="lg:col-span-2 bg-white dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 min-w-0 shadow-sm dark:shadow-none">
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                        <TrendingDown size={20} className="text-rose-500 dark:text-rose-400" />
                         Expense Breakdown
                     </h3>
-                    <div className="h-80 relative">
-                        <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-80 relative w-full min-w-0">
+                        <ResponsiveContainer width="99%" height="100%" minWidth={0}>
                             <PieChart>
                                 <Pie
                                     data={expenseData}
@@ -411,8 +411,8 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
                         {/* Center Label */}
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ marginBottom: '40px' }}>
                             <div className="text-center">
-                                <p className="text-slate-400 text-xs">Total</p>
-                                <p className="text-white font-bold text-lg">
+                                <p className="text-slate-500 dark:text-slate-400 text-xs">Total</p>
+                                <p className="text-slate-800 dark:text-white font-bold text-lg">
                                     {FinanceDashboardService.formatCurrency(totalExpenses)}
                                 </p>
                             </div>
@@ -422,9 +422,9 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
             </div>
 
             {/* Section 3: High-Value Transactions */}
-            <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700">
-                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                    <Coins size={20} className="text-amber-400" />
+            <div className="bg-white dark:bg-slate-800/50 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+                    <Coins size={20} className="text-amber-500 dark:text-amber-400" />
                     Recent High-Value Transactions (₱50,000+)
                 </h3>
 

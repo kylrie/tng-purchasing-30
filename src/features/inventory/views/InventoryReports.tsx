@@ -53,29 +53,29 @@ const StatCard: React.FC<{
     };
 
     const iconColors = {
-        purple: 'text-purple-400',
-        cyan: 'text-cyan-400',
-        green: 'text-green-400',
-        amber: 'text-amber-400',
-        red: 'text-red-400'
+        purple: 'text-purple-600 dark:text-purple-400',
+        cyan: 'text-cyan-600 dark:text-cyan-400',
+        green: 'text-green-600 dark:text-green-400',
+        amber: 'text-amber-600 dark:text-amber-400',
+        red: 'text-red-600 dark:text-red-400'
     };
 
     return (
-        <div className={`bg-gradient-to-br ${colorClasses[color]} backdrop-blur-sm rounded-xl border p-6 transition-all hover:scale-[1.02]`}>
+        <div className={`bg-gradient-to-br ${colorClasses[color]} backdrop-blur-sm rounded-xl border p-6 transition-all hover:scale-[1.02] shadow-sm dark:shadow-none`}>
             <div className="flex items-start justify-between">
                 <div>
-                    <p className="text-sm text-slate-400 font-medium">{title}</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-white mt-1">{value}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{title}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mt-1">{value}</p>
                     {subtitle && <p className="text-sm text-slate-500 mt-1">{subtitle}</p>}
                     {trend && (
-                        <div className={`flex items-center gap-1 mt-2 ${trend.isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                        <div className={`flex items-center gap-1 mt-2 ${trend.isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                             {trend.isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                             <span className="text-sm font-medium">{Math.abs(trend.value)}%</span>
                             <span className="text-xs text-slate-500">vs last period</span>
                         </div>
                     )}
                 </div>
-                <div className={`p-3 rounded-xl bg-slate-800/50 ${iconColors[color]}`}>
+                <div className={`p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 ${iconColors[color]}`}>
                     {icon}
                 </div>
             </div>
@@ -102,9 +102,9 @@ const COGSCard: React.FC<{
 
     if (!report) {
         return (
-            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6 text-center">
-                <AlertTriangle size={32} className="text-amber-400 mx-auto mb-3" />
-                <p className="text-slate-400">No COGS data available</p>
+            <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-6 text-center shadow-sm dark:shadow-none">
+                <AlertTriangle size={32} className="text-amber-500 dark:text-amber-400 mx-auto mb-3" />
+                <p className="text-slate-500 dark:text-slate-400">No COGS data available</p>
                 <p className="text-sm text-slate-500 mt-1">Complete at least one stock count to see COGS</p>
             </div>
         );
@@ -114,10 +114,10 @@ const COGSCard: React.FC<{
         `₱${val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
     return (
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <PesoSign size={20} className="text-green-400" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <PesoSign size={20} className="text-green-600 dark:text-green-400" />
                     Cost of Goods Sold (COGS)
                 </h3>
                 <span className="text-xs text-slate-500">
@@ -126,37 +126,37 @@ const COGSCard: React.FC<{
             </div>
 
             <div className="space-y-4">
-                <div className="flex items-center justify-between py-3 border-b border-slate-700">
+                <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-cyan-400" />
-                        <span className="text-slate-300">Beginning Inventory</span>
+                        <div className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400" />
+                        <span className="text-slate-600 dark:text-slate-300">Beginning Inventory</span>
                     </div>
-                    <span className="font-medium text-white">{formatCurrency(report.beginningInventoryValue)}</span>
+                    <span className="font-medium text-slate-900 dark:text-white">{formatCurrency(report.beginningInventoryValue)}</span>
                 </div>
 
-                <div className="flex items-center justify-between py-3 border-b border-slate-700">
+                <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-green-400" />
-                        <span className="text-slate-300">+ Purchases (Approved PRFs)</span>
+                        <div className="w-2 h-2 rounded-full bg-green-500 dark:bg-green-400" />
+                        <span className="text-slate-600 dark:text-slate-300">+ Purchases (Approved PRFs)</span>
                     </div>
-                    <span className="font-medium text-green-400">{formatCurrency(report.purchasesValue)}</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">{formatCurrency(report.purchasesValue)}</span>
                 </div>
 
-                <div className="flex items-center justify-between py-3 border-b border-slate-700">
+                <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-700">
                     <div className="flex items-center gap-3">
-                        <div className="w-2 h-2 rounded-full bg-purple-400" />
-                        <span className="text-slate-300">- Ending Inventory</span>
+                        <div className="w-2 h-2 rounded-full bg-purple-500 dark:bg-purple-400" />
+                        <span className="text-slate-600 dark:text-slate-300">- Ending Inventory</span>
                     </div>
-                    <span className="font-medium text-purple-400">{formatCurrency(report.endingInventoryValue)}</span>
+                    <span className="font-medium text-purple-600 dark:text-purple-400">{formatCurrency(report.endingInventoryValue)}</span>
                 </div>
 
                 <div className="flex items-center justify-between py-4 bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-lg px-4 -mx-1">
-                    <span className="font-semibold text-white">Cost of Goods Sold</span>
-                    <span className="text-2xl font-bold text-cyan-400">{formatCurrency(report.cogs)}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">Cost of Goods Sold</span>
+                    <span className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{formatCurrency(report.cogs)}</span>
                 </div>
             </div>
 
-            <div className="mt-4 p-3 bg-slate-700/30 rounded-lg">
+            <div className="mt-4 p-3 bg-slate-100 dark:bg-slate-700/30 rounded-lg">
                 <p className="text-xs text-slate-500 text-center">
                     COGS = Beginning Inventory + Purchases − Ending Inventory
                 </p>
@@ -184,10 +184,10 @@ const StockValueChart: React.FC<{
     }));
 
     return (
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm dark:shadow-none">
             <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <BarChart3 size={20} className="text-purple-400" />
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <BarChart3 size={20} className="text-purple-600 dark:text-purple-400" />
                     Stock Value Trends
                 </h3>
             </div>
@@ -201,20 +201,20 @@ const StockValueChart: React.FC<{
                                 <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                        <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.3} />
+                        <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} />
                         <YAxis
-                            stroke="#64748b"
+                            stroke="#94a3b8"
                             fontSize={12}
                             tickLine={false}
                             tickFormatter={(val) => `₱${(val / 1000).toFixed(0)}K`}
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #475569',
+                                backgroundColor: 'var(--tooltip-bg, #1e293b)',
+                                borderColor: 'var(--tooltip-border, #475569)',
                                 borderRadius: '8px',
-                                color: '#fff'
+                                color: 'var(--tooltip-text, #fff)'
                             }}
                             formatter={(val: number) => [`₱${val.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, 'Stock Value']}
                             labelStyle={{ color: '#94a3b8' }}
@@ -310,11 +310,11 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-3">
-                        <BarChart3 className="text-purple-400" />
+                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                        <BarChart3 className="text-purple-600 dark:text-purple-400" />
                         Inventory Reports
                     </h1>
-                    <p className="text-slate-400 mt-1">COGS analysis and stock value trends</p>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">COGS analysis and stock value trends</p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -323,8 +323,8 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
                             key={range}
                             onClick={() => setDateRange(range)}
                             className={`px-4 py-2 rounded-lg font-medium transition-all ${dateRange === range
-                                ? 'bg-purple-500 text-white'
-                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
                                 }`}
                         >
                             {range}
@@ -369,13 +369,13 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
                 <StockValueChart data={stockTrends} isLoading={isLoading} />
             </div>
 
-            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+            <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm dark:shadow-none">
                 <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <PieChartIcon size={20} className="text-cyan-400" />
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <PieChartIcon size={20} className="text-cyan-600 dark:text-cyan-400" />
                         Stock Value by Category
                     </h3>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm text-slate-300 transition-colors">
+                    <button className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg text-sm text-slate-700 dark:text-slate-300 transition-colors">
                         <Download size={16} />
                         Export Report
                     </button>
@@ -405,11 +405,11 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
                 </div>
             </div>
 
-            <div className="bg-slate-800/30 rounded-xl border border-slate-700/50 p-4">
+            <div className="bg-slate-100 dark:bg-slate-800/30 rounded-xl border border-slate-200 dark:border-slate-700/50 p-4">
                 <div className="flex items-start gap-3">
-                    <AlertTriangle size={18} className="text-amber-400 mt-0.5 flex-shrink-0" />
+                    <AlertTriangle size={18} className="text-amber-500 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                     <div>
-                        <p className="text-sm text-slate-300">
+                        <p className="text-sm text-slate-700 dark:text-slate-300">
                             <strong>Note:</strong> Purchases value is currently set to ₱0. Connect to the Approved PRFs API to automatically calculate purchases for accurate COGS.
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
