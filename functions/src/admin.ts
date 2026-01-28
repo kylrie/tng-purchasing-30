@@ -14,7 +14,7 @@
  * @throws HttpsError('permission-denied') if user is not authorized
  */
 
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 const db = getFirestore();
@@ -60,7 +60,7 @@ function createEmptyWeeklySpent(): WeeklySpent {
     };
 }
 
-export const setBudgetLimit = onCall(async (request) => {
+export const setBudgetLimit = onCall(async (request: CallableRequest<SetBudgetLimitInput>) => {
     // 1. Validate authentication
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'User must be authenticated');

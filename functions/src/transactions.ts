@@ -11,7 +11,7 @@
  * @throws HttpsError('failed-precondition') if budget is exceeded
  */
 
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
 const db = getFirestore();
@@ -66,7 +66,7 @@ function getWeekKey(weekNumber: number): keyof WeeklySpent {
     return `week${weekNumber}` as keyof WeeklySpent;
 }
 
-export const postTransaction = onCall(async (request) => {
+export const postTransaction = onCall(async (request: CallableRequest<PostTransactionInput>) => {
     // 1. Validate authentication
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'User must be authenticated');
