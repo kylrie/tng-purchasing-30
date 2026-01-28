@@ -260,7 +260,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }, []);
 
     // Requisition operations
-    const createRequisition = async (data: Omit<Requisition, 'id' | 'dateCreated' | 'timestamp'>): Promise<string> => {
+    const createRequisition = React.useCallback(async (data: Omit<Requisition, 'id' | 'dateCreated' | 'timestamp'>): Promise<string> => {
         try {
             const id = await RequisitionService.createRequisition(data as any);
             return id;
@@ -268,18 +268,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             setError(err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const updateRequisition = async (id: string, data: Partial<Requisition>): Promise<void> => {
+    const updateRequisition = React.useCallback(async (id: string, data: Partial<Requisition>): Promise<void> => {
         try {
             await RequisitionService.updateRequisition(id, data as any);
         } catch (err: any) {
             setError(err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const updateRequisitionStatus = async (
+    const updateRequisitionStatus = React.useCallback(async (
         id: string,
         status: RequisitionStatus,
         comment?: string
@@ -290,19 +290,19 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             setError(err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const deleteRequisition = async (id: string): Promise<void> => {
+    const deleteRequisition = React.useCallback(async (id: string): Promise<void> => {
         try {
             await RequisitionService.deleteRequisition(id);
         } catch (err: any) {
             setError(err.message);
             throw err;
         }
-    };
+    }, []);
 
     // Supplier operations
-    const createSupplier = async (data: Omit<Supplier, 'id'>): Promise<void> => {
+    const createSupplier = React.useCallback(async (data: Omit<Supplier, 'id'>): Promise<void> => {
         try {
             await FirestoreService.createDocument<FirestoreSupplier>(
                 COLLECTIONS.SUPPLIERS,
@@ -312,9 +312,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             setError(err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const updateSupplier = async (id: string, data: Partial<Supplier>): Promise<void> => {
+    const updateSupplier = React.useCallback(async (id: string, data: Partial<Supplier>): Promise<void> => {
         try {
             await FirestoreService.updateDocument<FirestoreSupplier>(
                 COLLECTIONS.SUPPLIERS,
@@ -325,19 +325,19 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             setError(err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const deleteSupplier = async (id: string): Promise<void> => {
+    const deleteSupplier = React.useCallback(async (id: string): Promise<void> => {
         try {
             await FirestoreService.deleteDocument(COLLECTIONS.SUPPLIERS, id);
         } catch (err: any) {
             setError(err.message);
             throw err;
         }
-    };
+    }, []);
 
     // Business operations
-    const getUsersByBusiness = async (businessId: string): Promise<User[]> => {
+    const getUsersByBusiness = React.useCallback(async (businessId: string): Promise<User[]> => {
         try {
             const firestoreUsers = await FirestoreService.getDocuments<FirestoreUser>(
                 COLLECTIONS.USERS,
@@ -348,9 +348,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             setError(err.message);
             throw err;
         }
-    };
+    }, []);
 
-    const value: DataContextType = {
+    const value: DataContextType = React.useMemo(() => ({
         requisitions,
         businesses,
         suppliers,
@@ -369,7 +369,26 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         updateSupplier,
         deleteSupplier,
         getUsersByBusiness,
-    };
+    }), [
+        requisitions,
+        businesses,
+        suppliers,
+        notifications,
+        allUsers,
+        loadingRequisitions,
+        loadingBusinesses,
+        loadingSuppliers,
+        loadingNotifications,
+        error,
+        createRequisition,
+        updateRequisition,
+        updateRequisitionStatus,
+        deleteRequisition,
+        createSupplier,
+        updateSupplier,
+        deleteSupplier,
+        getUsersByBusiness
+    ]);
 
     return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };

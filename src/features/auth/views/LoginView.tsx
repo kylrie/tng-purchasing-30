@@ -40,6 +40,10 @@ const LoginView = () => {
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
+    // Disable parallax on mobile/touch devices for performance
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return;
+
+    // Throttle slightly using requestAnimationFrame would be better, but basic check helps
     const { clientX, clientY } = e;
     const moveX = (clientX - window.innerWidth / 2) / 30;
     const moveY = (clientY - window.innerHeight / 2) / 30;

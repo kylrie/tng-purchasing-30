@@ -229,10 +229,13 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
         [totalAmount, applyVat, vatPercentage]
     );
 
-    const ewtAmount = useMemo(() =>
-        applyEwt ? totalAmount * (ewtPercentage / 100) : 0,
-        [totalAmount, applyEwt, ewtPercentage]
-    );
+    const ewtAmount = useMemo(() => {
+        if (!applyEwt) return 0;
+        // FIX: Calculate EWT based on Net of VAT amount (Gross Amount)
+        // Formula: Unit Cost / 1.12 (if 12% VAT)
+        const ewtBase = applyVat ? totalAmount / (1 + (vatPercentage / 100)) : totalAmount;
+        return ewtBase * (ewtPercentage / 100);
+    }, [totalAmount, applyEwt, ewtPercentage, applyVat, vatPercentage]);
 
     const netAmount = useMemo(() =>
         totalAmount - ewtAmount,

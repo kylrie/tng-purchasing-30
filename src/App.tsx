@@ -6,8 +6,9 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { DataProvider } from './shared/context/DataContext';
 import Layout from './shared/components/Layout';
 import ProtectedRoute from './shared/components/ProtectedRoute';
-import LoginView from './features/auth/views/LoginView';
-import DashboardView from './features/dashboard/views/DashboardView';
+// Static imports removed for code splitting
+// import LoginView from './features/auth/views/LoginView';
+// import DashboardView from './features/dashboard/views/DashboardView';
 
 import { Suspense } from 'react';
 import type { NotificationItem } from './shared/types';
@@ -49,6 +50,8 @@ const ChartOfAccountsView = React.lazy(() => import('./features/admin/views/Char
 const BudgetConfigPanel = React.lazy(() => import('./features/finance/components/BudgetConfigPanel').then(module => ({ default: module.BudgetConfigPanel })));
 const SettingsView = React.lazy(() => import('./features/admin/views/SettingsView').then(module => ({ default: module.SettingsView })));
 const ActivityLogView = React.lazy(() => import('./features/admin/views/ActivityLogView'));
+const LoginView = React.lazy(() => import('./features/auth/views/LoginView'));
+const DashboardView = React.lazy(() => import('./features/dashboard/views/DashboardView'));
 
 // Loading component
 const PageLoader = () => (
@@ -558,7 +561,11 @@ function App() {
             <PermissionsProvider>
               <DataProvider>
                 <Routes>
-                  <Route path="/login" element={<LoginView />} />
+                  <Route path="/login" element={
+                    <Suspense fallback={<PageLoader />}>
+                      <LoginView />
+                    </Suspense>
+                  } />
                   <Route path="/*" element={<ProtectedApp />} />
                 </Routes>
               </DataProvider>
