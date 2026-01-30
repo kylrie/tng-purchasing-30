@@ -13,8 +13,9 @@
 
 import { onCall, HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getApp } from 'firebase-admin/app';
 
-const db = getFirestore();
+const db = getFirestore(getApp(), 'tng-systems');
 
 interface PostTransactionInput {
     amount: number;
@@ -67,6 +68,8 @@ function getWeekKey(weekNumber: number): keyof WeeklySpent {
 }
 
 export const postTransaction = onCall(async (request: CallableRequest<PostTransactionInput>) => {
+    console.log('[postTransaction] Called with data:', JSON.stringify(request.data));
+
     // 1. Validate authentication
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'User must be authenticated');

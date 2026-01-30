@@ -384,9 +384,13 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
 
             onSave();
             onClose();
-        } catch (err) {
-            console.error('Error saving menu item:', err);
-            setError('Failed to save menu item');
+        } catch (err: any) {
+            console.error('Error saving menu item (Full Details):', err);
+            // Log specific Firestore error code if available
+            if (err.code) console.error('Firestore Error Code:', err.code);
+            if (err.message) console.error('Error Message:', err.message);
+
+            setError(`Failed to save menu item: ${err.message || 'Unknown error'}`);
         } finally {
             setIsSaving(false);
         }

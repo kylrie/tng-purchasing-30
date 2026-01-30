@@ -45,11 +45,19 @@ export class InventoryService {
                 [where('businessUnitId', '==', businessUnitId)]
             );
 
+            console.log(`[InventoryService] Fetched ${items.length} items for BU ${businessUnitId}`);
+            if (items.length > 0) {
+                console.log(`[InventoryService] Sample item type:`, items[0].type);
+            }
+
             // Client-side filtering
-            return items
+            const filtered = items
                 .filter(item => item.isActive !== false)
                 .filter(item => !typeFilter || item.type === typeFilter)
                 .sort((a, b) => a.name.localeCompare(b.name));
+
+            console.log(`[InventoryService] Returning ${filtered.length} items after filtering for type: ${typeFilter}`);
+            return filtered;
         } catch (error) {
             console.error('Error fetching inventory:', error);
             // Return mock data filtered by business unit and type

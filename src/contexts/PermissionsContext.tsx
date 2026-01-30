@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ROLES_TO_PERMISSIONS } from '../config/permissions';
 import type { Permission } from '../config/permissions';
@@ -37,54 +37,42 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchPermissions = async () => {
+        // Subscribe to the permissions document for real-time updates
+        const unsub = onSnapshot(doc(db, 'config', 'permissions'), (docSnap) => {
             try {
-                const docRef = doc(db, 'config', 'permissions');
-                const docSnap = await getDoc(docRef);
-
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     if (data.permissions) {
-                        // FIX BUG: Firestore is the single source of truth
-                        // Do NOT fall back to defaults - if Firestore has empty array, respect it
-                        // This fixes the issue where intentionally unchecked permissions reverted on refresh
                         const savedPermissions: Record<string, Permission[]> = {};
-
-                        // Load permissions exactly as saved in Firestore
                         for (const [role, perms] of Object.entries(data.permissions)) {
-                            const permsList = perms as Permission[];
-                            // Firestore is authoritative - use exactly what's saved
-                            savedPermissions[role] = permsList;
+                            savedPermissions[role] = perms as Permission[];
                         }
-
-                        // For roles that exist in code but not in Firestore, 
-                        // only add them if this is a fresh install (no permissions doc existed)
-                        // Don't auto-populate with defaults if Firestore is already initialized
-                        // This preserves intentional removals
-
                         setPermissions(savedPermissions);
                     }
                     if (data.roles && Array.isArray(data.roles)) {
-                        // Ensure we have unique roles: defaults + Firestore roles
                         const uniqueRoles = Array.from(new Set([...DEFAULT_ROLES, ...data.roles]));
                         setRoles(uniqueRoles);
                     }
                 } else {
-                    // Initialize Firestore with defaults
-                    await setDoc(docRef, {
+                    // Initialize if missing
+                    setDoc(doc(db, 'config', 'permissions'), {
                         permissions: ROLES_TO_PERMISSIONS,
                         roles: DEFAULT_ROLES
-                    });
+                    }).catch(console.error);
                 }
+                setLoading(false);
             } catch (err: any) {
-                console.error('Error fetching permissions:', err);
+                console.error('Error processing permissions update:', err);
                 setError(err.message);
-            } finally {
                 setLoading(false);
             }
-        };
+        }, (err: Error) => {
+            console.error('Error subscribing to permissions:', err);
+            setError(err.message);
+            setLoading(false);
+        });
 
-        fetchPermissions();
+        return () => unsub();
     }, []);
 
     const updatePermissions = async (newPermissions: Record<string, Permission[]>) => {

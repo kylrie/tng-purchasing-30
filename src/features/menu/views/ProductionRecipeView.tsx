@@ -125,14 +125,26 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses 
 
             setIsLoading(true);
             try {
-                const [fetchedRecipes, fetchedItems] = await Promise.all([
-                    ProductionRecipeService.getRecipes(selectedBusinessUnit),
-                    InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL')
-                ]);
-                setRecipes(fetchedRecipes);
-                setInventoryItems(fetchedItems);
+                // Fetch Recipes
+                try {
+                    const fetchedRecipes = await ProductionRecipeService.getRecipes(selectedBusinessUnit);
+                    console.log(`[ProductionRecipeView] Loaded ${fetchedRecipes.length} recipes.`);
+                    setRecipes(fetchedRecipes);
+                } catch (recipeErr) {
+                    console.error('Error loading recipes (Perms/Network):', recipeErr);
+                }
+
+                // Fetch Inventory
+                try {
+                    const fetchedItems = await InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL');
+                    console.log(`[ProductionRecipeView] Loaded ${fetchedItems.length} inventory items.`);
+                    setInventoryItems(fetchedItems);
+                } catch (invErr) {
+                    console.error('Error loading inventory (Perms/Network):', invErr);
+                }
+
             } catch (err) {
-                console.error('Error loading production recipes:', err);
+                console.error('Error in loadData:', err);
             } finally {
                 setIsLoading(false);
             }

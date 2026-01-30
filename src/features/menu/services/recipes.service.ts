@@ -297,6 +297,7 @@ export async function updateMenuItem(
             ...updateData,
             ingredients,
             calculatedCost: totalCost,
+            sellingPrice, // FIX: Ensure sellingPrice is saved!
             ...margins
         };
     }
@@ -317,7 +318,28 @@ export async function updateMenuItem(
     if (input.description !== undefined) updateData.description = input.description;
     if (input.imageUrl !== undefined) updateData.imageUrl = input.imageUrl;
 
-    await FirestoreService.updateDocument(COLLECTION, id, updateData);
+    try {
+        await FirestoreService.updateDocument(COLLECTION, id, updateData);
+        console.log(`[RecipesService] Successfully updated menu item ${id}`);
+
+        // Sync with linked inventory item (Finished Good) if exists
+        const currentItem = { ...existing, ...updateData };
+        if (currentItem.linkedInventoryItemId) {
+            try {
+                await InventoryService.updateInventoryItem(currentItem.linkedInventoryItemId, {
+                    name: currentItem.name,
+                    costPerUnit: currentItem.calculatedCost
+                });
+                console.log(`[RecipesService] Synced inventory item ${currentItem.linkedInventoryItemId}`);
+            } catch (invError) {
+                console.error(`[RecipesService] Failed to sync inventory item:`, invError);
+                // Don't throw here, the menu item update was successful
+            }
+        }
+    } catch (err) {
+        console.error(`[RecipesService] Error updating menu item ${id}:`, err);
+        throw err;
+    }
 }
 
 /**

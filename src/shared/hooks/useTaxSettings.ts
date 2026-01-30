@@ -22,35 +22,17 @@ const FALLBACK_TAX_SETTINGS: TaxSettings = {
 export function useTaxSettings() {
     const [settings, setSettings] = useState<TaxSettings>(FALLBACK_TAX_SETTINGS);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        let mounted = true;
+        const unsub = SettingsService.subscribeToTaxSettings((taxSettings) => {
+            setSettings(taxSettings);
+            setLoading(false);
+        });
 
-        const fetchSettings = async () => {
-            try {
-                const taxSettings = await SettingsService.getTaxSettings();
-                if (mounted) {
-                    setSettings(taxSettings);
-                    setLoading(false);
-                }
-            } catch (err) {
-                console.error('[useTaxSettings] Error loading tax settings:', err);
-                if (mounted) {
-                    setError('Failed to load tax settings');
-                    setLoading(false);
-                }
-            }
-        };
-
-        fetchSettings();
-
-        return () => {
-            mounted = false;
-        };
+        return () => unsub();
     }, []);
 
-    return { settings, loading, error };
+    return { settings, loading };
 }
 
 export default useTaxSettings;

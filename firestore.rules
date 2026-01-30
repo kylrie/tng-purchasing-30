@@ -798,6 +798,21 @@ service cloud.firestore {
       allow create, update: if isSignedIn();
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
     }
+
+    // =====================================================
+    // PRODUCTION RECIPES COLLECTION (Menu Engineering)
+    // Multi-tenant recipes including yield and ingredients
+    // =====================================================
+    match /productionRecipes/{recipeId} {
+      // All authenticated users can read recipes
+      allow read: if isSignedIn();
+      
+      // Create/Update: Any authenticated user can manage recipes
+      allow create, update: if isSignedIn();
+      
+      // Delete: Admin only
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
     
     // =====================================================
     // BUDGETS COLLECTION

@@ -13,6 +13,7 @@ import {
 } from '../types/menu.types';
 import { RecipesService } from '../services/recipes.service';
 import RecipeEditor from '../components/RecipeEditor';
+import MenuItemDetailsDrawer from '../components/MenuItemDetailsDrawer';
 import type { Business, User } from '../../procurement/types';
 
 // ============================================================
@@ -32,29 +33,33 @@ const MenuItemCard: React.FC<{
     item: MenuItem;
     onEdit: () => void;
     onDelete: () => void;
-}> = ({ item, onEdit, onDelete }) => {
+    onClick: () => void;
+}> = ({ item, onEdit, onDelete, onClick }) => {
     const status = getFoodCostStatus(item.foodCostPercent);
     const textColor = getFoodCostColor(status);
     const bgColor = getFoodCostBgColor(status);
 
     return (
-        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-purple-500/50 transition-all p-4 shadow-sm dark:shadow-none">
+        <div
+            className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-purple-500/50 transition-all p-4 shadow-sm dark:shadow-none cursor-pointer group"
+            onClick={onClick}
+        >
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-lg truncate">{item.name}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white text-lg truncate group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">{item.name}</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400">{item.category}</p>
                 </div>
                 <div className="flex items-center gap-1">
                     <button
-                        onClick={onEdit}
+                        onClick={(e) => { e.stopPropagation(); onEdit(); }}
                         className="p-1.5 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-500/10 rounded transition-colors"
                         title="Edit recipe"
                     >
                         <Edit size={16} />
                     </button>
                     <button
-                        onClick={onDelete}
+                        onClick={(e) => { e.stopPropagation(); onDelete(); }}
                         className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded transition-colors"
                         title="Delete recipe"
                     >
@@ -125,6 +130,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
     const [categoryFilter, setCategoryFilter] = useState<MenuCategory | 'ALL'>('ALL');
     const [showEditor, setShowEditor] = useState(false);
     const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+    const [viewingItem, setViewingItem] = useState<MenuItem | null>(null);
     const [isRecalculating, setIsRecalculating] = useState(false);
 
     // Load menu items
@@ -133,7 +139,9 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
 
         setIsLoading(true);
         try {
+            console.log(`[MenuDashboard] Loading menu items for BU ${selectedBusinessUnit}...`);
             const items = await RecipesService.getMenuItems(selectedBusinessUnit);
+            console.log(`[MenuDashboard] Loaded ${items.length} menu items.`);
             setMenuItems(items);
         } catch (error) {
             console.error('Error loading menu items:', error);
@@ -358,6 +366,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
                             item={item}
                             onEdit={() => handleEdit(item)}
                             onDelete={() => handleDelete(item)}
+                            onClick={() => setViewingItem(item)}
                         />
                     ))}
                 </div>
@@ -370,6 +379,13 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
                 onSave={loadMenuItems}
                 menuItem={editingItem}
                 businessUnitId={selectedBusinessUnit}
+            />
+
+            {/* Details Drawer */}
+            <MenuItemDetailsDrawer
+                isOpen={!!viewingItem}
+                onClose={() => setViewingItem(null)}
+                menuItem={viewingItem}
             />
         </div>
     );

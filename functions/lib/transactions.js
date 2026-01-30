@@ -15,7 +15,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.postTransaction = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-admin/firestore");
-const db = (0, firestore_1.getFirestore)();
+const app_1 = require("firebase-admin/app");
+const db = (0, firestore_1.getFirestore)((0, app_1.getApp)(), 'tng-systems');
 /**
  * Determine week number from day of month
  * Week 1: Days 1-7
@@ -42,6 +43,7 @@ function getWeekKey(weekNumber) {
     return `week${weekNumber}`;
 }
 exports.postTransaction = (0, https_1.onCall)(async (request) => {
+    console.log('[postTransaction] Called with data:', JSON.stringify(request.data));
     // 1. Validate authentication
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'User must be authenticated');

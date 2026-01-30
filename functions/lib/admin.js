@@ -18,7 +18,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.setBudgetLimit = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-admin/firestore");
-const db = (0, firestore_1.getFirestore)();
+const app_1 = require("firebase-admin/app");
+const db = (0, firestore_1.getFirestore)((0, app_1.getApp)(), 'tng-systems');
 /**
  * Roles authorized to manage budgets
  */
@@ -36,6 +37,7 @@ function createEmptyWeeklySpent() {
     };
 }
 exports.setBudgetLimit = (0, https_1.onCall)(async (request) => {
+    console.log('[setBudgetLimit] Called with data:', JSON.stringify(request.data));
     // 1. Validate authentication
     if (!request.auth) {
         throw new https_1.HttpsError('unauthenticated', 'User must be authenticated');
@@ -94,6 +96,7 @@ exports.setBudgetLimit = (0, https_1.onCall)(async (request) => {
                 updatedAt: firestore_1.FieldValue.serverTimestamp(),
                 updatedBy: uid,
             });
+            console.log(`[setBudgetLimit] Updated budget at path: ${budgetRef.path}`);
         }
         else {
             // Create new monthly budget with weekly breakdown
@@ -111,12 +114,18 @@ exports.setBudgetLimit = (0, https_1.onCall)(async (request) => {
                 updatedAt: firestore_1.FieldValue.serverTimestamp(),
                 updatedBy: uid,
             });
+            console.log(`[setBudgetLimit] Created budget at path: ${budgetRef.path}`);
         }
+        console.log(`[setBudgetLimit] Success. BudgetID: ${budgetId}`);
         return {
             success: true,
             budgetId,
             action: isUpdate ? 'updated' : 'created',
             message: `Monthly budget ${isUpdate ? 'updated' : 'created'} successfully for ${monthStr}/${fiscalYear}`,
+            // @ts-ignore
+            path: budgetRef.path,
+            // @ts-ignore
+            writeTime: new Date().toISOString()
         };
     }
     catch (error) {

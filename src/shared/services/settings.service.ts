@@ -1,5 +1,6 @@
 import { FirestoreService } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
+import type { Unsubscribe } from 'firebase/firestore';
 
 // =====================================================
 // PCF SETTINGS INTERFACE
@@ -727,5 +728,104 @@ export class SettingsService {
         }
 
         return { isLate: false, daysLate: 0 };
+    }
+
+    // =====================================================
+    // SUBSCRIPTION METHODS (Real-time Updates)
+    // =====================================================
+
+    /**
+     * Subscribe to PCF Settings
+     */
+    static subscribeToPcfSettings(
+        callback: (settings: PCFSettings) => void
+    ): Unsubscribe {
+        return FirestoreService.subscribeToDocument<PCFSettings>(
+            SETTINGS_COLLECTION,
+            PCF_CONFIG_DOC,
+            (data) => {
+                if (data) {
+                    callback({ ...DEFAULT_PCF_SETTINGS, ...data });
+                } else {
+                    callback({ ...DEFAULT_PCF_SETTINGS });
+                }
+            }
+        );
+    }
+
+    /**
+     * Subscribe to Approver Assignments
+     */
+    static subscribeToApproverAssignments(
+        callback: (assignments: ApproverAssignments) => void
+    ): Unsubscribe {
+        return FirestoreService.subscribeToDocument<ApproverAssignments>(
+            SETTINGS_COLLECTION,
+            APPROVER_ASSIGNMENTS_DOC,
+            (data) => {
+                if (data) {
+                    callback({ ...DEFAULT_APPROVER_ASSIGNMENTS, ...data });
+                } else {
+                    callback({ ...DEFAULT_APPROVER_ASSIGNMENTS });
+                }
+            }
+        );
+    }
+
+    /**
+     * Subscribe to Food Cost Settings
+     */
+    static subscribeToFoodCostSettings(
+        callback: (settings: FoodCostSettings) => void
+    ): Unsubscribe {
+        return FirestoreService.subscribeToDocument<FoodCostSettings>(
+            SETTINGS_COLLECTION,
+            FOOD_COST_CONFIG_DOC,
+            (data) => {
+                if (data) {
+                    callback({ ...DEFAULT_FOOD_COST_SETTINGS, ...data });
+                } else {
+                    callback({ ...DEFAULT_FOOD_COST_SETTINGS });
+                }
+            }
+        );
+    }
+
+    /**
+     * Subscribe to Storage Area Settings
+     */
+    static subscribeToStorageAreas(
+        callback: (settings: StorageAreaSettings) => void
+    ): Unsubscribe {
+        return FirestoreService.subscribeToDocument<StorageAreaSettings>(
+            SETTINGS_COLLECTION,
+            STORAGE_AREAS_DOC,
+            (data) => {
+                if (data && data.areas && data.areas.length > 0) {
+                    callback(data);
+                } else {
+                    callback({ ...DEFAULT_STORAGE_AREAS });
+                }
+            }
+        );
+    }
+
+    /**
+     * Subscribe to Tax Settings
+     */
+    static subscribeToTaxSettings(
+        callback: (settings: TaxSettings) => void
+    ): Unsubscribe {
+        return FirestoreService.subscribeToDocument<TaxSettings>(
+            SETTINGS_COLLECTION,
+            TAX_CONFIG_DOC,
+            (data) => {
+                if (data) {
+                    callback({ ...DEFAULT_TAX_SETTINGS, ...data });
+                } else {
+                    callback({ ...DEFAULT_TAX_SETTINGS });
+                }
+            }
+        );
     }
 }

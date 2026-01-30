@@ -218,6 +218,7 @@ export const BudgetConfigPanel: React.FC<BudgetConfigPanelProps> = ({ businesses
                 currency,
             });
 
+            console.log('[BudgetConfigPanel] setBudgetLimit response:', result.data);
             setSuccess(result.data.message || `Budget ${result.data.action} successfully!`);
 
             // Reset form

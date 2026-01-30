@@ -30,10 +30,11 @@ input[type="number"] {
 }
 
 /* Native App Feel */
+/* Native App Feel */
 body {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 /* Allow selection on inputs */

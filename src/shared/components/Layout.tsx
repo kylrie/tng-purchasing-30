@@ -199,6 +199,9 @@ const Layout: React.FC<LayoutProps> = ({
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
     const handleMouseMove = (e: React.MouseEvent) => {
+        // Optimization: Only run expensive smooth animation calculations on desktop
+        if (window.innerWidth < 1024) return;
+
         const { clientX, clientY } = e;
         const moveX = (clientX - window.innerWidth / 2) / 30;
         const moveY = (clientY - window.innerHeight / 2) / 30;
@@ -368,8 +371,8 @@ const Layout: React.FC<LayoutProps> = ({
             className="flex h-screen bg-transparent text-slate-900 dark:text-white overflow-hidden font-sans relative"
             onMouseMove={handleMouseMove}
         >
-            {/* Cinematic Background Layer */}
-            <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden transition-opacity duration-700">
+            {/* Cinematic Background Layer - DESKTOP ONLY (Performance Optimization) */}
+            <div className="hidden lg:block fixed inset-0 z-0 pointer-events-none overflow-hidden transition-opacity duration-700">
                 {/* DARK MODE: Deep Background Asset */}
                 <div
                     className="absolute inset-[-10%] transition-transform duration-[1.5s] ease-[cubic-bezier(0.22,1,0.36,1)] saturate-[1.5] brightness-[0.4] blur-[2px] opacity-0 dark:opacity-100"
@@ -433,8 +436,15 @@ const Layout: React.FC<LayoutProps> = ({
                 ></div>
 
                 {/* Cinematic Vignette (Dark Mode Only) */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#020202] via-transparent to-[#020202] opacity-0 dark:opacity-80 transition-opacity duration-700"></div>
                 <div className="absolute inset-0 bg-gradient-to-r from-[#020202] via-transparent to-[#020202] opacity-0 dark:opacity-80 transition-opacity duration-700"></div>
+            </div>
+
+            {/* Static Mobile Background - LIGHTWEIGHT (Performance) */}
+            <div className="lg:hidden fixed inset-0 z-0 pointer-events-none bg-slate-50 dark:bg-slate-950">
+                {/* Simple static gradient for mobile dark mode */}
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-[#1a1033] opacity-0 dark:opacity-100" />
+                {/* Simple static gradient for mobile light mode */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 to-cyan-50 opacity-100 dark:opacity-0" />
             </div>
 
             {isSidebarOpen && (

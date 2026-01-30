@@ -102,34 +102,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const isAdmin = currentUser.role === SystemRole.SUPER_ADMIN || currentUser.role === SystemRole.ADMIN;
     const isStaging = typeof window !== 'undefined' && (window.location.hostname.includes('staging') || window.location.hostname.includes('localhost'));
 
-    // Load PCF Settings and Approver Assignments on mount
+    // Load Settings (Real-time Subscriptions)
     useEffect(() => {
-        const loadSettings = async () => {
-            try {
-                const [pcf, approvers, foodCost, storageAreaSettings] = await Promise.all([
-                    SettingsService.getPcfSettings(),
-                    SettingsService.getApproverAssignments(),
-                    SettingsService.getFoodCostSettings(),
-                    SettingsService.getStorageAreas()
-                ]);
-                setPcfSettings(pcf);
-                setPcfDeadlineDay(pcf.deadlineDay);
-                setApproverAssignments(approvers);
-                setFoodCostSettings(foodCost);
-                setFoodCostForm({
-                    excellent: foodCost.excellent,
-                    good: foodCost.good,
-                    warning: foodCost.warning,
-                    danger: foodCost.danger
-                });
-                setStorageAreas(storageAreaSettings.areas);
-            } catch (error) {
-                console.error('Error loading settings:', error);
-            }
+        if (!isAdmin) return;
+
+        // Subscribe to PCF Settings
+        const unsubPcf = SettingsService.subscribeToPcfSettings((settings) => {
+            setPcfSettings(settings);
+            setPcfDeadlineDay(settings.deadlineDay);
+        });
+
+        // Subscribe to Approver Assignments
+        const unsubApprovers = SettingsService.subscribeToApproverAssignments(setApproverAssignments);
+
+        // Subscribe to Food Cost Settings
+        const unsubFoodCost = SettingsService.subscribeToFoodCostSettings((settings) => {
+            setFoodCostSettings(settings);
+            setFoodCostForm({
+                excellent: settings.excellent,
+                good: settings.good,
+                warning: settings.warning,
+                danger: settings.danger
+            });
+        });
+
+        // Subscribe to Storage Areas
+        const unsubStorage = SettingsService.subscribeToStorageAreas((settings) => {
+            setStorageAreas(settings.areas);
+        });
+
+        return () => {
+            unsubPcf();
+            unsubApprovers();
+            unsubFoodCost();
+            unsubStorage();
         };
-        if (isAdmin) {
-            loadSettings();
-        }
     }, [isAdmin]);
 
     // User Handlers
