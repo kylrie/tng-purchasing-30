@@ -94,6 +94,7 @@ interface CreateBatchPrfParams {
   };
   // FIX: Attachment link to preserve from BURF or user input
   attachmentLink?: string;
+  remarks?: string;
   // Budget tracking fields
   coaCode?: string; // Chart of Account code for budget deduction
   dateNeeded?: string; // Date needed for budget month targeting
@@ -254,7 +255,7 @@ export class RequisitionService {
    * @returns Result containing new PRF ID and updated BURF status
    */
   static async createBatchPrfFromBurf(params: CreateBatchPrfParams): Promise<CreateBatchPrfResult> {
-    const { sourceBurfId, selectedItems, prfDetails, userId, userName, taxFields, attachmentLink } = params;
+    const { sourceBurfId, selectedItems, prfDetails, userId, userName, taxFields, attachmentLink, remarks } = params;
 
     try {
       const sourceBurfRef = doc(db, REQUISITIONS_COLLECTION, sourceBurfId);
@@ -355,7 +356,7 @@ export class RequisitionService {
           dateCreated: new Date().toISOString(),
           description: sourceBurf.description || '',
           projectName: sourceBurf.projectName || '',
-          remarks: `Batch ${paddedBatch} from ${sourceBurfId}`,
+          remarks: remarks || `Batch ${paddedBatch} from ${sourceBurfId}`,
           dateNeeded: sourceBurf.dateNeeded || '',
           isUrgent: sourceBurf.isUrgent || false, // Persist urgency flag through lifecycle
           priority: sourceBurf.priority || 'NORMAL',

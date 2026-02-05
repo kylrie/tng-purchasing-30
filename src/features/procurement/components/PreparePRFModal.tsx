@@ -368,6 +368,7 @@ const PreparePRFModal: React.FC<PreparePRFModalProps> = ({
                     // Budget tracking fields
                     coaCode: selectedCOACode || undefined,
                     dateNeeded: dateNeeded || undefined,
+                    remarks: remarks || undefined,
                 });
 
                 // POST-SUBMIT BUDGET DEDUCTION for BURF conversion
