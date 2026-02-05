@@ -11,7 +11,8 @@ import LiquidationModal from '../components/LiquidationModal';
 import LiquidationAuditModal from '../components/LiquidationAuditModal';
 import { executeWorkflowAction } from '../../procurement/services/workflowService';
 import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
-import { Printer, Edit, FileText, RefreshCw, CheckCircle, Search } from 'lucide-react';
+import { Printer, Edit, FileText, RefreshCw, CheckCircle, Search, Download } from 'lucide-react';
+import { exportToCSV, formatDateForExport, formatCurrencyForExport, type ExportColumn } from '../../../shared/utils/exportUtils';
 
 interface LiquidationViewProps {
   currentUser: User;
@@ -223,6 +224,31 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     return true;
   }), [displayedReqs, searchTerm, dateRange, businesses, allUsers]);
 
+  // Export handler for liquidation data
+  const handleExport = () => {
+    const columns: ExportColumn<Requisition>[] = [
+      { header: 'PRF ID', accessor: (req) => req.id },
+      { header: 'Business Unit', accessor: (req) => businesses.find(b => b.id === req.businessId)?.name || 'N/A' },
+      { header: 'Requester', accessor: (req) => allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId },
+      { header: 'Amount', accessor: (req) => formatCurrencyForExport(req.totalAmount) },
+      { header: 'Cheque No', accessor: (req) => req.chequeNumber || '' },
+      { header: 'Status', accessor: (req) => req.status },
+      { header: 'Date Filed', accessor: (req) => formatDateForExport(req.liquidationDetails?.dateFiled) },
+      { header: 'Rejection Reason', accessor: (req) => req.liquidationDetails?.rejectionReason || '' },
+    ];
+
+    const tabFilenames: Record<string, string> = {
+      liquidations: 'my_liquidations_export',
+      all_liquidations: 'all_liquidations_export',
+      for_audit: 'for_audit_export',
+      my_history: 'my_history_export',
+      audit_history: 'audit_history_export',
+    };
+
+    const filename = tabFilenames[activeTab] || 'liquidations_export';
+    exportToCSV(filteredReqs, columns, filename);
+  };
+
   return (
     <>
       <div className="space-y-6">
@@ -331,6 +357,15 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
               className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
             />
           </div>
+          {/* Export Button */}
+          <button
+            onClick={handleExport}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
+            title="Export to CSV"
+          >
+            <Download size={16} />
+            Export
+          </button>
         </div>
 
         <Card className="!p-0 overflow-hidden bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl border border-slate-200/60 dark:border-slate-700/50 shadow-sm dark:shadow-none">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Receipt, Building2, Eye, Users, User as UserIcon, Ban, Printer } from 'lucide-react';
+import { Wallet, Plus, FileText, CheckCircle, Clock, XCircle, AlertTriangle, Receipt, Building2, Eye, Users, User as UserIcon, Ban, Printer, Download } from 'lucide-react';
+import { exportToCSV, formatDateForExport, formatCurrencyForExport, type ExportColumn } from '../../../shared/utils/exportUtils';
 import PesoSign from '../../../shared/components/PesoSign';
 import Card from '../../../shared/components/Card';
 import type { User as UserType, Business } from '../../../shared/types';
@@ -135,6 +136,23 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
     // Get business name
     const getBusinessName = (businessId: string) => {
         return businesses.find(b => b.id === businessId)?.name || 'Unknown';
+    };
+
+    // Export handler for PCF liquidations
+    const handleExport = () => {
+        const columns: ExportColumn<PCFLiquidation>[] = [
+            { header: 'Date', accessor: (liq) => formatDateForExport(liq.dateCreated) },
+            { header: 'Custodian', accessor: (liq) => getUserName(liq.userId) },
+            { header: 'Business Unit', accessor: (liq) => getBusinessName(liq.businessId) },
+            { header: 'Items', accessor: (liq) => liq.expenses.length },
+            { header: 'Amount', accessor: (liq) => formatCurrencyForExport(liq.totalAmount) },
+            { header: 'Status', accessor: (liq) => liq.status },
+            { header: 'PRF Reference', accessor: (liq) => liq.replenishmentPrfId || '' },
+            { header: 'Late', accessor: (liq) => liq.isLate ? `Yes (${liq.daysLate || 0} days)` : 'No' },
+        ];
+
+        const filename = viewAll ? 'all_pcf_liquidations_export' : 'my_pcf_liquidations_export';
+        exportToCSV(filteredLiquidations, columns, filename);
     };
 
     // Handle submit from drawer
@@ -416,10 +434,19 @@ const PCFView: React.FC<PCFViewProps> = ({ currentUser, businesses, allUsers }) 
                         Liquidation History
                     </h3>
 
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
                         <DateRangeFilter
                             onFilterChange={(start, end) => setDateRange({ start, end })}
                         />
+                        {/* Export Button */}
+                        <button
+                            onClick={handleExport}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
+                            title="Export to CSV"
+                        >
+                            <Download size={16} />
+                            Export
+                        </button>
                     </div>
                 </div>
 

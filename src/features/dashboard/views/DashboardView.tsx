@@ -25,7 +25,7 @@ import LiquidationAuditModal from '../../finance/components/LiquidationAuditModa
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import RejectionModal from '../../../shared/components/RejectionModal';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
-import { CheckCircle, XCircle, Briefcase } from 'lucide-react';
+import { CheckCircle, XCircle, Briefcase, Square, CheckSquare } from 'lucide-react';
 import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
 import { PCFService } from '../../finance/services/pcf.service';
 
@@ -56,6 +56,27 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     // PCF Pending Count - real data from service
     const [pcfPendingCount, setPcfPendingCount] = React.useState<number>(0);
 
+    // Bulk selection for Check Authorization
+    const [selectedCheckAuthIds, setSelectedCheckAuthIds] = React.useState<Set<string>>(new Set());
+    const [bulkRejectMode, setBulkRejectMode] = React.useState<boolean>(false);
+    const [checkAuthBuFilter, setCheckAuthBuFilter] = React.useState<string>('all');
+
+    // Bulk selection for Finance Head BR
+    const [selectedFinanceBRIds, setSelectedFinanceBRIds] = React.useState<Set<string>>(new Set());
+    const [financeBRBuFilter, setFinanceBRBuFilter] = React.useState<string>('all');
+
+    // Bulk selection for GM BR
+    const [selectedGmBRIds, setSelectedGmBRIds] = React.useState<Set<string>>(new Set());
+    const [gmBRBuFilter, setGmBRBuFilter] = React.useState<string>('all');
+
+    // Bulk selection for BOD BR
+    const [selectedBodBRIds, setSelectedBodBRIds] = React.useState<Set<string>>(new Set());
+    const [bodBRBuFilter, setBodBRBuFilter] = React.useState<string>('all');
+
+    // Bulk selection for Pending Approvals
+    const [selectedPendingApprovalIds, setSelectedPendingApprovalIds] = React.useState<Set<string>>(new Set());
+
+
     // Load approver assignments and PCF pending count on mount
     React.useEffect(() => {
         SettingsService.getApproverAssignments().then(setApproverAssignments);
@@ -70,12 +91,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
     // PRF Modal is opened directly by setPreparePRFReq - no redirect needed
 
-    // Determine if the user is an approver
-    const isApprover = hasPermission('approval:manager:burf') ||
-        hasPermission('approval:manager:prf') ||
-        hasPermission('approval:cic:burf') ||
-        hasPermission('finance:release_funds') ||
-        (hasPermission('requisition:view:all') && hasPermission('admin:manage:users'));
+
 
     // Helper to check if user is assigned to a workflow role
     const isAssignedApprover = (r: Requisition): boolean => {
@@ -398,6 +414,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         return false;
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
 
+    // Get unique business units from check auth items for filter dropdown
+    const checkAuthBuOptions = React.useMemo(() => {
+        const uniqueBuIds = [...new Set(checkAuthItems.map(r => r.businessId))];
+        const buList = uniqueBuIds
+            .map(id => businesses.find(b => b.id === id))
+            .filter((b): b is typeof businesses[0] => !!b)
+            .sort((a, b) => a.name.localeCompare(b.name));
+        return [{ value: 'all', label: 'All Business Units' }, ...buList.map(b => ({ value: b.id, label: b.name }))];
+    }, [checkAuthItems, businesses]);
+
+    // Filtered check auth items based on BU selection
+    const filteredCheckAuthItems = React.useMemo(() => {
+        if (checkAuthBuFilter === 'all') return checkAuthItems;
+        return checkAuthItems.filter(r => r.businessId === checkAuthBuFilter);
+    }, [checkAuthItems, checkAuthBuFilter]);
+
     // CFO Approval Items - Only for assigned CFO
     const cfoPendingItems = requisitions.filter(r => {
         if (r.status !== RequisitionStatus.PENDING_CFO_APPROVAL) return false;
@@ -409,6 +441,42 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         r.status === RequisitionStatus.LIQUIDATION_FILED &&
         hasPermission('liquidation:audit')
     );
+
+    // ========== BU OPTIONS AND FILTERED ITEMS FOR ALL WIDGETS ==========
+
+    // Finance Head BR - BU Options & Filtered
+    const financeBRBuOptions = React.useMemo(() => {
+        const uniqueBuIds = [...new Set(financeHeadBRItems.map(r => r.businessId))];
+        const buList = uniqueBuIds.map(id => businesses.find(b => b.id === id)).filter((b): b is typeof businesses[0] => !!b).sort((a, b) => a.name.localeCompare(b.name));
+        return [{ value: 'all', label: 'All Business Units' }, ...buList.map(b => ({ value: b.id, label: b.name }))];
+    }, [financeHeadBRItems, businesses]);
+    const filteredFinanceBRItems = React.useMemo(() => {
+        if (financeBRBuFilter === 'all') return financeHeadBRItems;
+        return financeHeadBRItems.filter(r => r.businessId === financeBRBuFilter);
+    }, [financeHeadBRItems, financeBRBuFilter]);
+
+    // GM BR - BU Options & Filtered
+    const gmBRBuOptions = React.useMemo(() => {
+        const uniqueBuIds = [...new Set(gmBRItems.map(r => r.businessId))];
+        const buList = uniqueBuIds.map(id => businesses.find(b => b.id === id)).filter((b): b is typeof businesses[0] => !!b).sort((a, b) => a.name.localeCompare(b.name));
+        return [{ value: 'all', label: 'All Business Units' }, ...buList.map(b => ({ value: b.id, label: b.name }))];
+    }, [gmBRItems, businesses]);
+    const filteredGmBRItems = React.useMemo(() => {
+        if (gmBRBuFilter === 'all') return gmBRItems;
+        return gmBRItems.filter(r => r.businessId === gmBRBuFilter);
+    }, [gmBRItems, gmBRBuFilter]);
+
+    // BOD BR - BU Options & Filtered
+    const bodBRBuOptions = React.useMemo(() => {
+        const uniqueBuIds = [...new Set(bodBRItems.map(r => r.businessId))];
+        const buList = uniqueBuIds.map(id => businesses.find(b => b.id === id)).filter((b): b is typeof businesses[0] => !!b).sort((a, b) => a.name.localeCompare(b.name));
+        return [{ value: 'all', label: 'All Business Units' }, ...buList.map(b => ({ value: b.id, label: b.name }))];
+    }, [bodBRItems, businesses]);
+    const filteredBodBRItems = React.useMemo(() => {
+        if (bodBRBuFilter === 'all') return bodBRItems;
+        return bodBRItems.filter(r => r.businessId === bodBRBuFilter);
+    }, [bodBRItems, bodBRBuFilter]);
+
 
     const handlePreparePRFSubmit = (prfReq: Requisition, updatedOrigin?: Requisition) => {
         if (updatedOrigin) {
@@ -457,7 +525,27 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     };
 
     const handleRejectConfirm = async (reason: string) => {
-        if (rejectingReq) {
+        if (bulkRejectMode && selectedCheckAuthIds.size > 0) {
+            // Bulk reject mode
+            try {
+                const idsToReject = Array.from(selectedCheckAuthIds);
+                for (const id of idsToReject) {
+                    await RequisitionService.rejectRequisition(
+                        id,
+                        currentUser.id,
+                        currentUser.name,
+                        reason
+                    );
+                }
+                setSelectedCheckAuthIds(new Set());
+                setBulkRejectMode(false);
+                setRejectingReq(null);
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error bulk rejecting requisitions:', error);
+                alert(`Failed to reject requisitions: ${message}`);
+            }
+        } else if (rejectingReq) {
             try {
                 await RequisitionService.rejectRequisition(
                     rejectingReq.id,
@@ -474,7 +562,189 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         }
     };
 
+    // Check Authorization Bulk Selection Handlers
+    const toggleCheckAuthSelect = (id: string) => {
+        setSelectedCheckAuthIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) {
+                newSet.delete(id);
+            } else {
+                newSet.add(id);
+            }
+            return newSet;
+        });
+    };
 
+    const selectAllCheckAuth = () => {
+        if (selectedCheckAuthIds.size === filteredCheckAuthItems.length) {
+            setSelectedCheckAuthIds(new Set());
+        } else {
+            setSelectedCheckAuthIds(new Set(filteredCheckAuthItems.map(r => r.id)));
+        }
+    };
+
+    const handleBulkApprove = async () => {
+        if (selectedCheckAuthIds.size === 0) return;
+
+        if (confirm(`Are you sure you want to approve ${selectedCheckAuthIds.size} check authorization(s)?`)) {
+            try {
+                const idsToApprove = Array.from(selectedCheckAuthIds);
+                for (const id of idsToApprove) {
+                    await RequisitionService.approveRequisition(
+                        id,
+                        currentUser.id,
+                        currentUser.name
+                    );
+                }
+                setSelectedCheckAuthIds(new Set());
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error bulk approving requisitions:', error);
+                alert(`Failed to approve requisitions: ${message}`);
+            }
+        }
+    };
+
+    const handleBulkReject = () => {
+        if (selectedCheckAuthIds.size === 0) return;
+        setBulkRejectMode(true);
+        // Create a dummy requisition to trigger the rejection modal
+        const firstSelectedId = Array.from(selectedCheckAuthIds)[0];
+        const firstReq = filteredCheckAuthItems.find(r => r.id === firstSelectedId);
+        if (firstReq) {
+            setRejectingReq(firstReq);
+        }
+    };
+
+    // ========== FINANCE HEAD BR BULK SELECTION HANDLERS ==========
+    const toggleFinanceBRSelect = (id: string) => {
+        setSelectedFinanceBRIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
+            return newSet;
+        });
+    };
+    const selectAllFinanceBR = () => {
+        if (selectedFinanceBRIds.size === filteredFinanceBRItems.length) setSelectedFinanceBRIds(new Set());
+        else setSelectedFinanceBRIds(new Set(filteredFinanceBRItems.map(r => r.id)));
+    };
+    const handleBulkApproveFinanceBR = async () => {
+        if (selectedFinanceBRIds.size === 0) return;
+        if (confirm(`Approve ${selectedFinanceBRIds.size} Finance Head BR item(s)?`)) {
+            try {
+                for (const id of Array.from(selectedFinanceBRIds)) {
+                    await RequisitionService.approveRequisition(id, currentUser.id, currentUser.name);
+                }
+                setSelectedFinanceBRIds(new Set());
+            } catch (error: unknown) {
+                alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+    };
+
+    // ========== GM BR BULK SELECTION HANDLERS ==========
+    const toggleGmBRSelect = (id: string) => {
+        setSelectedGmBRIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
+            return newSet;
+        });
+    };
+    const selectAllGmBR = () => {
+        if (selectedGmBRIds.size === filteredGmBRItems.length) setSelectedGmBRIds(new Set());
+        else setSelectedGmBRIds(new Set(filteredGmBRItems.map(r => r.id)));
+    };
+    const handleBulkApproveGmBR = async () => {
+        if (selectedGmBRIds.size === 0) return;
+        if (confirm(`Approve ${selectedGmBRIds.size} GM BR item(s)?`)) {
+            try {
+                for (const id of Array.from(selectedGmBRIds)) {
+                    await RequisitionService.approveRequisition(id, currentUser.id, currentUser.name);
+                }
+                setSelectedGmBRIds(new Set());
+            } catch (error: unknown) {
+                alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+    };
+
+    // ========== BOD BR BULK SELECTION HANDLERS ==========
+    const toggleBodBRSelect = (id: string) => {
+        setSelectedBodBRIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
+            return newSet;
+        });
+    };
+    const selectAllBodBR = () => {
+        if (selectedBodBRIds.size === filteredBodBRItems.length) setSelectedBodBRIds(new Set());
+        else setSelectedBodBRIds(new Set(filteredBodBRItems.map(r => r.id)));
+    };
+    const handleBulkApproveBodBR = async () => {
+        if (selectedBodBRIds.size === 0) return;
+        if (confirm(`Approve ${selectedBodBRIds.size} BOD BR item(s)?`)) {
+            try {
+                for (const id of Array.from(selectedBodBRIds)) {
+                    await RequisitionService.approveRequisition(id, currentUser.id, currentUser.name);
+                }
+                setSelectedBodBRIds(new Set());
+            } catch (error: unknown) {
+                alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+    };
+
+    // ========== BULK REJECT HANDLERS (matching Check Auth pattern) ==========
+
+    const handleBulkRejectFinanceBR = () => {
+        if (selectedFinanceBRIds.size === 0) return;
+        setRejectingReq(filteredFinanceBRItems.find(r => selectedFinanceBRIds.has(r.id)) || null);
+    };
+    const handleBulkRejectGmBR = () => {
+        if (selectedGmBRIds.size === 0) return;
+        setRejectingReq(filteredGmBRItems.find(r => selectedGmBRIds.has(r.id)) || null);
+    };
+    const handleBulkRejectBodBR = () => {
+        if (selectedBodBRIds.size === 0) return;
+        setRejectingReq(filteredBodBRItems.find(r => selectedBodBRIds.has(r.id)) || null);
+    };
+    const handleBulkRejectPending = () => {
+        if (selectedPendingApprovalIds.size === 0) return;
+        const items = getActiveTabItems();
+        setRejectingReq(items.find(a => selectedPendingApprovalIds.has(a.id))?.rawRequisition || null);
+    };
+
+
+    // ========== PENDING APPROVALS BULK SELECTION HANDLERS ==========
+    const togglePendingApprovalSelect = (id: string) => {
+        setSelectedPendingApprovalIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(id)) newSet.delete(id);
+            else newSet.add(id);
+            return newSet;
+        });
+    };
+    const selectAllPendingApprovals = () => {
+        const items = getActiveTabItems();
+        if (selectedPendingApprovalIds.size === items.length) setSelectedPendingApprovalIds(new Set());
+        else setSelectedPendingApprovalIds(new Set(items.map(r => r.id)));
+    };
+    const handleBulkApprovePendingApprovals = async () => {
+        if (selectedPendingApprovalIds.size === 0) return;
+        if (confirm(`Approve ${selectedPendingApprovalIds.size} item(s)?`)) {
+            try {
+                for (const id of Array.from(selectedPendingApprovalIds)) {
+                    await RequisitionService.approveRequisition(id, currentUser.id, currentUser.name);
+                }
+                setSelectedPendingApprovalIds(new Set());
+            } catch (error: unknown) {
+                alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
+        }
+    };
 
     return (
         <div className="space-y-8 text-slate-800 dark:text-white min-h-screen">
@@ -779,72 +1049,94 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         (hasPermission('dashboard:section:gm_br') && gmBRItems.length > 0) ||
                         (hasPermission('dashboard:section:bod_br') && bodBRItems.length > 0) ? (
                         <div className="mb-6">
-                            <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                <FileText size={14} />
+                            <h2 className="text-base font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <FileText size={16} />
                                 Budget Review Queue
                             </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                {/* Finance Head BR Widget - Full Style */}
+                            <div className="space-y-6">
+                                {/* Finance Head BR Widget - Enhanced with Bulk Selection */}
                                 {hasPermission('dashboard:section:finance_head_br') && financeHeadBRItems.length > 0 && (
-                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-indigo-200/60 dark:border-indigo-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.1)] dark:shadow-none flex flex-col">
-                                        <div className="p-6 flex justify-between items-center border-b border-indigo-100 dark:border-slate-700/50">
-                                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                                <FileText className="text-indigo-600 dark:text-indigo-400" size={20} />
-                                                Finance Head BR
-                                            </h3>
-                                            <span className="text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 py-1 rounded-full border border-indigo-200 dark:border-indigo-500/20">
-                                                {financeHeadBRItems.length} Pending
-                                            </span>
+                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-indigo-200/60 dark:border-indigo-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.15)] dark:shadow-none flex flex-col min-h-[420px]">
+                                        <div className="p-5 flex flex-col gap-3 border-b border-indigo-100 dark:border-slate-700/50">
+                                            <div className="flex items-center justify-between flex-wrap gap-2">
+                                                <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                                    <FileText className="text-indigo-600 dark:text-indigo-400" size={20} />
+                                                    Finance Head BR
+                                                </h3>
+                                                <span className="text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 px-2 py-1 rounded-full border border-indigo-200 dark:border-indigo-500/20">
+                                                    {filteredFinanceBRItems.length} Pending
+                                                </span>
+                                            </div>
+                                            {/* BU Filter & Bulk Actions */}
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                {financeBRBuOptions.length > 2 && (
+                                                    <select
+                                                        value={financeBRBuFilter}
+                                                        onChange={(e) => { setFinanceBRBuFilter(e.target.value); setSelectedFinanceBRIds(new Set()); }}
+                                                        className="text-sm px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-500/30 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                                    >
+                                                        {financeBRBuOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                                    </select>
+                                                )}
+                                                <button onClick={selectAllFinanceBR} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
+                                                    {selectedFinanceBRIds.size === filteredFinanceBRItems.length && filteredFinanceBRItems.length > 0 ? <CheckSquare size={16} className="text-indigo-500" /> : <Square size={16} />}
+                                                    {selectedFinanceBRIds.size === filteredFinanceBRItems.length && filteredFinanceBRItems.length > 0 ? 'Deselect All' : `Select All (${filteredFinanceBRItems.length})`}
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkApproveFinanceBR}
+                                                    disabled={selectedFinanceBRIds.size === 0}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedFinanceBRIds.size > 0
+                                                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-md'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+                                                >
+                                                    <CheckCircle size={16} /> Approve {selectedFinanceBRIds.size > 0 && `(${selectedFinanceBRIds.size})`}
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkRejectFinanceBR}
+                                                    disabled={selectedFinanceBRIds.size === 0}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedFinanceBRIds.size > 0
+                                                        ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-md'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+                                                >
+                                                    <XCircle size={16} /> Reject {selectedFinanceBRIds.size > 0 && `(${selectedFinanceBRIds.size})`}
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
-                                            <div className="space-y-4">
-                                                {financeHeadBRItems.map(req => {
+                                        <div className="p-5 flex-1 overflow-y-auto max-h-[600px]">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                {filteredFinanceBRItems.map(req => {
                                                     const requester = allUsers.find(u => u.id === req.requesterId);
                                                     const business = businesses.find(b => b.id === req.businessId);
+                                                    const isSelected = selectedFinanceBRIds.has(req.id);
                                                     return (
                                                         <div
                                                             key={req.id}
-                                                            onClick={() => setDrawerReq(req)}
-                                                            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-indigo-500/30 hover:shadow-md transition-all cursor-pointer group"
+                                                            className={`p-3 rounded-xl border-2 transition-all cursor-pointer group ${isSelected
+                                                                ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-400 dark:border-indigo-500 shadow-md'
+                                                                : 'bg-slate-50 dark:bg-slate-700/30 border-slate-200 dark:border-slate-700/50 hover:border-indigo-300 dark:hover:border-indigo-500/50 hover:shadow-md'}`}
                                                         >
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <div>
-                                                                    <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-500/10">{req.id}</span>
-                                                                    <h4
-                                                                        onClick={() => setDrawerReq(req)}
-                                                                        className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-indigo-600 dark:group-hover:text-indigo-300"
-                                                                    >
-                                                                        {req.description}
-                                                                    </h4>
+                                                            <div className="flex items-start gap-2 mb-2">
+                                                                <button onClick={(e) => { e.stopPropagation(); toggleFinanceBRSelect(req.id); }} className="mt-0.5 flex-shrink-0">
+                                                                    {isSelected ? <CheckSquare size={16} className="text-indigo-500" /> : <Square size={16} className="text-slate-400" />}
+                                                                </button>
+                                                                <div className="flex-1 min-w-0" onClick={() => setDrawerReq(req)}>
+                                                                    <span className="text-xs font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-1 py-0.5 rounded border border-indigo-100 dark:border-indigo-500/10">{req.id}</span>
+                                                                    <h4 className="font-medium text-slate-700 dark:text-slate-200 text-sm truncate mt-1">{req.description}</h4>
                                                                 </div>
-                                                                <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                                <span className="text-xs text-slate-500 flex-shrink-0">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                             </div>
-                                                            <div className="flex items-center justify-between text-xs mb-2">
+                                                            <div className="flex items-center justify-between text-xs mb-1 ml-6">
                                                                 <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
                                                                 <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
-                                                            {req.prfDetails?.supplier?.name && (
-                                                                <div className="flex items-center text-xs mb-2">
-                                                                    <span className="text-slate-500">Supplier:</span>
-                                                                    <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
-                                                                </div>
-                                                            )}
-                                                            <div className="flex items-center justify-between text-xs mb-3">
-                                                                <span className="font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/20">
-                                                                    {business?.name || 'N/A'}
-                                                                </span>
+                                                            <div className="flex items-center justify-between text-xs mb-3 ml-6">
+                                                                <span className="font-semibold px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-500/10 text-[10px]">{business?.name || 'N/A'}</span>
                                                             </div>
-                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
-                                                                <button
-                                                                    onClick={(e) => handleApprove(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                                >
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50 ml-6">
+                                                                <button onClick={(e) => handleApprove(req, e)} className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors">
                                                                     <CheckCircle size={14} /> Approve
                                                                 </button>
-                                                                <button
-                                                                    onClick={(e) => handleRejectClick(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                                >
+                                                                <button onClick={(e) => handleRejectClick(req, e)} className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors">
                                                                     <XCircle size={14} /> Reject
                                                                 </button>
                                                             </div>
@@ -856,67 +1148,81 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                     </div>
                                 )}
 
-                                {/* GM Budget Review Widget - Full Style */}
+                                {/* GM Budget Review Widget - Enhanced with Bulk Selection */}
                                 {hasPermission('dashboard:section:gm_br') && gmBRItems.length > 0 && (
-                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-violet-200/60 dark:border-violet-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.1)] dark:shadow-none flex flex-col">
-                                        <div className="p-6 flex justify-between items-center border-b border-violet-100 dark:border-slate-700/50">
-                                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                                <FileText className="text-violet-600 dark:text-violet-400" size={20} />
-                                                GM Budget Review
-                                            </h3>
-                                            <span className="text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 px-2 py-1 rounded-full border border-violet-200 dark:border-violet-500/20">
-                                                {gmBRItems.length} Pending
-                                            </span>
+                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-violet-200/60 dark:border-violet-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.15)] dark:shadow-none flex flex-col min-h-[420px]">
+                                        <div className="p-5 flex flex-col gap-3 border-b border-violet-100 dark:border-slate-700/50">
+                                            <div className="flex items-center justify-between flex-wrap gap-2">
+                                                <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                                    <FileText className="text-violet-600 dark:text-violet-400" size={20} />
+                                                    GM Budget Review
+                                                </h3>
+                                                <span className="text-xs font-medium bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 px-2 py-1 rounded-full border border-violet-200 dark:border-violet-500/20">
+                                                    {filteredGmBRItems.length} Pending
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                {gmBRBuOptions.length > 2 && (
+                                                    <select value={gmBRBuFilter} onChange={(e) => { setGmBRBuFilter(e.target.value); setSelectedGmBRIds(new Set()); }} className="text-sm px-3 py-1.5 rounded-lg border border-violet-200 dark:border-violet-500/30 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-400">
+                                                        {gmBRBuOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                                    </select>
+                                                )}
+                                                <button onClick={selectAllGmBR} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
+                                                    {selectedGmBRIds.size === filteredGmBRItems.length && filteredGmBRItems.length > 0 ? <CheckSquare size={16} className="text-violet-500" /> : <Square size={16} />}
+                                                    {selectedGmBRIds.size === filteredGmBRItems.length && filteredGmBRItems.length > 0 ? 'Deselect All' : `Select All (${filteredGmBRItems.length})`}
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkApproveGmBR}
+                                                    disabled={selectedGmBRIds.size === 0}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedGmBRIds.size > 0
+                                                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-md'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+                                                >
+                                                    <CheckCircle size={16} /> Approve {selectedGmBRIds.size > 0 && `(${selectedGmBRIds.size})`}
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkRejectGmBR}
+                                                    disabled={selectedGmBRIds.size === 0}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedGmBRIds.size > 0
+                                                        ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-md'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+                                                >
+                                                    <XCircle size={16} /> Reject {selectedGmBRIds.size > 0 && `(${selectedGmBRIds.size})`}
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
-                                            <div className="space-y-4">
-                                                {gmBRItems.map(req => {
+                                        <div className="p-5 flex-1 overflow-y-auto max-h-[600px]">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                {filteredGmBRItems.map(req => {
                                                     const requester = allUsers.find(u => u.id === req.requesterId);
                                                     const business = businesses.find(b => b.id === req.businessId);
+                                                    const isSelected = selectedGmBRIds.has(req.id);
                                                     return (
-                                                        <div
-                                                            key={req.id}
-                                                            onClick={() => setDrawerReq(req)}
-                                                            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-violet-500/30 hover:shadow-md transition-all cursor-pointer group"
-                                                        >
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <div>
-                                                                    <span className="text-xs font-mono text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 px-1.5 py-0.5 rounded border border-violet-200 dark:border-violet-500/10">{req.id}</span>
-                                                                    <h4
-                                                                        onClick={() => setDrawerReq(req)}
-                                                                        className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-violet-600 dark:group-hover:text-violet-300"
-                                                                    >
-                                                                        {req.description}
-                                                                    </h4>
+                                                        <div key={req.id} className={`p-3 rounded-xl border-2 transition-all cursor-pointer group ${isSelected
+                                                            ? 'bg-violet-50 dark:bg-violet-900/20 border-violet-400 dark:border-violet-500 shadow-md'
+                                                            : 'bg-slate-50 dark:bg-slate-700/30 border-slate-200 dark:border-slate-700/50 hover:border-violet-300 dark:hover:border-violet-500/50 hover:shadow-md'}`}>
+                                                            <div className="flex items-start gap-2 mb-2">
+                                                                <button onClick={(e) => { e.stopPropagation(); toggleGmBRSelect(req.id); }} className="mt-0.5 flex-shrink-0">
+                                                                    {isSelected ? <CheckSquare size={16} className="text-violet-500" /> : <Square size={16} className="text-slate-400" />}
+                                                                </button>
+                                                                <div className="flex-1 min-w-0" onClick={() => setDrawerReq(req)}>
+                                                                    <span className="text-xs font-mono text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 px-1 py-0.5 rounded border border-violet-100 dark:border-violet-500/10">{req.id}</span>
+                                                                    <h4 className="font-medium text-slate-700 dark:text-slate-200 text-sm truncate mt-1">{req.description}</h4>
                                                                 </div>
-                                                                <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                                <span className="text-xs text-slate-500 flex-shrink-0">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                             </div>
-                                                            <div className="flex items-center justify-between text-xs mb-2">
-                                                                <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                                <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                            <div className="flex items-center justify-between text-xs mb-1 ml-6">
+                                                                <span className="text-slate-600">{requester?.name || 'Unknown'}</span>
+                                                                <span className="text-slate-700 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
-                                                            {req.prfDetails?.supplier?.name && (
-                                                                <div className="flex items-center text-xs mb-2">
-                                                                    <span className="text-slate-500">Supplier:</span>
-                                                                    <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
-                                                                </div>
-                                                            )}
-                                                            <div className="flex items-center justify-between text-xs mb-3">
-                                                                <span className="font-semibold px-2 py-0.5 rounded bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-500/20">
-                                                                    {business?.name || 'N/A'}
-                                                                </span>
+                                                            <div className="flex items-center justify-between text-xs mb-3 ml-6">
+                                                                <span className="font-semibold px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-500/10 text-[10px]">{business?.name || 'N/A'}</span>
                                                             </div>
-                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
-                                                                <button
-                                                                    onClick={(e) => handleApprove(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                                >
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50 ml-6">
+                                                                <button onClick={(e) => handleApprove(req, e)} className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors">
                                                                     <CheckCircle size={14} /> Approve
                                                                 </button>
-                                                                <button
-                                                                    onClick={(e) => handleRejectClick(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                                >
+                                                                <button onClick={(e) => handleRejectClick(req, e)} className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors">
                                                                     <XCircle size={14} /> Reject
                                                                 </button>
                                                             </div>
@@ -928,67 +1234,81 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                     </div>
                                 )}
 
-                                {/* BOD Budget Review Widget - Full Style */}
+                                {/* BOD Budget Review Widget - Enhanced with Bulk Selection */}
                                 {hasPermission('dashboard:section:bod_br') && bodBRItems.length > 0 && (
-                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-rose-200/60 dark:border-rose-500/30 shadow-[0_8px_30px_-6px_rgba(244,63,94,0.1)] dark:shadow-none flex flex-col">
-                                        <div className="p-6 flex justify-between items-center border-b border-rose-100 dark:border-slate-700/50">
-                                            <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                                <FileText className="text-rose-500 dark:text-rose-400" size={20} />
-                                                BOD Budget Review
-                                            </h3>
-                                            <span className="text-xs font-medium bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-full border border-rose-200 dark:border-rose-500/20">
-                                                {bodBRItems.length} Pending
-                                            </span>
+                                    <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-rose-200/60 dark:border-rose-500/30 shadow-[0_8px_30px_-6px_rgba(244,63,94,0.15)] dark:shadow-none flex flex-col min-h-[420px]">
+                                        <div className="p-5 flex flex-col gap-3 border-b border-rose-100 dark:border-slate-700/50">
+                                            <div className="flex items-center justify-between flex-wrap gap-2">
+                                                <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                                    <FileText className="text-rose-500 dark:text-rose-400" size={20} />
+                                                    BOD Budget Review
+                                                </h3>
+                                                <span className="text-xs font-medium bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 px-2 py-1 rounded-full border border-rose-200 dark:border-rose-500/20">
+                                                    {filteredBodBRItems.length} Pending
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-3 flex-wrap">
+                                                {bodBRBuOptions.length > 2 && (
+                                                    <select value={bodBRBuFilter} onChange={(e) => { setBodBRBuFilter(e.target.value); setSelectedBodBRIds(new Set()); }} className="text-sm px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-500/30 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-rose-400">
+                                                        {bodBRBuOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                                    </select>
+                                                )}
+                                                <button onClick={selectAllBodBR} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors">
+                                                    {selectedBodBRIds.size === filteredBodBRItems.length && filteredBodBRItems.length > 0 ? <CheckSquare size={16} className="text-rose-500" /> : <Square size={16} />}
+                                                    {selectedBodBRIds.size === filteredBodBRItems.length && filteredBodBRItems.length > 0 ? 'Deselect All' : `Select All (${filteredBodBRItems.length})`}
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkApproveBodBR}
+                                                    disabled={selectedBodBRIds.size === 0}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedBodBRIds.size > 0
+                                                        ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-md'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+                                                >
+                                                    <CheckCircle size={16} /> Approve {selectedBodBRIds.size > 0 && `(${selectedBodBRIds.size})`}
+                                                </button>
+                                                <button
+                                                    onClick={handleBulkRejectBodBR}
+                                                    disabled={selectedBodBRIds.size === 0}
+                                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedBodBRIds.size > 0
+                                                        ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-md'
+                                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+                                                >
+                                                    <XCircle size={16} /> Reject {selectedBodBRIds.size > 0 && `(${selectedBodBRIds.size})`}
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
-                                            <div className="space-y-4">
-                                                {bodBRItems.map(req => {
+                                        <div className="p-5 flex-1 overflow-y-auto max-h-[600px]">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                                {filteredBodBRItems.map(req => {
                                                     const requester = allUsers.find(u => u.id === req.requesterId);
                                                     const business = businesses.find(b => b.id === req.businessId);
+                                                    const isSelected = selectedBodBRIds.has(req.id);
                                                     return (
-                                                        <div
-                                                            key={req.id}
-                                                            onClick={() => setDrawerReq(req)}
-                                                            className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-rose-500/30 hover:shadow-md transition-all cursor-pointer group"
-                                                        >
-                                                            <div className="flex justify-between items-start mb-2">
-                                                                <div>
-                                                                    <span className="text-xs font-mono text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-500/10">{req.id}</span>
-                                                                    <h4
-                                                                        onClick={() => setDrawerReq(req)}
-                                                                        className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-rose-600 dark:group-hover:text-rose-300"
-                                                                    >
-                                                                        {req.description}
-                                                                    </h4>
+                                                        <div key={req.id} className={`p-3 rounded-xl border-2 transition-all cursor-pointer group ${isSelected
+                                                            ? 'bg-rose-50 dark:bg-rose-900/20 border-rose-400 dark:border-rose-500 shadow-md'
+                                                            : 'bg-slate-50 dark:bg-slate-700/30 border-slate-200 dark:border-slate-700/50 hover:border-rose-300 dark:hover:border-rose-500/50 hover:shadow-md'}`}>
+                                                            <div className="flex items-start gap-2 mb-2">
+                                                                <button onClick={(e) => { e.stopPropagation(); toggleBodBRSelect(req.id); }} className="mt-0.5 flex-shrink-0">
+                                                                    {isSelected ? <CheckSquare size={16} className="text-rose-500" /> : <Square size={16} className="text-slate-400" />}
+                                                                </button>
+                                                                <div className="flex-1 min-w-0" onClick={() => setDrawerReq(req)}>
+                                                                    <span className="text-xs font-mono text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 px-1 py-0.5 rounded border border-rose-100 dark:border-rose-500/10">{req.id}</span>
+                                                                    <h4 className="font-medium text-slate-700 dark:text-slate-200 text-sm truncate mt-1">{req.description}</h4>
                                                                 </div>
-                                                                <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                                <span className="text-xs text-slate-500 flex-shrink-0">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                             </div>
-                                                            <div className="flex items-center justify-between text-xs mb-2">
-                                                                <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                                <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                            <div className="flex items-center justify-between text-xs mb-1 ml-6">
+                                                                <span className="text-slate-600">{requester?.name || 'Unknown'}</span>
+                                                                <span className="text-slate-700 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                             </div>
-                                                            {req.prfDetails?.supplier?.name && (
-                                                                <div className="flex items-center text-xs mb-2">
-                                                                    <span className="text-slate-500">Supplier:</span>
-                                                                    <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
-                                                                </div>
-                                                            )}
-                                                            <div className="flex items-center justify-between text-xs mb-3">
-                                                                <span className="font-semibold px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-500/20">
-                                                                    {business?.name || 'N/A'}
-                                                                </span>
+                                                            <div className="flex items-center justify-between text-xs mb-3 ml-6">
+                                                                <span className="font-semibold px-1.5 py-0.5 rounded bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-500/10 text-[10px]">{business?.name || 'N/A'}</span>
                                                             </div>
-                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
-                                                                <button
-                                                                    onClick={(e) => handleApprove(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                                >
+                                                            <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50 ml-6">
+                                                                <button onClick={(e) => handleApprove(req, e)} className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors">
                                                                     <CheckCircle size={14} /> Approve
                                                                 </button>
-                                                                <button
-                                                                    onClick={(e) => handleRejectClick(req, e)}
-                                                                    className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                                >
+                                                                <button onClick={(e) => handleRejectClick(req, e)} className="flex-1 py-1.5 px-3 rounded-lg bg-rose-50 dark:bg-red-600/20 text-rose-600 dark:text-red-400 hover:bg-rose-100 dark:hover:bg-red-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors">
                                                                     <XCircle size={14} /> Reject
                                                                 </button>
                                                             </div>
@@ -1003,81 +1323,186 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         </div>
                     ) : null}
 
-                    {/* === CHECK AUTHORIZATION SECTION === */}
+                    {/* === CHECK AUTHORIZATION SECTION - ENHANCED === */}
                     {hasPermission('dashboard:section:check_auth') && checkAuthItems.length > 0 && (
                         <div className="mb-6">
                             <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                                 <ShieldCheck size={14} />
                                 Check Authorization Queue
                             </h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-amber-200/60 dark:border-amber-500/30 shadow-[0_8px_30px_-6px_rgba(245,158,11,0.1)] dark:shadow-none flex flex-col">
-                                    <div className="p-6 flex justify-between items-center border-b border-amber-100 dark:border-slate-700/50">
+                            {/* Full-width container */}
+                            <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-amber-200/60 dark:border-amber-500/30 shadow-[0_8px_30px_-6px_rgba(245,158,11,0.15)] dark:shadow-none">
+                                {/* Header with count and bulk actions */}
+                                <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-amber-100 dark:border-slate-700/50">
+                                    <div className="flex items-center gap-4 flex-wrap">
                                         <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                            <ShieldCheck className="text-amber-500 dark:text-amber-400" size={20} />
+                                            <ShieldCheck className="text-amber-500 dark:text-amber-400" size={22} />
                                             Check Authorization
                                         </h3>
-                                        <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-full border border-amber-200 dark:border-amber-500/20">
-                                            {checkAuthItems.length} Pending
+                                        <span className="text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-500/20">
+                                            {filteredCheckAuthItems.length} Pending
                                         </span>
+                                        {/* Business Unit Filter - only show if multiple BUs */}
+                                        {checkAuthBuOptions.length > 2 && (
+                                            <select
+                                                value={checkAuthBuFilter}
+                                                onChange={(e) => {
+                                                    setCheckAuthBuFilter(e.target.value);
+                                                    setSelectedCheckAuthIds(new Set()); // Clear selection on filter change
+                                                }}
+                                                className="text-sm px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-500/30 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                            >
+                                                {checkAuthBuOptions.map(opt => (
+                                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                ))}
+                                            </select>
+                                        )}
                                     </div>
-                                    <div className="p-6 flex-1 overflow-y-auto max-h-[400px]">
-                                        <div className="space-y-4">
-                                            {checkAuthItems.map(req => {
-                                                const requester = allUsers.find(u => u.id === req.requesterId);
-                                                const business = businesses.find(b => b.id === req.businessId);
-                                                return (
-                                                    <div
-                                                        key={req.id}
-                                                        onClick={() => setDrawerReq(req)}
-                                                        className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-amber-500/30 hover:shadow-md transition-all cursor-pointer group"
-                                                    >
-                                                        <div className="flex justify-between items-start mb-2">
-                                                            <div>
-                                                                <span className="text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-500/10">{req.id}</span>
-                                                                <h4
-                                                                    onClick={() => setDrawerReq(req)}
-                                                                    className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-amber-600 dark:group-hover:text-amber-300"
-                                                                >
-                                                                    {req.description}
-                                                                </h4>
+
+                                    {/* Bulk action bar */}
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        {/* Select All Toggle */}
+                                        <button
+                                            onClick={selectAllCheckAuth}
+                                            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+                                        >
+                                            {selectedCheckAuthIds.size === filteredCheckAuthItems.length && filteredCheckAuthItems.length > 0 ? (
+                                                <CheckSquare size={16} className="text-amber-500" />
+                                            ) : (
+                                                <Square size={16} />
+                                            )}
+                                            {selectedCheckAuthIds.size === filteredCheckAuthItems.length && filteredCheckAuthItems.length > 0
+                                                ? 'Deselect All'
+                                                : `Select All (${filteredCheckAuthItems.length})`}
+                                        </button>
+
+                                        {/* Bulk Approve */}
+                                        <button
+                                            onClick={handleBulkApprove}
+                                            disabled={selectedCheckAuthIds.size === 0}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedCheckAuthIds.size > 0
+                                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-md hover:shadow-lg'
+                                                : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            <CheckCircle size={16} />
+                                            Approve Selected {selectedCheckAuthIds.size > 0 && `(${selectedCheckAuthIds.size})`}
+                                        </button>
+
+                                        {/* Bulk Reject */}
+                                        <button
+                                            onClick={handleBulkReject}
+                                            disabled={selectedCheckAuthIds.size === 0}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedCheckAuthIds.size > 0
+                                                ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-md hover:shadow-lg'
+                                                : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            <XCircle size={16} />
+                                            Reject Selected {selectedCheckAuthIds.size > 0 && `(${selectedCheckAuthIds.size})`}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Items Grid - wider layout */}
+                                <div className="p-5 overflow-y-auto max-h-[600px]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                        {filteredCheckAuthItems.map(req => {
+                                            const requester = allUsers.find(u => u.id === req.requesterId);
+                                            const business = businesses.find(b => b.id === req.businessId);
+                                            const isSelected = selectedCheckAuthIds.has(req.id);
+
+                                            return (
+                                                <div
+                                                    key={req.id}
+                                                    className={`p-4 rounded-xl border-2 transition-all cursor-pointer group ${isSelected
+                                                        ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-400 dark:border-amber-500 shadow-md'
+                                                        : 'bg-slate-50 dark:bg-slate-700/30 border-slate-200 dark:border-slate-700/50 hover:border-amber-300 dark:hover:border-amber-600/50 hover:shadow-md'
+                                                        }`}
+                                                >
+                                                    {/* Checkbox + Header Row */}
+                                                    <div className="flex items-start gap-3 mb-3">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                toggleCheckAuthSelect(req.id);
+                                                            }}
+                                                            className="mt-0.5 flex-shrink-0"
+                                                        >
+                                                            {isSelected ? (
+                                                                <CheckSquare size={20} className="text-amber-500" />
+                                                            ) : (
+                                                                <Square size={20} className="text-slate-400 hover:text-amber-500 transition-colors" />
+                                                            )}
+                                                        </button>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-xs font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-500/10">
+                                                                    {req.id}
+                                                                </span>
+                                                                <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
                                                             </div>
-                                                            <span className="text-xs text-slate-500">{new Date(req.dateCreated).toLocaleDateString()}</span>
+                                                            <h4
+                                                                onClick={() => setDrawerReq(req)}
+                                                                className="font-semibold text-slate-700 dark:text-slate-200 truncate hover:text-amber-600 dark:hover:text-amber-300 transition-colors cursor-pointer"
+                                                            >
+                                                                {req.description}
+                                                            </h4>
                                                         </div>
-                                                        <div className="flex items-center justify-between text-xs mb-2">
+                                                    </div>
+
+                                                    {/* Details */}
+                                                    <div className="pl-8 space-y-2">
+                                                        <div className="flex items-center justify-between text-sm">
                                                             <span className="text-slate-600 dark:text-slate-400">{requester?.name || 'Unknown'}</span>
-                                                            <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
+                                                            <span className="font-bold text-slate-800 dark:text-white">₱{req.totalAmount?.toLocaleString()}</span>
                                                         </div>
                                                         {req.prfDetails?.supplier?.name && (
-                                                            <div className="flex items-center text-xs mb-2">
+                                                            <div className="flex items-center text-xs">
                                                                 <span className="text-slate-500">Supplier:</span>
-                                                                <span className="text-slate-600 dark:text-slate-300 ml-1 truncate max-w-[180px]" title={req.prfDetails.supplier.name}>{req.prfDetails.supplier.name}</span>
+                                                                <span className="text-slate-600 dark:text-slate-300 ml-1 truncate" title={req.prfDetails.supplier.name}>
+                                                                    {req.prfDetails.supplier.name}
+                                                                </span>
                                                             </div>
                                                         )}
-                                                        <div className="flex items-center justify-between text-xs mb-3">
-                                                            <span className="font-semibold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
                                                                 {business?.name || 'N/A'}
                                                             </span>
                                                         </div>
-                                                        <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
-                                                            <button
-                                                                onClick={(e) => handleApprove(req, e)}
-                                                                className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-amber-600/20 text-emerald-600 dark:text-amber-400 hover:bg-emerald-100 dark:hover:bg-amber-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                                                            >
-                                                                <CheckCircle size={14} /> Authorize Check
-                                                            </button>
-                                                        </div>
                                                     </div>
-                                                );
-                                            })}
-                                        </div>
+
+                                                    {/* Individual Actions */}
+                                                    <div className="flex gap-2 mt-4 pt-3 border-t border-slate-200 dark:border-slate-700/50">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleApprove(req, e);
+                                                            }}
+                                                            className="flex-1 py-2 px-3 rounded-lg bg-emerald-50 dark:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-600/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                                        >
+                                                            <CheckCircle size={14} /> Authorize
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleRejectClick(req, e);
+                                                            }}
+                                                            className="flex-1 py-2 px-3 rounded-lg bg-rose-50 dark:bg-rose-600/20 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-600/30 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors"
+                                                        >
+                                                            <XCircle size={14} /> Reject
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    <div className={`grid grid-cols-1 ${isApprover ? 'lg:grid-cols-3' : 'lg:grid-cols-1 max-w-4xl mx-auto'} gap-8`}>
+                    <div className="space-y-8 max-w-[1920px] mx-auto">
                         {/* Pending Approvals - Only visible with permission */}
                         {hasPermission('dashboard:section:pending_list') && (
                             <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-purple-200/60 dark:border-purple-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.1)] dark:shadow-none flex flex-col">
@@ -1094,7 +1519,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-purple-50 dark:border-slate-700/30 flex-wrap">
                                     {hasPermission('approval:manager:burf') && (
                                         <button
-                                            onClick={() => setPendingApprovalTab('burf')}
+                                            onClick={() => { setPendingApprovalTab('burf'); setSelectedPendingApprovalIds(new Set()); }}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'burf'
                                                 ? 'bg-orange-50 dark:bg-orange-600/20 text-orange-600 dark:text-orange-300 border border-orange-200 dark:border-orange-500/30'
                                                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50'
@@ -1111,7 +1536,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                     )}
                                     {hasPermission('approval:cic:burf') && (
                                         <button
-                                            onClick={() => setPendingApprovalTab('cic')}
+                                            onClick={() => { setPendingApprovalTab('cic'); setSelectedPendingApprovalIds(new Set()); }}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'cic'
                                                 ? 'bg-cyan-50 dark:bg-cyan-600/20 text-cyan-600 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-500/30'
                                                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50'
@@ -1129,7 +1554,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                     {/* Show PRF tab if user has permission OR is a designated approver for any Direct PRF */}
                                     {(hasPermission('approval:manager:prf') || prfApprovals.length > 0) && (
                                         <button
-                                            onClick={() => setPendingApprovalTab('prf')}
+                                            onClick={() => { setPendingApprovalTab('prf'); setSelectedPendingApprovalIds(new Set()); }}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'prf'
                                                 ? 'bg-purple-50 dark:bg-purple-600/20 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30'
                                                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50'
@@ -1146,7 +1571,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                     )}
                                     {currentUser.id === approverAssignments.gmUid && (
                                         <button
-                                            onClick={() => setPendingApprovalTab('gmprf')}
+                                            onClick={() => { setPendingApprovalTab('gmprf'); setSelectedPendingApprovalIds(new Set()); }}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'gmprf'
                                                 ? 'bg-indigo-50 dark:bg-indigo-600/20 text-indigo-600 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-500/30'
                                                 : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50'
@@ -1163,36 +1588,66 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                     )}
                                 </div>
 
+                                {/* Bulk Selection Controls */}
+                                {getActiveTabItems().length > 0 && (
+                                    <div className="px-6 py-3 flex items-center gap-3 flex-wrap bg-slate-50/50 dark:bg-slate-700/20 border-b border-purple-50 dark:border-slate-700/30">
+                                        <button onClick={selectAllPendingApprovals} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600 shadow-sm text-slate-700 dark:text-slate-300 transition-colors">
+                                            {selectedPendingApprovalIds.size === getActiveTabItems().length && getActiveTabItems().length > 0 ? <CheckSquare size={16} className="text-purple-500" /> : <Square size={16} />}
+                                            {selectedPendingApprovalIds.size === getActiveTabItems().length && getActiveTabItems().length > 0 ? 'Deselect All' : `Select All (${getActiveTabItems().length})`}
+                                        </button>
+                                        <button
+                                            onClick={handleBulkApprovePendingApprovals}
+                                            disabled={selectedPendingApprovalIds.size === 0}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedPendingApprovalIds.size > 0
+                                                ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-md'
+                                                : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+                                        >
+                                            <CheckCircle size={16} /> Approve {selectedPendingApprovalIds.size > 0 && `(${selectedPendingApprovalIds.size})`}
+                                        </button>
+                                        <button
+                                            onClick={handleBulkRejectPending}
+                                            disabled={selectedPendingApprovalIds.size === 0}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedPendingApprovalIds.size > 0
+                                                ? 'bg-rose-500 hover:bg-rose-600 text-white shadow-md'
+                                                : 'bg-slate-200 dark:bg-slate-700 text-slate-400 cursor-not-allowed'}`}
+                                        >
+                                            <XCircle size={16} /> Reject {selectedPendingApprovalIds.size > 0 && `(${selectedPendingApprovalIds.size})`}
+                                        </button>
+                                    </div>
+                                )}
+
                                 {/* Tab Content */}
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
-                                    <div className="space-y-4">
+                                <div className="p-5 flex-1 overflow-y-auto max-h-[600px]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                         {getActiveTabItems().map(activity => {
                                             const req = activity.rawRequisition;
                                             const requester = allUsers.find(u => u.id === req?.requesterId);
                                             const business = businesses.find(b => b.id === req?.businessId);
+                                            const isSelected = selectedPendingApprovalIds.has(activity.id);
                                             return (
                                                 <div
                                                     key={activity.id}
-                                                    onClick={() => setDrawerReq(activity.rawRequisition)}
-                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-purple-500/30 hover:shadow-md transition-all cursor-pointer group"
+                                                    className={`p-3 rounded-xl border-2 transition-all cursor-pointer group ${isSelected
+                                                        ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-400 dark:border-purple-500 shadow-md'
+                                                        : 'bg-slate-50 dark:bg-slate-700/30 border-slate-200 dark:border-slate-700/50 hover:border-purple-300 dark:hover:border-purple-500/50 hover:shadow-md'}`}
                                                 >
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
+                                                    <div className="flex items-start gap-3 mb-2">
+                                                        <button onClick={(e) => { e.stopPropagation(); togglePendingApprovalSelect(activity.id); }} className="mt-0.5 flex-shrink-0">
+                                                            {isSelected ? <CheckSquare size={18} className="text-purple-500" /> : <Square size={18} className="text-slate-400" />}
+                                                        </button>
+                                                        <div className="flex-1 min-w-0" onClick={() => setDrawerReq(activity.rawRequisition)}>
                                                             <span className="text-xs font-mono text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-500/10">{activity.id}</span>
-                                                            <h4
-                                                                onClick={() => setDrawerReq(activity.rawRequisition)}
-                                                                className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate max-w-[250px] cursor-pointer group-hover:text-purple-600 dark:group-hover:text-purple-300"
-                                                            >
+                                                            <h4 className="font-medium text-slate-700 dark:text-slate-200 mt-1 transition-colors truncate cursor-pointer group-hover:text-purple-600 dark:group-hover:text-purple-300">
                                                                 {activity.target}
                                                             </h4>
                                                         </div>
-                                                        <span className="text-xs text-slate-500">{activity.time}</span>
+                                                        <span className="text-xs text-slate-500 flex-shrink-0">{activity.time}</span>
                                                     </div>
-                                                    <div className="flex items-center justify-between text-xs mb-2">
+                                                    <div className="flex items-center justify-between text-xs mb-2 ml-8">
                                                         <span className="text-slate-600 dark:text-slate-400">{requester?.name || activity.user}</span>
-                                                        <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req?.totalAmount?.toLocaleString() || '0'}</span>
+                                                        <span className="text-slate-700 dark:text-slate-300 font-semibold">₱{req?.totalAmount?.toLocaleString() || '0'}</span>
                                                     </div>
-                                                    <div className="flex items-center justify-between text-xs mb-3">
+                                                    <div className="flex items-center justify-between text-xs mb-3 ml-8">
                                                         <span className="font-semibold px-2 py-0.5 rounded bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-500/20">
                                                             {business?.name || 'N/A'}
                                                         </span>
@@ -1200,7 +1655,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                             {activity.status.replace(/_/g, ' ')}
                                                         </span>
                                                     </div>
-                                                    <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50">
+                                                    <div className="flex gap-2 pt-3 border-t border-slate-200 dark:border-slate-700/50 ml-8">
                                                         <button
                                                             onClick={(e) => handleApprove(activity.rawRequisition, e)}
                                                             className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-50 dark:bg-green-600/20 text-emerald-600 dark:text-green-400 hover:bg-emerald-100 dark:hover:bg-green-600/30 text-xs font-medium flex items-center justify-center gap-1 transition-colors"
@@ -1246,8 +1701,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                         {readyForPrfItems.length} Pending
                                     </span>
                                 </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
-                                    <div className="space-y-4">
+                                <div className="p-5 flex-1 overflow-y-auto max-h-[600px]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                         {readyForPrfItems.map(req => {
                                             const requester = allUsers.find(u => u.id === req.requesterId);
                                             const business = businesses.find(b => b.id === req.businessId);
@@ -1255,7 +1710,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 <div
                                                     key={req.id}
                                                     onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-blue-500/30 hover:shadow-md transition-all cursor-pointer group"
+                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border-2 border-slate-200 dark:border-slate-700/50 hover:border-blue-300 dark:hover:border-blue-500/50 hover:shadow-md transition-all cursor-pointer group"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
@@ -1274,7 +1729,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-3">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/10">
                                                             {business?.name || 'N/A'}
                                                         </span>
                                                     </div>
@@ -1306,8 +1761,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                         {pendingFundReleaseItems.length} Pending
                                     </span>
                                 </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
-                                    <div className="space-y-4">
+                                <div className="p-5 flex-1 overflow-y-auto max-h-[600px]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                         {pendingFundReleaseItems.map(req => {
                                             const requester = allUsers.find(u => u.id === req.requesterId);
                                             const business = businesses.find(b => b.id === req.businessId);
@@ -1315,7 +1770,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 <div
                                                     key={req.id}
                                                     onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-emerald-500/30 hover:shadow-md transition-all cursor-pointer group"
+                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border-2 border-slate-200 dark:border-slate-700/50 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:shadow-md transition-all cursor-pointer group"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
@@ -1340,7 +1795,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         </div>
                                                     )}
                                                     <div className="flex items-center justify-between text-xs mb-3">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/10">
                                                             {business?.name || 'N/A'}
                                                         </span>
                                                     </div>
@@ -1375,8 +1830,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                         {pendingAuditItems.length} Pending
                                     </span>
                                 </div>
-                                <div className="p-6 flex-1 overflow-y-auto max-h-[350px]">
-                                    <div className="space-y-4">
+                                <div className="p-5 flex-1 overflow-y-auto max-h-[600px]">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                         {pendingAuditItems.map(req => {
                                             const requester = allUsers.find(u => u.id === req.requesterId);
                                             const business = businesses.find(b => b.id === req.businessId);
@@ -1384,7 +1839,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                 <div
                                                     key={req.id}
                                                     onClick={() => setDrawerReq(req)}
-                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border border-slate-200 dark:border-slate-700/50 hover:border-amber-500/30 hover:shadow-md transition-all cursor-pointer group"
+                                                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-700/30 border-2 border-slate-200 dark:border-slate-700/50 hover:border-amber-300 dark:hover:border-amber-500/50 hover:shadow-md transition-all cursor-pointer group"
                                                 >
                                                     <div className="flex justify-between items-start mb-2">
                                                         <div>
@@ -1403,7 +1858,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                                         <span className="text-slate-700 dark:text-slate-300 font-medium">₱{req.totalAmount?.toLocaleString()}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between text-xs mb-3">
-                                                        <span className="font-semibold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
+                                                        <span className="font-semibold px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/10">
                                                             {business?.name || 'N/A'}
                                                         </span>
                                                     </div>

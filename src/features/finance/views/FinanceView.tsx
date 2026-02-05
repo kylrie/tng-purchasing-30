@@ -8,7 +8,8 @@ import ReleaseFundModal from '../components/ReleaseFundModal';
 import CheckPrepModal from '../components/CheckPrepModal';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import RejectionModal from '../../../shared/components/RejectionModal';
-import { ExternalLink, Search, Wallet, CheckCircle, XCircle, FileText, Printer } from 'lucide-react';
+import { ExternalLink, Search, Wallet, CheckCircle, XCircle, FileText, Printer, Download } from 'lucide-react';
+import { exportToCSV, formatDateForExport, formatCurrencyForExport, type ExportColumn } from '../../../shared/utils/exportUtils';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
@@ -265,6 +266,59 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         return applyFilters(displayedReqs);
     }, [displayedReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
 
+    // Export handler for current tab's filtered data
+    const handleExport = () => {
+        const tabFilenames: Record<string, string> = {
+            br_pending: 'br_pending_export',
+            check_prep: 'check_prep_export',
+            check_pending: 'check_auth_export',
+            pcf_pending: 'pcf_pending_export',
+            pcf_released: 'pcf_released_export',
+            prf_pending: 'prf_pending_export',
+            prf_released: 'prf_released_export',
+        };
+
+        // PRF/BR requisition columns
+        const reqColumns: ExportColumn<Requisition>[] = [
+            { header: 'PRF ID', accessor: (req) => req.id },
+            { header: 'Business Unit', accessor: (req) => businesses.find(b => b.id === req.businessId)?.name || 'N/A' },
+            { header: 'Requester', accessor: (req) => allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId },
+            { header: 'Description', accessor: (req) => req.description || '' },
+            { header: 'Supplier', accessor: (req) => req.prfDetails?.supplier?.name || '' },
+            { header: 'Amount', accessor: (req) => formatCurrencyForExport(req.totalAmount) },
+            { header: 'Date Created', accessor: (req) => formatDateForExport(req.dateCreated) },
+            { header: 'Status', accessor: (req) => req.status },
+        ];
+
+        // PCF liquidation columns
+        const pcfColumns: ExportColumn<PCFLiquidation>[] = [
+            { header: 'PRF Reference', accessor: (liq) => liq.replenishmentPrfId || liq.id?.substring(0, 8) || '' },
+            { header: 'Custodian', accessor: (liq) => liq.userName || '' },
+            { header: 'Business Unit', accessor: (liq) => businesses.find(b => b.id === liq.businessId)?.name || 'N/A' },
+            { header: 'Amount', accessor: (liq) => formatCurrencyForExport(liq.totalAmount) },
+            { header: 'Status', accessor: (liq) => liq.status },
+            { header: 'Date Created', accessor: (liq) => formatDateForExport(liq.dateCreated) },
+            { header: 'Date Approved', accessor: (liq) => formatDateForExport(liq.dateApproved) },
+        ];
+
+        const filename = tabFilenames[activeTab] || 'export';
+
+        if (activeTab === 'pcf_pending') {
+            exportToCSV(filteredPcfPending, pcfColumns, filename);
+        } else if (activeTab === 'pcf_released') {
+            exportToCSV(filteredPcfReleased, pcfColumns, filename);
+        } else if (activeTab === 'br_pending') {
+            exportToCSV(filteredBrPendingReqs, reqColumns, filename);
+        } else if (activeTab === 'check_prep') {
+            exportToCSV(filteredCheckPrepReqs, reqColumns, filename);
+        } else if (activeTab === 'check_pending') {
+            exportToCSV(filteredCheckAuthReqs, reqColumns, filename);
+        } else {
+            // PRF pending/released
+            exportToCSV(filteredReqs, reqColumns, filename);
+        }
+    };
+
     const canView = hasPermission('module:view:finance');
 
     if (!canView) {
@@ -308,6 +362,15 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                 className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                             />
                         </div>
+                        {/* Export Button */}
+                        <button
+                            onClick={handleExport}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
+                            title="Export to CSV"
+                        >
+                            <Download size={16} />
+                            Export
+                        </button>
                     </div>
                 </div>
 
