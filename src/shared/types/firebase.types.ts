@@ -86,10 +86,11 @@ export interface FirestoreSupplier extends FirestoreDocument {
 
 // Notification document in Firestore
 export interface FirestoreNotification extends FirestoreDocument {
-  type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO' | 'ALERT' | 'REMINDER' | 'AUDIT';
+  type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO' | 'ALERT' | 'REMINDER' | 'AUDIT' | 'PCF';
   message: string;
   requisitionId?: string;
   targetRoles: (UserRole | string)[];
+  userId?: string; // Legacy/Optional: For backward compatibility and single-user targeting
   read: boolean;
 
   // Enhanced metadata for rich notifications

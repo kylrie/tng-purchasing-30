@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     Clock,
     FileText,
@@ -41,6 +41,8 @@ interface DashboardViewProps {
 
 const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser, allUsers, suppliers, businesses, onCreateRequisition, onUpdateRequisition }) => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
+
     const { hasPermission } = usePermissions();
     const [preparePRFReq, setPreparePRFReq] = React.useState<Requisition | null>(null);
     const [releaseFundReq, setReleaseFundReq] = React.useState<Requisition | null>(null);
@@ -88,6 +90,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 .catch(() => setPcfPendingCount(0));
         }
     }, [hasPermission]);
+
+
 
     // PRF Modal is opened directly by setPreparePRFReq - no redirect needed
 
@@ -441,6 +445,30 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         r.status === RequisitionStatus.LIQUIDATION_FILED &&
         hasPermission('liquidation:audit')
     );
+
+    // Consolidated Deep Linking & Notification Handling
+    React.useEffect(() => {
+        const tab = searchParams.get('tab');
+        const id = searchParams.get('id');
+
+        // 1. Handle Tab Switching
+        if (tab && ['burf', 'cic', 'prf', 'gmprf'].includes(tab)) {
+            setPendingApprovalTab(tab as any);
+        }
+
+        // 2. Handle ID-based Navigation
+        if (id) {
+            // Find the requisition in the main list
+            const req = requisitions.find(r => r.id === id);
+
+            if (req) {
+                // Always Open Drawer (Default behavior for all notifications)
+                if (!drawerReq && !preparePRFReq) {
+                    setDrawerReq(req);
+                }
+            }
+        }
+    }, [searchParams, requisitions, readyForPrfItems, preparePRFReq, drawerReq]);
 
     // ========== BU OPTIONS AND FILTERED ITEMS FOR ALL WIDGETS ==========
 
@@ -1965,7 +1993,14 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             <RequisitionDrawer
                 requisition={drawerReq}
                 isOpen={!!drawerReq}
-                onClose={() => setDrawerReq(null)}
+                onClose={() => {
+                    setDrawerReq(null);
+                    setSearchParams(params => {
+                        const newParams = new URLSearchParams(params);
+                        newParams.delete('id');
+                        return newParams;
+                    });
+                }}
                 variant="BURF"
                 businesses={businesses}
                 allUsers={allUsers}

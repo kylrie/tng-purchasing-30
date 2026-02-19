@@ -1,7 +1,8 @@
 import { FirestoreService, where, orderBy, Timestamp } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
-import type { FirestoreNotification } from '../types/firebase.types';
-import type { UserRole, Requisition, RequisitionStatus } from '../../features/procurement/types';
+import type { FirestoreNotification, FirestoreUser } from '../types/firebase.types';
+import { UserRole } from '../../features/procurement/types';
+import type { Requisition, RequisitionStatus } from '../../features/procurement/types';
 import type { Unsubscribe } from 'firebase/firestore';
 
 // ============================================================
@@ -64,6 +65,54 @@ export class NotificationsService {
     // ============================================================
 
     /**
+     * Helper to resolve Roles to User IDs
+     */
+    private static async resolveTargetRoles(targets: (UserRole | string)[]): Promise<string[]> {
+        const resolvedIds = new Set<string>();
+        const rolesToQuery = new Set<string>();
+
+        // Check each target
+        // If it looks like a role (is in UserRole values), query for it
+        // Otherwise treat as UID
+        const validRoles = Object.values(UserRole) as string[];
+
+        for (const target of targets) {
+            if (validRoles.includes(target)) {
+                rolesToQuery.add(target);
+            } else {
+                resolvedIds.add(target);
+            }
+        }
+
+        // Batch query for all roles
+        if (rolesToQuery.size > 0) {
+            try {
+                // Firestore 'in' query supports up to 10 values
+                const rolesArray = Array.from(rolesToQuery);
+                // Chunk if > 10 (though unlikely for notification targets)
+                const chunks = [];
+                for (let i = 0; i < rolesArray.length; i += 10) {
+                    chunks.push(rolesArray.slice(i, i + 10));
+                }
+
+                for (const chunk of chunks) {
+                    const users = await FirestoreService.getDocuments<FirestoreUser>(
+                        COLLECTIONS.USERS,
+                        [where('role', 'in', chunk)]
+                    );
+                    users.forEach(u => resolvedIds.add(u.id));
+                }
+            } catch (error) {
+                console.error('Error resolving roles to UIDs:', error);
+                // If query fails, we at least have the explicit UIDs
+                // We could add the roles back as fallback, but the security rule blocks them anyway
+            }
+        }
+
+        return Array.from(resolvedIds);
+    }
+
+    /**
      * Create a new notification with enhanced metadata
      */
     static async createNotification(data: {
@@ -76,6 +125,9 @@ export class NotificationsService {
         actionUrl?: string;
         metadata?: FirestoreNotification['metadata'];
     }): Promise<string> {
+        // Resolve roles to UIDs to satisfy strict security rules
+        const resolvedTargetIds = await this.resolveTargetRoles(data.targetRoles);
+
         // Sanitize metadata to remove undefined values (Firestore doesn't accept undefined)
         const sanitizedMetadata = data.metadata ?
             Object.fromEntries(
@@ -86,7 +138,8 @@ export class NotificationsService {
         const newDoc: Partial<FirestoreNotification> = {
             type: data.type,
             message: data.message,
-            targetRoles: data.targetRoles,
+            targetRoles: resolvedTargetIds, // Use resolved UIDs
+            userId: resolvedTargetIds[0], // FIX: Populate legacy userId (recipientId) for backward compat
             read: false,
             priority: data.priority || 'NORMAL',
             createdAt: Timestamp.now(),
@@ -170,8 +223,8 @@ export class NotificationsService {
             COLLECTIONS.NOTIFICATIONS,
             callback,
             [
-                where('targetRoles', 'array-contains', roleOrUserId),
-                orderBy('createdAt', 'desc'),
+                where('targetRoles', 'array-contains', roleOrUserId)
+                // orderBy('createdAt', 'desc') // Removed to prevent index/permission issues
             ],
             onError
         );
@@ -219,8 +272,8 @@ export class NotificationsService {
         const subType = isApproval ? 'APPROVED' : 'REJECTED';
 
         const message = isApproval
-            ? `Your ${type} #${requisition.id.slice(-6)} has been approved and moved to ${stageName}`
-            : `Your ${type} #${requisition.id.slice(-6)} was rejected at ${stageName}`;
+            ? `Your ${type} #${requisition.id} has been approved and moved to ${stageName}`
+            : `Your ${type} #${requisition.id} was rejected at ${stageName}`;
 
         try {
             await this.createNotification({
@@ -229,10 +282,12 @@ export class NotificationsService {
                 message,
                 requisitionId: requisition.id,
                 targetRoles: [requisition.requesterId],
-                actionUrl: isBurf ? `/burf/${requisition.id}` : `/prf/${requisition.id}`,
+                actionUrl: isBurf
+                    ? (newStatus === 'READY_FOR_PRF' ? `/?action=prepare-prf&id=${requisition.id}` : `/burf/${requisition.id}`)
+                    : `/prf/${requisition.id}?id=${requisition.id}`,
                 priority: isApproval ? 'NORMAL' : 'HIGH',
                 metadata: {
-                    requisitionNumber: requisition.id.slice(-6),
+                    requisitionNumber: requisition.id,
                     requesterName: requisition.requesterName,
                     amount: requisition.totalAmount,
                     stage: stageName,
@@ -256,12 +311,12 @@ export class NotificationsService {
         try {
             await this.createNotification({
                 ...NOTIFICATION_TYPES.BURF_CONVERTED_TO_PRF,
-                message: `Your BURF #${originalBurfId.slice(-6)} has been converted to PRF #${newPrfId.slice(-6)}`,
+                message: `Your BURF #${originalBurfId} has been converted to PRF #${newPrfId}`,
                 requisitionId: newPrfId,
                 targetRoles: [requesterId],
-                actionUrl: `/prf/${newPrfId}`,
+                actionUrl: `/prf/${newPrfId}?id=${newPrfId}`,
                 metadata: {
-                    requisitionNumber: newPrfId.slice(-6),
+                    requisitionNumber: newPrfId,
                     requesterName,
                 },
             });
@@ -281,16 +336,36 @@ export class NotificationsService {
         const isBurf = requisition.status.startsWith('BURF_');
         const type = isBurf ? 'BURF' : 'PRF';
 
+        let actionUrl = '/'; // Default
+
+        switch (requisition.status) {
+            case 'BURF_PENDING_MANAGER':
+                actionUrl = `/?tab=burf&id=${requisition.id}`;
+                break;
+            case 'BURF_PENDING_CIC':
+                actionUrl = `/?tab=cic&id=${requisition.id}`;
+                break;
+            case 'PRF_PENDING_MANAGER':
+                actionUrl = `/?tab=prf&id=${requisition.id}`;
+                break;
+            case 'PENDING_GM_PRF_APPROVAL':
+                actionUrl = `/?tab=gmprf&id=${requisition.id}`;
+                break;
+            default:
+                // Fallback for other approvals
+                actionUrl = `/?id=${requisition.id}`;
+        }
+
         try {
             await this.createNotification({
                 ...NOTIFICATION_TYPES.PENDING_APPROVAL,
-                message: `New ${type} #${requisition.id.slice(-6)} requires your approval (${stageName})`,
+                message: `New ${type} #${requisition.id} requires your approval (${stageName})`,
                 requisitionId: requisition.id,
                 targetRoles: approverIds,
-                actionUrl: isBurf ? `/burf` : `/procurement-approvals`,
+                actionUrl,
                 priority: requisition.isUrgent ? 'URGENT' : 'NORMAL',
                 metadata: {
-                    requisitionNumber: requisition.id.slice(-6),
+                    requisitionNumber: requisition.id,
                     requesterName: requisition.requesterName,
                     amount: requisition.totalAmount,
                     stage: stageName,
@@ -311,13 +386,13 @@ export class NotificationsService {
         try {
             await this.createNotification({
                 ...NOTIFICATION_TYPES.PRF_FUNDS_RELEASED,
-                message: `Funds released for PRF #${requisition.id.slice(-6)} - ₱${requisition.totalAmount?.toLocaleString()}`,
+                message: `Funds released for PRF #${requisition.id} - ₱${requisition.totalAmount?.toLocaleString()}`,
                 requisitionId: requisition.id,
                 targetRoles: [requisition.requesterId],
-                actionUrl: `/prf/${requisition.id}`,
+                actionUrl: `/prf/${requisition.id}?id=${requisition.id}`,
                 priority: 'HIGH',
                 metadata: {
-                    requisitionNumber: requisition.id.slice(-6),
+                    requisitionNumber: requisition.id,
                     requesterName: requisition.requesterName,
                     amount: requisition.totalAmount,
                     stage: 'Funds Released',
@@ -345,13 +420,13 @@ export class NotificationsService {
         try {
             await this.createNotification({
                 ...notificationType,
-                message: `New ${type} ready for audit review: #${itemId.slice(-6)}`,
+                message: `New ${type} ready for audit review: #${itemId}`,
                 requisitionId: itemId,
                 targetRoles: ['AUDITOR'], // Target the AUDITOR role
                 actionUrl: type === 'PCF' ? `/pcf-audit-review` : `/liquidation`,
                 priority: 'NORMAL',
                 metadata: {
-                    requisitionNumber: itemId.slice(-6),
+                    requisitionNumber: itemId,
                     requesterName,
                     amount,
                     stage: `${type} Audit`,
@@ -393,13 +468,13 @@ export class NotificationsService {
         try {
             await this.createNotification({
                 ...NOTIFICATION_TYPES.LIQUIDATION_REMINDER,
-                message: `Reminder: Liquidation pending for PRF #${requisitionId.slice(-6)}${daysText}`,
+                message: `Reminder: Liquidation pending for PRF #${requisitionId}${daysText}`,
                 requisitionId,
                 targetRoles: [userId],
-                actionUrl: `/procurement/liquidation`,
+                actionUrl: `/liquidation/${requisitionId}`,
                 priority: urgency,
                 metadata: {
-                    requisitionNumber: requisitionId.slice(-6),
+                    requisitionNumber: requisitionId,
                     requesterName,
                     stage: 'Liquidation Pending',
                 },
@@ -423,8 +498,8 @@ export class NotificationsService {
             : NOTIFICATION_TYPES.LIQUIDATION_REJECTED;
 
         const message = isCleared
-            ? `Your liquidation for PRF #${requisition.id.slice(-6)} has been cleared`
-            : `Your liquidation for PRF #${requisition.id.slice(-6)} was rejected${reason ? `: ${reason}` : ''}`;
+            ? `Your liquidation for PRF #${requisition.id} has been cleared`
+            : `Your liquidation for PRF #${requisition.id} was rejected${reason ? `: ${reason}` : ''}`;
 
         try {
             await this.createNotification({
@@ -432,10 +507,10 @@ export class NotificationsService {
                 message,
                 requisitionId: requisition.id,
                 targetRoles: [requisition.requesterId],
-                actionUrl: `/procurement/liquidation`,
+                actionUrl: `/liquidation/${requisition.id}`,
                 priority: isCleared ? 'NORMAL' : 'HIGH',
                 metadata: {
-                    requisitionNumber: requisition.id.slice(-6),
+                    requisitionNumber: requisition.id,
                     requesterName: requisition.requesterName,
                     amount: requisition.liquidationDetails?.totalActualAmount,
                     stage: isCleared ? 'Audit Cleared' : 'Liquidation Rejected',
@@ -444,6 +519,40 @@ export class NotificationsService {
             });
         } catch (error) {
             console.error('Failed to create liquidation result notification:', error);
+        }
+    }
+
+
+
+    /**
+     * Notify Purchasing Officer (CC) about PRF status updates
+     */
+    static async notifyPurchasingOfficer(
+        requisition: Requisition,
+        message: string
+    ): Promise<void> {
+        // Only notify if there is a preparedBy user (Purchasing Officer)
+        if (!requisition.prfDetails?.preparedBy) {
+            return;
+        }
+
+        try {
+            await this.createNotification({
+                type: 'INFO',
+                message,
+                requisitionId: requisition.id,
+                targetRoles: [requisition.prfDetails.preparedBy],
+                actionUrl: `/prf/${requisition.id}?id=${requisition.id}`,
+                priority: 'NORMAL',
+                metadata: {
+                    requisitionNumber: requisition.id,
+                    requesterName: requisition.requesterName,
+                    amount: requisition.totalAmount,
+                    stage: requisition.status,
+                },
+            });
+        } catch (error) {
+            console.error('Failed to create purchasing officer notification:', error);
         }
     }
 }

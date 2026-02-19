@@ -12,7 +12,7 @@ export interface Business {
 
 export interface NotificationItem {
     id: string;
-    type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO' | 'ALERT' | 'REMINDER' | 'AUDIT';
+    type: 'BURF' | 'PRF' | 'LIQUIDATION' | 'INFO' | 'ALERT' | 'REMINDER' | 'AUDIT' | 'PCF';
     message: string;
     requisitionId?: string;
     timestamp: string;

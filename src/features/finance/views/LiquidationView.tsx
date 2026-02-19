@@ -10,6 +10,7 @@ import LiquidationPrintModal from '../components/LiquidationPrintModal';
 import LiquidationModal from '../components/LiquidationModal';
 import LiquidationAuditModal from '../components/LiquidationAuditModal';
 import { executeWorkflowAction } from '../../procurement/services/workflowService';
+import { RequisitionService } from '../../procurement/services/requisitions.service';
 import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { Printer, Edit, FileText, RefreshCw, CheckCircle, Search, Download } from 'lucide-react';
 import { exportToCSV, formatDateForExport, formatCurrencyForExport, type ExportColumn } from '../../../shared/utils/exportUtils';
@@ -31,7 +32,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   requisitions,
   getStatusBadge,
   businesses,
-  onUpdateRequisition,
+  // onUpdateRequisition, - Unused now that we use RequisitionService directly
   allUsers,
   suppliers,
   variant = 'USER' // Default to USER view if not specified
@@ -60,48 +61,68 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     );
   }
 
-  const handleLiquidationSubmit = (updatedReq: Requisition) => {
-    onUpdateRequisition(updatedReq);
-    setEditingLiquidationReq(null);
+  const handleLiquidationSubmit = async (updatedRequisition: Requisition) => {
+    try {
+      const details = updatedRequisition.liquidationDetails;
+      if (!details) throw new Error('Liquidation details missing');
+
+      const variance = (updatedRequisition.totalAmount || 0) - (details.totalActualAmount || 0);
+
+      await RequisitionService.submitLiquidation(
+        updatedRequisition.id,
+        currentUser.id,
+        currentUser.name,
+        {
+          items: details.expenses || [],
+          totalBudget: updatedRequisition.totalAmount || 0,
+          totalActual: details.totalActualAmount || 0,
+          variance: variance,
+          receiptsLink: details.attachmentLink,
+          remarks: updatedRequisition.remarks
+        }
+      );
+      setEditingLiquidationReq(null);
+    } catch (error) {
+      console.error('Failed to submit liquidation:', error);
+      alert('Failed to submit liquidation. Please try again.');
+    }
   };
 
-  const handleAuditSubmit = (updatedReq: Requisition) => {
-    onUpdateRequisition(updatedReq);
-    setAuditReq(null);
-  };
+
 
   const handleAuditApprove = async (auditNotes: string) => {
     if (auditReq) {
-      const updatedReq = {
-        ...auditReq,
-        status: RequisitionStatus.AUDITED_CLEARED,
-        liquidationDetails: {
-          ...auditReq.liquidationDetails!,
-          auditedBy: currentUser.id,
-          auditDate: new Date().toISOString(),
-          auditNotes: auditNotes,
-          status: 'APPROVED' as const
-        }
-      };
-      handleAuditSubmit(updatedReq);
+      try {
+        await RequisitionService.auditLiquidation(
+          auditReq.id,
+          currentUser.id,
+          currentUser.name,
+          RequisitionStatus.AUDITED_CLEARED,
+          auditNotes
+        );
+        setAuditReq(null);
+      } catch (error) {
+        console.error('Failed to approve liquidation:', error);
+        alert('Failed to approve liquidation.');
+      }
     }
   };
 
   const handleAuditReject = async (reason: string) => {
     if (auditReq) {
-      const updatedReq = {
-        ...auditReq,
-        status: RequisitionStatus.LIQUIDATION_REJECTED,
-        liquidationDetails: {
-          ...auditReq.liquidationDetails!,
-          auditedBy: currentUser.id,
-          auditDate: new Date().toISOString(),
-          auditNotes: reason,
-          rejectionReason: reason,
-          status: 'REJECTED' as const
-        }
-      };
-      handleAuditSubmit(updatedReq);
+      try {
+        await RequisitionService.auditLiquidation(
+          auditReq.id,
+          currentUser.id,
+          currentUser.name,
+          RequisitionStatus.LIQUIDATION_REJECTED,
+          reason
+        );
+        setAuditReq(null);
+      } catch (error) {
+        console.error('Failed to reject liquidation:', error);
+        alert('Failed to reject liquidation.');
+      }
     }
   };
 

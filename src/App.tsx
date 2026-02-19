@@ -52,6 +52,7 @@ const SettingsView = React.lazy(() => import('./features/admin/views/SettingsVie
 const ActivityLogView = React.lazy(() => import('./features/admin/views/ActivityLogView'));
 const LoginView = React.lazy(() => import('./features/auth/views/LoginView'));
 const DashboardView = React.lazy(() => import('./features/dashboard/views/DashboardView'));
+const NotificationsView = React.lazy(() => import('./features/notifications/views/NotificationsView'));
 
 // Loading component
 const PageLoader = () => (
@@ -503,6 +504,12 @@ function ProtectedApp() {
               />
             } />
           )}
+
+          <Route path="/notifications" element={
+            <ProtectedRoute>
+              <NotificationsView />
+            </ProtectedRoute>
+          } />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

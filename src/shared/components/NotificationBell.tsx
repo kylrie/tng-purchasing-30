@@ -95,8 +95,8 @@ const NotificationCard: React.FC<NotificationCardProps> = ({
     return (
         <div
             className={`group relative p-3 rounded-lg border-l-4 ${priorityColor} ${notification.read
-                    ? 'bg-slate-800/30 border-slate-700/30'
-                    : 'bg-slate-800/60 border-slate-700/50 hover:bg-slate-700/50'
+                ? 'bg-slate-800/30 border-slate-700/30'
+                : 'bg-slate-800/60 border-slate-700/50 hover:bg-slate-700/50'
                 } transition-all duration-200 cursor-pointer`}
             onClick={() => {
                 if (!notification.read) {
@@ -228,8 +228,7 @@ const NotificationBell: React.FC = () => {
             >
                 <Bell
                     size={20}
-                    className={`text-slate-400 group-hover:text-white transition-colors ${unreadCount > 0 ? 'animate-pulse' : ''
-                        }`}
+                    className={`text-slate-400 group-hover:text-white transition-colors ${unreadCount > 0 ? 'animate-pulse' : ''}`}
                 />
                 {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold flex items-center justify-center shadow-lg shadow-red-500/30">
@@ -238,78 +237,74 @@ const NotificationBell: React.FC = () => {
                 )}
             </button>
 
-            {/* Notification Drawer */}
-            <div
-                className={`absolute right-0 top-full mt-2 w-96 max-h-[70vh] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden z-50 transition-all duration-300 ${isOpen
-                        ? 'opacity-100 translate-y-0 pointer-events-auto'
-                        : 'opacity-0 -translate-y-2 pointer-events-none'
-                    }`}
-            >
-                {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-slate-700/50">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                        <Bell size={18} className="text-cyan-400" />
-                        Notifications
+            {/* Notification Drawer - Flex Container */}
+            {isOpen && (
+                <div className="absolute right-0 top-full mt-2 w-96 h-[70vh] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl shadow-black/50 overflow-hidden z-50 flex flex-col origin-top-right animate-in fade-in zoom-in-95 duration-200">
+
+                    {/* Header - Fixed Height */}
+                    <div className="flex items-center justify-between p-4 border-b border-slate-700/50 shrink-0">
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <Bell size={18} className="text-cyan-400" />
+                            Notifications
+                            {unreadCount > 0 && (
+                                <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full">
+                                    {unreadCount} new
+                                </span>
+                            )}
+                        </h3>
                         {unreadCount > 0 && (
-                            <span className="text-xs bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full">
-                                {unreadCount} new
-                            </span>
+                            <button
+                                onClick={handleMarkAllRead}
+                                className="text-xs text-slate-400 hover:text-cyan-400 flex items-center gap-1 transition-colors"
+                            >
+                                <CheckCheck size={14} />
+                                Mark all read
+                            </button>
                         )}
-                    </h3>
-                    {unreadCount > 0 && (
-                        <button
-                            onClick={handleMarkAllRead}
-                            className="text-xs text-slate-400 hover:text-cyan-400 flex items-center gap-1 transition-colors"
-                        >
-                            <CheckCheck size={14} />
-                            Mark all read
-                        </button>
-                    )}
-                </div>
+                    </div>
 
-                {/* Notifications List */}
-                <div className="overflow-y-auto max-h-[calc(70vh-80px)] p-2 space-y-2">
-                    {loadingNotifications ? (
-                        <div className="flex items-center justify-center py-8">
-                            <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                        </div>
-                    ) : visibleNotifications.length === 0 ? (
-                        <div className="text-center py-12">
-                            <Bell size={40} className="mx-auto text-slate-600 mb-3" />
-                            <p className="text-slate-500 text-sm">No notifications yet</p>
-                            <p className="text-slate-600 text-xs mt-1">
-                                You'll see updates about your requests here
-                            </p>
-                        </div>
-                    ) : (
-                        visibleNotifications.slice(0, 20).map((notification) => (
-                            <NotificationCard
-                                key={notification.id}
-                                notification={notification}
-                                onMarkRead={handleMarkRead}
-                                onNavigate={handleNavigate}
-                                onDismiss={handleDismiss}
-                            />
-                        ))
-                    )}
-                </div>
+                    {/* Notification List - Scrollable Flex Item */}
+                    <div className="flex-1 overflow-y-auto min-h-0 p-2 space-y-2 custom-scrollbar">
+                        {loadingNotifications ? (
+                            <div className="flex items-center justify-center py-12">
+                                <div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        ) : visibleNotifications.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400 py-8">
+                                <div className="w-16 h-16 rounded-full bg-slate-800/50 flex items-center justify-center mb-4">
+                                    <Bell size={24} className="opacity-50" />
+                                </div>
+                                <p className="text-sm font-medium text-slate-300">No notifications</p>
+                                <p className="text-xs text-slate-500 mt-1">You're all caught up!</p>
+                            </div>
+                        ) : (
+                            visibleNotifications.slice(0, 20).map((notification) => (
+                                <NotificationCard
+                                    key={notification.id}
+                                    notification={notification}
+                                    onMarkRead={handleMarkRead}
+                                    onNavigate={handleNavigate}
+                                    onDismiss={handleDismiss}
+                                />
+                            ))
+                        )}
+                    </div>
 
-                {/* Footer */}
-                {visibleNotifications.length > 20 && (
-                    <div className="p-3 border-t border-slate-700/50 text-center">
+                    {/* Footer - Fixed Height */}
+                    <div className="p-3 border-t border-slate-700/50 bg-slate-800/50 backdrop-blur-md shrink-0">
                         <button
                             onClick={() => {
                                 setIsOpen(false);
                                 navigate('/notifications');
                             }}
-                            className="text-sm text-cyan-400 hover:text-cyan-300 flex items-center gap-1 mx-auto"
+                            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 text-sm font-medium transition-all group"
                         >
-                            View all notifications
-                            <ExternalLink size={14} />
+                            View full history
+                            <ExternalLink size={14} className="group-hover:translate-x-0.5 transition-transform" />
                         </button>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
         </div>
     );
 };

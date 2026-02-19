@@ -55,6 +55,23 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
         SettingsService.getApproverAssignments().then(setApproverAssignments);
     }, []);
 
+    // Sync active tab with URL parameters & Deep Linking
+    useEffect(() => {
+        const tabParam = searchParams.get('tab') as PendingSubTab;
+        if (tabParam && ['burf', 'cic', 'prf', 'gmprf'].includes(tabParam)) {
+            setPendingSubTab(tabParam);
+        }
+
+        // Deep Linking: Check for 'id' parameter
+        const idParam = searchParams.get('id');
+        if (idParam && !drawerReq) {
+            const foundReq = requisitions.find(r => r.id === idParam);
+            if (foundReq) {
+                setDrawerReq(foundReq);
+            }
+        }
+    }, [searchParams, requisitions, drawerReq]);
+
     // Check if current user is the assigned GM
     const isAssignedGM = currentUser.id === approverAssignments.gmUid;
 

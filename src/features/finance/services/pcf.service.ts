@@ -1,4 +1,5 @@
 import { FirestoreService, where } from '../../../shared/services/firestore.service';
+import { NotificationsService, NOTIFICATION_TYPES } from '../../../shared/services/notifications.service';
 import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import type { Requisition, RequisitionItem, SupplierDetails } from '../../procurement/types';
@@ -254,6 +255,19 @@ export class PCFService {
         };
 
         const docId = await FirestoreService.createDocument(PCF_COLLECTION, newLiquidation);
+
+        // NOTIFICATION: Notify Auditors of new PCF
+        try {
+            await NotificationsService.notifyAuditorOnNewItem(
+                'PCF',
+                docId,
+                userName,
+                totalAmount
+            );
+        } catch (error) {
+            console.error('Failed to create PCF notification:', error);
+        }
+
         return docId;
     }
 
@@ -322,6 +336,27 @@ export class PCFService {
             deadlineDay: settings.deadlineDay,
             expenseMonth,
         });
+
+        // NOTIFICATION: Notify Auditor (`AUDIT_REVIEW` status)
+        try {
+            await NotificationsService.createNotification({
+                ...NOTIFICATION_TYPES.LIQUIDATION_FILED, // Or LIQUIDATION_READY_FOR_AUDIT if preferred
+                type: 'AUDIT',
+                subType: 'PENDING_ACTION',
+                message: `New PCF Liquidation Filed: #${liquidationId.slice(-6)} by ${liquidation.userName}`,
+                requisitionId: liquidationId,
+                targetRoles: ['AUDITOR'],
+                actionUrl: `/pcf-audit-review`,
+                metadata: {
+                    requisitionNumber: liquidationId.slice(-6),
+                    requesterName: liquidation.userName,
+                    amount: liquidation.totalAmount,
+                    stage: 'Audit Review'
+                }
+            });
+        } catch (error) {
+            console.error('Failed to create auditor notification for PCF:', error);
+        }
     }
 
     /**
@@ -364,6 +399,25 @@ export class PCFService {
             auditClearedAt: new Date().toISOString(),
             auditNotesHistory: [...existingHistory, auditNoteEntry]
         });
+
+        // NOTIFICATION: Notify Manager of PCF ready for approval
+        try {
+            await NotificationsService.createNotification({
+                ...NOTIFICATION_TYPES.PENDING_APPROVAL,
+                message: `PCF Liquidation #${liquidationId.slice(-6)} audited and ready for approval`,
+                requisitionId: liquidationId,
+                targetRoles: ['MANAGER'], // Target generic MANAGER role
+                actionUrl: `/pcf-approvals`, // Use dedicated approvals view
+                metadata: {
+                    requisitionNumber: liquidationId.slice(-6),
+                    requesterName: liquidation.userName,
+                    amount: liquidation.totalAmount,
+                    stage: 'Manager Approval'
+                }
+            });
+        } catch (error) {
+            console.error('Failed to create manager notification for PCF:', error);
+        }
     }
 
     /**
@@ -463,21 +517,47 @@ export class PCFService {
                     action: 'PCF_REPLENISHMENT_CREATED',
                     comments: `Auto-created from PCF Liquidation approval. Routed through BR workflow.`,
                     stage: RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL,
+                    timestamp: new Date().toISOString(),
                 }],
             };
 
-            // Step 4: Update liquidation status and link PRF
+            transaction.set(prfRef, newPrf);
+
+            // Step 4: Update PCF Status
             transaction.update(liquidationRef, {
+                // The prompt says "Approve and Replenish", forcing creating PRF.
+                // Logic says: "1. Update PCF status to APPROVED_WAITING_RELEASE" in comment, but effectively REPLENISHED if funds released?
+                // Actually, let's stick to REPLENISHED if the PRF is created. Or closer to typical flow.
+                // Given "Fast Track", let's assume REPLENISHED or APPROVED_WAITING_RELEASE.
+                // Let's use APPROVED_WAITING_RELEASE as it waits for the PRF to be paid.
                 status: PCFStatus.APPROVED_WAITING_RELEASE,
                 dateApproved: new Date().toISOString(),
                 approvedBy: approverId,
                 approvedByName: approverName,
                 replenishmentPrfId: newPrfId,
             });
-
-            // Step 5: Create the PRF
-            transaction.set(prfRef, newPrf);
         });
+
+        // NOTIFICATION: Notify Custodian (Filer) that PCF is replenished/approved
+        try {
+            const liquidation = await this.getLiquidationById(liquidationId);
+            if (liquidation) {
+                await NotificationsService.createNotification({
+                    ...NOTIFICATION_TYPES.LIQUIDATION_CLEARED,
+                    message: `Your PCF Liquidation #${liquidationId.slice(-6)} has been approved. Replenishment PRF: #${newPrfId.slice(-6)}`,
+                    requisitionId: liquidationId,
+                    targetRoles: [liquidation.userId],
+                    actionUrl: `/pcf`,
+                    metadata: {
+                        requisitionNumber: liquidationId.slice(-6),
+                        amount: liquidation.totalAmount,
+                        stage: 'Replenished'
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to notify custodian of PCF approval:', error);
+        }
 
         return { prfId: newPrfId };
     }
@@ -523,6 +603,23 @@ export class PCFService {
             rejectionReason: reason,
             auditNotesHistory: [...existingHistory, auditNoteEntry]
         });
+
+        // NOTIFICATION: Notify Custodian (Filer) of Rejection
+        try {
+            if (liquidation) {
+                await NotificationsService.createNotification({
+                    type: 'PCF',
+                    subType: 'REJECTED',
+                    message: `Your PCF Liquidation #${liquidationId.slice(-6)} was rejected. Reason: ${reason}`,
+                    requisitionId: liquidationId,
+                    targetRoles: [liquidation.userId],
+                    actionUrl: `/pcf`,
+                    priority: 'HIGH'
+                });
+            }
+        } catch (error) {
+            console.error('Failed to notify custodian of PCF rejection:', error);
+        }
     }
 
     /**
@@ -551,7 +648,7 @@ export class PCFService {
     }
 
     /**
-     * Refile a rejected liquidation - resets to PENDING_APPROVAL
+     * Refile a rejected liquidation - resets to AUDIT_REVIEW
      * Clears rejection data and allows the user to submit again
      */
     static async refileLiquidation(
@@ -598,6 +695,18 @@ export class PCFService {
             rejectionReason: null,
             auditNotesHistory: [...existingHistory, auditNoteEntry]
         });
+
+        // NOTIFICATION: Notify Auditors of Refiled PCF
+        try {
+            await NotificationsService.notifyAuditorOnNewItem(
+                'PCF',
+                liquidationId,
+                liquidation?.userName,
+                totalAmount
+            );
+        } catch (error) {
+            console.error('Failed to create PCF refile notification:', error);
+        }
     }
 
     /**

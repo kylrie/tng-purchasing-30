@@ -4,6 +4,7 @@ import { db } from '../../../config/firebase';
 import type { Requisition, RequisitionHistory, RequisitionItem, SupplierDetails, CostAllocation } from '../types';
 import { RequisitionStatus, UserRole, hasGlobalAccess } from '../types';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
+import type { FirestoreUser } from '../../../shared/types/firebase.types';
 import { removeUndefinedFields } from '../../../shared/utils/firestore.utils';
 import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
 import { NotificationsService } from '../../../shared/services/notifications.service';
@@ -272,11 +273,10 @@ export class RequisitionService {
       }
 
       // Step 1: Run transaction for atomic create + update + ID generation
-      let sourceBurfNewStatus: RequisitionStatus = RequisitionStatus.READY_FOR_PRF;
       let remainingItemsCount = 0;
       let newPrfId = '';
 
-      await runTransaction(db, async (transaction) => {
+      const { sourceBurf, sourceBurfNewStatus } = await runTransaction(db, async (transaction) => {
         // Step A: Read the current state of the source BURF
         const sourceBurfSnap = await transaction.get(sourceBurfRef);
         if (!sourceBurfSnap.exists()) {
@@ -339,7 +339,7 @@ export class RequisitionService {
         // Determine new status for source BURF
         // BURF_COMPLETED if all items consumed, BURF_PARTIALLY_PROCESSED if items remain
         const isFullyConsumed = remainingItemsCount === 0;
-        sourceBurfNewStatus = isFullyConsumed
+        const sourceBurfNewStatus = isFullyConsumed
           ? RequisitionStatus.BURF_COMPLETED
           : RequisitionStatus.BURF_PARTIALLY_PROCESSED;
 
@@ -428,7 +428,7 @@ export class RequisitionService {
         });
 
         // Return data for notification
-        return { sourceBurf, newPrfId };
+        return { sourceBurf, newPrfId, sourceBurfNewStatus };
       });
 
       // NOTIFICATION: Notify the filer that their BURF was converted to PRF
@@ -442,6 +442,63 @@ export class RequisitionService {
       } catch (notificationError) {
         console.error('Failed to create conversion notification:', notificationError);
         // Don't throw - conversion succeeded, notification failed is non-critical
+      }
+
+      // NOTIFICATION: Notify Approver (Manager) on new PRF
+      if (sourceBurfNewStatus === RequisitionStatus.BURF_COMPLETED || sourceBurfNewStatus === RequisitionStatus.BURF_PARTIALLY_PROCESSED) {
+        try {
+          console.log(`[createBatchPrfFromBurf] Looking up Manager for Business: ${sourceBurf.businessId}`);
+
+          // Replicate Manager Lookup Logic from createRequisition
+          let managerUids: string[] = [];
+          const businessId = sourceBurf.businessId;
+
+          // 1. Try finding users with explicit MANAGER role for this BU
+          const managers = await FirestoreService.getDocuments<FirestoreUser>(
+            COLLECTIONS.USERS,
+            [
+              where('role', '==', 'MANAGER'),
+              where('businessUnitIds', 'array-contains', businessId)
+            ]
+          );
+
+          if (managers.length > 0) {
+            managerUids = managers.map(m => m.id);
+          } else {
+            // 2. Fallback: Try legacy businessId check
+            const legacyManagers = await FirestoreService.getDocuments<FirestoreUser>(
+              COLLECTIONS.USERS,
+              [
+                where('role', '==', 'MANAGER'),
+                where('businessId', '==', businessId)
+              ]
+            );
+
+            if (legacyManagers.length > 0) {
+              managerUids = legacyManagers.map(m => m.id);
+            } else {
+              console.warn(`[createBatchPrfFromBurf] No specific manager found for BU ${businessId}. Defaulting to generic 'MANAGER' role.`);
+              managerUids = ['MANAGER'];
+            }
+          }
+
+          // Create PRF Notification
+          const newPrfDoc = {
+            id: newPrfId,
+            businessId: sourceBurf.businessId,
+            totalAmount: selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+            requesterName: sourceBurf.requesterName,
+            status: RequisitionStatus.PRF_PENDING_MANAGER
+          } as Requisition;
+
+          await NotificationsService.notifyApproverOnNewItem(
+            newPrfDoc,
+            managerUids,
+            'Manager Approval (PRF)'
+          );
+        } catch (error) {
+          console.error('Failed to create notification for new PRF:', error);
+        }
       }
 
       return {
@@ -593,11 +650,75 @@ export class RequisitionService {
    * Create a new requisition
    */
   static async createRequisition(requisition: Omit<Requisition, 'id'> | Requisition): Promise<string> {
+    let id: string;
+
     if ('id' in requisition && requisition.id) {
       await FirestoreService.setDocument(REQUISITIONS_COLLECTION, requisition.id, requisition);
-      return requisition.id;
+      id = requisition.id;
+    } else {
+      id = await FirestoreService.createDocument(REQUISITIONS_COLLECTION, requisition);
     }
-    return FirestoreService.createDocument(REQUISITIONS_COLLECTION, requisition);
+
+    // NOTIFICATION: Notify Approver (Manager) on new BURF or PRF
+    // Runs for both auto-ID and pre-generated ID cases
+    if (requisition.status === RequisitionStatus.BURF_PENDING_MANAGER || requisition.status === RequisitionStatus.PRF_PENDING_MANAGER) {
+      try {
+        console.log(`[createRequisition] Looking up Manager for Business: ${(requisition as Requisition).businessId}`);
+
+        let managerUids: string[] = [];
+        const businessId = (requisition as Requisition).businessId;
+
+        // For PRF: Check if there's a designated approver
+        if (requisition.status === RequisitionStatus.PRF_PENDING_MANAGER && requisition.prfDetails?.designatedApproverId) {
+          managerUids = [requisition.prfDetails.designatedApproverId];
+          console.log(`[createRequisition] Found designated approver:`, managerUids);
+        } else {
+          // Lookup specific Manager UID for BURF or fallback for PRF
+          // 1. Try finding users with explicit MANAGER role for this BU
+          const managers = await FirestoreService.getDocuments<FirestoreUser>(
+            COLLECTIONS.USERS,
+            [
+              where('role', '==', 'MANAGER'),
+              where('businessUnitIds', 'array-contains', businessId)
+            ]
+          );
+
+          if (managers.length > 0) {
+            managerUids = managers.map(m => m.id);
+            console.log(`[createRequisition] Found specific managers:`, managerUids);
+          } else {
+            // 2. Fallback: Try legacy businessId check
+            const legacyManagers = await FirestoreService.getDocuments<FirestoreUser>(
+              COLLECTIONS.USERS,
+              [
+                where('role', '==', 'MANAGER'),
+                where('businessId', '==', businessId)
+              ]
+            );
+
+            if (legacyManagers.length > 0) {
+              managerUids = legacyManagers.map(m => m.id);
+              console.log(`[createRequisition] Found legacy managers:`, managerUids);
+            } else {
+              console.warn(`[createRequisition] No specific manager found for BU ${businessId}. Defaulting to generic 'MANAGER' role.`);
+              managerUids = ['MANAGER'];
+            }
+          }
+        }
+
+        console.log(`[createRequisition] Sending notification to:`, managerUids);
+
+        await NotificationsService.notifyApproverOnNewItem(
+          { ...requisition, id } as Requisition,
+          managerUids,
+          'Manager Approval'
+        );
+      } catch (error) {
+        console.error('Failed to create notification for new item:', error);
+      }
+    }
+
+    return id;
   }
 
   /**
@@ -749,36 +870,87 @@ export class RequisitionService {
           businessId: requisition.businessId,
           coaCode: requisition.coaCode, // PRF-level COA for budget
           items: requisition.items, // Items for budget reservation
+          // For Filer Notification
+          requesterId: requisition.requesterId,
+          requesterName: requisition.requesterName,
+          // For CC Notification
+          fullRequisition: { ...requisition, status: nextStatus } as Requisition
         };
       }
       return null;
     });
 
     // Create notification AFTER transaction completes (for next approver)
-    if (transactionResult && transactionResult.currentApproverId) {
-      const statusLabels: Record<RequisitionStatus, string> = {
-        [RequisitionStatus.PENDING_GM_PRF_APPROVAL]: 'GM PRF Review (≥₱50k)',
-        [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'Finance Head Budget Review',
-        [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'GM Budget Approval',
-        [RequisitionStatus.PENDING_CFO_APPROVAL]: 'CFO Approval', // Legacy
-        [RequisitionStatus.PENDING_BOD_APPROVAL]: 'BOD Approval',
-        [RequisitionStatus.FOR_CHECK_PREPARATION]: 'Check Preparation',
-        [RequisitionStatus.PENDING_CHECK_AUTH_BOD]: 'Check Authorization',
-        [RequisitionStatus.FOR_FUND_RELEASE]: 'Fund Release',
-      } as Record<RequisitionStatus, string>;
+    if (transactionResult) {
+      const { nextStatus: newStatus, requisitionId: reqId, totalAmount: amount, currentApproverId: approverId } = transactionResult;
 
-      const label = statusLabels[transactionResult.nextStatus] || transactionResult.nextStatus.replace(/_/g, ' ');
+      // 1. BURF: Helper Variables
+      // Check if newStatus is NOT null
+      const isBurf = newStatus && (newStatus.startsWith('BURF_') || newStatus === 'READY_FOR_PRF');
 
-      try {
-        await NotificationsService.createNotification({
-          type: 'PRF',
-          message: `${transactionResult.requisitionId} requires your ${label}. Amount: ₱${transactionResult.totalAmount?.toLocaleString()}`,
-          requisitionId: transactionResult.requisitionId,
-          targetRoles: [transactionResult.currentApproverId], // Target the specific approver's UID
-        });
-      } catch (notificationError) {
-        console.error('Failed to create notification:', notificationError);
-        // Don't throw - approval succeeded, notification failed is non-critical
+      // 2. Main Approver Notification Logic
+      if (approverId && newStatus) {
+        const statusLabels: Record<RequisitionStatus, string> = {
+          [RequisitionStatus.BURF_PENDING_CIC]: 'CIC Review',
+          [RequisitionStatus.PENDING_GM_PRF_APPROVAL]: 'GM PRF Review (≥₱50k)',
+          [RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL]: 'Finance Head Budget Review',
+          [RequisitionStatus.PENDING_GM_BR_APPROVAL]: 'GM Budget Approval',
+          [RequisitionStatus.PENDING_CFO_APPROVAL]: 'CFO Approval',
+          [RequisitionStatus.PENDING_BOD_APPROVAL]: 'BOD Approval',
+          [RequisitionStatus.PENDING_CHECK_AUTH_BOD]: 'Check Authorization',
+        } as Record<RequisitionStatus, string>;
+
+        const label = statusLabels[newStatus] || newStatus.replace(/_/g, ' ');
+
+        try {
+          await NotificationsService.createNotification({
+            type: isBurf ? 'BURF' : 'PRF',
+            message: `${reqId} requires your ${label}. Amount: ₱${amount?.toLocaleString()}`,
+            requisitionId: reqId,
+            targetRoles: [approverId],
+            actionUrl: isBurf
+              ? `/?tab=${newStatus === 'BURF_PENDING_CIC' ? 'cic' : 'burf'}&id=${reqId}`
+              : `/?tab=prf&id=${reqId}`
+          });
+        } catch (notificationError) {
+          console.error('Failed to create approver notification:', notificationError);
+        }
+      }
+
+      // 3. Special Role Notifications (No specific approver ID)
+
+      // Notify Purchasing Officer when READY_FOR_PRF
+      if (newStatus === RequisitionStatus.READY_FOR_PRF) {
+        try {
+          await NotificationsService.createNotification({
+            type: 'BURF',
+            message: `BURF Approved: ${reqId} is ready for PRF preparation.`,
+            requisitionId: reqId,
+            targetRoles: ['PURCHASING_OFFICER'],
+            actionUrl: `/?action=prepare-prf&id=${reqId}`
+          });
+        } catch (e) { console.error('Failed to notify Purchasing Officer:', e); }
+      }
+
+      // Notify Finance when FOR_CHECK_PREPARATION
+      if (newStatus === RequisitionStatus.FOR_CHECK_PREPARATION) {
+        try {
+          await NotificationsService.createNotification({
+            type: 'PRF',
+            message: `Approved: ${reqId} is ready for Check Preparation.`,
+            requisitionId: reqId,
+            targetRoles: ['FINANCE'],
+            actionUrl: `/finance/check-preparation`
+          });
+        } catch (e) { console.error('Failed to notify Finance:', e); }
+      }
+
+      // 4. CC Notification: Notify Purchasing Officer (preparedBy) on ALL PRF status changes
+      if (!isBurf && transactionResult.fullRequisition) {
+        await NotificationsService.notifyPurchasingOfficer(
+          transactionResult.fullRequisition,
+          `PRF ${reqId} updated to ${newStatus}`
+        );
       }
     }
 
@@ -839,6 +1011,28 @@ export class RequisitionService {
       } catch (budgetError) {
         console.error('⚠️ Budget commit failed (Fund Release succeeded):', budgetError);
         // Don't throw - fund release succeeded, budget commit failed is non-critical
+      }
+    }
+
+    // NOTIFICATION: Notify Filer on Status Change (Approval)
+    if (transactionResult) {
+      try {
+        const partialReq = {
+          id: transactionResult.requisitionId,
+          requesterId: transactionResult.requesterId,
+          requesterName: transactionResult.requesterName,
+          totalAmount: transactionResult.totalAmount,
+          status: transactionResult.nextStatus
+        } as Requisition;
+
+        await NotificationsService.notifyFilerOnStatusChange(
+          partialReq,
+          transactionResult.nextStatus,
+          userName,
+          true
+        );
+      } catch (error) {
+        console.error('Failed to notify filer on status change:', error);
       }
     }
   }
@@ -1091,6 +1285,85 @@ export class RequisitionService {
     }
   }
 
+  /**
+   * Audit a liquidation (Approve or Reject)
+   * Updates status and liquidationDetails, adds history entry, and notifies filer
+   */
+  static async auditLiquidation(
+    requisitionId: string,
+    userId: string,
+    userName: string,
+    status: RequisitionStatus.AUDITED_CLEARED | RequisitionStatus.LIQUIDATION_REJECTED,
+    notes: string
+  ): Promise<void> {
+    const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
+
+    // FIX L1: Use transaction for atomic read-modify-write
+    // Previously used generic updateRequisition which had risk of race conditions
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(docRef);
+      if (!snap.exists()) throw new Error('Requisition not found');
+
+      const requisition = { id: snap.id, ...snap.data() } as Requisition;
+
+      // Verify status allows auditing
+      if (requisition.status !== RequisitionStatus.LIQUIDATION_FILED) {
+        throw new Error(`Cannot audit liquidation in status: ${requisition.status}. Expected LIQUIDATION_FILED.`);
+      }
+
+      const auditNowISO = new Date().toISOString();
+
+      // Create history entry inline (can't call async methods in transaction)
+      const historyEntry: RequisitionHistory = {
+        date: auditNowISO.split('T')[0], // Legacy: date only
+        timestamp: auditNowISO, // Full ISO timestamp
+        actorId: userId,
+        actorName: userName,
+        action: status === RequisitionStatus.AUDITED_CLEARED ? 'Audited Cleared' : 'Liquidation Rejected',
+        stage: status,
+        comments: notes,
+      };
+
+      const updatedHistory = [historyEntry, ...(requisition.history || [])];
+
+      // Update Liquidation Details
+      const liquidationUpdate = {
+        ...requisition.liquidationDetails,
+        auditedBy: userId,
+        auditDate: auditNowISO,
+        auditNotes: notes,
+        status: status === RequisitionStatus.AUDITED_CLEARED ? 'APPROVED' : 'REJECTED' as any,
+        ...(status === RequisitionStatus.LIQUIDATION_REJECTED && { rejectionReason: notes })
+      };
+
+      // Atomic update
+      transaction.update(docRef, {
+        status: status,
+        history: updatedHistory,
+        liquidationDetails: liquidationUpdate,
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    // NOTIFICATION: Notify Filer on Status Change
+    try {
+      const updatedReq = await this.getRequisitionById(requisitionId);
+      if (updatedReq) {
+        // Use generic status change logic which handles REJECTED/CLEARED appropriately
+        // Or create specific notifications if needed
+        await NotificationsService.notifyFilerOnLiquidationResult(
+          updatedReq,
+          status === RequisitionStatus.AUDITED_CLEARED,
+          userName,
+          notes
+        );
+      }
+    } catch (e) {
+      console.error('Failed to notify filer on liquidation audit:', e);
+    }
+  }
+
+
 
   /**
    * Release funds for a requisition and automatically update linked PCF status
@@ -1189,6 +1462,17 @@ export class RequisitionService {
       console.error('Failed to create fund release notification:', notificationError);
       // Don't throw - fund release succeeded, notification failed is non-critical
     }
+
+    // CC NOTIFICATION: Notify Purchasing Officer
+    try {
+      const fullReq = await this.getRequisitionById(requisitionId);
+      if (fullReq) {
+        await NotificationsService.notifyPurchasingOfficer(
+          fullReq,
+          `Funds Released: Check/Voucher #${checkVoucherNumber} for ${requisitionId}`
+        );
+      }
+    } catch (e) { console.error('Failed to notify Purchasing Officer on fund release:', e); }
   }
 
   /**
@@ -1258,5 +1542,16 @@ export class RequisitionService {
 
       transaction.update(docRef, updateData);
     });
+
+    // CC NOTIFICATION: Notify Purchasing Officer
+    try {
+      const fullReq = await this.getRequisitionById(requisitionId);
+      if (fullReq) {
+        await NotificationsService.notifyPurchasingOfficer(
+          fullReq,
+          `Check Prepared: Bank Ref #${chequeNumber} uploaded for ${requisitionId}`
+        );
+      }
+    } catch (e) { console.error('Failed to notify Purchasing Officer on check upload:', e); }
   }
 }

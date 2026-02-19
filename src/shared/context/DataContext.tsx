@@ -70,7 +70,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [userNotifications, setUserNotifications] = useState<NotificationItem[]>([]);
-    const [roleNotifications, setRoleNotifications] = useState<NotificationItem[]>([]);
     const [allUsers, setAllUsers] = useState<User[]>([]);
 
     const [loadingRequisitions, setLoadingRequisitions] = useState(true);
@@ -102,7 +101,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     const convertNotification = (firestoreNotif: FirestoreNotification & { id: string }): NotificationItem => ({
         ...firestoreNotif,
         id: firestoreNotif.id,
-        timestamp: firestoreNotif.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: firestoreNotif.createdAt && typeof firestoreNotif.createdAt.toDate === 'function'
+            ? firestoreNotif.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: firestoreNotif.createdAt,
         targetRoles: firestoreNotif.targetRoles as UserRole[],
     });
@@ -204,35 +205,23 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             setLoadingNotifications(false);
         };
 
-        const handleRoleNotifs = (firestoreNotifs: (FirestoreNotification & { id: string })[]) => {
-            setRoleNotifications(firestoreNotifs.map(convertNotification));
-            setLoadingNotifications(false);
-        };
-
         const handleError = (err: Error) => {
             setError(err.message);
             setLoadingNotifications(false);
         };
 
-        // Subscribe to user-specific and role-based notifications
+        // Subscribe to user-specific notifications only (Backend must resolve Roles to UIDs)
         const unsubUser = NotificationsService.subscribeToNotifications(currentUser.id, handleUserNotifs, handleError);
-        const unsubRole = NotificationsService.subscribeToNotifications(currentUser.role, handleRoleNotifs, handleError);
 
         return () => {
             unsubUser();
-            unsubRole();
         };
     }, [currentUser]);
 
     // Merge and sort notifications
     useEffect(() => {
-        const mergedMap = new Map<string, NotificationItem>();
-
-        [...userNotifications, ...roleNotifications].forEach(item => {
-            mergedMap.set(item.id, item);
-        });
-
-        const mergedList = Array.from(mergedMap.values()).sort((a, b) => {
+        // Just use userNotifications directly since we removed roleNotifications
+        const sortedList = [...userNotifications].sort((a, b) => {
             // Sort by createdAt desc safely
             if (a.createdAt && b.createdAt) {
                 return b.createdAt.toMillis() - a.createdAt.toMillis();
@@ -240,8 +229,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             return 0;
         });
 
-        setNotifications(mergedList);
-    }, [userNotifications, roleNotifications]);
+        setNotifications(sortedList);
+    }, [userNotifications]);
 
     // Load all users
     useEffect(() => {
