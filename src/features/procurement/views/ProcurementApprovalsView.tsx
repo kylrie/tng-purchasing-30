@@ -12,6 +12,8 @@ import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import RejectionModal from '../../../shared/components/RejectionModal';
 import BURFPrintModal from '../components/BURFPrintModal';
 import PRFPrintModal from '../components/PRFPrintModal';
+import SignatureModal from '../../../shared/components/SignatureModal';
+import { SignatureService } from '../../../shared/services/signature.service';
 import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 
 interface ProcurementApprovalsViewProps {
@@ -45,6 +47,8 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const [drawerLoading, setDrawerLoading] = useState(false);
     const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
     const [pendingSubTab, setPendingSubTab] = useState<PendingSubTab>(initialTab);
+    const [signingReq, setSigningReq] = useState<Requisition | null>(null);
+    const [signatureLoading, setSignatureLoading] = useState(false);
     const { hasPermission } = usePermissions();
 
     // Workflow Approver Assignments for GM PRF filtering
@@ -222,18 +226,34 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
+        setSigningReq(req);
+    };
 
-        if (confirm(`Are you sure you want to approve ${req.id}?`)) {
-            try {
-                await RequisitionService.approveRequisition(
-                    req.id,
-                    currentUser.id,
-                    currentUser.name
-                );
-            } catch (error: any) {
-                console.error("Error approving requisition:", error);
-                alert(`Failed to approve requisition: ${error.message || 'Unknown error'}`);
+    const handleSignatureConfirm = async (signatureBlob: Blob) => {
+        if (!signingReq) return;
+        setSignatureLoading(true);
+        try {
+            const signatureUrl = await SignatureService.uploadSignature(
+                signingReq.id,
+                currentUser.id,
+                signatureBlob
+            );
+            await RequisitionService.approveRequisition(
+                signingReq.id,
+                currentUser.id,
+                currentUser.name,
+                undefined,
+                signatureUrl
+            );
+            setSigningReq(null);
+            if (drawerReq?.id === signingReq.id) {
+                setDrawerReq(null);
             }
+        } catch (error: any) {
+            console.error('Error approving requisition:', error);
+            alert(`Failed to approve requisition: ${error.message || 'Unknown error'}`);
+        } finally {
+            setSignatureLoading(false);
         }
     };
 
@@ -267,20 +287,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     // Drawer approve/reject handlers
     const handleDrawerApprove = async () => {
         if (!drawerReq) return;
-        setDrawerLoading(true);
-        try {
-            await RequisitionService.approveRequisition(
-                drawerReq.id,
-                currentUser.id,
-                currentUser.name
-            );
-            setDrawerReq(null);
-        } catch (error: any) {
-            console.error("Error approving requisition:", error);
-            alert(`Failed to approve requisition: ${error.message || 'Unknown error'}`);
-        } finally {
-            setDrawerLoading(false);
-        }
+        setSigningReq(drawerReq);
     };
 
     const handleDrawerReject = async () => {
@@ -642,6 +649,15 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 )}
                 canCancel={!!drawerReq && isSuperAdmin(currentUser.role) && drawerReq.status !== RequisitionStatus.CANCELLED}
                 isLoading={drawerLoading}
+            />
+
+            {/* Signature Modal */}
+            <SignatureModal
+                isOpen={!!signingReq}
+                onClose={() => setSigningReq(null)}
+                onConfirm={handleSignatureConfirm}
+                title={`Sign to Approve ${signingReq?.id || ''}`}
+                isLoading={signatureLoading}
             />
         </div >
     );

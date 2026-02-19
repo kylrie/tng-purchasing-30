@@ -127,6 +127,42 @@ const LiquidationPage: React.FC = () => {
     const [remarks, setRemarks] = useState(requisition?.liquidationDetails?.remarks || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // VAT mode: 'none' = manual entry, 'inclusive' = price includes 12% VAT, 'exclusive' = VAT added on top at 12%
+    const [vatMode, setVatMode] = useState<'none' | 'inclusive' | 'exclusive'>(
+        requisition?.liquidationDetails?.vatMode || 'none'
+    );
+
+    // Calculate VAT based on mode (PH Tax Law - 12% VAT)
+    const calcVat = (amount: number, mode: 'none' | 'inclusive' | 'exclusive'): number => {
+        if (mode === 'none' || !amount) return 0;
+        if (mode === 'inclusive') {
+            // VAT Inclusive: Price already includes 12% VAT
+            // VAT = Amount - (Amount / 1.12)
+            return Math.round((amount - (amount / 1.12)) * 100) / 100;
+        }
+        // VAT Exclusive: VAT is added on top
+        // VAT = Amount * 0.12
+        return Math.round((amount * 0.12) * 100) / 100;
+    };
+
+    // Recalculate all VAT when mode changes
+    const handleVatModeChange = (mode: 'none' | 'inclusive' | 'exclusive') => {
+        setVatMode(mode);
+        if (mode === 'none') return; // Keep existing VAT values when switching to manual
+        const items = requisition?.items || [];
+        setExpenses(prev => prev.map((exp, idx) => {
+            // For item-linked expense rows, use the actual cost from itemActualCosts
+            const amount = idx < items.length
+                ? (itemActualCosts[items[idx].itemId] || exp.amount || 0)
+                : (exp.amount || 0);
+            return {
+                ...exp,
+                amount,
+                vat: calcVat(amount, mode),
+            };
+        }));
+    };
+
     // Initialize item actual costs from existing data or zeros
     const [itemActualCosts, setItemActualCosts] = useState<Record<string, number>>(() => {
         const costs: Record<string, number> = {};
@@ -170,9 +206,19 @@ const LiquidationPage: React.FC = () => {
         return budget - itemTotals.totalActual;
     }, [requisition?.totalAmount, itemTotals.totalActual]);
 
-    // Update item actual cost
+    // Update item actual cost — also sync to expense row amount + auto-calc VAT
     const updateItemActualCost = (itemId: string, cost: number) => {
         setItemActualCosts(prev => ({ ...prev, [itemId]: cost }));
+        // Find the expense index that corresponds to this item
+        const itemIndex = requisition?.items?.findIndex(i => i.itemId === itemId) ?? -1;
+        if (itemIndex >= 0 && itemIndex < expenses.length) {
+            const updated = [...expenses];
+            updated[itemIndex] = { ...updated[itemIndex], amount: cost };
+            if (vatMode !== 'none') {
+                updated[itemIndex].vat = calcVat(cost, vatMode);
+            }
+            setExpenses(updated);
+        }
     };
 
     // Expense row handlers
@@ -183,6 +229,10 @@ const LiquidationPage: React.FC = () => {
     ) => {
         const updated = [...expenses];
         updated[index] = { ...updated[index], [field]: value };
+        // Auto-calc VAT when amount changes and vatMode is active
+        if (field === 'amount' && vatMode !== 'none') {
+            updated[index].vat = calcVat(updated[index].amount, vatMode);
+        }
         setExpenses(updated);
     };
 
@@ -257,6 +307,7 @@ const LiquidationPage: React.FC = () => {
                     attachmentLink: receiptsLink,
                     receiptsLink,
                     remarks,
+                    vatMode,
                     expenses: expenses.map(exp => ({
                         id: exp.id,
                         date: exp.date,
@@ -324,6 +375,7 @@ const LiquidationPage: React.FC = () => {
                     attachmentLink: receiptsLink,
                     receiptsLink,
                     remarks,
+                    vatMode,
                     expenses: expenses.map(exp => ({
                         id: exp.id,
                         date: exp.date,
@@ -528,16 +580,66 @@ const LiquidationPage: React.FC = () => {
                             <Receipt size={20} className="text-cyan-600 dark:text-cyan-400" />
                             Expense Details
                         </h2>
-                        {!isReadOnly && (
-                            <button
-                                onClick={addExpenseRow}
-                                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 rounded-lg flex items-center gap-2 text-sm"
-                            >
-                                <Plus size={16} />
-                                Add Row
-                            </button>
-                        )}
+                        <div className="flex items-center gap-3">
+                            {!isReadOnly && (
+                                <button
+                                    onClick={addExpenseRow}
+                                    className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-700 rounded-lg flex items-center gap-2 text-sm text-white"
+                                >
+                                    <Plus size={16} />
+                                    Add Row
+                                </button>
+                            )}
+                        </div>
                     </div>
+
+                    {/* VAT Mode Toggle */}
+                    {!isReadOnly && (
+                        <div className="flex items-center gap-2 mb-4 p-3 bg-slate-50 dark:bg-slate-900/40 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mr-2">VAT 12%:</span>
+                            <button
+                                onClick={() => handleVatModeChange('none')}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${vatMode === 'none'
+                                    ? 'bg-slate-700 text-white shadow-sm'
+                                    : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                            >
+                                Manual
+                            </button>
+                            <button
+                                onClick={() => handleVatModeChange('inclusive')}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${vatMode === 'inclusive'
+                                    ? 'bg-cyan-600 text-white shadow-sm'
+                                    : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                            >
+                                VAT Inclusive
+                            </button>
+                            <button
+                                onClick={() => handleVatModeChange('exclusive')}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${vatMode === 'exclusive'
+                                    ? 'bg-purple-600 text-white shadow-sm'
+                                    : 'bg-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                    }`}
+                            >
+                                VAT Exclusive
+                            </button>
+                            {vatMode !== 'none' && (
+                                <span className="text-[10px] text-slate-400 ml-2">
+                                    {vatMode === 'inclusive' ? 'VAT = Amount − (Amount ÷ 1.12)' : 'VAT = Amount × 12%'}
+                                </span>
+                            )}
+                        </div>
+                    )}
+                    {isReadOnly && requisition?.liquidationDetails?.vatMode && requisition.liquidationDetails.vatMode !== 'none' && (
+                        <div className="flex items-center gap-2 mb-4 p-2 bg-slate-50 dark:bg-slate-900/30 rounded-lg text-xs text-slate-500 dark:text-slate-400">
+                            <span className="font-semibold uppercase">VAT Mode:</span>
+                            <span className={`px-2 py-0.5 rounded text-white text-[10px] font-bold ${requisition.liquidationDetails.vatMode === 'inclusive' ? 'bg-cyan-600' : 'bg-purple-600'
+                                }`}>
+                                {requisition.liquidationDetails.vatMode === 'inclusive' ? 'VAT Inclusive (12%)' : 'VAT Exclusive (12%)'}
+                            </span>
+                        </div>
+                    )}
 
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -656,9 +758,10 @@ const LiquidationPage: React.FC = () => {
                                                     type="number"
                                                     value={exp?.vat || ''}
                                                     onChange={(e) => updateExpense(index, 'vat', parseFloat(e.target.value) || 0)}
-                                                    className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-transparent rounded px-2 py-1 text-xs text-right text-slate-900 dark:text-white"
+                                                    className={`w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-transparent rounded px-2 py-1 text-xs text-right text-slate-900 dark:text-white ${vatMode !== 'none' ? 'opacity-70' : ''}`}
                                                     placeholder="0.00"
                                                     step="0.01"
+                                                    readOnly={vatMode !== 'none'}
                                                 />
                                             </td>
                                             {/* EWT */}
@@ -825,9 +928,10 @@ const LiquidationPage: React.FC = () => {
                                                                 type="number"
                                                                 value={exp.vat || ''}
                                                                 onChange={(e) => updateExpense(actualIndex, 'vat', parseFloat(e.target.value) || 0)}
-                                                                className="w-full bg-slate-700 border-0 rounded px-2 py-1 text-xs text-right"
+                                                                className={`w-full bg-slate-700 border-0 rounded px-2 py-1 text-xs text-right ${vatMode !== 'none' ? 'opacity-70' : ''}`}
                                                                 placeholder="0.00"
                                                                 step="0.01"
+                                                                readOnly={vatMode !== 'none'}
                                                             />
                                                         )}
                                                     </td>

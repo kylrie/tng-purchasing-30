@@ -299,6 +299,9 @@ export interface LiquidationDetails {
   rejectionReason?: string; // Reason for rejection
   status?: 'PENDING' | 'APPROVED' | 'REJECTED'; // Liquidation status
 
+  // VAT calculation mode
+  vatMode?: 'none' | 'inclusive' | 'exclusive'; // VAT 12% auto-calculation mode
+
   // Audit Notes History - accumulates all audit actions (rejection, clearance, etc.)
   auditNotesHistory?: AuditNoteEntry[];
 }
@@ -312,6 +315,7 @@ export interface RequisitionHistory {
   comments?: string;
   stage: RequisitionStatus;
   actionIndex?: number; // FIX BUG 6: Sequential index for server timestamp correlation
+  signatureUrl?: string; // Digital signature image URL from Firebase Storage
 }
 
 // ============================================================

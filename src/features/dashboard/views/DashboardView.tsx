@@ -24,6 +24,8 @@ import ReleaseFundModal from '../../finance/components/ReleaseFundModal';
 import LiquidationAuditModal from '../../finance/components/LiquidationAuditModal';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import RejectionModal from '../../../shared/components/RejectionModal';
+import SignatureModal from '../../../shared/components/SignatureModal';
+import { SignatureService } from '../../../shared/services/signature.service';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import { CheckCircle, XCircle, Briefcase, Square, CheckSquare } from 'lucide-react';
 import { SettingsService, type ApproverAssignments } from '../../../shared/services/settings.service';
@@ -77,6 +79,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
     // Bulk selection for Pending Approvals
     const [selectedPendingApprovalIds, setSelectedPendingApprovalIds] = React.useState<Set<string>>(new Set());
+
+    // Digital Signature state
+    const [signingReq, setSigningReq] = React.useState<Requisition | null>(null);
+    const [signingBulkIds, setSigningBulkIds] = React.useState<string[]>([]);
+    const [signingBulkSource, setSigningBulkSource] = React.useState<string | null>(null);
+    const [signatureLoading, setSignatureLoading] = React.useState(false);
 
 
     // Load approver assignments and PCF pending count on mount
@@ -524,26 +532,53 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
+        setSigningReq(req);
+    };
 
-        if (confirm(`Are you sure you want to approve ${req.id}?`)) {
-            try {
+    const handleSignatureConfirm = async (signatureBlob: Blob) => {
+        // Determine if this is a single or bulk approve
+        const isBulk = signingBulkIds.length > 0;
+        const targetId = signingReq?.id || '';
+        const docIdForUpload = isBulk ? signingBulkIds[0] : targetId;
+
+        setSignatureLoading(true);
+        try {
+            const signatureUrl = await SignatureService.uploadSignature(
+                docIdForUpload,
+                currentUser.id,
+                signatureBlob
+            );
+
+            if (isBulk) {
+                // Bulk approve all items with same signature
+                for (const id of signingBulkIds) {
+                    await RequisitionService.approveRequisition(
+                        id, currentUser.id, currentUser.name, undefined, signatureUrl
+                    );
+                }
+                // Clear the appropriate selection set
+                if (signingBulkSource === 'checkAuth') setSelectedCheckAuthIds(new Set());
+                else if (signingBulkSource === 'financeBR') setSelectedFinanceBRIds(new Set());
+                else if (signingBulkSource === 'gmBR') setSelectedGmBRIds(new Set());
+                else if (signingBulkSource === 'bodBR') setSelectedBodBRIds(new Set());
+                else if (signingBulkSource === 'pending') setSelectedPendingApprovalIds(new Set());
+            } else {
                 await RequisitionService.approveRequisition(
-                    req.id,
-                    currentUser.id,
-                    currentUser.name
+                    targetId, currentUser.id, currentUser.name, undefined, signatureUrl
                 );
-                // Optimistic update or refresh logic would go here, 
-                // but since we rely on parent props, we might need a refresh callback or wait for real-time update.
-                // Assuming onUpdateRequisition handles local state update if passed the updated object, 
-                // but RequisitionService.approveRequisition returns void/promise.
-                // Ideally, we should fetch the updated req or construct it.
-                // For now, let's assume the parent or a listener will update the list.
-                // To be safe, we can manually trigger an update if we knew the next status.
-            } catch (error: unknown) {
-                const message = error instanceof Error ? error.message : 'Unknown error';
-                console.error("Error approving requisition:", error);
-                alert(`Failed to approve requisition: ${message}`);
+                // Close drawer if approving from drawer
+                if (drawerReq?.id === targetId) setDrawerReq(null);
             }
+
+            setSigningReq(null);
+            setSigningBulkIds([]);
+            setSigningBulkSource(null);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Error approving requisition:', error);
+            alert(`Failed to approve requisition: ${message}`);
+        } finally {
+            setSignatureLoading(false);
         }
     };
 
@@ -613,24 +648,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
     const handleBulkApprove = async () => {
         if (selectedCheckAuthIds.size === 0) return;
-
-        if (confirm(`Are you sure you want to approve ${selectedCheckAuthIds.size} check authorization(s)?`)) {
-            try {
-                const idsToApprove = Array.from(selectedCheckAuthIds);
-                for (const id of idsToApprove) {
-                    await RequisitionService.approveRequisition(
-                        id,
-                        currentUser.id,
-                        currentUser.name
-                    );
-                }
-                setSelectedCheckAuthIds(new Set());
-            } catch (error: unknown) {
-                const message = error instanceof Error ? error.message : 'Unknown error';
-                console.error('Error bulk approving requisitions:', error);
-                alert(`Failed to approve requisitions: ${message}`);
-            }
-        }
+        // Open signature modal for bulk approve
+        const idsToApprove = Array.from(selectedCheckAuthIds);
+        setSigningBulkIds(idsToApprove);
+        setSigningBulkSource('checkAuth');
+        // Create a dummy requisition for the modal title
+        const firstReq = requisitions.find(r => selectedCheckAuthIds.has(r.id));
+        setSigningReq(firstReq || { id: `${selectedCheckAuthIds.size} items` } as Requisition);
     };
 
     const handleBulkReject = () => {
@@ -659,16 +683,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     };
     const handleBulkApproveFinanceBR = async () => {
         if (selectedFinanceBRIds.size === 0) return;
-        if (confirm(`Approve ${selectedFinanceBRIds.size} Finance Head BR item(s)?`)) {
-            try {
-                for (const id of Array.from(selectedFinanceBRIds)) {
-                    await RequisitionService.approveRequisition(id, currentUser.id, currentUser.name);
-                }
-                setSelectedFinanceBRIds(new Set());
-            } catch (error: unknown) {
-                alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-        }
+        const idsToApprove = Array.from(selectedFinanceBRIds);
+        setSigningBulkIds(idsToApprove);
+        setSigningBulkSource('financeBR');
+        const firstReq = requisitions.find(r => selectedFinanceBRIds.has(r.id));
+        setSigningReq(firstReq || { id: `${selectedFinanceBRIds.size} items` } as Requisition);
     };
 
     // ========== GM BR BULK SELECTION HANDLERS ==========
@@ -686,16 +705,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     };
     const handleBulkApproveGmBR = async () => {
         if (selectedGmBRIds.size === 0) return;
-        if (confirm(`Approve ${selectedGmBRIds.size} GM BR item(s)?`)) {
-            try {
-                for (const id of Array.from(selectedGmBRIds)) {
-                    await RequisitionService.approveRequisition(id, currentUser.id, currentUser.name);
-                }
-                setSelectedGmBRIds(new Set());
-            } catch (error: unknown) {
-                alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-        }
+        const idsToApprove = Array.from(selectedGmBRIds);
+        setSigningBulkIds(idsToApprove);
+        setSigningBulkSource('gmBR');
+        const firstReq = requisitions.find(r => selectedGmBRIds.has(r.id));
+        setSigningReq(firstReq || { id: `${selectedGmBRIds.size} items` } as Requisition);
     };
 
     // ========== BOD BR BULK SELECTION HANDLERS ==========
@@ -713,16 +727,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     };
     const handleBulkApproveBodBR = async () => {
         if (selectedBodBRIds.size === 0) return;
-        if (confirm(`Approve ${selectedBodBRIds.size} BOD BR item(s)?`)) {
-            try {
-                for (const id of Array.from(selectedBodBRIds)) {
-                    await RequisitionService.approveRequisition(id, currentUser.id, currentUser.name);
-                }
-                setSelectedBodBRIds(new Set());
-            } catch (error: unknown) {
-                alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-        }
+        const idsToApprove = Array.from(selectedBodBRIds);
+        setSigningBulkIds(idsToApprove);
+        setSigningBulkSource('bodBR');
+        const firstReq = requisitions.find(r => selectedBodBRIds.has(r.id));
+        setSigningReq(firstReq || { id: `${selectedBodBRIds.size} items` } as Requisition);
     };
 
     // ========== BULK REJECT HANDLERS (matching Check Auth pattern) ==========
@@ -762,16 +771,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     };
     const handleBulkApprovePendingApprovals = async () => {
         if (selectedPendingApprovalIds.size === 0) return;
-        if (confirm(`Approve ${selectedPendingApprovalIds.size} item(s)?`)) {
-            try {
-                for (const id of Array.from(selectedPendingApprovalIds)) {
-                    await RequisitionService.approveRequisition(id, currentUser.id, currentUser.name);
-                }
-                setSelectedPendingApprovalIds(new Set());
-            } catch (error: unknown) {
-                alert(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            }
-        }
+        const idsToApprove = Array.from(selectedPendingApprovalIds);
+        setSigningBulkIds(idsToApprove);
+        setSigningBulkSource('pending');
+        const firstReq = requisitions.find(r => selectedPendingApprovalIds.has(r.id));
+        setSigningReq(firstReq || { id: `${selectedPendingApprovalIds.size} items` } as Requisition);
     };
 
     return (
@@ -2004,20 +2008,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 variant="BURF"
                 businesses={businesses}
                 allUsers={allUsers}
-                onApprove={async () => {
-                    if (drawerReq && confirm(`Are you sure you want to approve ${drawerReq.id}?`)) {
-                        try {
-                            await RequisitionService.approveRequisition(
-                                drawerReq.id,
-                                currentUser.id,
-                                currentUser.name
-                            );
-                            setDrawerReq(null);
-                        } catch (error: unknown) {
-                            const message = error instanceof Error ? error.message : 'Unknown error';
-                            console.error('Error approving:', error);
-                            alert(`Failed to approve: ${message}`);
-                        }
+                onApprove={() => {
+                    if (drawerReq) {
+                        setSigningReq(drawerReq);
                     }
                 }}
                 onReject={() => {
@@ -2160,6 +2153,23 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 onClose={() => setRejectingReq(null)}
                 onConfirm={handleRejectConfirm}
                 title={`Reject Requisition ${rejectingReq?.id}`}
+            />
+
+            {/* Signature Modal */}
+            <SignatureModal
+                isOpen={!!signingReq}
+                onClose={() => {
+                    setSigningReq(null);
+                    setSigningBulkIds([]);
+                    setSigningBulkSource(null);
+                }}
+                onConfirm={handleSignatureConfirm}
+                title={
+                    signingBulkIds.length > 0
+                        ? `Sign to Approve ${signingBulkIds.length} Item(s)`
+                        : `Sign to Approve ${signingReq?.id || ''}`
+                }
+                isLoading={signatureLoading}
             />
         </div >
     );

@@ -234,36 +234,55 @@ const PRFPrintModal: React.FC<PRFPrintModalProps> = ({ req, onClose, business, p
         </div>
     );
 
-    const renderSignatures = () => (
-        <div className="border border-slate-900 flex text-[10px]">
-            <div className="flex-1 p-3 border-r border-slate-900">
-                <div className="font-bold mb-6">Prepared By:</div>
-                <div className="text-center">
-                    <div className="font-bold uppercase border-b border-slate-900 inline-block min-w-[120px] mb-1">
-                        {preparedBy?.name || req.prfDetails?.preparedByName || '-'}
-                    </div>
-                    <div className="italic text-[9px]">Purchasing Officer</div>
-                </div>
-            </div>
-            <div className="flex-1 p-3 border-r border-slate-900">
-                <div className="font-bold mb-6">Checked By:</div>
-                <div className="text-center">
-                    <div className="font-bold uppercase border-b border-slate-900 inline-block min-w-[120px] mb-1">
-                        FINANCE OFFICER
-                    </div>
-                </div>
-            </div>
-            <div className="flex-1 p-3">
-                <div className="font-bold mb-6">Approved By:</div>
-                <div className="text-center">
-                    <div className="font-bold uppercase border-b border-slate-900 inline-block min-w-[120px] mb-1">
-                        OPERATIONS MANAGER
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    const renderSignatures = () => {
+        // Find approval history entries with signatures
+        const approvalEntries = (req.history || []).filter(
+            (h) => h.action?.toLowerCase().includes('approved')
+        );
+        const firstApproval = approvalEntries[0];
+        const secondApproval = approvalEntries[1];
 
+        return (
+            <div className="border border-slate-900 flex text-[10px]">
+                <div className="flex-1 p-3 border-r border-slate-900">
+                    <div className="font-bold mb-2">Prepared By:</div>
+                    <div className="text-center">
+                        <div className="h-[60px] flex items-end justify-center"></div>
+                        <div className="font-bold uppercase border-b border-slate-900 inline-block min-w-[120px] mb-1">
+                            {preparedBy?.name || req.prfDetails?.preparedByName || '-'}
+                        </div>
+                        <div className="italic text-[9px]">Purchasing Officer</div>
+                    </div>
+                </div>
+                <div className="flex-1 p-3 border-r border-slate-900">
+                    <div className="font-bold mb-2">Checked By:</div>
+                    <div className="text-center">
+                        <div className="h-[60px] flex items-end justify-center">
+                            {firstApproval?.signatureUrl && (
+                                <img src={firstApproval.signatureUrl} alt="Signature" className="max-h-[58px] max-w-[160px] object-contain" />
+                            )}
+                        </div>
+                        <div className="font-bold uppercase border-b border-slate-900 inline-block min-w-[120px] mb-1">
+                            {firstApproval?.actorName || 'FINANCE OFFICER'}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex-1 p-3">
+                    <div className="font-bold mb-2">Approved By:</div>
+                    <div className="text-center">
+                        <div className="h-[60px] flex items-end justify-center">
+                            {secondApproval?.signatureUrl && (
+                                <img src={secondApproval.signatureUrl} alt="Signature" className="max-h-[58px] max-w-[160px] object-contain" />
+                            )}
+                        </div>
+                        <div className="font-bold uppercase border-b border-slate-900 inline-block min-w-[120px] mb-1">
+                            {secondApproval?.actorName || (firstApproval && !secondApproval ? '' : 'OPERATIONS MANAGER')}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
     // Render expense/cost allocation section
     const renderExpenseSharing = () => {
         if (!req.costAllocation || req.costAllocation.length === 0) return null;

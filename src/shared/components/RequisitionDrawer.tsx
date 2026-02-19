@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Clock, CheckCircle2, XCircle, ChevronRight, User as UserIcon, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban } from 'lucide-react';
+import { X, Clock, CheckCircle2, XCircle, ChevronRight, User as UserIcon, Package, History, Paperclip, ExternalLink, Building2, FileText, Receipt, Printer, CreditCard, Ban, Download } from 'lucide-react';
 import type { Requisition, RequisitionHistory, RequisitionItem, Supplier } from '../../features/procurement/types';
 import { RequisitionStatus } from '../../features/procurement/types';
 import LiquidationForm, { type LiquidationItemRow } from '../../features/procurement/components/LiquidationForm';
@@ -256,6 +256,68 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
         }
     };
 
+    // Export drawer details to CSV
+    const handleExportCSV = () => {
+        if (!requisition) return;
+        const buName = businesses.find(b => b.id === requisition.businessId)?.name || '';
+        const lines: string[] = [];
+        const esc = (v: string | number | null | undefined) => {
+            if (v === null || v === undefined) return '';
+            const s = String(v);
+            return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+
+        // Header section
+        lines.push('Field,Value');
+        lines.push(`Requisition ID,${esc(requisition.id)}`);
+        lines.push(`Status,${esc(requisition.status)}`);
+        lines.push(`Business Unit,${esc(buName)}`);
+        lines.push(`Requester,${esc(requisition.requesterName || '')}`);
+        lines.push(`Date Created,${esc(requisition.dateCreated)}`);
+        lines.push(`Date Needed,${esc(requisition.dateNeeded || '')}`);
+        lines.push(`Priority,${esc(requisition.priority || 'NORMAL')}`);
+        lines.push(`Description,${esc(requisition.description || '')}`);
+        lines.push(`Total Amount,${requisition.totalAmount?.toFixed(2) || '0.00'}`);
+        if (requisition.prfDetails?.supplier) {
+            lines.push(`Supplier,${esc(requisition.prfDetails.supplier.name)}`);
+            lines.push(`TIN,${esc(requisition.prfDetails.supplier.tin || '')}`);
+            lines.push(`Payment Mode,${esc(requisition.prfDetails.supplier.paymentMode || '')}`);
+            lines.push(`Terms,${esc(requisition.prfDetails.supplier.terms || '')}`);
+        }
+        if (requisition.checkVoucherNumber) lines.push(`Check Voucher,${esc(requisition.checkVoucherNumber)}`);
+        if (requisition.bankRefNumber) lines.push(`Bank Reference,${esc(requisition.bankRefNumber)}`);
+
+        // Blank row separator
+        lines.push('');
+
+        // Items table
+        lines.push('#,Item Description,Qty,UOM,Price,Amount,Remarks');
+        requisition.items.forEach((item, idx) => {
+            const amount = (item.quantity || 0) * (item.price || 0);
+            lines.push(`${idx + 1},${esc(item.name)},${item.quantity || 0},${esc(item.uom || '')},${(item.price || 0).toFixed(2)},${amount.toFixed(2)},${esc(item.remarks || '')}`);
+        });
+
+        // Approval history
+        if (requisition.history && requisition.history.length > 0) {
+            lines.push('');
+            lines.push('Date,Action,By,Stage,Comments');
+            requisition.history.forEach(h => {
+                lines.push(`${esc(h.timestamp || h.date)},${esc(h.action)},${esc(h.actorName || '')},${esc(h.stage)},${esc(h.comments || '')}`);
+            });
+        }
+
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${requisition.id}_details.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     // Check if any actions should be shown
     const showActions = (variant === 'BURF' && (canApprove || canReject || canPreparePrf || canCancel)) ||
         (variant === 'PRF' && (canApprove || canReject || canCancel)) ||
@@ -325,6 +387,13 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                 <Printer size={20} />
                             </button>
                         )}
+                        <button
+                            onClick={handleExportCSV}
+                            className="p-2 text-emerald-400 hover:text-emerald-300 hover:bg-slate-800 rounded-lg transition-colors"
+                            title="Export to CSV"
+                        >
+                            <Download size={20} />
+                        </button>
                         <button
                             onClick={onClose}
                             className="p-2 text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"

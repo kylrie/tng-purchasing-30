@@ -1,0 +1,25 @@
+[
+    {
+        "origin": [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "https://tng-systems.web.app",
+            "https://tng-systems.firebaseapp.com"
+        ],
+        "method": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "HEAD"
+        ],
+        "maxAgeSeconds": 3600,
+        "responseHeader": [
+            "Content-Type",
+            "Authorization",
+            "Content-Length",
+            "X-Requested-With",
+            "x-goog-resumable"
+        ]
+    }
+]

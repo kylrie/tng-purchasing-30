@@ -23,6 +23,8 @@ import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
 import { isValidUrl } from '../../../shared/utils/validation';
 // Budget integration
 import { BudgetService } from '../../finance/services/budget.service';
+import SignatureModal from '../../../shared/components/SignatureModal';
+import { SignatureService } from '../../../shared/services/signature.service';
 
 
 
@@ -798,6 +800,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [editingPrf, setEditingPrf] = useState<Requisition | null>(null);
     const [selectedReq, setSelectedReq] = useState<Requisition | null>(null); // Quick Peek drawer state
     const [drawerLoading, setDrawerLoading] = useState(false);
+    const [signingReq, setSigningReq] = useState<Requisition | null>(null);
+    const [signatureLoading, setSignatureLoading] = useState(false);
     const { hasPermission } = usePermissions();
 
     // PRF Modal is opened directly by setPreparePRFReq - no redirect needed
@@ -835,21 +839,32 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // PRF Drawer Approval Handlers
     const handleDrawerApprove = async () => {
         if (!selectedReq) return;
-        setDrawerLoading(true);
+        setSigningReq(selectedReq);
+    };
+
+    const handleSignatureConfirm = async (signatureBlob: Blob) => {
+        if (!signingReq) return;
+        setSignatureLoading(true);
         try {
+            const signatureUrl = await SignatureService.uploadSignature(
+                signingReq.id,
+                currentUser.id,
+                signatureBlob
+            );
             await RequisitionService.approveRequisition(
-                selectedReq.id,
+                signingReq.id,
                 currentUser.id,
                 currentUser.name,
-                'Approved via Quick Peek'
+                'Approved via Quick Peek',
+                signatureUrl
             );
+            setSigningReq(null);
             setSelectedReq(null);
-            // Note: Real-time listener will update the list
         } catch (error: any) {
             console.error('Error approving:', error);
             alert(`Failed to approve: ${error.message}`);
         } finally {
-            setDrawerLoading(false);
+            setSignatureLoading(false);
         }
     };
 
@@ -1522,6 +1537,15 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 canCancel={!!selectedReq && isSuperAdmin(currentUser.role) && selectedReq.status !== RequisitionStatus.CANCELLED}
                 canSubmitLiquidation={!!canSubmitLiquidation}
                 isLoading={drawerLoading}
+            />
+
+            {/* Signature Modal */}
+            <SignatureModal
+                isOpen={!!signingReq}
+                onClose={() => setSigningReq(null)}
+                onConfirm={handleSignatureConfirm}
+                title={`Sign to Approve ${signingReq?.id || ''}`}
+                isLoading={signatureLoading}
             />
         </div>
     );

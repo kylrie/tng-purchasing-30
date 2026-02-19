@@ -18,6 +18,8 @@ import { executeWorkflowAction } from '../../procurement/services/workflowServic
 import { SettingsService } from '../../../shared/services/settings.service';
 import type { ApproverAssignments } from '../../../shared/services/settings.service';
 import PRFPrintModal from '../../procurement/components/PRFPrintModal';
+import SignatureModal from '../../../shared/components/SignatureModal';
+import { SignatureService } from '../../../shared/services/signature.service';
 
 interface FinanceViewProps {
     currentUser: User;
@@ -52,6 +54,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const [selectedBu, setSelectedBu] = useState<string>('all');
     const { hasPermission } = usePermissions();
     const [approverAssignments, setApproverAssignments] = useState<ApproverAssignments>({});
+    const [signingReq, setSigningReq] = useState<Requisition | null>(null);
+    const [signatureLoading, setSignatureLoading] = useState(false);
 
     // Fetch approver assignments for BU-specific checks
     useEffect(() => {
@@ -96,18 +100,33 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     // Approve handler for BR and Check Auth items
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
-        if (confirm(`Are you sure you want to approve ${req.id}?`)) {
-            try {
-                await RequisitionService.approveRequisition(
-                    req.id,
-                    currentUser.id,
-                    currentUser.name
-                );
-            } catch (error: unknown) {
-                console.error('Error approving:', error);
-                const message = error instanceof Error ? error.message : 'Unknown error';
-                alert(`Failed to approve: ${message}`);
-            }
+        setSigningReq(req);
+    };
+
+    const handleSignatureConfirm = async (signatureBlob: Blob) => {
+        if (!signingReq) return;
+        setSignatureLoading(true);
+        try {
+            const signatureUrl = await SignatureService.uploadSignature(
+                signingReq.id,
+                currentUser.id,
+                signatureBlob
+            );
+            await RequisitionService.approveRequisition(
+                signingReq.id,
+                currentUser.id,
+                currentUser.name,
+                undefined,
+                signatureUrl
+            );
+            setSigningReq(null);
+            if (drawerReq?.id === signingReq.id) setDrawerReq(null);
+        } catch (error: unknown) {
+            console.error('Error approving:', error);
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            alert(`Failed to approve: ${message}`);
+        } finally {
+            setSignatureLoading(false);
         }
     };
 
@@ -1076,20 +1095,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     }
                 }}
                 canReleaseFund={activeTab === 'prf_pending' && hasPermission('finance:release_funds')}
-                onApprove={async () => {
-                    if (drawerReq && confirm(`Are you sure you want to approve ${drawerReq.id}?`)) {
-                        try {
-                            await RequisitionService.approveRequisition(
-                                drawerReq.id,
-                                currentUser.id,
-                                currentUser.name
-                            );
-                            setDrawerReq(null);
-                        } catch (error: unknown) {
-                            console.error('Error approving:', error);
-                            const message = error instanceof Error ? error.message : 'Unknown error';
-                            alert(`Failed to approve: ${message}`);
-                        }
+                onApprove={() => {
+                    if (drawerReq) {
+                        setSigningReq(drawerReq);
                     }
                 }}
                 onReject={() => {
@@ -1242,6 +1250,15 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     preparedBy={allUsers.find(u => u.id === printReq.prfDetails?.preparedBy)}
                 />
             )}
+
+            {/* Signature Modal */}
+            <SignatureModal
+                isOpen={!!signingReq}
+                onClose={() => setSigningReq(null)}
+                onConfirm={handleSignatureConfirm}
+                title={`Sign to Approve ${signingReq?.id || ''}`}
+                isLoading={signatureLoading}
+            />
         </>
     );
 };

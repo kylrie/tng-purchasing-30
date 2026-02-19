@@ -143,23 +143,46 @@ const BURFPrintModal: React.FC<BURFPrintModalProps> = ({ req, onClose, business,
             {/* Signatures */}
             <div className="grid grid-cols-3 gap-8 mt-8 break-inside-avoid">
                 <div className="text-center">
-                    <div className="text-xs font-bold text-slate-500 uppercase mb-8">Requested By</div>
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-2">Requested By</div>
+                    <div className="h-[70px] flex items-end justify-center"></div>
                     <div className="border-b border-slate-800 mb-2"></div>
                     <div className="font-bold text-sm text-slate-900">{requester?.name || req.requesterName || 'Employee'}</div>
                     <div className="text-xs text-slate-500">Requester</div>
                 </div>
-                <div className="text-center">
-                    <div className="text-xs font-bold text-slate-500 uppercase mb-8">Reviewed By</div>
-                    <div className="border-b border-slate-800 mb-2"></div>
-                    <div className="font-bold text-sm text-slate-900">Manager Name</div>
-                    <div className="text-xs text-slate-500">Business Unit Manager</div>
-                </div>
-                <div className="text-center">
-                    <div className="text-xs font-bold text-slate-500 uppercase mb-8">Approved By</div>
-                    <div className="border-b border-slate-800 mb-2"></div>
-                    <div className="font-bold text-sm text-slate-900">CIC Name</div>
-                    <div className="text-xs text-slate-500">Inventory Controller</div>
-                </div>
+                {(() => {
+                    // Find approval history entries with signatures
+                    const approvalEntries = (req.history || []).filter(
+                        (h) => h.action?.toLowerCase().includes('approved')
+                    );
+                    const firstApproval = approvalEntries[0];
+                    const secondApproval = approvalEntries[1];
+                    return (
+                        <>
+                            <div className="text-center">
+                                <div className="text-xs font-bold text-slate-500 uppercase mb-2">Reviewed By</div>
+                                <div className="h-[70px] flex items-end justify-center">
+                                    {firstApproval?.signatureUrl && (
+                                        <img src={firstApproval.signatureUrl} alt="Signature" className="max-h-[68px] max-w-[180px] object-contain" />
+                                    )}
+                                </div>
+                                <div className="border-b border-slate-800 mb-2"></div>
+                                <div className="font-bold text-sm text-slate-900">{firstApproval?.actorName || 'Manager Name'}</div>
+                                <div className="text-xs text-slate-500">Business Unit Manager</div>
+                            </div>
+                            <div className="text-center">
+                                <div className="text-xs font-bold text-slate-500 uppercase mb-2">Approved By</div>
+                                <div className="h-[70px] flex items-end justify-center">
+                                    {secondApproval?.signatureUrl && (
+                                        <img src={secondApproval.signatureUrl} alt="Signature" className="max-h-[68px] max-w-[180px] object-contain" />
+                                    )}
+                                </div>
+                                <div className="border-b border-slate-800 mb-2"></div>
+                                <div className="font-bold text-sm text-slate-900">{secondApproval?.actorName || (firstApproval && !secondApproval ? '' : 'CIC Name')}</div>
+                                <div className="text-xs text-slate-500">Inventory Controller</div>
+                            </div>
+                        </>
+                    );
+                })()}
             </div>
 
             {/* Footer */}

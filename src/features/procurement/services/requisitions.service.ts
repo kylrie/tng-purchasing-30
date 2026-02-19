@@ -777,7 +777,8 @@ export class RequisitionService {
     requisitionId: string,
     userId: string,
     userName: string,
-    comments?: string
+    comments?: string,
+    signatureUrl?: string
   ): Promise<void> {
     const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
 
@@ -837,6 +838,7 @@ export class RequisitionService {
           action: approvalAction,
           stage: nextStatus,
           ...(comments !== undefined && { comments }),
+          ...(signatureUrl && { signatureUrl }),
         };
 
         const updatedHistory = [historyEntry, ...(requisition.history || [])];
