@@ -287,6 +287,22 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     // Drawer approve/reject handlers
     const handleDrawerApprove = async () => {
         if (!drawerReq) return;
+        // BOD users skip signature modal — approve directly
+        if (hasPermission('approval:skip_signature')) {
+            setDrawerLoading(true);
+            try {
+                await RequisitionService.approveRequisition(
+                    drawerReq.id, currentUser.id, currentUser.name, undefined, undefined
+                );
+                setDrawerReq(null);
+            } catch (error: any) {
+                console.error('Error approving:', error);
+                alert(`Failed to approve: ${error.message}`);
+            } finally {
+                setDrawerLoading(false);
+            }
+            return;
+        }
         setSigningReq(drawerReq);
     };
 
