@@ -1109,8 +1109,22 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     }
                 }}
                 canReleaseFund={activeTab === 'prf_pending' && hasPermission('finance:release_funds')}
-                onApprove={() => {
+                onApprove={async () => {
                     if (drawerReq) {
+                        // BOD users skip signature modal — approve directly
+                        if (hasPermission('approval:skip_signature')) {
+                            try {
+                                await RequisitionService.approveRequisition(
+                                    drawerReq.id, currentUser.id, currentUser.name, undefined, undefined
+                                );
+                                setDrawerReq(null);
+                            } catch (error: unknown) {
+                                const message = error instanceof Error ? error.message : 'Unknown error';
+                                console.error('Error approving:', error);
+                                alert(`Failed to approve: ${message}`);
+                            }
+                            return;
+                        }
                         setSigningReq(drawerReq);
                     }
                 }}

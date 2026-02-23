@@ -226,6 +226,18 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
+        // BOD users skip signature modal — approve directly
+        if (hasPermission('approval:skip_signature')) {
+            try {
+                await RequisitionService.approveRequisition(
+                    req.id, currentUser.id, currentUser.name, undefined, undefined
+                );
+            } catch (error: any) {
+                console.error('Error approving:', error);
+                alert(`Failed to approve: ${error.message}`);
+            }
+            return;
+        }
         setSigningReq(req);
     };
 

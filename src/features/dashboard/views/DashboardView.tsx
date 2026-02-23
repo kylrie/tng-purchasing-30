@@ -662,8 +662,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
     const handleBulkApprove = async () => {
         if (selectedCheckAuthIds.size === 0) return;
-        // Open signature modal for bulk approve
         const idsToApprove = Array.from(selectedCheckAuthIds);
+        // BOD users skip signature modal — bulk approve directly
+        if (hasPermission('approval:skip_signature')) {
+            try {
+                for (const id of idsToApprove) {
+                    await RequisitionService.approveRequisition(
+                        id, currentUser.id, currentUser.name, undefined, undefined
+                    );
+                }
+                setSelectedCheckAuthIds(new Set());
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error bulk approving:', error);
+                alert(`Failed to bulk approve: ${message}`);
+            }
+            return;
+        }
+        // Open signature modal for bulk approve
         setSigningBulkIds(idsToApprove);
         setSigningBulkSource('checkAuth');
         // Create a dummy requisition for the modal title
@@ -698,6 +714,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const handleBulkApproveFinanceBR = async () => {
         if (selectedFinanceBRIds.size === 0) return;
         const idsToApprove = Array.from(selectedFinanceBRIds);
+        // BOD users skip signature modal — bulk approve directly
+        if (hasPermission('approval:skip_signature')) {
+            try {
+                for (const id of idsToApprove) {
+                    await RequisitionService.approveRequisition(
+                        id, currentUser.id, currentUser.name, undefined, undefined
+                    );
+                }
+                setSelectedFinanceBRIds(new Set());
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error bulk approving:', error);
+                alert(`Failed to bulk approve: ${message}`);
+            }
+            return;
+        }
         setSigningBulkIds(idsToApprove);
         setSigningBulkSource('financeBR');
         const firstReq = requisitions.find(r => selectedFinanceBRIds.has(r.id));
@@ -720,6 +752,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const handleBulkApproveGmBR = async () => {
         if (selectedGmBRIds.size === 0) return;
         const idsToApprove = Array.from(selectedGmBRIds);
+        // BOD users skip signature modal — bulk approve directly
+        if (hasPermission('approval:skip_signature')) {
+            try {
+                for (const id of idsToApprove) {
+                    await RequisitionService.approveRequisition(
+                        id, currentUser.id, currentUser.name, undefined, undefined
+                    );
+                }
+                setSelectedGmBRIds(new Set());
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error bulk approving:', error);
+                alert(`Failed to bulk approve: ${message}`);
+            }
+            return;
+        }
         setSigningBulkIds(idsToApprove);
         setSigningBulkSource('gmBR');
         const firstReq = requisitions.find(r => selectedGmBRIds.has(r.id));
@@ -742,6 +790,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const handleBulkApproveBodBR = async () => {
         if (selectedBodBRIds.size === 0) return;
         const idsToApprove = Array.from(selectedBodBRIds);
+        // BOD users skip signature modal — bulk approve directly
+        if (hasPermission('approval:skip_signature')) {
+            try {
+                for (const id of idsToApprove) {
+                    await RequisitionService.approveRequisition(
+                        id, currentUser.id, currentUser.name, undefined, undefined
+                    );
+                }
+                setSelectedBodBRIds(new Set());
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error bulk approving:', error);
+                alert(`Failed to bulk approve: ${message}`);
+            }
+            return;
+        }
         setSigningBulkIds(idsToApprove);
         setSigningBulkSource('bodBR');
         const firstReq = requisitions.find(r => selectedBodBRIds.has(r.id));
@@ -786,6 +850,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const handleBulkApprovePendingApprovals = async () => {
         if (selectedPendingApprovalIds.size === 0) return;
         const idsToApprove = Array.from(selectedPendingApprovalIds);
+        // BOD users skip signature modal — bulk approve directly
+        if (hasPermission('approval:skip_signature')) {
+            try {
+                for (const id of idsToApprove) {
+                    await RequisitionService.approveRequisition(
+                        id, currentUser.id, currentUser.name, undefined, undefined
+                    );
+                }
+                setSelectedPendingApprovalIds(new Set());
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error bulk approving:', error);
+                alert(`Failed to bulk approve: ${message}`);
+            }
+            return;
+        }
         setSigningBulkIds(idsToApprove);
         setSigningBulkSource('pending');
         const firstReq = requisitions.find(r => selectedPendingApprovalIds.has(r.id));
