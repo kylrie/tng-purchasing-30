@@ -839,6 +839,23 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // PRF Drawer Approval Handlers
     const handleDrawerApprove = async () => {
         if (!selectedReq) return;
+        // BOD users skip signature modal — approve directly
+        if (hasPermission('approval:skip_signature')) {
+            setSignatureLoading(true);
+            try {
+                await RequisitionService.approveRequisition(
+                    selectedReq.id, currentUser.id, currentUser.name,
+                    'Approved via Quick Peek', undefined
+                );
+                setSelectedReq(null);
+            } catch (error: any) {
+                console.error('Error approving:', error);
+                alert(`Failed to approve: ${error.message}`);
+            } finally {
+                setSignatureLoading(false);
+            }
+            return;
+        }
         setSigningReq(selectedReq);
     };
 

@@ -24,6 +24,7 @@ export const ALL_PERMISSIONS = [
   'approval:gm:br',            // 7-Stage: GM Budget Review
   'approval:cfo',              // 7-Stage: CFO Approval
   'approval:bod',              // 7-Stage: BOD Approval
+  'approval:skip_signature',   // BOD: Skip digital signature on approval
   'approval:view:history',
 
   // Finance Workflow
@@ -255,6 +256,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'finance:view_cheque',
     'approval:view:history',
     'approval:bod',  // 7-Stage: BOD can approve at final stage
+    'approval:skip_signature',  // BOD: Skip digital signature on approval
     'module:view:dashboard',
     'module:view:burf',
     'module:view:prf',

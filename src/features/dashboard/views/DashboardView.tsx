@@ -532,6 +532,20 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
+        // BOD users skip signature modal — approve directly
+        if (hasPermission('approval:skip_signature')) {
+            try {
+                await RequisitionService.approveRequisition(
+                    req.id, currentUser.id, currentUser.name, undefined, undefined
+                );
+                if (drawerReq?.id === req.id) setDrawerReq(null);
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : 'Unknown error';
+                console.error('Error approving requisition:', error);
+                alert(`Failed to approve requisition: ${message}`);
+            }
+            return;
+        }
         setSigningReq(req);
     };
 

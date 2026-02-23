@@ -314,6 +314,65 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
                         </p>
                     </div>
                     <button
+                        onClick={async () => {
+                            // handleExportCSV
+                            const lines: string[] = [];
+                            const esc = (v: string | number | null | undefined) => {
+                                if (v === null || v === undefined) return '';
+                                const s = String(v);
+                                return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+                            };
+
+                            // Header section with Metadata
+                            lines.push('PCF Liquidation Export');
+                            lines.push(`Title,${esc(title || (editingId ? 'Edit PCF Liquidation' : 'New PCF Liquidation'))}`);
+                            lines.push(`Export Date,${new Date().toLocaleString()}`);
+                            lines.push(`Cash on Hand,${cashOnHand.toFixed(2)}`);
+                            lines.push(`Total Amount,${totals.totalAmount.toFixed(2)}`);
+                            lines.push(`Remarks,${esc(remarks)}`);
+                            lines.push('');
+
+                            // Expenses Table
+                            lines.push('Date,Payee/Vendor,TIN,OR No.,Address,COA Code,COA Name,Description,VAT,EWT,Amount,Business Unit');
+
+                            expenses.forEach(exp => {
+                                lines.push([
+                                    esc(exp.date),
+                                    esc(exp.payeeVendor),
+                                    esc(exp.tin),
+                                    esc(exp.orNo),
+                                    esc(exp.completeAddress),
+                                    esc(exp.coaCode),
+                                    esc(exp.coaName),
+                                    esc(exp.itemDescription),
+                                    (exp.vat || 0).toFixed(2),
+                                    (exp.ewt || 0).toFixed(2),
+                                    (exp.amount || 0).toFixed(2),
+                                    esc(exp.buName)
+                                ].join(','));
+                            });
+
+                            // Footer Totals
+                            lines.push('');
+                            lines.push(`,,,,,,,,${totals.totalVat.toFixed(2)},${totals.totalEwt.toFixed(2)},${totals.totalAmount.toFixed(2)},`);
+
+                            const BOM = '\uFEFF';
+                            const blob = new Blob([BOM + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = `pcf_liquidation_${getTodayDate()}.csv`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                        }}
+                        className="p-2 text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors mr-2"
+                        title="Export to CSV"
+                    >
+                        <Receipt size={24} />
+                    </button>
+                    <button
                         onClick={onClose}
                         className="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                     >
