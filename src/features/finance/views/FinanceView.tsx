@@ -25,7 +25,7 @@ interface FinanceViewProps {
     currentUser: User;
     requisitions: Requisition[];
     getStatusBadge: (status: RequisitionStatus) => React.ReactNode;
-    handleReleaseFunds: (id: string, checkVoucherNumber: string, checkVoucherLink?: string) => void;
+    handleReleaseFunds: (id: string, checkVoucherNumber: string, checkVoucherLink?: string, coaCode?: string) => void;
     businesses: Business[];
     allUsers: User[];
 }
@@ -177,9 +177,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         setReleaseModalOpen(true);
     };
 
-    const confirmRelease = (checkVoucherNumber: string, checkVoucherLink: string) => {
+    const confirmRelease = (checkVoucherNumber: string, checkVoucherLink: string, coaCode: string) => {
         if (selectedReq) {
-            handleReleaseFunds(selectedReq.id, checkVoucherNumber, checkVoucherLink);
+            handleReleaseFunds(selectedReq.id, checkVoucherNumber, checkVoucherLink, coaCode);
             setReleaseModalOpen(false);
             setSelectedReq(null);
             setDrawerReq(null); // Close drawer after release

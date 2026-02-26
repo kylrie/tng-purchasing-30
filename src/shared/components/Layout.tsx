@@ -36,7 +36,8 @@ import {
     PiggyBank,
     ShieldCheck,
     ClipboardCheck,
-    Search
+    Search,
+    Landmark
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -293,7 +294,9 @@ const Layout: React.FC<LayoutProps> = ({
                         { path: '/finance/expenses/br-flow', label: 'BR Flow', icon: Scale, canView: hasPermission('module:view:finance') },
                         { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: hasPermission('module:view:pcf') }
                     ]
-                }
+                },
+                // Bank Reconciliation
+                { path: '/finance/bank-recon', label: 'Bank Recon', icon: Landmark, canView: hasPermission('module:view:bank_recon') }
             ]
         },
         {

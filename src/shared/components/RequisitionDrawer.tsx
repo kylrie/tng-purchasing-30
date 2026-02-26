@@ -300,6 +300,16 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                     </span>
                                 </>
                             )}
+                            {/* Selected COA */}
+                            {requisition.coaCode && (
+                                <>
+                                    <span className="text-slate-600">•</span>
+                                    <span className="text-xs text-emerald-400 font-medium flex items-center gap-1">
+                                        <FileText size={10} />
+                                        COA: {requisition.coaCode}
+                                    </span>
+                                </>
+                            )}
                             {/* Current Approver */}
                             {requisition.currentApproverId && allUsers.length > 0 && (
                                 <>

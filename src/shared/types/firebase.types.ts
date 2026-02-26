@@ -133,6 +133,7 @@ export const COLLECTIONS = {
   BUDGETS: 'budgets',
   BUDGET_RESERVATIONS: 'budgetReservations',
   TRANSACTIONS: 'transactions',
+  BANK_RECON_STATEMENTS: 'bankReconStatements',
 } as const;
 
 // Query constraints type

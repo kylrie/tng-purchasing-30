@@ -1,0 +1,261 @@
+/* ============================================================
+   BankReconView Styles
+   Matches the existing dark/light theme of the application
+   ============================================================ */
+
+/* Upload Zone */
+.bank-recon-upload-zone {
+  border: 2px dashed;
+  border-radius: 1rem;
+  padding: 2.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.bank-recon-upload-zone:not(.has-file) {
+  border-color: #475569;
+}
+
+.bank-recon-upload-zone:hover:not(.has-file),
+.bank-recon-upload-zone.dragging {
+  border-color: #a855f7;
+  background: rgba(168, 85, 247, 0.05);
+}
+
+:is(.dark) .bank-recon-upload-zone:hover:not(.has-file),
+:is(.dark) .bank-recon-upload-zone.dragging {
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.bank-recon-upload-zone.has-file {
+  border-color: #22c55e;
+  border-style: solid;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+:is(.dark) .bank-recon-upload-zone.has-file {
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.bank-recon-upload-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 1rem;
+  color: #94a3b8;
+}
+
+.bank-recon-upload-zone:hover .bank-recon-upload-icon {
+  color: #a855f7;
+}
+
+.bank-recon-upload-zone.has-file .bank-recon-upload-icon {
+  color: #22c55e;
+}
+
+/* Sheet Tabs */
+.bank-recon-sheet-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+  padding-bottom: 0;
+}
+
+:is(.dark) .bank-recon-sheet-tabs {
+  border-color: #334155;
+}
+
+.bank-recon-sheet-tab {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 0;
+}
+
+.bank-recon-sheet-tab:hover {
+  color: #1e293b;
+}
+
+:is(.dark) .bank-recon-sheet-tab:hover {
+  color: #e2e8f0;
+}
+
+.bank-recon-sheet-tab.active {
+  color: #a855f7;
+  border-bottom-color: #a855f7;
+  font-weight: 600;
+}
+
+:is(.dark) .bank-recon-sheet-tab.active {
+  color: #c084fc;
+  border-bottom-color: #c084fc;
+}
+
+/* Data Table */
+.bank-recon-table-container {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 500px;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+}
+
+:is(.dark) .bank-recon-table-container {
+  border-color: #334155;
+}
+
+.bank-recon-table {
+  width: 100%;
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+}
+
+.bank-recon-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+}
+
+.bank-recon-table thead th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  background: #f8fafc;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+:is(.dark) .bank-recon-table thead th {
+  background: rgba(15, 23, 42, 0.8);
+  color: #94a3b8;
+  border-color: #334155;
+}
+
+.bank-recon-table tbody tr {
+  transition: background 0.15s;
+}
+
+.bank-recon-table tbody tr:hover {
+  background: #f1f5f9;
+}
+
+:is(.dark) .bank-recon-table tbody tr:hover {
+  background: rgba(51, 65, 85, 0.3);
+}
+
+.bank-recon-table tbody td {
+  padding: 0.625rem 1rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  white-space: nowrap;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:is(.dark) .bank-recon-table tbody td {
+  color: #e2e8f0;
+  border-color: #1e293b;
+}
+
+/* Numeric columns right-align */
+.bank-recon-table td.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+}
+
+/* Summary Stats */
+.bank-recon-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.bank-recon-stat {
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+:is(.dark) .bank-recon-stat {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: #334155;
+}
+
+.bank-recon-stat-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.bank-recon-stat-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+:is(.dark) .bank-recon-stat-value {
+  color: #f1f5f9;
+}
+
+.bank-recon-stat-value.debit {
+  color: #ef4444;
+}
+
+.bank-recon-stat-value.credit {
+  color: #22c55e;
+}
+
+/* History List */
+.bank-recon-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+:is(.dark) .bank-recon-history-item {
+  background: rgba(15, 23, 42, 0.5);
+  border-color: #334155;
+}
+
+.bank-recon-history-item:hover {
+  border-color: #a855f7;
+  box-shadow: 0 0 0 1px rgba(168, 85, 247, 0.2);
+}
+
+/* Loading spinner */
+.bank-recon-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top-color: #a855f7;
+  border-radius: 50%;
+  animation: bank-recon-spin 0.6s linear infinite;
+}
+
+@keyframes bank-recon-spin {
+  to { transform: rotate(360deg); }
+}

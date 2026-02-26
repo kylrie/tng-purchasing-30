@@ -1380,7 +1380,8 @@ export class RequisitionService {
     checkVoucherNumber: string,
     checkVoucherLink?: string,
     userId?: string,
-    userName?: string
+    userName?: string,
+    coaCode?: string
   ): Promise<void> {
     const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
     const pcfCollectionName = 'pcf_liquidations';
@@ -1409,6 +1410,13 @@ export class RequisitionService {
 
       // Build history entry
       const fundReleaseNowISO = new Date().toISOString();
+      let comments = isPcfReplenishment
+        ? `Voucher #${checkVoucherNumber} released - PCF Replenishment complete (no liquidation required)`
+        : `Voucher #${checkVoucherNumber} released`;
+      if (coaCode) {
+        comments += ` (COA: ${coaCode})`;
+      }
+
       const historyEntry: RequisitionHistory = {
         date: fundReleaseNowISO.split('T')[0], // Legacy: date only
         timestamp: fundReleaseNowISO, // Full ISO timestamp with time
@@ -1416,16 +1424,14 @@ export class RequisitionService {
         actorName: userName || 'Finance',
         action: isPcfReplenishment ? 'AUDITED_CLEARED' : 'FUNDS_RELEASED',
         stage: finalStatus,
-        comments: isPcfReplenishment
-          ? `Voucher #${checkVoucherNumber} released - PCF Replenishment complete (no liquidation required)`
-          : `Voucher #${checkVoucherNumber} released`,
+        comments,
       };
 
       const updatedHistory = [historyEntry, ...(requisition.history || [])];
 
       // Step 1: Update the PRF status
       // Save to new fields (checkVoucherNumber/checkVoucherLink) and legacy fields for compatibility
-      transaction.update(docRef, {
+      const updateData: Record<string, any> = {
         status: finalStatus,
         // New fields
         checkVoucherNumber: checkVoucherNumber,
@@ -1436,7 +1442,13 @@ export class RequisitionService {
         fundReleaseDate: new Date().toISOString(),
         history: updatedHistory,
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      if (coaCode) {
+        updateData.coaCode = coaCode;
+      }
+
+      transaction.update(docRef, updateData);
 
       // Step 2: If this is a PCF Replenishment PRF, update the linked PCF to REPLENISHED
       if (requisition.linkedPcfId) {

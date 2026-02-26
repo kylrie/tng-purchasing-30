@@ -300,7 +300,7 @@ service cloud.firestore {
     
     function isValidNotificationType(type) {
       return type in [
-        'info', 'warning', 'success', 'error', 'approval', 'system',
+        'info', 'warning', 'success', 'error', 'approval', 'system', 'INFO',
         'BURF', 'PRF', 'LIQUIDATION', 'ALERT', 'REMINDER', 'AUDIT', 'PCF'
       ];
     }
@@ -611,8 +611,10 @@ service cloud.firestore {
         // Only allow changing the 'read' field and 'updatedAt' (added by FirestoreService)
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'updatedAt']);
       
-      // Delete: Only own notifications
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // Delete: Only own notifications (check both legacy userId and targetRoles)
+      allow delete: if isSignedIn() && 
+        (resource.data.userId == request.auth.uid || 
+         request.auth.uid in resource.data.targetRoles);
     }
     
     // =====================================================

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import type { Requisition } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
-import { CheckCircle, FileText, ExternalLink, Hash, Link as LinkIcon } from 'lucide-react';
+import { CheckCircle, FileText, ExternalLink, Hash, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { CoaService } from '../../../shared/services/coa.service';
+import type { ChartOfAccount } from '../../../shared/types/firebase.types';
 
 interface ReleaseFundModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (checkVoucherNumber: string, checkVoucherLink: string) => void;
+  onConfirm: (checkVoucherNumber: string, checkVoucherLink: string, coaCode: string) => void;
   requisition: Requisition;
 }
 
@@ -14,6 +16,12 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
   // Check Voucher input fields
   const [checkVoucherNumber, setCheckVoucherNumber] = useState('');
   const [checkVoucherLink, setCheckVoucherLink] = useState('');
+
+  // COA Selection State
+  const [coas, setCoas] = useState<ChartOfAccount[]>([]);
+  const [selectedCoa, setSelectedCoa] = useState<string>('');
+  const [loadingCoas, setLoadingCoas] = useState(false);
+
   // FIX: Replace alert() with inline validation state
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -37,7 +45,15 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
     if (isOpen) {
       if (checkVoucherNumber !== '') setCheckVoucherNumber('');
       if (checkVoucherLink !== '') setCheckVoucherLink('');
+      if (selectedCoa !== '') setSelectedCoa('');
       if (validationError !== null) setValidationError(null);
+
+      // Load COAs
+      setLoadingCoas(true);
+      CoaService.getActiveAccounts()
+        .then(accounts => setCoas(accounts))
+        .catch(err => console.error("Error loading COAs:", err))
+        .finally(() => setLoadingCoas(false));
     }
   }, [isOpen]);
 
@@ -49,11 +65,29 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
       setValidationError('Please enter a Check Voucher #.');
       return;
     }
+
+    let finalCoaCode = selectedCoa;
+    // Extract the code if the user selected the full "CODE - NAME" format
+    const match = selectedCoa.match(/^([A-Za-z0-9\-.]+) - /);
+    if (match) {
+      finalCoaCode = match[1];
+    } else {
+      finalCoaCode = selectedCoa.trim();
+    }
+
+    // Validate that the COA is active and properly spelled
+    const isValidCoa = coas.some(c => c.code.toLowerCase() === finalCoaCode.toLowerCase());
+
+    if (coas.length > 0 && !isValidCoa) {
+      setValidationError('Please select a valid Chart of Accounts from the dropdown.');
+      return;
+    }
+
     setValidationError(null);
-    onConfirm(checkVoucherNumber.trim(), checkVoucherLink.trim());
+    onConfirm(checkVoucherNumber.trim(), checkVoucherLink.trim(), finalCoaCode);
   };
 
-  const canConfirm = !!checkVoucherNumber.trim();
+  const canConfirm = !!checkVoucherNumber.trim() && (coas.length === 0 || !!selectedCoa);
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
@@ -108,6 +142,34 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
 
         {/* Check Voucher Input Section */}
         <div className="space-y-4 mb-6">
+          <div>
+            <label htmlFor="coaSelection" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              <FileText className="w-4 h-4 inline mr-2" />
+              Chart of Accounts <span className="text-red-500 dark:text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <input
+                list="coaList"
+                id="coaSelection"
+                value={selectedCoa}
+                onChange={(e) => setSelectedCoa(e.target.value)}
+                placeholder={loadingCoas ? 'Loading...' : (coas.length === 0 ? 'No active COAs found' : 'Type to search or select a COA...')}
+                disabled={loadingCoas || coas.length === 0}
+                className="w-full px-4 py-3 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:opacity-60"
+              />
+              <datalist id="coaList">
+                {coas.map(coa => (
+                  <option key={coa.code} value={`${coa.code} - ${coa.name}`} />
+                ))}
+              </datalist>
+              {loadingCoas && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+                </div>
+              )}
+            </div>
+          </div>
+
           <div>
             <label htmlFor="checkVoucherNumber" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               <Hash className="w-4 h-4 inline mr-2" />

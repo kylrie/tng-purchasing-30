@@ -38,6 +38,7 @@ const PCFView = React.lazy(() => import('./features/finance/views/PCFView'));
 const PCFApprovalView = React.lazy(() => import('./features/finance/views/PCFApprovalView'));
 const PCFAuditReviewView = React.lazy(() => import('./features/finance/views/PCFAuditReviewView'));
 const TransactionHistoryView = React.lazy(() => import('./features/finance/views/TransactionHistoryView'));
+const BankReconView = React.lazy(() => import('./features/finance/views/BankReconView'));
 const SuppliersView = React.lazy(() => import('./features/inventory/views/SuppliersView'));
 const InventoryReports = React.lazy(() => import('./features/inventory/views/InventoryReports'));
 const InventoryDashboard = React.lazy(() => import('./features/inventory/views/InventoryDashboard'));
@@ -173,14 +174,15 @@ function ProtectedApp() {
     );
   };
 
-  const handleReleaseFunds = async (id: string, checkVoucherNumber: string, checkVoucherLink?: string) => {
+  const handleReleaseFunds = async (id: string, checkVoucherNumber: string, checkVoucherLink?: string, coaCode?: string) => {
     // Use the new service method that automatically updates linked PCF liquidations
     await RequisitionService.releaseFundsWithPcfUpdate(
       id,
       checkVoucherNumber,
       checkVoucherLink,
       currentUser?.id,
-      currentUser?.name
+      currentUser?.name,
+      coaCode
     );
   };
 
@@ -433,6 +435,13 @@ function ProtectedApp() {
           <Route path="/finance/transactions" element={
             <ProtectedRoute permission="module:view:finance">
               <TransactionHistoryView businesses={businesses} />
+            </ProtectedRoute>
+          } />
+
+          {/* Bank Reconciliation */}
+          <Route path="/finance/bank-recon" element={
+            <ProtectedRoute permission="module:view:bank_recon">
+              <BankReconView />
             </ProtectedRoute>
           } />
 

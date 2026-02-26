@@ -98,6 +98,7 @@ export const ALL_PERMISSIONS = [
   'module:view:coa',          // View Chart of Accounts module
   'module:view:prf_tracker',  // View PRF Tracker (Kanban view for requisition flow)
   'prf_tracker:view:all',      // Toggle to view all PRFs in tracker (within assigned BUs)
+  'module:view:bank_recon',    // View Bank Reconciliation page in Finance
 
   // NOTE: Legacy 'ui:view:*' permissions removed - use 'module:view:*' instead
 
@@ -194,6 +195,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:coa',
     // PRF Tracker
     'prf_tracker:view:all',
+    'module:view:bank_recon',
   ],
 
   // High-level approver, global view
@@ -436,6 +438,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     // PRF Tracker
     'module:view:prf_tracker',
     'prf_tracker:view:all',
+    'module:view:bank_recon',
   ],
 
   // Audits liquidations
@@ -499,5 +502,6 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     // PRF Tracker
     'module:view:prf_tracker',
     'prf_tracker:view:all',
+    'module:view:bank_recon',
   ],
 };
