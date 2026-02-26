@@ -6,6 +6,7 @@ import LiquidationForm, { type LiquidationItemRow } from '../../features/procure
 import AllocationSummary from '../../features/procurement/components/AllocationSummary';
 import { RequisitionService } from '../../features/procurement/services/requisitions.service';
 import type { Business, User } from '../types';
+import { exportDrawerToXLSX } from '../utils/drawerExportUtils';
 import Card from './Card';
 import PesoSign from './PesoSign';
 
@@ -256,66 +257,10 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
         }
     };
 
-    // Export drawer details to CSV
+    // Export drawer details to multi-sheet XLSX
     const handleExportCSV = () => {
         if (!requisition) return;
-        const buName = businesses.find(b => b.id === requisition.businessId)?.name || '';
-        const lines: string[] = [];
-        const esc = (v: string | number | null | undefined) => {
-            if (v === null || v === undefined) return '';
-            const s = String(v);
-            return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
-        };
-
-        // Header section
-        lines.push('Field,Value');
-        lines.push(`Requisition ID,${esc(requisition.id)}`);
-        lines.push(`Status,${esc(requisition.status)}`);
-        lines.push(`Business Unit,${esc(buName)}`);
-        lines.push(`Requester,${esc(requisition.requesterName || '')}`);
-        lines.push(`Date Created,${esc(requisition.dateCreated)}`);
-        lines.push(`Date Needed,${esc(requisition.dateNeeded || '')}`);
-        lines.push(`Priority,${esc(requisition.priority || 'NORMAL')}`);
-        lines.push(`Description,${esc(requisition.description || '')}`);
-        lines.push(`Total Amount,${requisition.totalAmount?.toFixed(2) || '0.00'}`);
-        if (requisition.prfDetails?.supplier) {
-            lines.push(`Supplier,${esc(requisition.prfDetails.supplier.name)}`);
-            lines.push(`TIN,${esc(requisition.prfDetails.supplier.tin || '')}`);
-            lines.push(`Payment Mode,${esc(requisition.prfDetails.supplier.paymentMode || '')}`);
-            lines.push(`Terms,${esc(requisition.prfDetails.supplier.terms || '')}`);
-        }
-        if (requisition.checkVoucherNumber) lines.push(`Check Voucher,${esc(requisition.checkVoucherNumber)}`);
-        if (requisition.bankRefNumber) lines.push(`Bank Reference,${esc(requisition.bankRefNumber)}`);
-
-        // Blank row separator
-        lines.push('');
-
-        // Items table
-        lines.push('#,Item Description,Qty,UOM,Price,Amount,Remarks');
-        requisition.items.forEach((item, idx) => {
-            const amount = (item.quantity || 0) * (item.price || 0);
-            lines.push(`${idx + 1},${esc(item.name)},${item.quantity || 0},${esc(item.uom || '')},${(item.price || 0).toFixed(2)},${amount.toFixed(2)},${esc(item.remarks || '')}`);
-        });
-
-        // Approval history
-        if (requisition.history && requisition.history.length > 0) {
-            lines.push('');
-            lines.push('Date,Action,By,Stage,Comments');
-            requisition.history.forEach(h => {
-                lines.push(`${esc(h.timestamp || h.date)},${esc(h.action)},${esc(h.actorName || '')},${esc(h.stage)},${esc(h.comments || '')}`);
-            });
-        }
-
-        const BOM = '\uFEFF';
-        const blob = new Blob([BOM + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `${requisition.id}_details.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        exportDrawerToXLSX(requisition, businesses, allUsers);
     };
 
     // Check if any actions should be shown

@@ -13,7 +13,7 @@ import { executeWorkflowAction } from '../../procurement/services/workflowServic
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { Printer, Edit, FileText, RefreshCw, CheckCircle, Search, Download } from 'lucide-react';
-import { exportToCSV, formatDateForExport, formatCurrencyForExport, type ExportColumn } from '../../../shared/utils/exportUtils';
+import { exportMultipleDrawersToXLSX } from '../../../shared/utils/drawerExportUtils';
 
 interface LiquidationViewProps {
   currentUser: User;
@@ -245,19 +245,8 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     return true;
   }), [displayedReqs, searchTerm, dateRange, businesses, allUsers]);
 
-  // Export handler for liquidation data
+  // Export handler - exports ALL drawer tab data as multi-sheet XLSX
   const handleExport = () => {
-    const columns: ExportColumn<Requisition>[] = [
-      { header: 'PRF ID', accessor: (req) => req.id },
-      { header: 'Business Unit', accessor: (req) => businesses.find(b => b.id === req.businessId)?.name || 'N/A' },
-      { header: 'Requester', accessor: (req) => allUsers.find(u => u.id === req.requesterId)?.name || req.requesterId },
-      { header: 'Amount', accessor: (req) => formatCurrencyForExport(req.totalAmount) },
-      { header: 'Cheque No', accessor: (req) => req.chequeNumber || '' },
-      { header: 'Status', accessor: (req) => req.status },
-      { header: 'Date Filed', accessor: (req) => formatDateForExport(req.liquidationDetails?.dateFiled) },
-      { header: 'Rejection Reason', accessor: (req) => req.liquidationDetails?.rejectionReason || '' },
-    ];
-
     const tabFilenames: Record<string, string> = {
       liquidations: 'my_liquidations_export',
       all_liquidations: 'all_liquidations_export',
@@ -267,7 +256,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     };
 
     const filename = tabFilenames[activeTab] || 'liquidations_export';
-    exportToCSV(filteredReqs, columns, filename);
+    exportMultipleDrawersToXLSX(filteredReqs, businesses, allUsers, filename);
   };
 
   return (
