@@ -485,7 +485,11 @@ export const BankReconService = {
 
                         // Identify partial matches for debugging
                         if (isCheckMatch && !isAmountMatch) {
-                            partialMatchReason = `Check Match! Amount Mismatch (Excel: ${debitVal} vs DB Total: ${req.totalAmount} / Net: ${req.netAmount || 'N/A'})`;
+                            const procId = req.businessId
+                                ? `${req.businessId}-${req.prfIdentifier || req.id.substring(0, 6)}`
+                                : req.prfIdentifier || req.id;
+
+                            partialMatchReason = `${procId} - Check Match! Amount Mismatch (Excel: ${debitVal} vs DB Total: ${req.totalAmount} / Net: ${req.netAmount || 'N/A'})`;
                             console.warn(`[BankRecon] Row ${idx + 1} Partial Match: ${partialMatchReason}`);
                         } else if (!isCheckMatch && isAmountMatch) {
                             // Too noisy usually, but helps debug
@@ -513,17 +517,14 @@ export const BankReconService = {
                     ? `${matchedReq.businessId}-${matchedReq.prfIdentifier || matchedReq.id.substring(0, 6)}`
                     : matchedReq.prfIdentifier || matchedReq.id;
 
-                enriched['Remarks'] = `Procurement ID: ${procId}`;
+                enriched['Remarks'] = procId;
 
-                // Append a final column showing the linked Chart of Accounts
                 if (matchedReq.coaCode) {
-                    const coaName = coaMap.get(matchedReq.coaCode) || 'Unknown Account';
-                    enriched['Linked Chart of Accounts'] = `${matchedReq.coaCode} - ${coaName}`;
+                    enriched['Linked Chart of Accounts'] = `${matchedReq.coaCode} - ${coaMap.get(matchedReq.coaCode) || 'Unknown Account'}`;
                 } else {
-                    enriched['Linked Chart of Accounts'] = 'No COA Linked';
+                    enriched['Linked Chart of Accounts'] = 'Check Matched (No CoA tag yet)';
                 }
             } else {
-                // If no match is found, add a "Remarks" column with the value: Unidentified Transaction
                 enriched['Remarks'] = 'Unidentified Transaction';
                 enriched['Linked Chart of Accounts'] = '';
             }
