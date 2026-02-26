@@ -486,7 +486,7 @@ export const BankReconService = {
                         // Identify partial matches for debugging
                         if (isCheckMatch && !isAmountMatch) {
                             const procId = req.businessId
-                                ? `${req.businessId}-${req.prfIdentifier || req.id.substring(0, 6)}`
+                                ? `${req.businessId}-${req.prfIdentifier || req.id}`
                                 : req.prfIdentifier || req.id;
 
                             partialMatchReason = `${procId} - Check Match! Amount Mismatch (Excel: ${debitVal} vs DB Total: ${req.totalAmount} / Net: ${req.netAmount || 'N/A'})`;
@@ -503,7 +503,7 @@ export const BankReconService = {
                         console.log(`[BankRecon] No match for Row ${idx + 1}: Check=${checkVal}, Debit=${debitVal}`);
                         if (partialMatchReason) {
                             enriched['Remarks'] = partialMatchReason;
-                            enriched['Linked Chart of Accounts'] = 'Partial Match Found (See Remarks)';
+                            enriched['Linked Chart of Accounts'] = '';
                             return enriched; // return early so it doesn't get overwritten below
                         }
                     }
@@ -514,7 +514,7 @@ export const BankReconService = {
             if (matchedReq) {
                 // If a match is found in the database, add a "Remarks" column
                 const procId = matchedReq.businessId
-                    ? `${matchedReq.businessId}-${matchedReq.prfIdentifier || matchedReq.id.substring(0, 6)}`
+                    ? `${matchedReq.businessId}-${matchedReq.prfIdentifier || matchedReq.id}`
                     : matchedReq.prfIdentifier || matchedReq.id;
 
                 enriched['Remarks'] = procId;
@@ -522,7 +522,7 @@ export const BankReconService = {
                 if (matchedReq.coaCode) {
                     enriched['Linked Chart of Accounts'] = `${matchedReq.coaCode} - ${coaMap.get(matchedReq.coaCode) || 'Unknown Account'}`;
                 } else {
-                    enriched['Linked Chart of Accounts'] = 'Check Matched (No CoA tag yet)';
+                    enriched['Linked Chart of Accounts'] = '';
                 }
             } else {
                 enriched['Remarks'] = 'Unidentified Transaction';

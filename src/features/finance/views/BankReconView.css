@@ -162,6 +162,8 @@
   /* Allow text to wrap instead of cutting it off */
   white-space: normal;
   word-wrap: break-word;
+  word-break: break-word;
+  min-width: 120px;
 }
 
 :is(.dark) .bank-recon-table tbody td {
@@ -256,5 +258,7 @@
 }
 
 @keyframes bank-recon-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
