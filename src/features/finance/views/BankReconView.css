@@ -159,10 +159,9 @@
   padding: 0.625rem 1rem;
   color: #334155;
   border-bottom: 1px solid #f1f5f9;
-  white-space: nowrap;
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* Allow text to wrap instead of cutting it off */
+  white-space: normal;
+  word-wrap: break-word;
 }
 
 :is(.dark) .bank-recon-table tbody td {
