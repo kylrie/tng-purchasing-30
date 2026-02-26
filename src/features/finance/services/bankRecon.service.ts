@@ -443,7 +443,9 @@ export const BankReconService = {
         );
 
         // 4. The Matching Engine & Enrichment
-        const enrichedRows = sheet.rows.map(row => {
+        console.log(`[BankRecon] Preparing to match against ${requisitions.length} requisitions.`);
+
+        const enrichedRows = sheet.rows.map((row, idx) => {
             const enriched: ParsedRow = { ...row };
             let matchedReq: Requisition | undefined = undefined;
 
@@ -462,16 +464,40 @@ export const BankReconService = {
                 }
 
                 // Only attempt match if we have a valid debit amount and a check number
-                if (typeof debitVal === 'number' && checkVal) {
+                if (typeof debitVal === 'number' && checkVal && checkVal !== '0') {
+                    // Try to find a match
+                    let partialMatchReason = '';
+
                     matchedReq = requisitions.find(req => {
                         const reqCheck = normalizeCheck(req.checkVoucherNumber || req.chequeNumber);
                         const isCheckMatch = reqCheck === checkVal;
 
                         // Use a 0.05 tolerance for floating-point issues
-                        const isAmountMatch = Math.abs((req.totalAmount || 0) - debitVal) < 0.05;
+                        // Check both totalAmount and netAmount (in case of EWT/VAT deductions)
+                        const isTotalAmountMatch = Math.abs((req.totalAmount || 0) - debitVal) < 0.05;
+                        const isNetAmountMatch = req.netAmount ? Math.abs(req.netAmount - debitVal) < 0.05 : false;
+                        const isAmountMatch = isTotalAmountMatch || isNetAmountMatch;
+
+                        // Identify partial matches for debugging
+                        if (isCheckMatch && !isAmountMatch) {
+                            partialMatchReason = `Check Match! Amount Mismatch (Excel: ${debitVal} vs DB Total: ${req.totalAmount} / Net: ${req.netAmount || 'N/A'})`;
+                            console.warn(`[BankRecon] Row ${idx + 1} Partial Match: ${partialMatchReason}`);
+                        } else if (!isCheckMatch && isAmountMatch) {
+                            // Too noisy usually, but helps debug
+                            // console.log(`[BankRecon] Row ${idx + 1} Amount matches but Check doesn't (Excel: ${checkVal} vs DB: ${reqCheck})`);
+                        }
 
                         return isCheckMatch && isAmountMatch;
                     });
+
+                    if (!matchedReq) {
+                        console.log(`[BankRecon] No match for Row ${idx + 1}: Check=${checkVal}, Debit=${debitVal}`);
+                        if (partialMatchReason) {
+                            enriched['Remarks'] = partialMatchReason;
+                            enriched['Linked Chart of Accounts'] = 'Partial Match Found (See Remarks)';
+                            return enriched; // return early so it doesn't get overwritten below
+                        }
+                    }
                 }
             }
 
