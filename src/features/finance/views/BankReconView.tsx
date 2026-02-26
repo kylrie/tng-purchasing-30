@@ -135,9 +135,9 @@ const BankReconView: React.FC = () => {
             );
             await loadSavedStatements();
             clearUpload();
-        } catch (err) {
+        } catch (err: any) {
             console.error('Failed to save:', err);
-            alert('Failed to save bank statement. Please try again.');
+            alert(`Failed to save bank statement: ${err?.message || err}`);
         } finally {
             setSaving(false);
         }

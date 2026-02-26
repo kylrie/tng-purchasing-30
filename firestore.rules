@@ -914,5 +914,31 @@ service cloud.firestore {
       // Delete: Only admins can delete liquidations
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
     }
+    
+    // =====================================================
+    // BANK RECONCILIATION STATEMENTS COLLECTION
+    // Stores uploaded bank statements for reconciliation
+    // =====================================================
+    match /bankReconStatements/{statementId} {
+      // Read: Any authenticated user
+      allow read: if isSignedIn();
+      
+      // Create: Any authenticated user can upload bank statements
+      allow create: if isSignedIn();
+      
+      // Update: Any authenticated user (for enrichment/matching)
+      allow update: if isSignedIn();
+      
+      // Delete: Any authenticated user can delete their uploads
+      allow delete: if isSignedIn();
+      
+      // Sub-collection: sheetData (individual sheet rows)
+      match /sheetData/{sheetId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+        allow update: if isSignedIn();
+        allow delete: if isSignedIn();
+      }
+    }
   }
 }
