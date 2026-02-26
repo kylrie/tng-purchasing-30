@@ -7,11 +7,11 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, FileSpreadsheet, Trash2, Eye, Save, X, Download, Clock, Layers, Hash, Calendar, ArrowDownRight, ArrowUpRight, Settings } from 'lucide-react';
+import { Upload, FileSpreadsheet, Trash2, Save, X, Download, Clock, Layers, Hash, Calendar, ArrowDownRight, ArrowUpRight, Settings, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 import { BankReconService, type ParsedWorkbook, type ParsedSheet, type BankReconStatement } from '../services/bankRecon.service';
 import { useAuth } from '../../../contexts/AuthContext';
 import { exportToCSV, type ExportColumn } from '../../../shared/utils/exportUtils';
-import Card from '../../../shared/components/Card';
+import './BankReconView.css';
 import './BankReconView.css';
 
 const BankReconView: React.FC = () => {
@@ -380,254 +380,285 @@ const BankReconView: React.FC = () => {
                 )}
             </div>
 
-            {/* Upload Zone (show when no data is being viewed) */}
-            {!parsedWorkbook && !viewingStatement && (
-                <Card>
-                    <div
-                        className={`bank-recon-upload-zone ${isDragging ? 'dragging' : ''} ${uploadedFile ? 'has-file' : ''}`}
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                        onClick={handleClickUpload}
-                    >
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".xlsx,.xls,.csv"
-                            onChange={handleInputChange}
-                            className="hidden"
-                        />
-                        {parsing ? (
-                            <div className="flex flex-col items-center gap-3">
-                                <div className="bank-recon-spinner" style={{ width: 32, height: 32 }} />
-                                <p className="text-slate-500 dark:text-slate-400">Parsing <span className="font-semibold text-slate-900 dark:text-white">{uploadedFile?.name}</span>...</p>
-                            </div>
-                        ) : uploadedFile ? (
-                            <div className="flex flex-col items-center gap-2">
-                                <FileSpreadsheet className="bank-recon-upload-icon" />
-                                <p className="text-emerald-600 dark:text-emerald-400 font-semibold">{uploadedFile.name}</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">Click to upload a different file</p>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center gap-2">
-                                <Upload className="bank-recon-upload-icon" />
-                                <p className="text-slate-900 dark:text-white font-semibold text-lg">Drop your bank statement here</p>
-                                <p className="text-sm text-slate-500 dark:text-slate-400">or click to browse — supports <span className="font-medium">.xlsx</span>, <span className="font-medium">.xls</span></p>
-                            </div>
-                        )}
-                    </div>
-                    {parseError && (
-                        <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm">
-                            ⚠️ {parseError}
-                        </div>
-                    )}
-                </Card>
-            )}
-
-            {/* Viewing banner for saved statements */}
-            {viewingStatement && (
-                <Card className="!p-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                                <FileSpreadsheet size={20} className="text-purple-400" />
-                            </div>
-                            <div>
-                                <p className="font-semibold text-slate-900 dark:text-white">{viewingStatement.fileName}</p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                    Uploaded by {viewingStatement.uploadedByName} on {new Date(viewingStatement.uploadedAt).toLocaleDateString()}
-                                    {' · '}{viewingStatement.totalRows} rows across {viewingStatement.sheetCount} sheet{viewingStatement.sheetCount > 1 ? 's' : ''}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-            )}
-
-            {/* Sheet Tabs + Data Table */}
-            {activeSheets.length > 0 && !loadingView && (
-                <>
-                    {/* Summary Stats */}
-                    {currentSheet && currentSheet.rows.length > 0 && (() => {
-                        const stats = getSheetStats(currentSheet);
-                        return (
-                            <div className="bank-recon-summary">
-                                <div className="bank-recon-stat">
-                                    <div className="bank-recon-stat-label"><Hash size={12} className="inline mr-1" />Total Rows</div>
-                                    <div className="bank-recon-stat-value">{stats.totalRows.toLocaleString()}</div>
-                                </div>
-                                {stats.dateRange && (
-                                    <div className="bank-recon-stat">
-                                        <div className="bank-recon-stat-label"><Calendar size={12} className="inline mr-1" />Date Range</div>
-                                        <div className="bank-recon-stat-value text-base">{stats.dateRange.start} — {stats.dateRange.end}</div>
-                                    </div>
-                                )}
-                                {stats.debitCol && stats.totalDebit > 0 && (
-                                    <div className="bank-recon-stat">
-                                        <div className="bank-recon-stat-label"><ArrowDownRight size={12} className="inline mr-1" />Total Debit</div>
-                                        <div className="bank-recon-stat-value debit">{formatCurrency(stats.totalDebit)}</div>
-                                    </div>
-                                )}
-                                {stats.creditCol && stats.totalCredit > 0 && (
-                                    <div className="bank-recon-stat">
-                                        <div className="bank-recon-stat-label"><ArrowUpRight size={12} className="inline mr-1" />Total Credit</div>
-                                        <div className="bank-recon-stat-value credit">{formatCurrency(stats.totalCredit)}</div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })()}
-
-                    {/* Sheet Tabs */}
-                    {activeSheets.length > 1 && (
-                        <div className="bank-recon-sheet-tabs">
-                            {activeSheets.map((sheet, idx) => (
-                                <button
-                                    key={sheet.sheetName}
-                                    className={`bank-recon-sheet-tab ${idx === activeIdx ? 'active' : ''}`}
-                                    onClick={() => setActiveIdx(idx)}
-                                >
-                                    <Layers size={14} className="inline mr-1.5 -mt-0.5" />
-                                    {sheet.sheetName}
-                                    <span className="ml-1.5 text-xs opacity-60">({sheet.rows.length})</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Data Table */}
-                    {currentSheet && currentSheet.rows.length > 0 ? (
-                        <Card className="!p-0">
-                            <div className="bank-recon-table-container">
-                                <table className="bank-recon-table">
-                                    <thead>
-                                        <tr>
-                                            <th className="!text-center" style={{ width: 50 }}>#</th>
-                                            {currentSheet.headers.map(header => (
-                                                <th key={header}>{header}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {currentSheet.rows.map((row, rowIdx) => (
-                                            <tr key={rowIdx}>
-                                                <td className="!text-center text-slate-400 dark:text-slate-600 text-xs">{rowIdx + 1}</td>
-                                                {currentSheet.headers.map(header => {
-                                                    const value = row[header];
-                                                    const isNum = isNumericColumn(currentSheet, header);
-                                                    const isCurrency = isCurrencyColumn(header);
-                                                    const isCheck = header.toLowerCase().includes('check') || header.toLowerCase().includes('chk');
-
-                                                    let displayValue: React.ReactNode = <span className="text-slate-300 dark:text-slate-700">—</span>;
-
-                                                    if (value !== null && value !== undefined) {
-                                                        if (isCurrency && typeof value === 'number') {
-                                                            displayValue = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                                        } else if (isCheck) {
-                                                            // Strip commas explicitly from check numbers per user request
-                                                            displayValue = String(value).replace(/,/g, '');
-                                                        } else {
-                                                            displayValue = String(value);
-                                                        }
-                                                    }
-
-                                                    return (
-                                                        <td
-                                                            key={header}
-                                                            className={isNum ? 'numeric' : ''}
-                                                            title={value !== null ? String(value) : ''}
-                                                        >
-                                                            {displayValue}
-                                                        </td>
-                                                    );
-                                                })}
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </Card>
-                    ) : currentSheet ? (
-                        <Card>
-                            <div className="text-center py-12 text-slate-500 dark:text-slate-400 italic">
-                                No data rows found in sheet "{currentSheet.sheetName}"
-                            </div>
-                        </Card>
-                    ) : null}
-                </>
-            )}
-
-            {loadingView && (
-                <Card>
-                    <div className="flex items-center justify-center gap-3 py-12">
-                        <div className="bank-recon-spinner" />
-                        <span className="text-slate-500 dark:text-slate-400">Loading sheet data...</span>
-                    </div>
-                </Card>
-            )}
-
-            {/* History Section */}
-            <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
-                    <Clock size={18} className="text-slate-400" />
-                    Upload History
-                </h2>
-                {loadingHistory ? (
-                    <Card>
-                        <div className="flex items-center justify-center gap-3 py-8">
-                            <div className="bank-recon-spinner" />
-                            <span className="text-slate-500 dark:text-slate-400">Loading history...</span>
-                        </div>
-                    </Card>
-                ) : savedStatements.length === 0 ? (
-                    <Card>
-                        <div className="text-center py-8 text-slate-500 dark:text-slate-400 italic">
-                            No bank statements uploaded yet.
-                        </div>
-                    </Card>
-                ) : (
-                    <div className="space-y-2">
-                        {savedStatements.map(stmt => (
+            {/* Main View Layout */}
+            {!parsedWorkbook && !viewingStatement ? (
+                /* Bento Grid Layout for Empty State */
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    {/* Left Col: Upload Zone */}
+                    <div className="xl:col-span-2">
+                        <div className="recon-glass-panel p-2">
                             <div
-                                key={stmt.id}
-                                className={`bank-recon-history-item ${viewingStatement?.id === stmt.id ? '!border-purple-500 !bg-purple-50 dark:!bg-purple-900/20' : ''}`}
-                                onClick={() => handleViewStatement(stmt)}
+                                className={`bank-recon-upload-zone ${isDragging ? 'dragging' : ''} ${uploadedFile ? 'has-file' : ''}`}
+                                onDrop={handleDrop}
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onClick={handleClickUpload}
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                        <FileSpreadsheet size={18} className="text-slate-500 dark:text-slate-400" />
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".xlsx,.xls,.csv"
+                                    onChange={handleInputChange}
+                                    className="hidden"
+                                />
+                                {parsing ? (
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="bank-recon-spinner w-10 h-10 border-4 border-purple-500/30 border-t-purple-500" />
+                                        <p className="text-slate-600 dark:text-slate-300 font-medium text-lg">
+                                            Parsing <span className="text-gradient-primary font-bold">{uploadedFile?.name}</span>...
+                                        </p>
+                                    </div>
+                                ) : uploadedFile ? (
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className="p-4 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl mb-2">
+                                            <FileSpreadsheet className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
+                                        </div>
+                                        <p className="text-xl font-bold text-slate-900 dark:text-white">{uploadedFile.name}</p>
+                                        <p className="text-slate-500 dark:text-slate-400 font-medium">Ready to process</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center gap-4">
+                                        <div className="p-5 bg-white shadow-xl dark:bg-slate-800 rounded-2xl mb-2 bank-recon-upload-icon-container">
+                                            <Upload className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-slate-900 dark:text-white">Upload Bank Statement</h3>
+                                        <p className="text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                                            Drag and drop your Excel file here, or click to browse. Supports <span className="font-semibold text-slate-700 dark:text-slate-300">.xlsx</span> and <span className="font-semibold text-slate-700 dark:text-slate-300">.xls</span>.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                            {parseError && (
+                                <div className="mt-4 p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/50 flex items-start gap-3">
+                                    <AlertTriangle className="text-red-500 mt-0.5 flex-shrink-0" size={18} />
+                                    <div>
+                                        <h4 className="text-red-800 dark:text-red-300 font-semibold mb-1">Parse Error</h4>
+                                        <p className="text-red-600 dark:text-red-400 text-sm">{parseError}</p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right Col: History */}
+                    <div className="xl:col-span-1">
+                        <div className="recon-glass-panel flex flex-col h-full max-h-[600px]">
+                            <div className="p-6 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between">
+                                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                    <Clock size={18} className="text-purple-500" />
+                                    Recent Statements
+                                </h2>
+                                <span className="text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-1 rounded-md">
+                                    {savedStatements.length} total
+                                </span>
+                            </div>
+                            <div className="p-4 overflow-y-auto flex-1 space-y-3">
+                                {loadingHistory ? (
+                                    <div className="flex flex-col items-center justify-center h-40 gap-3">
+                                        <div className="bank-recon-spinner border-slate-300 border-t-purple-500" />
+                                        <span className="text-slate-500 dark:text-slate-400 text-sm font-medium">Loading history...</span>
+                                    </div>
+                                ) : savedStatements.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center text-center h-40 px-4">
+                                        <Layers size={32} className="text-slate-300 dark:text-slate-600 mb-3" />
+                                        <p className="text-slate-500 dark:text-slate-400 text-sm">No bank statements uploaded yet.</p>
+                                    </div>
+                                ) : (
+                                    savedStatements.map(stmt => (
+                                        <div
+                                            key={stmt.id}
+                                            className="bank-recon-history-item group"
+                                            onClick={() => handleViewStatement(stmt)}
+                                        >
+                                            <div className="flex items-start gap-3 w-full">
+                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center flex-shrink-0 border border-indigo-100 dark:border-indigo-800/50">
+                                                    <FileSpreadsheet size={18} className="text-indigo-600 dark:text-indigo-400" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate pr-2 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                                        {stmt.fileName}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                        <span>{stmt.totalRows} rows</span>
+                                                        <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
+                                                        <span>{new Date(stmt.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={(e) => handleDelete(stmt.id!, e)}
+                                                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                /* Detail View Layout (When viewing statement or parsed workbook) */
+                <div className="space-y-6">
+                    {/* Viewing banner for saved statements */}
+                    {viewingStatement && (
+                        <div className="recon-glass-panel p-5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                                        <FileSpreadsheet size={24} className="text-white" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{stmt.fileName}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                                            {stmt.sheetCount} sheet{stmt.sheetCount > 1 ? 's' : ''} · {stmt.totalRows} rows · Uploaded by {stmt.uploadedByName}
+                                        <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
+                                            {viewingStatement.fileName}
+                                        </h2>
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+                                            Uploaded by <span className="font-medium text-slate-700 dark:text-slate-300">{viewingStatement.uploadedByName}</span> on {new Date(viewingStatement.uploadedAt).toLocaleDateString()}
+                                            <span className="mx-2 opacity-50">•</span>
+                                            {viewingStatement.totalRows} rows across {viewingStatement.sheetCount} sheet{viewingStatement.sheetCount > 1 ? 's' : ''}
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap">
-                                        {new Date(stmt.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                    </span>
-                                    <button
-                                        onClick={() => handleViewStatement(stmt)}
-                                        className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                                        title="View"
-                                    >
-                                        <Eye size={16} />
-                                    </button>
-                                    <button
-                                        onClick={(e) => handleDelete(stmt.id!, e)}
-                                        className="p-1.5 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                        title="Delete"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
                             </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+                        </div>
+                    )}
+
+                    {/* Sheet Tabs + Data Table */}
+                    {activeSheets.length > 0 && !loadingView && (
+                        <div className="space-y-6">
+                            {/* Summary Stats */}
+                            {currentSheet && currentSheet.rows.length > 0 && (() => {
+                                const stats = getSheetStats(currentSheet);
+                                return (
+                                    <div className="bank-recon-summary">
+                                        <div className="bank-recon-stat">
+                                            <div className="bank-recon-stat-label"><Hash size={14} className="inline mr-1.5 text-slate-400" />Total Rows</div>
+                                            <div className="bank-recon-stat-value">{stats.totalRows.toLocaleString()}</div>
+                                        </div>
+                                        {stats.dateRange && (
+                                            <div className="bank-recon-stat">
+                                                <div className="bank-recon-stat-label"><Calendar size={14} className="inline mr-1.5 text-slate-400" />Date Range</div>
+                                                <div className="bank-recon-stat-value text-xl mt-1">{stats.dateRange.start} <span className="text-slate-300 mx-1">—</span> {stats.dateRange.end}</div>
+                                            </div>
+                                        )}
+                                        {stats.debitCol && stats.totalDebit > 0 && (
+                                            <div className="bank-recon-stat">
+                                                <div className="bank-recon-stat-label"><ArrowDownRight size={14} className="inline mr-1.5 text-red-400" />Total Debit</div>
+                                                <div className="bank-recon-stat-value debit">{formatCurrency(stats.totalDebit)}</div>
+                                            </div>
+                                        )}
+                                        {stats.creditCol && stats.totalCredit > 0 && (
+                                            <div className="bank-recon-stat">
+                                                <div className="bank-recon-stat-label"><ArrowUpRight size={14} className="inline mr-1.5 text-emerald-400" />Total Credit</div>
+                                                <div className="bank-recon-stat-value credit">{formatCurrency(stats.totalCredit)}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
+
+                            {/* Sheet Tabs */}
+                            {activeSheets.length > 1 && (
+                                <div className="bank-recon-sheet-tabs">
+                                    {activeSheets.map((sheet, idx) => (
+                                        <button
+                                            key={sheet.sheetName}
+                                            className={`bank-recon-sheet-tab ${idx === activeIdx ? 'active' : ''}`}
+                                            onClick={() => setActiveIdx(idx)}
+                                        >
+                                            <Layers size={14} className="inline mr-1.5 -mt-0.5" />
+                                            {sheet.sheetName}
+                                            <span className="ml-1.5 text-xs opacity-60 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md">
+                                                {sheet.rows.length}
+                                            </span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Data Table */}
+                            {currentSheet && currentSheet.rows.length > 0 ? (
+                                <div className="bank-recon-table-container">
+                                    <table className="bank-recon-table">
+                                        <thead>
+                                            <tr>
+                                                <th className="!text-center" style={{ width: 50 }}>#</th>
+                                                {currentSheet.headers.map(header => (
+                                                    <th key={header}>{header}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {currentSheet.rows.map((row, rowIdx) => (
+                                                <tr key={rowIdx}>
+                                                    <td className="!text-center text-slate-400 dark:text-slate-600 text-xs font-mono">{rowIdx + 1}</td>
+                                                    {currentSheet.headers.map(header => {
+                                                        const value = row[header];
+                                                        const isNum = isNumericColumn(currentSheet, header);
+                                                        const isCurrency = isCurrencyColumn(header);
+                                                        const isCheck = header.toLowerCase().includes('check') || header.toLowerCase().includes('chk');
+
+                                                        let displayValue: React.ReactNode = <span className="text-slate-300 dark:text-slate-700">—</span>;
+
+                                                        if (value !== null && value !== undefined && value !== '') {
+                                                            if (isCurrency && typeof value === 'number') {
+                                                                displayValue = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                                            } else if (isCheck) {
+                                                                // Strip commas explicitly from check numbers per user request
+                                                                displayValue = String(value).replace(/,/g, '');
+                                                            } else if (header === 'Remarks') {
+                                                                const remarks = String(value);
+                                                                if (remarks.includes('Partial Match')) {
+                                                                    displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-yellow-100/80 text-yellow-800 border border-yellow-200 dark:border-yellow-900/50 dark:bg-yellow-900/30 dark:text-yellow-400"><AlertTriangle size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
+                                                                } else if (remarks === 'Unidentified Transaction') {
+                                                                    displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-slate-100/80 text-slate-700 border border-slate-200 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"><AlertCircle size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
+                                                                } else {
+                                                                    displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100/80 text-emerald-800 border border-emerald-200 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
+                                                                }
+                                                            } else if (header === 'Linked Chart of Accounts') {
+                                                                displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 shadow-sm"><Layers size={12} className="mr-1.5 text-indigo-400 flex-shrink-0" /> {String(value)}</span>;
+                                                            } else {
+                                                                displayValue = String(value);
+                                                            }
+                                                        }
+
+                                                        return (
+                                                            <td
+                                                                key={header}
+                                                                className={isNum ? 'numeric' : ''}
+                                                                title={value !== null ? String(value) : ''}
+                                                            >
+                                                                {displayValue}
+                                                            </td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : currentSheet ? (
+                                <div className="recon-glass-panel flex flex-col items-center justify-center py-16 px-4">
+                                    <AlertCircle size={48} className="text-slate-300 dark:text-slate-600 mb-4" />
+                                    <h3 className="text-lg font-semibold text-slate-700 dark:text-slate-300">No Data Found</h3>
+                                    <p className="text-slate-500 mt-1">Sheet "{currentSheet.sheetName}" is empty.</p>
+                                </div>
+                            ) : null}
+                        </div>
+                    )}
+
+                    {loadingView && (
+                        <div className="recon-glass-panel py-20 flex flex-col items-center justify-center">
+                            <div className="bank-recon-spinner border-slate-300 border-t-purple-500 w-12 h-12 mb-4" />
+                            <span className="text-slate-600 dark:text-slate-400 font-medium">Loading statement data...</span>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
