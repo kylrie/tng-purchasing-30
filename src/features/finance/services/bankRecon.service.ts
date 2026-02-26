@@ -448,20 +448,27 @@ export const BankReconService = {
             let matchedReq: Requisition | undefined = undefined;
 
             if (debitCol && checkCol) {
-                const debitVal = row[debitCol];
-                // Extract check number, trimming whitespace
-                const checkVal = String(row[checkCol] || '').trim();
+                let debitVal = row[debitCol];
+                const rawCheckVal = row[checkCol];
+
+                // Remove leading zeros for cross-check (e.g. 000457 vs 457)
+                const normalizeCheck = (val: any) => String(val || '').trim().replace(/^0+/, '');
+                const checkVal = normalizeCheck(rawCheckVal);
+
+                // If Excel imported the amount as a text string like "5,890.66", parse it:
+                if (typeof debitVal === 'string') {
+                    const parsedDebit = Number(debitVal.replace(/,/g, '').trim());
+                    if (!isNaN(parsedDebit)) debitVal = parsedDebit;
+                }
 
                 // Only attempt match if we have a valid debit amount and a check number
                 if (typeof debitVal === 'number' && checkVal) {
                     matchedReq = requisitions.find(req => {
-                        // Support both legacy `chequeNumber` and new `checkVoucherNumber`
-                        const reqCheck = String(req.checkVoucherNumber || req.chequeNumber || '').trim();
-                        // Assuming totalAmount is what's debited from the bank
+                        const reqCheck = normalizeCheck(req.checkVoucherNumber || req.chequeNumber);
                         const isCheckMatch = reqCheck === checkVal;
-                        // For the amount, we can do a direct equality check or allow a small tolerance.
-                        // We do direct equality assuming exact matches.
-                        const isAmountMatch = req.totalAmount === debitVal;
+
+                        // Use a 0.05 tolerance for floating-point issues
+                        const isAmountMatch = Math.abs((req.totalAmount || 0) - debitVal) < 0.05;
 
                         return isCheckMatch && isAmountMatch;
                     });
