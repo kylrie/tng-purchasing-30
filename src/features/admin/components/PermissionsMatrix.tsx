@@ -140,6 +140,12 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'budget:view': { label: 'View Budgets', category: 'Finance Config' },
   'budget:manage': { label: 'Manage Budgets', category: 'Finance Config' },
 
+  // Bank Reconciliation
+  'module:view:bank_recon': { label: 'Bank Recon Module', category: 'Module Access' },
+  'bank_recon:upload': { label: 'Upload Statements', category: 'Bank Reconciliation', description: 'Upload new bank statement Excel files for reconciliation.' },
+  'bank_recon:enrich': { label: 'Enrich/Match Data', category: 'Bank Reconciliation', description: 'Match uploaded statements against procurement records.' },
+  'bank_recon:delete': { label: 'Delete Statements', category: 'Bank Reconciliation', description: 'Delete uploaded bank statements.' },
+
   // ═══════════════════════════════════════════════════════════════════════════
   // MODULE ACCESS (SIDEBAR VISIBILITY)
   // ═══════════════════════════════════════════════════════════════════════════

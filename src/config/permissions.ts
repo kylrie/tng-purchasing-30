@@ -37,6 +37,11 @@ export const ALL_PERMISSIONS = [
   'liquidation:audit',
   'liquidation:print',
 
+  // Bank Reconciliation
+  'bank_recon:upload',    // Upload bank statements
+  'bank_recon:enrich',    // Run matching engine
+  'bank_recon:delete',    // Delete bank statements
+
   // PCF (Petty Cash Fund)
   'pcf:view:own',
   'pcf:view:all',
@@ -195,7 +200,11 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:coa',
     // PRF Tracker
     'prf_tracker:view:all',
+    // Bank Reconciliation
     'module:view:bank_recon',
+    'bank_recon:upload',
+    'bank_recon:enrich',
+    'bank_recon:delete',
   ],
 
   // High-level approver, global view
@@ -438,7 +447,11 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     // PRF Tracker
     'module:view:prf_tracker',
     'prf_tracker:view:all',
+    // Bank Reconciliation
     'module:view:bank_recon',
+    'bank_recon:upload',
+    'bank_recon:enrich',
+    'bank_recon:delete',
   ],
 
   // Audits liquidations
@@ -502,6 +515,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     // PRF Tracker
     'module:view:prf_tracker',
     'prf_tracker:view:all',
+    // Bank Reconciliation
     'module:view:bank_recon',
+    'bank_recon:upload',
+    'bank_recon:enrich',
+    'bank_recon:delete',
   ],
 };
