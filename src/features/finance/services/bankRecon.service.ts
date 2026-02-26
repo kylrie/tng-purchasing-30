@@ -436,11 +436,16 @@ export const BankReconService = {
             h.toLowerCase().includes('amount')
         );
 
-        const checkCol = sheet.headers.find(h =>
+        // Try to explicitly find 'check' or 'chk' before falling back to 'ref'
+        // This prevents picking up 'Reference Number' if 'Check Number' exists
+        let checkCol = sheet.headers.find(h =>
             h.toLowerCase().includes('check') ||
-            h.toLowerCase().includes('chk') ||
-            h.toLowerCase().includes('ref')
+            h.toLowerCase().includes('chk')
         );
+
+        if (!checkCol) {
+            checkCol = sheet.headers.find(h => h.toLowerCase().includes('ref'));
+        }
 
         // 4. The Matching Engine & Enrichment
         console.log(`[BankRecon] Preparing to match against ${requisitions.length} requisitions.`);
@@ -453,8 +458,8 @@ export const BankReconService = {
                 let debitVal = row[debitCol];
                 const rawCheckVal = row[checkCol];
 
-                // Remove leading zeros for cross-check (e.g. 000457 vs 457)
-                const normalizeCheck = (val: any) => String(val || '').trim().replace(/^0+/, '');
+                // Remove leading zeros and commas for cross-check (e.g. 000457 vs 457, or 45,678 vs 45678)
+                const normalizeCheck = (val: any) => String(val || '').trim().replace(/,/g, '').replace(/^0+/, '');
                 const checkVal = normalizeCheck(rawCheckVal);
 
                 // If Excel imported the amount as a text string like "5,890.66", parse it:

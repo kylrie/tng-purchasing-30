@@ -516,12 +516,16 @@ const BankReconView: React.FC = () => {
                                                     const value = row[header];
                                                     const isNum = isNumericColumn(currentSheet, header);
                                                     const isCurrency = isCurrencyColumn(header);
+                                                    const isCheck = header.toLowerCase().includes('check') || header.toLowerCase().includes('chk');
 
                                                     let displayValue: React.ReactNode = <span className="text-slate-300 dark:text-slate-700">—</span>;
 
                                                     if (value !== null && value !== undefined) {
                                                         if (isCurrency && typeof value === 'number') {
                                                             displayValue = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                                        } else if (isCheck) {
+                                                            // Strip commas explicitly from check numbers per user request
+                                                            displayValue = String(value).replace(/,/g, '');
                                                         } else {
                                                             displayValue = String(value);
                                                         }
