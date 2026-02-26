@@ -290,6 +290,12 @@ const BankReconView: React.FC = () => {
     const setActiveIdx = viewingStatement ? setViewingSheetIndex : setActiveSheetIndex;
     const currentSheet = activeSheets[activeIdx];
 
+    // Check if a column represents currency
+    const isCurrencyColumn = (header: string): boolean => {
+        const h = header.toLowerCase();
+        return ['debit', 'credit', 'amount', 'balance', 'withdrawal', 'deposit', 'dr', 'cr'].some(term => h.includes(term));
+    };
+
     // Check if a value is numeric for right-alignment
     const isNumericColumn = (sheet: ParsedSheet, header: string): boolean => {
         const sample = sheet.rows.slice(0, 10);
@@ -509,18 +515,25 @@ const BankReconView: React.FC = () => {
                                                 {currentSheet.headers.map(header => {
                                                     const value = row[header];
                                                     const isNum = isNumericColumn(currentSheet, header);
+                                                    const isCurrency = isCurrencyColumn(header);
+
+                                                    let displayValue: React.ReactNode = <span className="text-slate-300 dark:text-slate-700">—</span>;
+
+                                                    if (value !== null && value !== undefined) {
+                                                        if (isCurrency && typeof value === 'number') {
+                                                            displayValue = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                                        } else {
+                                                            displayValue = String(value);
+                                                        }
+                                                    }
+
                                                     return (
                                                         <td
                                                             key={header}
                                                             className={isNum ? 'numeric' : ''}
                                                             title={value !== null ? String(value) : ''}
                                                         >
-                                                            {value !== null && value !== undefined
-                                                                ? (isNum && typeof value === 'number'
-                                                                    ? value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                                                                    : String(value))
-                                                                : <span className="text-slate-300 dark:text-slate-700">—</span>
-                                                            }
+                                                            {displayValue}
                                                         </td>
                                                     );
                                                 })}

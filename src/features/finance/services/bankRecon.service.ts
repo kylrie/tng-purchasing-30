@@ -205,6 +205,10 @@ function parseSheet(worksheet: XLSX.WorkSheet, sheetName: string): ParsedSheet {
     return { sheetName, headers, rows, headerRowIndex };
 }
 
+function sanitizeForFirestore(obj: any): any {
+    return JSON.parse(JSON.stringify(obj));
+}
+
 // ============================================================
 // PUBLIC API
 // ============================================================
@@ -286,16 +290,23 @@ export const BankReconService = {
             // Sort dates to find range
             dates = dates.filter(Boolean).sort();
 
-            return {
+            const summary: any = {
                 sheetName: sheet.sheetName,
                 rowCount: sheet.rows.length,
                 headers: sheet.headers,
-                dateRange: dates.length > 0
-                    ? { start: dates[0], end: dates[dates.length - 1] }
-                    : undefined,
-                totalDebit: totalDebit || undefined,
-                totalCredit: totalCredit || undefined,
             };
+
+            if (dates.length > 0) {
+                summary.dateRange = { start: dates[0], end: dates[dates.length - 1] };
+            }
+            if (totalDebit) {
+                summary.totalDebit = totalDebit;
+            }
+            if (totalCredit) {
+                summary.totalCredit = totalCredit;
+            }
+
+            return summary;
         });
 
         const statement: Omit<BankReconStatement, 'id'> = {
@@ -310,22 +321,22 @@ export const BankReconService = {
         };
 
         // Save main document
+        const statementData = sanitizeForFirestore(statement);
         const docRef = await addDoc(collection(db, BANK_RECON_COLLECTION), {
-            ...statement,
+            ...statementData,
             createdAt: serverTimestamp(),
         });
 
-        // Save each sheet's data as a sub-document (to avoid 1MB doc limit)
         for (const sheet of workbook.sheets) {
             await addDoc(
                 collection(db, BANK_RECON_COLLECTION, docRef.id, BANK_RECON_DATA_SUBCOLLECTION),
-                {
+                sanitizeForFirestore({
                     sheetName: sheet.sheetName,
                     headers: sheet.headers,
                     rows: sheet.rows,
                     rowCount: sheet.rows.length,
                     headerRowIndex: sheet.headerRowIndex,
-                }
+                })
             );
         }
 
