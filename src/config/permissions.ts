@@ -41,6 +41,7 @@ export const ALL_PERMISSIONS = [
   'bank_recon:upload',    // Upload bank statements
   'bank_recon:enrich',    // Run matching engine
   'bank_recon:delete',    // Delete bank statements
+  'bank_recon:audit',     // Audit/clear bank statement transactions
 
   // PCF (Petty Cash Fund)
   'pcf:view:own',
@@ -205,6 +206,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'bank_recon:upload',
     'bank_recon:enrich',
     'bank_recon:delete',
+    'bank_recon:audit',
   ],
 
   // High-level approver, global view
@@ -452,6 +454,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'bank_recon:upload',
     'bank_recon:enrich',
     'bank_recon:delete',
+    'bank_recon:audit',
   ],
 
   // Audits liquidations
@@ -476,6 +479,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'dashboard:widget:pending_audit',
     'dashboard:widget:total_spend',
     'dashboard:section:pending_audit_list',
+    // Bank Reconciliation
+    'module:view:bank_recon',
+    'bank_recon:audit',
   ],
 
   // Finance Head - Budget Review approvals and check upload
@@ -520,5 +526,6 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'bank_recon:upload',
     'bank_recon:enrich',
     'bank_recon:delete',
+    'bank_recon:audit',
   ],
 };

@@ -10,12 +10,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Upload, FileSpreadsheet, Trash2, Save, X, Download, Clock, Layers, Hash, Calendar, ArrowDownRight, ArrowUpRight, Settings, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
 import { BankReconService, type ParsedWorkbook, type ParsedSheet, type BankReconStatement } from '../services/bankRecon.service';
 import { useAuth } from '../../../contexts/AuthContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 import { exportToCSV, type ExportColumn } from '../../../shared/utils/exportUtils';
-import './BankReconView.css';
 import './BankReconView.css';
 
 const BankReconView: React.FC = () => {
     const { currentUser } = useAuth();
+    const { hasPermission } = usePermissions();
+    const canAudit = hasPermission('bank_recon:audit');
 
     // Upload states
     const [isDragging, setIsDragging] = useState(false);
@@ -240,6 +242,53 @@ const BankReconView: React.FC = () => {
             alert(`Failed to generate matched report: ${err.message}`);
         } finally {
             setGenerating(false);
+        }
+    };
+
+    // Toggle Audit Status (Cleared/Uncleared)
+    const handleToggleAudit = async (rowIdx: number, currentState: boolean) => {
+        if (!canAudit) return;
+
+        const activeSheets = viewingStatement ? viewingSheets : (parsedWorkbook?.sheets || []);
+        const activeIdx = viewingStatement ? viewingSheetIndex : activeSheetIndex;
+        const currentSheet = activeSheets[activeIdx];
+        if (!currentSheet) return;
+
+        const newRows = [...currentSheet.rows];
+        newRows[rowIdx] = {
+            ...newRows[rowIdx],
+            Cleared: !currentState
+        };
+
+        const newSheet = {
+            ...currentSheet,
+            rows: newRows
+        };
+
+        if (viewingStatement) {
+            const newViewingSheets = [...viewingSheets];
+            newViewingSheets[activeIdx] = newSheet;
+            setViewingSheets(newViewingSheets);
+
+            // Persist to Firestore
+            try {
+                if (!newSheet.id) throw new Error("Sheet ID is missing.");
+                await BankReconService.updateSheetData(viewingStatement.id!, newSheet.id, newRows);
+            } catch (err) {
+                console.error('Failed to update audit status:', err);
+                alert('Failed to save audit status to database.');
+                // Revert locally on error
+                newRows[rowIdx].Cleared = currentState;
+                newViewingSheets[activeIdx] = { ...currentSheet, rows: newRows };
+                setViewingSheets([...newViewingSheets]);
+            }
+        } else if (parsedWorkbook) {
+            const newSheets = [...parsedWorkbook.sheets];
+            newSheets[activeIdx] = newSheet;
+            setParsedWorkbook({
+                ...parsedWorkbook,
+                sheets: newSheets
+            });
         }
     };
 
@@ -587,6 +636,9 @@ const BankReconView: React.FC = () => {
                                         <thead>
                                             <tr>
                                                 <th className="!text-center" style={{ width: 50 }}>#</th>
+                                                {canAudit && (
+                                                    <th className="!text-center" style={{ width: 80 }}>Audit</th>
+                                                )}
                                                 {currentSheet.headers.map(header => (
                                                     <th key={header}>{header}</th>
                                                 ))}
@@ -596,6 +648,17 @@ const BankReconView: React.FC = () => {
                                             {currentSheet.rows.map((row, rowIdx) => (
                                                 <tr key={rowIdx}>
                                                     <td className="!text-center text-slate-400 dark:text-slate-600 text-xs font-mono">{rowIdx + 1}</td>
+                                                    {canAudit && (
+                                                        <td className="!text-center">
+                                                            <button
+                                                                onClick={() => handleToggleAudit(rowIdx, !!row['Cleared'])}
+                                                                className={`p-1.5 rounded-md transition-colors ${row['Cleared'] ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                                                                title={row['Cleared'] ? 'Mark as Uncleared' : 'Mark as Cleared'}
+                                                            >
+                                                                <CheckCircle2 size={16} />
+                                                            </button>
+                                                        </td>
+                                                    )}
                                                     {currentSheet.headers.map(header => {
                                                         const value = row[header];
                                                         const isNum = isNumericColumn(currentSheet, header);

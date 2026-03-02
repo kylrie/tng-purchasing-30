@@ -145,6 +145,7 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'bank_recon:upload': { label: 'Upload Statements', category: 'Bank Reconciliation', description: 'Upload new bank statement Excel files for reconciliation.' },
   'bank_recon:enrich': { label: 'Enrich/Match Data', category: 'Bank Reconciliation', description: 'Match uploaded statements against procurement records.' },
   'bank_recon:delete': { label: 'Delete Statements', category: 'Bank Reconciliation', description: 'Delete uploaded bank statements.' },
+  'bank_recon:audit': { label: 'Audit Transactions', category: 'Bank Reconciliation', description: 'Mark transactions as cleared or uncleared.' },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // MODULE ACCESS (SIDEBAR VISIBILITY)

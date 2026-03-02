@@ -25,10 +25,11 @@ import type { Requisition } from '../../procurement/types';
 // ============================================================
 
 export interface ParsedRow {
-    [key: string]: string | number | null;
+    [key: string]: string | number | boolean | null;
 }
 
 export interface ParsedSheet {
+    id?: string;
     sheetName: string;
     headers: string[];
     rows: ParsedRow[];
@@ -368,6 +369,7 @@ export const BankReconService = {
         return snapshot.docs.map(doc => {
             const data = doc.data();
             return {
+                id: doc.id,
                 sheetName: data.sheetName,
                 headers: data.headers,
                 rows: data.rows,
@@ -389,6 +391,18 @@ export const BankReconService = {
         }
         // Delete main document
         await deleteDoc(doc(db, BANK_RECON_COLLECTION, statementId));
+    },
+
+    /**
+     * Update the rows for a specific parsed sheet in a saved bank statement
+     */
+    async updateSheetData(statementId: string, sheetId: string, rows: ParsedRow[]): Promise<void> {
+        const docRef = doc(db, BANK_RECON_COLLECTION, statementId, BANK_RECON_DATA_SUBCOLLECTION, sheetId);
+        // We only want to update the 'rows' attribute, which is where the audit data (Cleared status) is saved.
+        // We'll also update the updated timestamp if you have one, but we don't have one initially.
+        const sanitizedRows = sanitizeForFirestore(rows);
+        const { updateDoc } = await import('firebase/firestore');
+        await updateDoc(docRef, { rows: sanitizedRows });
     },
 
     /**
