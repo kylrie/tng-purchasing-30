@@ -16,6 +16,7 @@
   background: linear-gradient(135deg, #c084fc 0%, #60a5fa 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 /* Glass Panels replaced generic Cards */
