@@ -54,6 +54,7 @@ export interface BankReconTransaction {
 
 export interface BankReconStatement {
     id?: string;
+    status: 'PENDING_MATCH' | 'PENDING_AUDIT' | 'COMPLETED';
     fileName: string;
     uploadedBy: string;
     uploadedByName: string;
@@ -250,7 +251,8 @@ export const BankReconService = {
     async saveBankStatement(
         workbook: ParsedWorkbook,
         userId: string,
-        userName: string
+        userName: string,
+        status: 'PENDING_MATCH' | 'PENDING_AUDIT' | 'COMPLETED' = 'PENDING_MATCH'
     ): Promise<string> {
         // Build summaries per sheet
         const sheetSummaries = workbook.sheets.map(sheet => {
@@ -310,6 +312,7 @@ export const BankReconService = {
         });
 
         const statement: Omit<BankReconStatement, 'id'> = {
+            status,
             fileName: workbook.fileName,
             uploadedBy: userId,
             uploadedByName: userName,
@@ -403,6 +406,15 @@ export const BankReconService = {
         const sanitizedRows = sanitizeForFirestore(rows);
         const { updateDoc } = await import('firebase/firestore');
         await updateDoc(docRef, { rows: sanitizedRows });
+    },
+
+    /**
+     * Update the status of a saved bank statement
+     */
+    async updateStatementStatus(statementId: string, status: 'PENDING_MATCH' | 'PENDING_AUDIT' | 'COMPLETED'): Promise<void> {
+        const docRef = doc(db, BANK_RECON_COLLECTION, statementId);
+        const { updateDoc } = await import('firebase/firestore');
+        await updateDoc(docRef, { status });
     },
 
     /**

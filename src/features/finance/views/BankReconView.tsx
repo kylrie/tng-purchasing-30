@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, FileSpreadsheet, Trash2, Save, X, Download, Clock, Layers, Hash, Calendar, ArrowDownRight, ArrowUpRight, Settings, CheckCircle2, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, Trash2, Save, X, Download, Clock, Layers, Hash, Calendar, ArrowDownRight, ArrowUpRight, Settings, CheckCircle2, AlertTriangle, AlertCircle, Edit2, Send, CheckCircle } from 'lucide-react';
 import { BankReconService, type ParsedWorkbook, type ParsedSheet, type BankReconStatement } from '../services/bankRecon.service';
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -41,6 +41,9 @@ const BankReconView: React.FC = () => {
     const [viewingSheets, setViewingSheets] = useState<ParsedSheet[]>([]);
     const [viewingSheetIndex, setViewingSheetIndex] = useState(0);
     const [loadingView, setLoadingView] = useState(false);
+
+    // List tabs
+    const [listTab, setListTab] = useState<'ACTIVE' | 'HISTORY'>('ACTIVE');
 
     // Load saved statements on mount
     useEffect(() => {
@@ -126,20 +129,76 @@ const BankReconView: React.FC = () => {
     };
 
     // Save to Firestore
-    const handleSave = async () => {
+    // Save to Firestore with specific status
+    const handleSaveStatus = async (status: 'PENDING_MATCH' | 'PENDING_AUDIT' | 'COMPLETED') => {
         if (!parsedWorkbook || !currentUser) return;
         setSaving(true);
         try {
             await BankReconService.saveBankStatement(
                 parsedWorkbook,
                 currentUser.id,
-                currentUser.name
+                currentUser.name,
+                status
             );
             await loadSavedStatements();
             clearUpload();
         } catch (err: any) {
-            console.error('Failed to save:', err);
+            console.error(`Failed to save as ${status}:`, err);
             alert(`Failed to save bank statement: ${err?.message || err}`);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSaveDraft = () => handleSaveStatus('PENDING_MATCH');
+
+    const handleSubmitAudit = async () => {
+        if (viewingStatement) {
+            setSaving(true);
+            try {
+                await BankReconService.updateStatementStatus(viewingStatement.id!, 'PENDING_AUDIT');
+                setViewingStatement({ ...viewingStatement, status: 'PENDING_AUDIT' });
+                await loadSavedStatements();
+            } catch (err: any) {
+                console.error('Failed to submit for audit:', err);
+                alert(`Failed to submit: ${err?.message || err}`);
+            } finally {
+                setSaving(false);
+            }
+        } else {
+            handleSaveStatus('PENDING_AUDIT');
+        }
+    };
+
+    const handleMarkAudited = async () => {
+        if (!viewingStatement || viewingStatement.status !== 'PENDING_AUDIT' || !canAudit) return;
+        if (!confirm('Are you sure you want to mark this statement as completely audited?')) return;
+
+        setSaving(true);
+        try {
+            await BankReconService.updateStatementStatus(viewingStatement.id!, 'COMPLETED');
+            // Update local state and history
+            setViewingStatement({ ...viewingStatement, status: 'COMPLETED' });
+            await loadSavedStatements();
+        } catch (err: any) {
+            console.error('Failed to mark as audited:', err);
+            alert(`Failed to update status: ${err?.message || err}`);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSaveAuditProgress = async () => {
+        if (!viewingStatement || viewingStatement.status !== 'PENDING_AUDIT' || !canAudit) return;
+
+        setSaving(true);
+        try {
+            await BankReconService.updateStatementStatus(viewingStatement.id!, 'PENDING_AUDIT');
+            await loadSavedStatements();
+            closeViewStatement();
+        } catch (err: any) {
+            console.error('Failed to save audit progress:', err);
+            alert(`Failed to save progress: ${err?.message || err}`);
         } finally {
             setSaving(false);
         }
@@ -248,6 +307,7 @@ const BankReconView: React.FC = () => {
     // Toggle Audit Status (Cleared/Uncleared)
     const handleToggleAudit = async (rowIdx: number, currentState: boolean) => {
         if (!canAudit) return;
+        if (viewingStatement && viewingStatement.status !== 'PENDING_AUDIT') return; // Enforce state machine rules
 
         const activeSheets = viewingStatement ? viewingSheets : (parsedWorkbook?.sheets || []);
         const activeIdx = viewingStatement ? viewingSheetIndex : activeSheetIndex;
@@ -279,6 +339,57 @@ const BankReconView: React.FC = () => {
                 alert('Failed to save audit status to database.');
                 // Revert locally on error
                 newRows[rowIdx].Cleared = currentState;
+                newViewingSheets[activeIdx] = { ...currentSheet, rows: newRows };
+                setViewingSheets([...newViewingSheets]);
+            }
+        } else if (parsedWorkbook) {
+            const newSheets = [...parsedWorkbook.sheets];
+            newSheets[activeIdx] = newSheet;
+            setParsedWorkbook({
+                ...parsedWorkbook,
+                sheets: newSheets
+            });
+        }
+    };
+
+    // Edit Remark
+    const handleEditRemark = async (rowIdx: number, currentRemark: string) => {
+        if (viewingStatement && viewingStatement.status === 'COMPLETED') return; // Cannot edit if completed
+        if (viewingStatement && viewingStatement.status === 'PENDING_AUDIT' && !canAudit) return; // Usually only finance edits before audit, but auditor could edit too
+
+        const newRemark = prompt('Edit Remark:', currentRemark);
+        if (newRemark === null || newRemark === currentRemark) return; // Cancelled or no change
+
+        const activeSheets = viewingStatement ? viewingSheets : (parsedWorkbook?.sheets || []);
+        const activeIdx = viewingStatement ? viewingSheetIndex : activeSheetIndex;
+        const currentSheet = activeSheets[activeIdx];
+        if (!currentSheet) return;
+
+        const newRows = [...currentSheet.rows];
+        newRows[rowIdx] = {
+            ...newRows[rowIdx],
+            Remarks: newRemark
+        };
+
+        const newSheet = {
+            ...currentSheet,
+            rows: newRows
+        };
+
+        if (viewingStatement) {
+            const newViewingSheets = [...viewingSheets];
+            newViewingSheets[activeIdx] = newSheet;
+            setViewingSheets(newViewingSheets);
+
+            // Persist to Firestore
+            try {
+                if (!newSheet.id) throw new Error("Sheet ID is missing.");
+                await BankReconService.updateSheetData(viewingStatement.id!, newSheet.id, newRows);
+            } catch (err) {
+                console.error('Failed to update remark:', err);
+                alert('Failed to save remark to database.');
+                // Revert locally on error
+                newRows[rowIdx].Remarks = currentRemark;
                 newViewingSheets[activeIdx] = { ...currentSheet, rows: newRows };
                 setViewingSheets([...newViewingSheets]);
             }
@@ -385,12 +496,20 @@ const BankReconView: React.FC = () => {
                             Export Sheet
                         </button>
                         <button
-                            onClick={handleSave}
+                            onClick={handleSaveDraft}
+                            disabled={saving}
+                            className="bg-slate-600 hover:bg-slate-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
+                        >
+                            {saving ? <div className="bank-recon-spinner w-4 h-4" /> : <Save size={16} />}
+                            Save Draft
+                        </button>
+                        <button
+                            onClick={handleSubmitAudit}
                             disabled={saving}
                             className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
                         >
-                            {saving ? <div className="bank-recon-spinner" /> : <Save size={16} />}
-                            {saving ? 'Saving...' : 'Save Statement'}
+                            {saving ? <div className="bank-recon-spinner w-4 h-4" /> : <Send size={16} />}
+                            Submit for Audit
                         </button>
                         <button
                             onClick={clearUpload}
@@ -418,6 +537,36 @@ const BankReconView: React.FC = () => {
                             <Download size={16} />
                             Export Sheet
                         </button>
+                        {(viewingStatement.status === 'PENDING_MATCH' || !viewingStatement.status) && (
+                            <button
+                                onClick={handleSubmitAudit}
+                                disabled={saving}
+                                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
+                            >
+                                {saving ? <div className="bank-recon-spinner w-4 h-4" /> : <Send size={16} />}
+                                Submit for Audit
+                            </button>
+                        )}
+                        {viewingStatement.status === 'PENDING_AUDIT' && canAudit && (
+                            <>
+                                <button
+                                    onClick={handleSaveAuditProgress}
+                                    disabled={saving}
+                                    className="bg-slate-600 hover:bg-slate-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
+                                >
+                                    {saving ? <div className="bank-recon-spinner w-4 h-4" /> : <Save size={16} />}
+                                    Save Progress
+                                </button>
+                                <button
+                                    onClick={handleMarkAudited}
+                                    disabled={saving}
+                                    className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
+                                >
+                                    {saving ? <div className="bank-recon-spinner w-4 h-4" /> : <CheckCircle size={16} />}
+                                    Mark Audited
+                                </button>
+                            </>
+                        )}
                         <button
                             onClick={closeViewStatement}
                             className="bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 px-3 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors text-sm"
@@ -492,14 +641,33 @@ const BankReconView: React.FC = () => {
                     {/* Right Col: History */}
                     <div className="xl:col-span-1">
                         <div className="recon-glass-panel flex flex-col h-full max-h-[600px]">
-                            <div className="p-6 border-b border-slate-200 dark:border-slate-700/50 flex items-center justify-between">
-                                <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                                    <Clock size={18} className="text-purple-500" />
-                                    Recent Statements
-                                </h2>
-                                <span className="text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-1 rounded-md">
-                                    {savedStatements.length} total
-                                </span>
+                            <div className="p-4 border-b border-slate-200 dark:border-slate-700/50 flex flex-col gap-4">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                        <Clock size={18} className="text-purple-500" />
+                                        Statements
+                                    </h2>
+                                </div>
+                                <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
+                                    <button
+                                        onClick={() => setListTab('ACTIVE')}
+                                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${listTab === 'ACTIVE'
+                                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                                            }`}
+                                    >
+                                        Active
+                                    </button>
+                                    <button
+                                        onClick={() => setListTab('HISTORY')}
+                                        className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${listTab === 'HISTORY'
+                                            ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                                            }`}
+                                    >
+                                        History
+                                    </button>
+                                </div>
                             </div>
                             <div className="p-4 overflow-y-auto flex-1 space-y-3">
                                 {loadingHistory ? (
@@ -507,13 +675,24 @@ const BankReconView: React.FC = () => {
                                         <div className="bank-recon-spinner border-slate-300 border-t-purple-500" />
                                         <span className="text-slate-500 dark:text-slate-400 text-sm font-medium">Loading history...</span>
                                     </div>
-                                ) : savedStatements.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center text-center h-40 px-4">
-                                        <Layers size={32} className="text-slate-300 dark:text-slate-600 mb-3" />
-                                        <p className="text-slate-500 dark:text-slate-400 text-sm">No bank statements uploaded yet.</p>
-                                    </div>
-                                ) : (
-                                    savedStatements.map(stmt => (
+                                ) : (() => {
+                                    const filteredStatements = savedStatements.filter(stmt => {
+                                        if (listTab === 'HISTORY') return stmt.status === 'COMPLETED';
+                                        return stmt.status !== 'COMPLETED';
+                                    });
+
+                                    if (filteredStatements.length === 0) {
+                                        return (
+                                            <div className="flex flex-col items-center justify-center text-center h-40 px-4">
+                                                <Layers size={32} className="text-slate-300 dark:text-slate-600 mb-3" />
+                                                <p className="text-slate-500 dark:text-slate-400 text-sm">
+                                                    {listTab === 'HISTORY' ? 'No completed statements yet.' : 'No active statements.'}
+                                                </p>
+                                            </div>
+                                        );
+                                    }
+
+                                    return filteredStatements.map(stmt => (
                                         <div
                                             key={stmt.id}
                                             className="bank-recon-history-item group"
@@ -528,6 +707,12 @@ const BankReconView: React.FC = () => {
                                                         {stmt.fileName}
                                                     </p>
                                                     <div className="flex items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+                                                        <span className={`px-2 py-0.5 rounded border text-[10px] font-bold tracking-wider ${stmt.status === 'COMPLETED' ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' :
+                                                            stmt.status === 'PENDING_AUDIT' ? 'bg-blue-100/50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' :
+                                                                'bg-slate-100/50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                                                            }`}>
+                                                            {stmt.status?.replace('_', ' ') || 'PENDING MATCH'}
+                                                        </span>
                                                         <span>{stmt.totalRows} rows</span>
                                                         <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600"></span>
                                                         <span>{new Date(stmt.uploadedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
@@ -544,8 +729,8 @@ const BankReconView: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                    ))
-                                )}
+                                    ));
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -562,8 +747,14 @@ const BankReconView: React.FC = () => {
                                         <FileSpreadsheet size={24} className="text-white" />
                                     </div>
                                     <div>
-                                        <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
+                                        <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight flex items-center gap-3">
                                             {viewingStatement.fileName}
+                                            <span className={`px-2 py-0.5 rounded border text-xs font-bold tracking-wider ${viewingStatement.status === 'COMPLETED' ? 'bg-emerald-100/50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800' :
+                                                viewingStatement.status === 'PENDING_AUDIT' ? 'bg-blue-100/50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800' :
+                                                    'bg-slate-100/50 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                                                }`}>
+                                                {viewingStatement.status?.replace('_', ' ') || 'PENDING MATCH'}
+                                            </span>
                                         </h2>
                                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                                             Uploaded by <span className="font-medium text-slate-700 dark:text-slate-300">{viewingStatement.uploadedByName}</span> on {new Date(viewingStatement.uploadedAt).toLocaleDateString()}
@@ -636,7 +827,7 @@ const BankReconView: React.FC = () => {
                                         <thead>
                                             <tr>
                                                 <th className="!text-center" style={{ width: 50 }}>#</th>
-                                                {canAudit && (
+                                                {canAudit && (!viewingStatement || viewingStatement.status === 'PENDING_AUDIT') && (
                                                     <th className="!text-center" style={{ width: 80 }}>Audit</th>
                                                 )}
                                                 {currentSheet.headers.map(header => (
@@ -648,7 +839,7 @@ const BankReconView: React.FC = () => {
                                             {currentSheet.rows.map((row, rowIdx) => (
                                                 <tr key={rowIdx}>
                                                     <td className="!text-center text-slate-400 dark:text-slate-600 text-xs font-mono">{rowIdx + 1}</td>
-                                                    {canAudit && (
+                                                    {canAudit && (!viewingStatement || viewingStatement.status === 'PENDING_AUDIT') && (
                                                         <td className="!text-center">
                                                             <button
                                                                 onClick={() => handleToggleAudit(rowIdx, !!row['Cleared'])}
@@ -667,21 +858,41 @@ const BankReconView: React.FC = () => {
 
                                                         let displayValue: React.ReactNode = <span className="text-slate-300 dark:text-slate-700">—</span>;
 
-                                                        if (value !== null && value !== undefined && value !== '') {
+                                                        if (header === 'Remarks') {
+                                                            const remarks = (value !== null && value !== undefined) ? String(value) : '';
+                                                            const isEditable = !viewingStatement || viewingStatement.status !== 'COMPLETED';
+
+                                                            let badge = <span className="text-slate-300 dark:text-slate-600 italic">No remark</span>;
+                                                            if (remarks) {
+                                                                if (remarks.includes('Partial Match')) {
+                                                                    badge = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-yellow-100/80 text-yellow-800 border border-yellow-200 dark:border-yellow-900/50 dark:bg-yellow-900/30 dark:text-yellow-400"><AlertTriangle size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
+                                                                } else if (remarks === 'Unidentified Transaction') {
+                                                                    badge = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-slate-100/80 text-slate-700 border border-slate-200 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"><AlertCircle size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
+                                                                } else {
+                                                                    badge = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100/80 text-emerald-800 border border-emerald-200 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
+                                                                }
+                                                            }
+
+                                                            displayValue = (
+                                                                <div className="flex items-center gap-2">
+                                                                    {badge}
+                                                                    {isEditable && (
+                                                                        <button
+                                                                            onClick={() => handleEditRemark(rowIdx, remarks)}
+                                                                            className="p-1 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/30 transition-colors"
+                                                                            title="Edit Remark"
+                                                                        >
+                                                                            <Edit2 size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        } else if (value !== null && value !== undefined && value !== '') {
                                                             if (isCurrency && typeof value === 'number') {
                                                                 displayValue = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                                             } else if (isCheck) {
                                                                 // Strip commas explicitly from check numbers per user request
                                                                 displayValue = String(value).replace(/,/g, '');
-                                                            } else if (header === 'Remarks') {
-                                                                const remarks = String(value);
-                                                                if (remarks.includes('Partial Match')) {
-                                                                    displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-yellow-100/80 text-yellow-800 border border-yellow-200 dark:border-yellow-900/50 dark:bg-yellow-900/30 dark:text-yellow-400"><AlertTriangle size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
-                                                                } else if (remarks === 'Unidentified Transaction') {
-                                                                    displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-slate-100/80 text-slate-700 border border-slate-200 dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-300"><AlertCircle size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
-                                                                } else {
-                                                                    displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100/80 text-emerald-800 border border-emerald-200 dark:border-emerald-900/50 dark:bg-emerald-900/30 dark:text-emerald-400"><CheckCircle2 size={12} className="mr-1.5 flex-shrink-0" /> {remarks}</span>;
-                                                                }
                                                             } else if (header === 'Linked Chart of Accounts') {
                                                                 displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 shadow-sm"><Layers size={12} className="mr-1.5 text-indigo-400 flex-shrink-0" /> {String(value)}</span>;
                                                             } else {
