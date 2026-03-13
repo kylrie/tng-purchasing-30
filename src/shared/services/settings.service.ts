@@ -20,6 +20,21 @@ const DEFAULT_PCF_SETTINGS: PCFSettings = {
 const SETTINGS_COLLECTION = COLLECTIONS.SETTINGS;
 const PCF_CONFIG_DOC = 'pcf_config';
 const APPROVER_ASSIGNMENTS_DOC = 'approver_assignments';
+const POS_CONFIG_DOC = 'pos_config';
+
+// =====================================================
+// POS SETTINGS INTERFACE
+// =====================================================
+export interface POSSettings {
+    superAdminPin?: string;
+    lastUpdated?: string;
+    updatedBy?: string;
+    updatedByName?: string;
+}
+
+const DEFAULT_POS_SETTINGS: POSSettings = {
+    // Empty default PIN means the override is disabled
+};
 
 // =====================================================
 // APPROVER ASSIGNMENTS INTERFACE
@@ -244,6 +259,57 @@ export class SettingsService {
         await FirestoreService.setDocument(
             SETTINGS_COLLECTION,
             PCF_CONFIG_DOC,
+            updatePayload
+        );
+    }
+
+    // =====================================================
+    // POS SETTINGS METHODS
+    // =====================================================
+
+    /**
+     * Get POS settings (super admin pin, etc.)
+     * Returns defaults if not configured
+     */
+    static async getPOSSettings(): Promise<POSSettings> {
+        try {
+            const settings = await FirestoreService.getDocument<POSSettings>(
+                SETTINGS_COLLECTION,
+                POS_CONFIG_DOC
+            );
+
+            if (!settings) {
+                return { ...DEFAULT_POS_SETTINGS };
+            }
+
+            return {
+                ...DEFAULT_POS_SETTINGS,
+                ...settings,
+            };
+        } catch (error) {
+            console.error('[SettingsService] Error fetching POS settings:', error);
+            return { ...DEFAULT_POS_SETTINGS };
+        }
+    }
+
+    /**
+     * Update POS settings
+     */
+    static async updatePOSSettings(
+        settings: Partial<POSSettings>,
+        userId?: string,
+        userName?: string
+    ): Promise<void> {
+        const updatePayload: Partial<POSSettings> = {
+            ...settings,
+            lastUpdated: new Date().toISOString(),
+            updatedBy: userId,
+            updatedByName: userName,
+        };
+
+        await FirestoreService.setDocument(
+            SETTINGS_COLLECTION,
+            POS_CONFIG_DOC,
             updatePayload
         );
     }
