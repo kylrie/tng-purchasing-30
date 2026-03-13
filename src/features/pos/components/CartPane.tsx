@@ -153,4 +153,4 @@ const CartPane: React.FC<CartPaneProps> = ({
     );
 };
 
-export default CartPane;
+export default React.memo(CartPane);

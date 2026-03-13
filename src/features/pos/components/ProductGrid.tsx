@@ -11,13 +11,16 @@ interface ProductGridProps {
 
 const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddItem }) => {
     const [searchQuery, setSearchQuery] = useState('');
+    const deferredSearchQuery = React.useDeferredValue(searchQuery);
     const [activeCategory, setActiveCategory] = useState<string>('All');
 
-    const filteredItems = menuItems.filter(item => {
-        const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
-        return matchesSearch && matchesCategory;
-    });
+    const filteredItems = React.useMemo(() => {
+        return menuItems.filter(item => {
+            const matchesSearch = item.name.toLowerCase().includes(deferredSearchQuery.toLowerCase());
+            const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
+            return matchesSearch && matchesCategory;
+        });
+    }, [menuItems, deferredSearchQuery, activeCategory]);
 
     if (isLoading) {
         return (
@@ -176,4 +179,4 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
     );
 };
 
-export default ProductGrid;
+export default React.memo(ProductGrid);

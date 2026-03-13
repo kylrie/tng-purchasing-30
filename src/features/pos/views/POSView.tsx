@@ -5,6 +5,7 @@ import { useCart } from '../hooks/useCart';
 import { POSService } from '../services/pos.service';
 import type { POSOrder, PaymentMethod, POSOrderCreateInput } from '../types/pos.types';
 import type { User } from '../../../shared/types';
+import type { MenuItem } from '../../menu/types/menu.types';
 import { LogOut } from 'lucide-react';
 import { SettingsService } from '../../../shared/services/settings.service';
 
@@ -59,9 +60,13 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     const [completedOrder, setCompletedOrder] = useState<POSOrder | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const handleCheckout = () => {
+    const handleAddItem = React.useCallback((item: MenuItem) => {
+        addToCart(item, 1);
+    }, [addToCart]);
+
+    const handleCheckout = React.useCallback(() => {
         setCheckoutModalOpen(true);
-    };
+    }, []);
 
     const handleConfirmPayment = async (paymentMethod: PaymentMethod, amountTendered: number) => {
         if (!activeCashier) return;
@@ -152,7 +157,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 <ProductGrid
                     menuItems={menuItems}
                     isLoading={isLoading}
-                    onAddItem={(item) => addToCart(item, 1)}
+                    onAddItem={handleAddItem}
                 />
                 <CartPane
                     cartItems={cartItems}

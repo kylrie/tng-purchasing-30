@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import type { MenuItem } from '../../menu/types/menu.types';
 import type { POSOrderItem } from '../types/pos.types';
 
 export function useCart() {
     const [cartItems, setCartItems] = useState<POSOrderItem[]>([]);
 
-    const addToCart = (menuItem: MenuItem, quantity: number = 1, notes: string = '') => {
+    const addToCart = useCallback((menuItem: MenuItem, quantity: number = 1, notes: string = '') => {
         setCartItems(prev => {
             const existingItemIndex = prev.findIndex(item => item.menuItemId === menuItem.id && item.notes === notes);
 
@@ -34,9 +34,9 @@ export function useCart() {
             };
             return [...prev, newItem];
         });
-    };
+    }, []);
 
-    const updateQuantity = (index: number, quantity: number) => {
+    const updateQuantity = useCallback((index: number, quantity: number) => {
         setCartItems(prev => {
             const newItems = [...prev];
             if (quantity <= 0) {
@@ -49,15 +49,15 @@ export function useCart() {
             };
             return newItems;
         });
-    };
+    }, []);
 
-    const removeFromCart = (index: number) => {
+    const removeFromCart = useCallback((index: number) => {
         setCartItems(prev => prev.filter((_, i) => i !== index));
-    };
+    }, []);
 
-    const clearCart = () => {
+    const clearCart = useCallback(() => {
         setCartItems([]);
-    };
+    }, []);
 
     const subtotal = useMemo(() => {
         return cartItems.reduce((sum, item) => sum + item.subtotal, 0);
