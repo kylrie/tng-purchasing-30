@@ -43,73 +43,86 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+            {/* Backdrop */}
+            <div
+                className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-md transition-opacity"
+                onClick={onClose}
+            ></div>
+
+            {/* Modal Container */}
+            <div className="relative w-full max-w-[480px] bg-white/95 dark:bg-[#0B1120]/95 backdrop-blur-2xl rounded-[2rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] dark:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.5)] border border-white/40 dark:border-slate-700/50 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+
+                {/* Visual Header Decoration */}
+                <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-indigo-500/10 to-transparent pointer-events-none" />
+
                 {/* Header */}
-                <div className="flex justify-between items-center p-6 border-b border-slate-200 dark:border-slate-800">
-                    <h2 className="text-2xl font-bold text-slate-800 dark:text-white">Checkout</h2>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors dark:hover:bg-slate-800 dark:hover:text-slate-300">
-                        <X size={24} />
+                <div className="relative flex justify-between items-center p-6 pb-2">
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight text-glow">Checkout</h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100/80 rounded-full transition-all duration-200 dark:hover:bg-slate-800/80 dark:hover:text-slate-300 active:scale-90"
+                        aria-label="Close modal"
+                    >
+                        <X size={20} strokeWidth={2.5} />
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto">
+                <div className="relative p-6 pt-2 overflow-y-auto scroll-smooth">
                     {/* Amount to pay */}
-                    <div className="text-center mb-8">
-                        <p className="text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider font-semibold mb-1">Amount Due</p>
-                        <div className="text-5xl font-black text-indigo-600 dark:text-indigo-400">
+                    <div className="text-center mb-8 py-6 bg-slate-50/50 dark:bg-slate-900/30 rounded-3xl border border-slate-100/50 dark:border-slate-800/50">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] font-bold mb-2">Amount Due</p>
+                        <div className="text-5xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter drop-shadow-sm">
                             ₱{total.toFixed(2)}
                         </div>
                     </div>
 
                     {/* Payment Methods */}
-                    <div className="grid grid-cols-3 gap-3 mb-8">
-                        <button
-                            onClick={() => setPaymentMethod('CASH')}
-                            className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${paymentMethod === 'CASH'
-                                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400'
-                                    : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-indigo-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                }`}
-                        >
-                            <Banknote size={28} className="mb-2" />
-                            <span className="font-semibold">Cash</span>
-                        </button>
-                        <button
-                            onClick={() => setPaymentMethod('CARD')}
-                            className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${paymentMethod === 'CARD'
-                                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400'
-                                    : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-indigo-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                }`}
-                        >
-                            <CreditCard size={28} className="mb-2" />
-                            <span className="font-semibold">Card</span>
-                        </button>
-                        <button
-                            onClick={() => setPaymentMethod('E_WALLET')}
-                            className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${paymentMethod === 'E_WALLET'
-                                    ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400'
-                                    : 'border-slate-200 dark:border-slate-700 text-slate-500 hover:border-indigo-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                                }`}
-                        >
-                            <Wallet size={28} className="mb-2" />
-                            <span className="font-semibold">E-Wallet</span>
-                        </button>
+                    <div className="space-y-3 mb-8">
+                        <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Select Payment Method</label>
+                        <div className="grid grid-cols-3 gap-3">
+                            {[
+                                { id: 'CASH', icon: Banknote, label: 'Cash' },
+                                { id: 'CARD', icon: CreditCard, label: 'Card' },
+                                { id: 'E_WALLET', icon: Wallet, label: 'E-Wallet' }
+                            ].map((method) => {
+                                const Icon = method.icon;
+                                const isActive = paymentMethod === method.id;
+                                return (
+                                    <button
+                                        key={method.id}
+                                        onClick={() => setPaymentMethod(method.id as PaymentMethod)}
+                                        className={`group flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all duration-300 active:scale-95 ${isActive
+                                            ? 'border-indigo-600 bg-indigo-50/80 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 shadow-[0_8px_20px_-6px_rgba(79,70,229,0.25)]'
+                                            : 'border-slate-200/80 dark:border-slate-700/80 bg-white/50 dark:bg-slate-800/30 text-slate-500 hover:border-indigo-300 dark:hover:border-indigo-600/50 hover:bg-slate-50 dark:hover:bg-slate-800'
+                                            }`}
+                                    >
+                                        <Icon
+                                            size={28}
+                                            strokeWidth={isActive ? 2.5 : 2}
+                                            className={`mb-2.5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}
+                                        />
+                                        <span className={`text-sm tracking-wide ${isActive ? 'font-bold' : 'font-medium'}`}>{method.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
                     {/* Cash specific inputs */}
                     {paymentMethod === 'CASH' && (
-                        <div className="space-y-4">
+                        <div className="space-y-5 animate-in slide-in-from-bottom-2 duration-300">
                             <div>
-                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Amount Tendered</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                        <span className="text-slate-500 font-semibold text-lg">₱</span>
+                                <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 ml-1">Amount Tendered</label>
+                                <div className="relative group">
+                                    <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                                        <span className="text-slate-400 group-focus-within:text-indigo-500 transition-colors font-bold text-xl drop-shadow-sm">₱</span>
                                     </div>
                                     <input
                                         type="number"
                                         value={amountTendered}
                                         onChange={(e) => setAmountTendered(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border box-border border-slate-200 dark:border-slate-700 rounded-xl text-xl font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                                        className="w-full pl-12 pr-5 py-4 bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl text-2xl font-black text-slate-900 dark:text-white placeholder-slate-300 dark:placeholder-slate-600 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                                         placeholder="0.00"
                                         autoFocus
                                     />
@@ -117,23 +130,36 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
                             </div>
 
                             {/* Quick amounts */}
-                            <div className="grid grid-cols-4 gap-2">
-                                <button onClick={() => setQuickAmount(-1)} className="py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg font-semibold text-slate-700 dark:text-slate-300 text-sm">Exact</button>
-                                <button onClick={() => setQuickAmount(Math.ceil(total / 100) * 100)} className="py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg font-semibold text-slate-700 dark:text-slate-300 text-sm">₱{Math.ceil(total / 100) * 100}</button>
-                                <button onClick={() => setQuickAmount(500)} className="py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg font-semibold text-slate-700 dark:text-slate-300 text-sm">₱500</button>
-                                <button onClick={() => setQuickAmount(1000)} className="py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg font-semibold text-slate-700 dark:text-slate-300 text-sm">₱1000</button>
+                            <div className="grid grid-cols-4 gap-2.5">
+                                {[
+                                    { label: 'Exact', value: -1 },
+                                    { label: `₱${Math.ceil(total / 100) * 100}`, value: Math.ceil(total / 100) * 100 },
+                                    { label: '₱500', value: 500 },
+                                    { label: '₱1000', value: 1000 }
+                                ].map((quick, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setQuickAmount(quick.value)}
+                                        className="py-3 px-1 bg-slate-50 hover:bg-indigo-50 dark:bg-slate-800/80 dark:hover:bg-indigo-500/20 border border-slate-200/80 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500/50 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:text-indigo-700 dark:hover:text-indigo-300 text-sm transition-all duration-200 active:scale-95"
+                                    >
+                                        {quick.label}
+                                    </button>
+                                ))}
                             </div>
                         </div>
                     )}
                 </div>
 
                 {/* Footer Action */}
-                <div className="p-6 border-t border-slate-200 dark:border-slate-800">
+                <div className="p-6 pt-4 mt-auto">
                     <button
                         onClick={handleConfirm}
-                        className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25 active:scale-[0.98]"
+                        className="group relative w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg rounded-2xl transition-all duration-300 shadow-[0_8px_20px_-6px_rgba(79,70,229,0.5)] hover:shadow-[0_12px_28px_-6px_rgba(79,70,229,0.6)] active:scale-[0.98] overflow-hidden"
                     >
-                        Confirm Payment
+                        <div className="absolute inset-0 w-full h-full bg-gradient-to-b from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <span className="relative z-10 flex items-center justify-center gap-2">
+                            Confirm {paymentMethod === 'CASH' ? 'Payment' : paymentMethod === 'CARD' ? 'Card Terminal' : 'E-Wallet'}
+                        </span>
                     </button>
                 </div>
             </div>
