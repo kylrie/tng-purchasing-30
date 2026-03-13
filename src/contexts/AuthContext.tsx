@@ -97,6 +97,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         if (userDoc.exists()) {
           const userData = userDoc.data() as User;
+
+          // Auto-approve users who are stuck in PENDING_APPROVAL
+          if (userData.status === UserStatus.PENDING_APPROVAL) {
+            try {
+              const { updateDoc } = await import('firebase/firestore');
+              await updateDoc(userDocRef, { status: UserStatus.ACTIVE });
+              userData.status = UserStatus.ACTIVE;
+            } catch (e) {
+              console.error('Failed to auto-approve user:', e);
+            }
+          }
+
           if (userData.status === UserStatus.PENDING_APPROVAL) {
             setError('Your account is awaiting approval from an administrator.');
             await signOut(auth);
@@ -175,6 +187,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         // FIX C3: Check user status before allowing access (was bypassing status check)
         const userData = userDoc.data() as User;
+
+        // FIX: Auto-approve users who are stuck in PENDING_APPROVAL
+        if (userData.status === UserStatus.PENDING_APPROVAL) {
+          try {
+            const { updateDoc } = await import('firebase/firestore');
+            await updateDoc(userDocRef, { status: UserStatus.ACTIVE });
+            userData.status = UserStatus.ACTIVE;
+          } catch (e) {
+            console.error('Failed to auto-approve user:', e);
+          }
+        }
+
         if (userData.status === UserStatus.ACTIVE) {
           navigate('/');
         } else if (userData.status === UserStatus.PENDING_APPROVAL) {
@@ -211,16 +235,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: role,
         businessId: businessId,
         avatar: tempFirebaseUser.photoURL || '',
-        status: UserStatus.PENDING_APPROVAL,
+        status: UserStatus.ACTIVE,
         isPasswordSet: !!password,
       };
       await setDoc(userDocRef, newUser as User);
 
-      await signOut(auth);
+      // Allow user to login immediately instead of requiring approval
       setIsNewUser(false);
       setTempFirebaseUser(null);
-      setError("Registration complete. Your account is now pending admin approval.");
-      navigate('/login');
+      navigate('/');
 
     } catch (err: any) {
       setError(err.message);

@@ -20,7 +20,7 @@ import { useUsers } from './features/admin/hooks/useUsers';
 import { useBusinesses } from './features/admin/hooks/useBusinesses';
 import { useSuppliers } from './features/inventory/hooks/useSuppliers';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from './config/firebase';
+import { db, isConfigValid } from './config/firebase';
 import { useUOM } from './shared/hooks/useUOM';
 
 // Lazy load views for code splitting
@@ -54,6 +54,7 @@ const ActivityLogView = React.lazy(() => import('./features/admin/views/Activity
 const LoginView = React.lazy(() => import('./features/auth/views/LoginView'));
 const DashboardView = React.lazy(() => import('./features/dashboard/views/DashboardView'));
 const NotificationsView = React.lazy(() => import('./features/notifications/views/NotificationsView'));
+const POSView = React.lazy(() => import('./features/pos/views/POSView'));
 
 // Loading component
 const PageLoader = () => (
@@ -206,338 +207,351 @@ function ProtectedApp() {
   };
 
   return (
-    <Layout {...layoutProps}>
+    <>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
-
-          <Route path="/burf" element={
-            <ProtectedRoute permission="module:view:burf">
-              <BurfView
-                currentUser={currentUser}
-                visibleRequisitions={requisitions}
-                allUsers={users}
-                businesses={businesses}
-                getStatusBadge={getStatusBadge}
-                onCreateRequisition={createRequisition}
-                onUpdateRequisition={updateRequisition}
-                uomOptions={uomOptions}
-              />
+          {/* External Routes (No Layout) */}
+          <Route path="/pos" element={
+            <ProtectedRoute permission="module:view:pos">
+              <POSView businesses={businesses} allUsers={users} />
             </ProtectedRoute>
           } />
 
-          {/* Full-screen BURF Page Routes (modal-to-page refactor) */}
-          <Route path="/burf/new" element={
-            <ProtectedRoute permission="requisition:create:burf">
-              <BURFPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/burf/edit/:burfId" element={
-            <ProtectedRoute permission="requisition:edit:draft">
-              <BURFPage />
-            </ProtectedRoute>
-          } />
+          {/* Internal Routes (With Layout) */}
+          <Route path="/*" element={
+            <Layout {...layoutProps}>
+              <Routes>
+                <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
 
-          <Route path="/prf" element={
-            <ProtectedRoute permission="module:view:prf">
-              <PrfView
-                currentUser={currentUser}
-                visibleRequisitions={requisitions}
-                getStatusBadge={getStatusBadge}
-                businesses={businesses}
-                allUsers={users}
-                onCreateRequisition={createRequisition}
-                onUpdateRequisition={updateRequisition}
-                suppliers={suppliers}
-                uomOptions={uomOptions}
-              />
-            </ProtectedRoute>
-          } />
+                <Route path="/burf" element={
+                  <ProtectedRoute permission="module:view:burf">
+                    <BurfView
+                      currentUser={currentUser}
+                      visibleRequisitions={requisitions}
+                      allUsers={users}
+                      businesses={businesses}
+                      getStatusBadge={getStatusBadge}
+                      onCreateRequisition={createRequisition}
+                      onUpdateRequisition={updateRequisition}
+                      uomOptions={uomOptions}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/prf-tracker" element={
-            <ProtectedRoute permission="module:view:prf_tracker">
-              <PRFTrackerView
-                currentUser={currentUser}
-                requisitions={requisitions}
-                getStatusBadge={getStatusBadge}
-                businesses={businesses}
-                allUsers={users}
-              />
-            </ProtectedRoute>
-          } />
+                {/* Full-screen BURF Page Routes (modal-to-page refactor) */}
+                <Route path="/burf/new" element={
+                  <ProtectedRoute permission="requisition:create:burf">
+                    <BURFPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/burf/edit/:burfId" element={
+                  <ProtectedRoute permission="requisition:edit:draft">
+                    <BURFPage />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/procurement-approvals" element={
-            <ProtectedRoute permission="module:view:approvals">
-              <ProcurementApprovalsView
-                currentUser={currentUser}
-                requisitions={requisitions}
-                allUsers={users}
-                businesses={businesses}
-                onUpdateRequisition={updateRequisition}
-                getStatusBadge={getStatusBadge}
-              />
-            </ProtectedRoute>
-          } />
+                <Route path="/prf" element={
+                  <ProtectedRoute permission="module:view:prf">
+                    <PrfView
+                      currentUser={currentUser}
+                      visibleRequisitions={requisitions}
+                      getStatusBadge={getStatusBadge}
+                      businesses={businesses}
+                      allUsers={users}
+                      onCreateRequisition={createRequisition}
+                      onUpdateRequisition={updateRequisition}
+                      suppliers={suppliers}
+                      uomOptions={uomOptions}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/approved" element={
-            <ProtectedRoute permission="module:view:approved">
-              <ApprovedView
-                currentUser={currentUser}
-                requisitions={requisitions}
-                allUsers={users}
-                businesses={businesses}
-                getStatusBadge={getStatusBadge}
-              />
-            </ProtectedRoute>
-          } />
+                <Route path="/prf-tracker" element={
+                  <ProtectedRoute permission="module:view:prf_tracker">
+                    <PRFTrackerView
+                      currentUser={currentUser}
+                      requisitions={requisitions}
+                      getStatusBadge={getStatusBadge}
+                      businesses={businesses}
+                      allUsers={users}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          {/* Finance Module - Restructured Routes */}
-          {/* Overview - Strategic Finance Dashboard */}
-          <Route path="/finance/overview" element={
-            <ProtectedRoute permission="module:view:finance">
-              <FinanceOverview businesses={businesses} />
-            </ProtectedRoute>
-          } />
+                <Route path="/procurement-approvals" element={
+                  <ProtectedRoute permission="module:view:approvals">
+                    <ProcurementApprovalsView
+                      currentUser={currentUser}
+                      requisitions={requisitions}
+                      allUsers={users}
+                      businesses={businesses}
+                      onUpdateRequisition={updateRequisition}
+                      getStatusBadge={getStatusBadge}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          {/* BR Flow - Existing FinanceView with Fund Release/Check Prep */}
-          <Route path="/finance/expenses/br-flow" element={
-            <ProtectedRoute permission="module:view:finance">
-              <FinanceView
-                currentUser={currentUser}
-                requisitions={requisitions}
-                getStatusBadge={getStatusBadge}
-                handleReleaseFunds={handleReleaseFunds}
-                businesses={businesses}
-                allUsers={users}
-              />
-            </ProtectedRoute>
-          } />
+                <Route path="/approved" element={
+                  <ProtectedRoute permission="module:view:approved">
+                    <ApprovedView
+                      currentUser={currentUser}
+                      requisitions={requisitions}
+                      allUsers={users}
+                      businesses={businesses}
+                      getStatusBadge={getStatusBadge}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          {/* Legacy /finance redirect to new BR Flow path */}
-          <Route path="/finance" element={<Navigate to="/finance/expenses/br-flow" replace />} />
+                {/* Finance Module - Restructured Routes */}
+                {/* Overview - Strategic Finance Dashboard */}
+                <Route path="/finance/overview" element={
+                  <ProtectedRoute permission="module:view:finance">
+                    <FinanceOverview businesses={businesses} />
+                  </ProtectedRoute>
+                } />
 
-          {/* Income placeholders */}
-          <Route path="/finance/income/sales" element={
-            <ProtectedRoute permission="module:view:finance">
-              <div className="p-8">
-                <h1 className="text-2xl font-bold text-white mb-4">Sales</h1>
-                <p className="text-slate-400">Coming soon - Sales revenue tracking.</p>
-              </div>
-            </ProtectedRoute>
-          } />
-          <Route path="/finance/income/invoices" element={
-            <ProtectedRoute permission="module:view:finance">
-              <div className="p-8">
-                <h1 className="text-2xl font-bold text-white mb-4">Invoices</h1>
-                <p className="text-slate-400">Coming soon - Invoice management.</p>
-              </div>
-            </ProtectedRoute>
-          } />
+                {/* BR Flow - Existing FinanceView with Fund Release/Check Prep */}
+                <Route path="/finance/expenses/br-flow" element={
+                  <ProtectedRoute permission="module:view:finance">
+                    <FinanceView
+                      currentUser={currentUser}
+                      requisitions={requisitions}
+                      getStatusBadge={getStatusBadge}
+                      handleReleaseFunds={handleReleaseFunds}
+                      businesses={businesses}
+                      allUsers={users}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/procurement/liquidation" element={
-            <ProtectedRoute permission="liquidation:file:own">
-              <LiquidationView
-                currentUser={currentUser}
-                requisitions={requisitions}
-                getStatusBadge={getStatusBadge}
-                handleReleaseFunds={handleReleaseFunds}
-                businesses={businesses}
-                onUpdateRequisition={updateRequisition}
-                allUsers={users}
-                suppliers={suppliers}
-                variant="USER"
-              />
-            </ProtectedRoute>
-          } />
+                {/* Legacy /finance redirect to new BR Flow path */}
+                <Route path="/finance" element={<Navigate to="/finance/expenses/br-flow" replace />} />
 
-          <Route path="/liquidation" element={
-            <ProtectedRoute permission="liquidation:audit">
-              <LiquidationView
-                currentUser={currentUser}
-                requisitions={requisitions}
-                getStatusBadge={getStatusBadge}
-                handleReleaseFunds={handleReleaseFunds}
-                businesses={businesses}
-                onUpdateRequisition={updateRequisition}
-                allUsers={users}
-                suppliers={suppliers}
-                variant="AUDIT"
-              />
-            </ProtectedRoute>
-          } />
+                {/* Income placeholders */}
+                <Route path="/finance/income/sales" element={
+                  <ProtectedRoute permission="module:view:finance">
+                    <div className="p-8">
+                      <h1 className="text-2xl font-bold text-white mb-4">Sales</h1>
+                      <p className="text-slate-400">Coming soon - Sales revenue tracking.</p>
+                    </div>
+                  </ProtectedRoute>
+                } />
+                <Route path="/finance/income/invoices" element={
+                  <ProtectedRoute permission="module:view:finance">
+                    <div className="p-8">
+                      <h1 className="text-2xl font-bold text-white mb-4">Invoices</h1>
+                      <p className="text-slate-400">Coming soon - Invoice management.</p>
+                    </div>
+                  </ProtectedRoute>
+                } />
 
-          {/* Liquidation Page - Full page for filing liquidation (opens in new window) */}
-          <Route path="/liquidation/:prfId" element={
-            <ProtectedRoute permission={['liquidation:file:own', 'liquidation:file:all']}>
-              <LiquidationPage />
-            </ProtectedRoute>
-          } />
+                <Route path="/procurement/liquidation" element={
+                  <ProtectedRoute permission="liquidation:file:own">
+                    <LiquidationView
+                      currentUser={currentUser}
+                      requisitions={requisitions}
+                      getStatusBadge={getStatusBadge}
+                      handleReleaseFunds={handleReleaseFunds}
+                      businesses={businesses}
+                      onUpdateRequisition={updateRequisition}
+                      allUsers={users}
+                      suppliers={suppliers}
+                      variant="USER"
+                    />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/pcf" element={
-            <ProtectedRoute permission="module:view:pcf">
-              <PCFView
-                currentUser={currentUser}
-                businesses={businesses}
-                allUsers={users}
-              />
-            </ProtectedRoute>
-          } />
+                <Route path="/liquidation" element={
+                  <ProtectedRoute permission="liquidation:audit">
+                    <LiquidationView
+                      currentUser={currentUser}
+                      requisitions={requisitions}
+                      getStatusBadge={getStatusBadge}
+                      handleReleaseFunds={handleReleaseFunds}
+                      businesses={businesses}
+                      onUpdateRequisition={updateRequisition}
+                      allUsers={users}
+                      suppliers={suppliers}
+                      variant="AUDIT"
+                    />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/pcf-approvals" element={
-            <ProtectedRoute permission="pcf:approve">
-              <PCFApprovalView
-                currentUser={currentUser}
-                businesses={businesses}
-                allUsers={users}
-              />
-            </ProtectedRoute>
-          } />
+                {/* Liquidation Page - Full page for filing liquidation (opens in new window) */}
+                <Route path="/liquidation/:prfId" element={
+                  <ProtectedRoute permission={['liquidation:file:own', 'liquidation:file:all']}>
+                    <LiquidationPage />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/pcf-audit-review" element={
-            <ProtectedRoute permission="pcf:audit_review">
-              <PCFAuditReviewView
-                currentUser={currentUser}
-                businesses={businesses}
-                allUsers={users}
-              />
-            </ProtectedRoute>
-          } />
+                <Route path="/pcf" element={
+                  <ProtectedRoute permission="module:view:pcf">
+                    <PCFView
+                      currentUser={currentUser}
+                      businesses={businesses}
+                      allUsers={users}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/suppliers" element={
-            <ProtectedRoute permission="module:view:suppliers">
-              <SuppliersView
-                suppliers={suppliers}
-                onCreateSupplier={createSupplier}
-                onUpdateSupplier={updateSupplier}
-                onDeleteSupplier={deleteSupplier}
-                currentUser={currentUser}
-                businesses={businesses}
-              />
-            </ProtectedRoute>
-          } />
+                <Route path="/pcf-approvals" element={
+                  <ProtectedRoute permission="pcf:approve">
+                    <PCFApprovalView
+                      currentUser={currentUser}
+                      businesses={businesses}
+                      allUsers={users}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          <Route path="/chart-of-accounts" element={
-            <ProtectedRoute permission="module:view:coa">
-              <ChartOfAccountsView />
-            </ProtectedRoute>
-          } />
+                <Route path="/pcf-audit-review" element={
+                  <ProtectedRoute permission="pcf:audit_review">
+                    <PCFAuditReviewView
+                      currentUser={currentUser}
+                      businesses={businesses}
+                      allUsers={users}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          {/* Budget Configuration - FINANCE_HEAD or SUPER_ADMIN */}
-          <Route path="/budgets" element={
-            <ProtectedRoute permission="budget:manage">
-              <div className="p-8">
-                <BudgetConfigPanel businesses={businesses} />
-              </div>
-            </ProtectedRoute>
-          } />
+                <Route path="/suppliers" element={
+                  <ProtectedRoute permission="module:view:suppliers">
+                    <SuppliersView
+                      suppliers={suppliers}
+                      onCreateSupplier={createSupplier}
+                      onUpdateSupplier={updateSupplier}
+                      onDeleteSupplier={deleteSupplier}
+                      currentUser={currentUser}
+                      businesses={businesses}
+                    />
+                  </ProtectedRoute>
+                } />
 
-          {/* Transaction History - View all budget transactions */}
-          <Route path="/finance/transactions" element={
-            <ProtectedRoute permission="module:view:finance">
-              <TransactionHistoryView businesses={businesses} />
-            </ProtectedRoute>
-          } />
+                <Route path="/chart-of-accounts" element={
+                  <ProtectedRoute permission="module:view:coa">
+                    <ChartOfAccountsView />
+                  </ProtectedRoute>
+                } />
 
-          {/* Bank Reconciliation */}
-          <Route path="/finance/bank-recon" element={
-            <ProtectedRoute permission="module:view:bank_recon">
-              <BankReconView />
-            </ProtectedRoute>
-          } />
+                {/* Budget Configuration - FINANCE_HEAD or SUPER_ADMIN */}
+                <Route path="/budgets" element={
+                  <ProtectedRoute permission="budget:manage">
+                    <div className="p-8">
+                      <BudgetConfigPanel businesses={businesses} />
+                    </div>
+                  </ProtectedRoute>
+                } />
 
-          {/* Inventory Module */}
-          <Route path="/inventory" element={
-            <InventoryDashboard currentUser={currentUser} businesses={businesses} uomOptions={uomOptions} />
-          } />
-          <Route path="/inventory/stock-take" element={
-            <Navigate to="/inventory" replace />
-          } />
-          <Route path="/inventory/reports" element={
-            <InventoryReports currentUser={currentUser} />
-          } />
-          <Route path="/inventory/items" element={
-            <InventoryItemsView businesses={businesses} uomOptions={uomOptions} />
-          } />
-          <Route path="/inventory/variance" element={
-            <VarianceReportView businesses={businesses} />
-          } />
-          <Route path="/inventory/fixed-assets" element={
-            <FixedAssetsView businesses={businesses} currentUser={currentUser} allUsers={users} />
-          } />
-          <Route path="/inventory/receiving" element={
-            <div className="text-center py-16">
-              <h2 className="text-2xl font-bold text-white mb-4">Goods Receiving</h2>
-              <p className="text-slate-400">Coming soon - Record incoming inventory from suppliers</p>
-            </div>
-          } />
+                {/* Transaction History - View all budget transactions */}
+                <Route path="/finance/transactions" element={
+                  <ProtectedRoute permission="module:view:finance">
+                    <TransactionHistoryView businesses={businesses} />
+                  </ProtectedRoute>
+                } />
 
-          {/* Menu Engineering Module */}
-          <Route path="/menu" element={
-            <Navigate to="/menu/finished-goods" replace />
-          } />
-          <Route path="/menu/finished-goods" element={
-            <MenuDashboard businesses={businesses} currentUser={currentUser} />
-          } />
-          <Route path="/menu/production-recipes" element={
-            <ProductionRecipeView businesses={businesses} currentUser={currentUser} />
-          } />
+                {/* Bank Reconciliation */}
+                <Route path="/finance/bank-recon" element={
+                  <ProtectedRoute permission="module:view:bank_recon">
+                    <BankReconView />
+                  </ProtectedRoute>
+                } />
 
+                {/* Inventory Module */}
+                <Route path="/inventory" element={
+                  <InventoryDashboard currentUser={currentUser} businesses={businesses} uomOptions={uomOptions} />
+                } />
+                <Route path="/inventory/stock-take" element={
+                  <Navigate to="/inventory" replace />
+                } />
+                <Route path="/inventory/reports" element={
+                  <InventoryReports currentUser={currentUser} />
+                } />
+                <Route path="/inventory/items" element={
+                  <InventoryItemsView businesses={businesses} uomOptions={uomOptions} />
+                } />
+                <Route path="/inventory/variance" element={
+                  <VarianceReportView businesses={businesses} />
+                } />
+                <Route path="/inventory/fixed-assets" element={
+                  <FixedAssetsView businesses={businesses} currentUser={currentUser} allUsers={users} />
+                } />
+                <Route path="/inventory/receiving" element={
+                  <div className="text-center py-16">
+                    <h2 className="text-2xl font-bold text-white mb-4">Goods Receiving</h2>
+                    <p className="text-slate-400">Coming soon - Record incoming inventory from suppliers</p>
+                  </div>
+                } />
 
-          <Route path="/settings" element={
-            <ProtectedRoute permission="module:view:settings">
-              <SettingsView
-                currentUser={currentUser}
-                businesses={businesses}
-                handleAddBusiness={addBusiness}
-                onUpdateBusiness={updateBusiness}
-                onDeleteBusiness={deleteBusiness}
-                allUsers={users}
-                setAllUsers={updateUser}
-                pendingUsers={pendingUsers}
-                onApproveUser={handleApproveUser}
-                onRejectUser={handleRejectUser}
-                loadingUserId={approvalLoadingId}
-                uomOptions={uomOptions}
-                setUomOptions={updateUOMs}
-              />
-            </ProtectedRoute>
+                {/* Menu Engineering Module */}
+                <Route path="/menu" element={
+                  <Navigate to="/menu/finished-goods" replace />
+                } />
+                <Route path="/menu/finished-goods" element={
+                  <MenuDashboard businesses={businesses} currentUser={currentUser} />
+                } />
+                <Route path="/menu/production-recipes" element={
+                  <ProductionRecipeView businesses={businesses} currentUser={currentUser} />
+                } />
+
+                <Route path="/settings" element={
+                  <ProtectedRoute permission="module:view:settings">
+                    <SettingsView
+                      currentUser={currentUser}
+                      businesses={businesses}
+                      handleAddBusiness={addBusiness}
+                      onUpdateBusiness={updateBusiness}
+                      onDeleteBusiness={deleteBusiness}
+                      allUsers={users}
+                      setAllUsers={updateUser}
+                      pendingUsers={pendingUsers}
+                      onApproveUser={handleApproveUser}
+                      onRejectUser={handleRejectUser}
+                      loadingUserId={approvalLoadingId}
+                      uomOptions={uomOptions}
+                      setUomOptions={updateUOMs}
+                    />
+                  </ProtectedRoute>
+                } />
+
+                {/* Activity Log - SuperAdmin Only (hardcoded) */}
+                {currentUser.role === UserRole.SUPER_ADMIN && (
+                  <Route path="/activity-log" element={
+                    <ActivityLogView
+                      requisitions={requisitions}
+                      allUsers={users}
+                      businesses={businesses}
+                    />
+                  } />
+                )}
+
+                <Route path="/notifications" element={
+                  <ProtectedRoute>
+                    <NotificationsView />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Layout>
           } />
-
-          {/* Activity Log - SuperAdmin Only (hardcoded) */}
-          {currentUser.role === UserRole.SUPER_ADMIN && (
-            <Route path="/activity-log" element={
-              <ActivityLogView
-                requisitions={requisitions}
-                allUsers={users}
-                businesses={businesses}
-              />
-            } />
-          )}
-
-          <Route path="/notifications" element={
-            <ProtectedRoute>
-              <NotificationsView />
-            </ProtectedRoute>
-          } />
-
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
-    </Layout>
+    </>
   );
 }
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: any, errorInfo: any) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
   }
 
@@ -569,6 +583,32 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 
 function App() {
+  if (!isConfigValid) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-8 font-sans">
+        <div className="max-w-2xl w-full bg-slate-800 p-8 rounded-xl border border-amber-500/50 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="text-3xl">⚠️</span>
+            <h1 className="text-2xl font-bold text-amber-400">Missing Configuration</h1>
+          </div>
+          <p className="text-slate-300 mb-4 text-lg">
+            Firebase environment variables are missing. Create a <code className="bg-slate-700 px-1 py-0.5 rounded">.env</code> file in the project root.
+          </p>
+          <div className="bg-slate-950 p-6 rounded-lg mb-6 border border-slate-700">
+            <pre className="text-sm text-green-400 font-mono">{`VITE_FIREBASE_API_KEY="your_api_key"
+VITE_FIREBASE_AUTH_DOMAIN="your_auth_domain"
+VITE_FIREBASE_PROJECT_ID="your_project_id"
+VITE_FIREBASE_STORAGE_BUCKET="your_storage_bucket"
+VITE_FIREBASE_MESSAGING_SENDER_ID="your_sender_id"
+VITE_FIREBASE_APP_ID="your_app_id"
+VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
+          </div>
+          <p className="text-sm text-slate-400">After adding the file, restart your dev server.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Router>
       <ErrorBoundary>

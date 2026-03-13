@@ -103,8 +103,11 @@ export const ALL_PERMISSIONS = [
   'module:view:settings',
   'module:view:coa',          // View Chart of Accounts module
   'module:view:prf_tracker',  // View PRF Tracker (Kanban view for requisition flow)
-  'prf_tracker:view:all',      // Toggle to view all PRFs in tracker (within assigned BUs)
   'module:view:bank_recon',    // View Bank Reconciliation page in Finance
+  'module:view:pos',          // View Point of Sale module
+
+  // PRF Tracker
+  'prf_tracker:view:all',     // View all PRFs in tracker (not just own)
 
   // NOTE: Legacy 'ui:view:*' permissions removed - use 'module:view:*' instead
 
@@ -173,6 +176,7 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:pcf_approvals',
     'module:view:suppliers',
     'module:view:settings',
+    'module:view:pos',
     'pcf:view:all',
     'pcf:approve',
     // Dashboard Widgets

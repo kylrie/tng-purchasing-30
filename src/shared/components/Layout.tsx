@@ -37,7 +37,8 @@ import {
     ShieldCheck,
     ClipboardCheck,
     Search,
-    Landmark
+    Landmark,
+    Store
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -61,6 +62,7 @@ interface NavItem {
     label: string;
     icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
     canView: boolean;
+    newTab?: boolean;
     children?: NavItem[]; // Renamed from subItems for clarity
 }
 
@@ -162,6 +164,29 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
     }
 
     // Leaf item (no children) - navigable
+    if (item.newTab && item.path) {
+        return (
+            <a
+                href={item.path}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`w-full flex items-center ${isCollapsed && level === 0 ? 'lg:justify-center lg:px-2' : `${paddingLeft} pr-4`} gap-3 ${pyClass} rounded-xl transition-all duration-200 group ${isActive ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-purple-700 dark:text-white font-semibold border border-purple-200 dark:border-purple-500/50 shadow-sm dark:shadow-none' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 hover:text-slate-900 dark:hover:text-white font-medium'} relative`}
+                title={isCollapsed ? item.label : ''}
+            >
+                <div className={`flex items-center gap-3 ${isCollapsed && level === 0 ? 'lg:justify-center' : ''}`}>
+                    <item.icon
+                        size={iconSize}
+                        className={`transition-colors flex-shrink-0 ${isActive ? 'text-purple-600 dark:text-purple-400' : 'text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'}`}
+                        strokeWidth={isActive ? 2.5 : 2}
+                    />
+                    <span className={`${isCollapsed && level === 0 ? 'lg:hidden' : 'block'} ${textSize} whitespace-nowrap transition-all duration-300`}>
+                        {item.label}
+                    </span>
+                </div>
+            </a>
+        );
+    }
+
     return (
         <button
             onClick={() => item.path && onNavigate(item.path)}
@@ -334,6 +359,13 @@ const Layout: React.FC<LayoutProps> = ({
                     ]
                 }
             ]
+        },
+        {
+            path: '/pos',
+            label: 'Point of Sale',
+            icon: Store,
+            canView: true,
+            newTab: true
         },
         {
             label: 'Master Data',

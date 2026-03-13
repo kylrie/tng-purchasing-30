@@ -684,7 +684,9 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         isSuperAdminOrAdmin() ||
         hasPermission('pcf:approve') ||
-        hasPermission('pcf:view:all')
+        hasPermission('pcf:view:all') ||
+        hasPermission('pcf:view') ||
+        hasPermission('pcf:audit_review')
       );
       
       // Users can create liquidations for themselves (DRAFT or direct PENDING_APPROVAL)
@@ -719,9 +721,14 @@ service cloud.firestore {
          (resource.data.status == 'PENDING_APPROVAL' || resource.data.status == 'APPROVED_WAITING_RELEASE') &&
          request.resource.data.status == 'CANCELLED') ||
         // Finance marking as REPLENISHED when releasing funds
+        // Allow from both APPROVED and APPROVED_WAITING_RELEASE statuses
+        // PCF Replenishment PRFs update the linked PCF to REPLENISHED during fund release
         (hasPermission('finance:release_funds') && 
-         resource.data.status == 'APPROVED_WAITING_RELEASE' && 
-         request.resource.data.status == 'REPLENISHED')
+         (resource.data.status == 'APPROVED_WAITING_RELEASE' || resource.data.status == 'APPROVED') && 
+         request.resource.data.status == 'REPLENISHED') ||
+        // SuperAdmin or audit reviewer can update PCF liquidations
+        isSuperAdminOrAdmin() ||
+        hasPermission('pcf:audit_review')
       );
       
       // No deletion allowed - audit trail required
@@ -883,37 +890,7 @@ service cloud.firestore {
       // This ensures budget limits are validated atomically
       allow write: if false;
     }
-    
-    // =====================================================
-    // PCF LIQUIDATIONS COLLECTION
-    // Petty Cash Fund liquidations submitted by employees
-    // =====================================================
-    match /pcf_liquidations/{liquidationId} {
-      // Read: Authenticated users can read their own liquidations,
-      // Admins/Finance can read all
-      allow read: if isSignedIn() && (
-        isSuperAdminOrAdmin() ||
-        resource.data.userId == request.auth.uid ||
-        hasPermission('pcf:view') ||
-        hasPermission('pcf:approve') ||
-        hasPermission('pcf:audit_review')
-      );
-      
-      // Create: Any authenticated user can create PCF liquidations
-      allow create: if isSignedIn();
-      
-      // Update: Owner can update their own (drafts), 
-      // or users with approve/audit permissions
-      allow update: if isSignedIn() && (
-        isSuperAdminOrAdmin() ||
-        resource.data.userId == request.auth.uid ||
-        hasPermission('pcf:approve') ||
-        hasPermission('pcf:audit_review')
-      );
-      
-      // Delete: Only admins can delete liquidations
-      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
-    }
+
     
     // =====================================================
     // BANK RECONCILIATION STATEMENTS COLLECTION

@@ -1,4 +1,4 @@
-import { Timestamp } from 'firebase/firestore';
+import { Timestamp, QueryConstraint } from 'firebase/firestore';
 import type { RequisitionStatus, User as ProcurementUser } from '../../features/procurement/types';
 import { UserRole, UserStatus } from '../../features/procurement/types';
 
@@ -19,6 +19,7 @@ export interface FirestoreUser extends FirestoreDocument {
   status: UserStatus;
   avatar?: string;
   permissions?: string[]; // User-level permission overrides
+  posPin?: string; // 4-digit PIN for Point of Sale
 }
 
 // Main User type for the application - Re-export from single source of truth
@@ -134,10 +135,11 @@ export const COLLECTIONS = {
   BUDGET_RESERVATIONS: 'budgetReservations',
   TRANSACTIONS: 'transactions',
   BANK_RECON_STATEMENTS: 'bankReconStatements',
+  POS_ORDERS: 'pos_orders',
 } as const;
 
 // Query constraints type
-export type FirestoreConstraint = any; // Will be typed from firebase/firestore
+export type FirestoreConstraint = QueryConstraint;
 
 // Re-export enums for convenience
 export { UserRole, UserStatus };

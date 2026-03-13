@@ -8,10 +8,15 @@ if (Test-Path .firebase) {
     Remove-Item -Recurse -Force .firebase
 }
 
-# Build with production environment
-Write-Host "Building with production config..." -ForegroundColor Yellow
-$env:VITE_FIREBASE_DATABASE_ID = "tng-systems"
-npm run build
+# Verify .env.production exists with correct database ID
+# Vite --mode production loads .env.production which overrides .env values
+if (-not (Test-Path .env.production)) {
+    Write-Host "ERROR: .env.production file missing! It must contain VITE_FIREBASE_DATABASE_ID=tng-systems" -ForegroundColor Red
+    exit 1
+}
+Write-Host "Using .env.production (database: tng-systems)..." -ForegroundColor Yellow
+
+npm run build -- --mode production
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed!" -ForegroundColor Red

@@ -14,6 +14,7 @@ import { AuthService } from '../../../shared/services/auth.service';
 import { SettingsService, type PCFSettings, type ApproverAssignments, type FoodCostSettings } from '../../../shared/services/settings.service';
 import ExpenseSharingSettings from '../components/ExpenseSharingSettings';
 import TaxSettingsPanel from '../components/TaxSettingsPanel';
+import CashierSettingsPanel from '../components/CashierSettingsPanel';
 
 interface SettingsViewProps {
     currentUser: User;
@@ -494,6 +495,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             < div className="flex border-b border-slate-700 space-x-4 overflow-x-auto" >
                 <button onClick={() => setActiveTab('profile')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'profile' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>My Profile</button>
                 <button onClick={() => setActiveTab('security')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'security' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Security</button>
+                <button onClick={() => setActiveTab('pos')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'pos' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>POS Cashier</button>
                 {/* Admin Tabs - Uses SystemRole checks (hardcoded for type safety) */}
                 {isAdmin && (
                     <>
@@ -645,6 +647,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 </button>
                             </div>
                         </div>
+                    )
+                }
+
+                {
+                    activeTab === 'pos' && (
+                        <CashierSettingsPanel
+                            allUsers={allUsers}
+                            setAllUsers={updateUser}
+                            businesses={businesses}
+                        />
                     )
                 }
 
