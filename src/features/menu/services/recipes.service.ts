@@ -329,7 +329,7 @@ export async function updateMenuItem(
                 await InventoryService.updateInventoryItem(currentItem.linkedInventoryItemId, {
                     name: currentItem.name,
                     costPerUnit: currentItem.calculatedCost
-                });
+                }, { skipRecipeRecalculation: true });
                 console.log(`[RecipesService] Synced inventory item ${currentItem.linkedInventoryItemId}`);
             } catch (invError) {
                 console.error(`[RecipesService] Failed to sync inventory item:`, invError);
@@ -374,6 +374,18 @@ export async function recalculateAllCosts(businessUnitId: string): Promise<numbe
                 calculatedCost: totalCost,
                 ...margins
             });
+
+            // Update linked inventory item if it exists
+            if (item.linkedInventoryItemId) {
+                try {
+                    await InventoryService.updateInventoryItem(item.linkedInventoryItemId, {
+                        costPerUnit: totalCost
+                    }, { skipRecipeRecalculation: true });
+                    console.log(`[RecipesService] Synced inventory item cost ${item.linkedInventoryItemId} during recalculation`);
+                } catch (invError) {
+                    console.error(`[RecipesService] Failed to sync inventory item during recalculation:`, invError);
+                }
+            }
 
             updated++;
         } catch (error) {

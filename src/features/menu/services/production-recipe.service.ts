@@ -162,7 +162,7 @@ export class ProductionRecipeService {
                 await InventoryService.updateInventoryItem(recipe.linkedInventoryItemId, {
                     name: input.name,
                     costPerUnit
-                });
+                }, { skipRecipeRecalculation: true });
             } catch (err) {
                 console.error('Error updating linked inventory item:', err);
             }
@@ -217,7 +217,7 @@ export class ProductionRecipeService {
                 try {
                     await InventoryService.updateInventoryItem(recipe.linkedInventoryItemId, {
                         costPerUnit
-                    });
+                    }, { skipRecipeRecalculation: true });
                 } catch (err) {
                     console.error('Error updating linked inventory item cost:', err);
                 }

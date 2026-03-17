@@ -45,6 +45,7 @@ const InventoryDashboard = React.lazy(() => import('./features/inventory/views/I
 const InventoryItemsView = React.lazy(() => import('./features/inventory/views/InventoryItemsView'));
 const FixedAssetsView = React.lazy(() => import('./features/inventory/views/FixedAssetsView'));
 const VarianceReportView = React.lazy(() => import('./features/inventory/views/VarianceReportView'));
+const GoodsReceivingView = React.lazy(() => import('./features/inventory/views/GoodsReceivingView'));
 const MenuDashboard = React.lazy(() => import('./features/menu/views/MenuDashboard'));
 const ProductionRecipeView = React.lazy(() => import('./features/menu/views/ProductionRecipeView'));
 const ChartOfAccountsView = React.lazy(() => import('./features/admin/views/ChartOfAccountsView'));
@@ -477,10 +478,7 @@ function ProtectedApp() {
                   <FixedAssetsView businesses={businesses} currentUser={currentUser} allUsers={users} />
                 } />
                 <Route path="/inventory/receiving" element={
-                  <div className="text-center py-16">
-                    <h2 className="text-2xl font-bold text-white mb-4">Goods Receiving</h2>
-                    <p className="text-slate-400">Coming soon - Record incoming inventory from suppliers</p>
-                  </div>
+                  <GoodsReceivingView businesses={businesses} />
                 } />
 
                 {/* Menu Engineering Module */}

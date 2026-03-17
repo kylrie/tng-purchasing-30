@@ -244,6 +244,8 @@ service cloud.firestore {
         // New fields
         'checkVoucherNumber',
         'checkVoucherLink',
+        // COA code for expense classification
+        'coaCode',
         // Legacy fields (for backward compatibility)
         'chequeNumber',
         'chequeImageUrl'

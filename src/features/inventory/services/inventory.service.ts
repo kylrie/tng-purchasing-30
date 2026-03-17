@@ -145,9 +145,50 @@ export class InventoryService {
 
     /**
      * Update an inventory item
+     * Optional skipRecipeRecalculation prevents infinite loops when recipes update their own products
      */
-    static async updateInventoryItem(id: string, data: Partial<InventoryItem>): Promise<void> {
-        return FirestoreService.updateDocument(COLLECTIONS.INVENTORY_ITEMS, id, data);
+    static async updateInventoryItem(
+        id: string,
+        data: Partial<InventoryItem>,
+        options?: { skipRecipeRecalculation?: boolean }
+    ): Promise<void> {
+        let shouldRecalculate = false;
+        let businessUnitId = '';
+
+        // If cost might have changed and we are allowed to recalculate
+        if (data.costPerUnit !== undefined && !options?.skipRecipeRecalculation) {
+            try {
+                const currentItem = await FirestoreService.getDocument<InventoryItem>(COLLECTIONS.INVENTORY_ITEMS, id);
+                if (currentItem && currentItem.costPerUnit !== data.costPerUnit) {
+                    shouldRecalculate = true;
+                    businessUnitId = currentItem.businessUnitId;
+                }
+            } catch (err) {
+                console.warn('Could not fetch current inventory item for cost comparison:', err);
+            }
+        }
+
+        // Perform the actual update
+        await FirestoreService.updateDocument(COLLECTIONS.INVENTORY_ITEMS, id, data);
+
+        // If cost changed, trigger recalculation of all linked recipes
+        if (shouldRecalculate && businessUnitId) {
+            console.log(`[InventoryService] Cost changed for item ${id}. Triggering recipe recalculation for BU ${businessUnitId}`);
+            try {
+                // Dynamically import to avoid circular dependencies
+                const { ProductionRecipeService } = await import('../../menu/services/production-recipe.service');
+                const { RecipesService } = await import('../../menu/services/recipes.service');
+
+                // Recalculate production recipes first, as menu items might depend on them
+                await ProductionRecipeService.recalculateCosts(businessUnitId);
+                // Then recalculate all menu items
+                await RecipesService.recalculateAllCosts(businessUnitId);
+
+                console.log(`[InventoryService] Successfully finished recipe recalculations for BU ${businessUnitId}`);
+            } catch (err) {
+                console.error('[InventoryService] Failed to recalculate recipes:', err);
+            }
+        }
     }
 
     // ============================================================
