@@ -454,3 +454,206 @@
     transform: rotate(360deg);
   }
 }
+
+/* ============================================================
+   AUDIT WORKFLOW STYLES
+   ============================================================ */
+
+/* Audit cell layout */
+.audit-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.audit-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* Audit status badges */
+.audit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.audit-badge-approved {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+:is(.dark) .audit-badge-approved {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.audit-badge-rejected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+:is(.dark) .audit-badge-rejected {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.audit-badge-pending {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  font-style: italic;
+}
+
+:is(.dark) .audit-badge-pending {
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+}
+
+/* Audit action buttons */
+.audit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.audit-btn-approve {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.audit-btn-approve:hover {
+  background: rgba(16, 185, 129, 0.25);
+  transform: scale(1.1);
+}
+
+.audit-btn-reject {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.audit-btn-reject:hover {
+  background: rgba(239, 68, 68, 0.25);
+  transform: scale(1.1);
+}
+
+.audit-btn-refile {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.audit-btn-refile:hover {
+  background: rgba(59, 130, 246, 0.25);
+  transform: scale(1.1);
+}
+
+/* Row background highlights for audit status */
+.bank-recon-table tbody tr.audit-row-approved {
+  background: rgba(16, 185, 129, 0.04);
+}
+
+:is(.dark) .bank-recon-table tbody tr.audit-row-approved {
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.bank-recon-table tbody tr.audit-row-rejected {
+  background: rgba(239, 68, 68, 0.04);
+}
+
+:is(.dark) .bank-recon-table tbody tr.audit-row-rejected {
+  background: rgba(239, 68, 68, 0.06);
+}
+
+/* ============================================================
+   COA EDIT DROPDOWN
+   ============================================================ */
+
+.coa-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+}
+
+.coa-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  width: 320px;
+  max-height: 260px;
+  background: white;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 12px;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  animation: coa-dropdown-in 0.15s ease-out;
+}
+
+:is(.dark) .coa-dropdown {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes coa-dropdown-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.coa-dropdown-header {
+  padding: 8px 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+}
+
+:is(.dark) .coa-dropdown-header {
+  color: #94a3b8;
+  border-bottom-color: rgba(255, 255, 255, 0.05);
+}
+
+.coa-dropdown-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.coa-dropdown-item {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.coa-dropdown-item:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+:is(.dark) .coa-dropdown-item:hover {
+  background: rgba(99, 102, 241, 0.15);
+}

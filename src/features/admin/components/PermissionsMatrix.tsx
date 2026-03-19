@@ -144,8 +144,10 @@ const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
   'module:view:bank_recon': { label: 'Bank Recon Module', category: 'Module Access' },
   'bank_recon:upload': { label: 'Upload Statements', category: 'Bank Reconciliation', description: 'Upload new bank statement Excel files for reconciliation.' },
   'bank_recon:enrich': { label: 'Enrich/Match Data', category: 'Bank Reconciliation', description: 'Match uploaded statements against procurement records.' },
+  'bank_recon:edit': { label: 'Edit Statements', category: 'Bank Reconciliation', description: 'Edit remarks on bank statement transactions.' },
   'bank_recon:delete': { label: 'Delete Statements', category: 'Bank Reconciliation', description: 'Delete uploaded bank statements.' },
-  'bank_recon:audit': { label: 'Audit Transactions', category: 'Bank Reconciliation', description: 'Mark transactions as cleared or uncleared.' },
+  'bank_recon:audit': { label: 'Audit Transactions', category: 'Bank Reconciliation', description: 'Approve or reject bank statement transactions.' },
+  'bank_recon:view:all': { label: 'View All BU Statements', category: 'Bank Reconciliation', description: 'View bank statements from all Business Units.' },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // MODULE ACCESS (SIDEBAR VISIBILITY)

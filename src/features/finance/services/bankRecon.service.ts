@@ -59,6 +59,8 @@ export interface BankReconStatement {
     uploadedBy: string;
     uploadedByName: string;
     uploadedAt: string;
+    businessUnitId?: string;  // BU of the uploader
+    businessUnitName?: string;
     sheetCount: number;
     sheetNames: string[];
     totalRows: number;
@@ -72,6 +74,9 @@ export interface BankReconStatement {
         totalCredit?: number;
     }[];
 }
+
+// Per-row audit status type
+export type RowAuditStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 // Firestore collection name
 const BANK_RECON_COLLECTION = 'bankReconStatements';
@@ -252,7 +257,9 @@ export const BankReconService = {
         workbook: ParsedWorkbook,
         userId: string,
         userName: string,
-        status: 'PENDING_MATCH' | 'PENDING_AUDIT' | 'COMPLETED' = 'PENDING_MATCH'
+        status: 'PENDING_MATCH' | 'PENDING_AUDIT' | 'COMPLETED' = 'PENDING_MATCH',
+        businessUnitId?: string,
+        businessUnitName?: string
     ): Promise<string> {
         // Build summaries per sheet
         const sheetSummaries = workbook.sheets.map(sheet => {
@@ -317,6 +324,8 @@ export const BankReconService = {
             uploadedBy: userId,
             uploadedByName: userName,
             uploadedAt: new Date().toISOString(),
+            businessUnitId: businessUnitId || '',
+            businessUnitName: businessUnitName || '',
             sheetCount: workbook.totalSheets,
             sheetNames: workbook.sheets.map(s => s.sheetName),
             totalRows: workbook.sheets.reduce((sum, s) => sum + s.rows.length, 0),
@@ -347,18 +356,29 @@ export const BankReconService = {
     },
 
     /**
-     * Fetch all saved bank statements (metadata only, not row data)
+     * Fetch saved bank statements (metadata only, not row data)
+     * If viewAll is true, returns all statements. Otherwise filters by BU.
      */
-    async getBankStatements(): Promise<BankReconStatement[]> {
+    async getBankStatements(userBuIds?: string[], viewAll?: boolean): Promise<BankReconStatement[]> {
         const q = query(
             collection(db, BANK_RECON_COLLECTION),
             orderBy('createdAt', 'desc')
         );
         const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({
+        const allStatements = snapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
         } as BankReconStatement));
+
+        // If viewAll or no BU filter, return everything
+        if (viewAll || !userBuIds || userBuIds.length === 0) {
+            return allStatements;
+        }
+
+        // Filter by user's business units
+        return allStatements.filter(s =>
+            !s.businessUnitId || s.businessUnitId === '' || userBuIds.includes(s.businessUnitId)
+        );
     },
 
     /**

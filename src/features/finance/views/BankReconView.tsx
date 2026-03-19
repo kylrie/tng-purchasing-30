@@ -7,8 +7,12 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Upload, FileSpreadsheet, Trash2, Save, X, Download, Clock, Layers, Hash, Calendar, ArrowDownRight, ArrowUpRight, Settings, CheckCircle2, AlertTriangle, AlertCircle, Edit2, Send, CheckCircle } from 'lucide-react';
-import { BankReconService, type ParsedWorkbook, type ParsedSheet, type BankReconStatement } from '../services/bankRecon.service';
+import { Upload, FileSpreadsheet, Trash2, Save, X, Download, Clock, Layers, Hash, Calendar, ArrowDownRight, ArrowUpRight, Settings, CheckCircle2, AlertTriangle, AlertCircle, Edit2, Send, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { BankReconService, type ParsedWorkbook, type ParsedSheet, type BankReconStatement, type RowAuditStatus } from '../services/bankRecon.service';
+import { CoaService } from '../../../shared/services/coa.service';
+import type { ChartOfAccount } from '../../../shared/types/firebase.types';
+import { fetchBusinesses } from '../../../shared/services/businessService';
+import type { Business } from '../../../shared/types';
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { exportToCSV, type ExportColumn } from '../../../shared/utils/exportUtils';
@@ -18,6 +22,17 @@ const BankReconView: React.FC = () => {
     const { currentUser } = useAuth();
     const { hasPermission } = usePermissions();
     const canAudit = hasPermission('bank_recon:audit');
+    const canEdit = hasPermission('bank_recon:edit');
+    const canViewAll = hasPermission('bank_recon:view:all');
+
+    // COA accounts for dropdown
+    const [coaAccounts, setCoaAccounts] = useState<ChartOfAccount[]>([]);
+    const [coaDropdownRow, setCoaDropdownRow] = useState<number | null>(null);
+    const [coaSearchTerm, setCoaSearchTerm] = useState('');
+
+    // BU filter
+    const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [selectedBuFilter, setSelectedBuFilter] = useState<string>('my');
 
     // Upload states
     const [isDragging, setIsDragging] = useState(false);
@@ -48,12 +63,20 @@ const BankReconView: React.FC = () => {
     // Load saved statements on mount
     useEffect(() => {
         loadSavedStatements();
+        // Load COA accounts for dropdown
+        CoaService.getActiveAccounts().then(setCoaAccounts).catch(console.error);
+        // Load businesses for BU filter
+        if (canViewAll) {
+            fetchBusinesses().then(setBusinesses).catch(console.error);
+        }
     }, []);
 
     const loadSavedStatements = async () => {
         setLoadingHistory(true);
         try {
-            const statements = await BankReconService.getBankStatements();
+            // If canViewAll, fetch all statements (we filter client-side via BU selector)
+            const userBuIds = currentUser?.businessUnitIds || (currentUser?.businessId ? [currentUser.businessId] : []);
+            const statements = await BankReconService.getBankStatements(userBuIds, canViewAll);
             setSavedStatements(statements);
         } catch (err) {
             console.error('Failed to load bank statements:', err);
@@ -61,6 +84,17 @@ const BankReconView: React.FC = () => {
             setLoadingHistory(false);
         }
     };
+
+    // Filtered statements based on BU selector
+    const filteredStatements = savedStatements.filter(s => {
+        if (selectedBuFilter === 'all') return true;
+        if (selectedBuFilter === 'my') {
+            const userBuIds = currentUser?.businessUnitIds || (currentUser?.businessId ? [currentUser.businessId] : []);
+            return !s.businessUnitId || s.businessUnitId === '' || userBuIds.includes(s.businessUnitId);
+        }
+        // Specific BU ID selected
+        return s.businessUnitId === selectedBuFilter;
+    });
 
     // File handling
     const handleFileSelect = useCallback(async (file: File) => {
@@ -138,7 +172,9 @@ const BankReconView: React.FC = () => {
                 parsedWorkbook,
                 currentUser.id,
                 currentUser.name,
-                status
+                status,
+                currentUser.businessId,
+                '' // BU name - will be populated from context if available
             );
             await loadSavedStatements();
             clearUpload();
@@ -304,10 +340,10 @@ const BankReconView: React.FC = () => {
         }
     };
 
-    // Toggle Audit Status (Cleared/Uncleared)
-    const handleToggleAudit = async (rowIdx: number, currentState: boolean) => {
+    // Audit: Approve a row
+    const handleAuditApprove = async (rowIdx: number) => {
         if (!canAudit) return;
-        if (viewingStatement && viewingStatement.status !== 'PENDING_AUDIT') return; // Enforce state machine rules
+        if (viewingStatement && viewingStatement.status !== 'PENDING_AUDIT') return;
 
         const activeSheets = viewingStatement ? viewingSheets : (parsedWorkbook?.sheets || []);
         const activeIdx = viewingStatement ? viewingSheetIndex : activeSheetIndex;
@@ -317,43 +353,168 @@ const BankReconView: React.FC = () => {
         const newRows = [...currentSheet.rows];
         newRows[rowIdx] = {
             ...newRows[rowIdx],
-            Cleared: !currentState
+            auditStatus: 'APPROVED' as RowAuditStatus,
+            rejectionReason: '',
+            auditedBy: currentUser?.id || '',
+            auditedByName: currentUser?.name || '',
+            Cleared: true // backward compatible
         };
 
-        const newSheet = {
-            ...currentSheet,
-            rows: newRows
-        };
+        const newSheet = { ...currentSheet, rows: newRows };
 
         if (viewingStatement) {
             const newViewingSheets = [...viewingSheets];
             newViewingSheets[activeIdx] = newSheet;
             setViewingSheets(newViewingSheets);
-
-            // Persist to Firestore
             try {
-                if (!newSheet.id) throw new Error("Sheet ID is missing.");
+                if (!newSheet.id) throw new Error('Sheet ID is missing.');
                 await BankReconService.updateSheetData(viewingStatement.id!, newSheet.id, newRows);
             } catch (err) {
-                console.error('Failed to update audit status:', err);
-                alert('Failed to save audit status to database.');
-                // Revert locally on error
-                newRows[rowIdx].Cleared = currentState;
+                console.error('Failed to approve row:', err);
+                alert('Failed to save audit status.');
+                newRows[rowIdx].auditStatus = 'PENDING';
+                newRows[rowIdx].Cleared = false;
                 newViewingSheets[activeIdx] = { ...currentSheet, rows: newRows };
                 setViewingSheets([...newViewingSheets]);
             }
         } else if (parsedWorkbook) {
             const newSheets = [...parsedWorkbook.sheets];
             newSheets[activeIdx] = newSheet;
-            setParsedWorkbook({
-                ...parsedWorkbook,
-                sheets: newSheets
-            });
+            setParsedWorkbook({ ...parsedWorkbook, sheets: newSheets });
         }
+    };
+
+    // Audit: Reject a row
+    const handleAuditReject = async (rowIdx: number) => {
+        if (!canAudit) return;
+        if (viewingStatement && viewingStatement.status !== 'PENDING_AUDIT') return;
+
+        const reason = prompt('Enter rejection reason:');
+        if (!reason) return; // cancelled or empty
+
+        const activeSheets = viewingStatement ? viewingSheets : (parsedWorkbook?.sheets || []);
+        const activeIdx = viewingStatement ? viewingSheetIndex : activeSheetIndex;
+        const currentSheet = activeSheets[activeIdx];
+        if (!currentSheet) return;
+
+        const newRows = [...currentSheet.rows];
+        newRows[rowIdx] = {
+            ...newRows[rowIdx],
+            auditStatus: 'REJECTED' as RowAuditStatus,
+            rejectionReason: reason,
+            auditedBy: currentUser?.id || '',
+            auditedByName: currentUser?.name || '',
+            Cleared: false
+        };
+
+        const newSheet = { ...currentSheet, rows: newRows };
+
+        if (viewingStatement) {
+            const newViewingSheets = [...viewingSheets];
+            newViewingSheets[activeIdx] = newSheet;
+            setViewingSheets(newViewingSheets);
+            try {
+                if (!newSheet.id) throw new Error('Sheet ID is missing.');
+                await BankReconService.updateSheetData(viewingStatement.id!, newSheet.id, newRows);
+            } catch (err) {
+                console.error('Failed to reject row:', err);
+                alert('Failed to save rejection.');
+                newRows[rowIdx].auditStatus = 'PENDING';
+                newRows[rowIdx].rejectionReason = '';
+                newViewingSheets[activeIdx] = { ...currentSheet, rows: newRows };
+                setViewingSheets([...newViewingSheets]);
+            }
+        } else if (parsedWorkbook) {
+            const newSheets = [...parsedWorkbook.sheets];
+            newSheets[activeIdx] = newSheet;
+            setParsedWorkbook({ ...parsedWorkbook, sheets: newSheets });
+        }
+    };
+
+    // Refile: Uploader can refile rejected rows (resets to PENDING)
+    const handleRefileRow = async (rowIdx: number) => {
+        const activeSheets = viewingStatement ? viewingSheets : (parsedWorkbook?.sheets || []);
+        const activeIdx = viewingStatement ? viewingSheetIndex : activeSheetIndex;
+        const currentSheet = activeSheets[activeIdx];
+        if (!currentSheet) return;
+
+        const row = currentSheet.rows[rowIdx];
+        if (row.auditStatus !== 'REJECTED') return;
+
+        // Only the uploader can refile
+        if (viewingStatement && viewingStatement.uploadedBy !== currentUser?.id) return;
+
+        const newRows = [...currentSheet.rows];
+        newRows[rowIdx] = {
+            ...newRows[rowIdx],
+            auditStatus: 'PENDING' as RowAuditStatus,
+            rejectionReason: '',
+            Cleared: false
+        };
+
+        const newSheet = { ...currentSheet, rows: newRows };
+
+        if (viewingStatement) {
+            const newViewingSheets = [...viewingSheets];
+            newViewingSheets[activeIdx] = newSheet;
+            setViewingSheets(newViewingSheets);
+            try {
+                if (!newSheet.id) throw new Error('Sheet ID is missing.');
+                await BankReconService.updateSheetData(viewingStatement.id!, newSheet.id, newRows);
+            } catch (err) {
+                console.error('Failed to refile row:', err);
+                alert('Failed to refile.');
+                newRows[rowIdx].auditStatus = 'REJECTED';
+                newViewingSheets[activeIdx] = { ...currentSheet, rows: newRows };
+                setViewingSheets([...newViewingSheets]);
+            }
+        } else if (parsedWorkbook) {
+            const newSheets = [...parsedWorkbook.sheets];
+            newSheets[activeIdx] = newSheet;
+            setParsedWorkbook({ ...parsedWorkbook, sheets: newSheets });
+        }
+    };
+
+    // Edit COA for a row
+    const handleEditCoa = async (rowIdx: number, selectedCoa: ChartOfAccount) => {
+        if (!canEdit) return;
+
+        const activeSheets = viewingStatement ? viewingSheets : (parsedWorkbook?.sheets || []);
+        const activeIdx = viewingStatement ? viewingSheetIndex : activeSheetIndex;
+        const currentSheet = activeSheets[activeIdx];
+        if (!currentSheet) return;
+
+        const newCoaValue = `${selectedCoa.code} - ${selectedCoa.name}`;
+        const newRows = [...currentSheet.rows];
+        newRows[rowIdx] = {
+            ...newRows[rowIdx],
+            'Linked Chart of Accounts': newCoaValue
+        };
+
+        const newSheet = { ...currentSheet, rows: newRows };
+
+        if (viewingStatement) {
+            const newViewingSheets = [...viewingSheets];
+            newViewingSheets[activeIdx] = newSheet;
+            setViewingSheets(newViewingSheets);
+            try {
+                if (!newSheet.id) throw new Error('Sheet ID is missing.');
+                await BankReconService.updateSheetData(viewingStatement.id!, newSheet.id, newRows);
+            } catch (err) {
+                console.error('Failed to update COA:', err);
+                alert('Failed to save COA update.');
+            }
+        } else if (parsedWorkbook) {
+            const newSheets = [...parsedWorkbook.sheets];
+            newSheets[activeIdx] = newSheet;
+            setParsedWorkbook({ ...parsedWorkbook, sheets: newSheets });
+        }
+        setCoaDropdownRow(null);
     };
 
     // Edit Remark
     const handleEditRemark = async (rowIdx: number, currentRemark: string) => {
+        if (!canEdit) return; // Prevent unauthorized edits
         if (viewingStatement && viewingStatement.status === 'COMPLETED') return; // Cannot edit if completed
         if (viewingStatement && viewingStatement.status === 'PENDING_AUDIT' && !canAudit) return; // Usually only finance edits before audit, but auditor could edit too
 
@@ -647,6 +808,24 @@ const BankReconView: React.FC = () => {
                                         <Clock size={18} className="text-purple-500" />
                                         Statements
                                     </h2>
+                                    {(canViewAll || (currentUser?.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
+                                        <select
+                                            value={selectedBuFilter}
+                                            onChange={(e) => setSelectedBuFilter(e.target.value)}
+                                            className="px-3 py-1 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 shadow-sm"
+                                        >
+                                            <option value="my">My Business Units</option>
+                                            {canViewAll && <option value="all">All Business Units</option>}
+                                            {canViewAll ? (
+                                                businesses.map(b => <option key={b.id} value={b.id}>{b.name}</option>)
+                                            ) : (
+                                                currentUser?.businessUnitIds?.map(buId => {
+                                                    const b = businesses.find(bz => bz.id === buId);
+                                                    return b ? <option key={b.id} value={b.id}>{b.name}</option> : null;
+                                                })
+                                            )}
+                                        </select>
+                                    )}
                                 </div>
                                 <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-lg">
                                     <button
@@ -676,12 +855,12 @@ const BankReconView: React.FC = () => {
                                         <span className="text-slate-500 dark:text-slate-400 text-sm font-medium">Loading history...</span>
                                     </div>
                                 ) : (() => {
-                                    const filteredStatements = savedStatements.filter(stmt => {
+                                    const displayedListStatements = filteredStatements.filter(stmt => {
                                         if (listTab === 'HISTORY') return stmt.status === 'COMPLETED';
                                         return stmt.status !== 'COMPLETED';
                                     });
 
-                                    if (filteredStatements.length === 0) {
+                                    if (displayedListStatements.length === 0) {
                                         return (
                                             <div className="flex flex-col items-center justify-center text-center h-40 px-4">
                                                 <Layers size={32} className="text-slate-300 dark:text-slate-600 mb-3" />
@@ -692,7 +871,7 @@ const BankReconView: React.FC = () => {
                                         );
                                     }
 
-                                    return filteredStatements.map(stmt => (
+                                    return displayedListStatements.map(stmt => (
                                         <div
                                             key={stmt.id}
                                             className="bank-recon-history-item group"
@@ -827,8 +1006,8 @@ const BankReconView: React.FC = () => {
                                         <thead>
                                             <tr>
                                                 <th className="!text-center" style={{ width: 50 }}>#</th>
-                                                {canAudit && (!viewingStatement || viewingStatement.status === 'PENDING_AUDIT') && (
-                                                    <th className="!text-center" style={{ width: 80 }}>Audit</th>
+                                                {(!viewingStatement || viewingStatement.status === 'PENDING_AUDIT') && (
+                                                    <th className="!text-center" style={{ width: 140 }}>Audit</th>
                                                 )}
                                                 {currentSheet.headers.map(header => (
                                                     <th key={header}>{header}</th>
@@ -836,18 +1015,63 @@ const BankReconView: React.FC = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {currentSheet.rows.map((row, rowIdx) => (
-                                                <tr key={rowIdx}>
+                                            {currentSheet.rows.map((row, rowIdx) => {
+                                                const rowAuditStatus = (row.auditStatus as RowAuditStatus) || (row['Cleared'] ? 'APPROVED' : 'PENDING');
+                                                const isUploader = viewingStatement && viewingStatement.uploadedBy === currentUser?.id;
+
+                                                return (
+                                                <tr key={rowIdx} className={rowAuditStatus === 'REJECTED' ? 'audit-row-rejected' : rowAuditStatus === 'APPROVED' ? 'audit-row-approved' : ''}>
                                                     <td className="!text-center text-slate-400 dark:text-slate-600 text-xs font-mono">{rowIdx + 1}</td>
-                                                    {canAudit && (!viewingStatement || viewingStatement.status === 'PENDING_AUDIT') && (
+                                                    {(!viewingStatement || viewingStatement.status === 'PENDING_AUDIT') && (
                                                         <td className="!text-center">
-                                                            <button
-                                                                onClick={() => handleToggleAudit(rowIdx, !!row['Cleared'])}
-                                                                className={`p-1.5 rounded-md transition-colors ${row['Cleared'] ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
-                                                                title={row['Cleared'] ? 'Mark as Uncleared' : 'Mark as Cleared'}
-                                                            >
-                                                                <CheckCircle2 size={16} />
-                                                            </button>
+                                                            <div className="audit-cell">
+                                                                {/* Status badge */}
+                                                                {rowAuditStatus === 'APPROVED' && (
+                                                                    <span className="audit-badge audit-badge-approved" title="Approved">
+                                                                        <CheckCircle2 size={14} /> Approved
+                                                                    </span>
+                                                                )}
+                                                                {rowAuditStatus === 'REJECTED' && (
+                                                                    <span className="audit-badge audit-badge-rejected" title={`Rejected: ${row.rejectionReason || ''}`}>
+                                                                        <XCircle size={14} /> Rejected
+                                                                    </span>
+                                                                )}
+                                                                {rowAuditStatus === 'PENDING' && (
+                                                                    <span className="audit-badge audit-badge-pending">
+                                                                        Pending
+                                                                    </span>
+                                                                )}
+                                                                {/* Action buttons */}
+                                                                <div className="audit-actions">
+                                                                    {canAudit && rowAuditStatus !== 'APPROVED' && (
+                                                                        <button
+                                                                            onClick={() => handleAuditApprove(rowIdx)}
+                                                                            className="audit-btn audit-btn-approve"
+                                                                            title="Approve"
+                                                                        >
+                                                                            <CheckCircle size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                    {canAudit && rowAuditStatus !== 'REJECTED' && (
+                                                                        <button
+                                                                            onClick={() => handleAuditReject(rowIdx)}
+                                                                            className="audit-btn audit-btn-reject"
+                                                                            title="Reject"
+                                                                        >
+                                                                            <XCircle size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                    {rowAuditStatus === 'REJECTED' && isUploader && (
+                                                                        <button
+                                                                            onClick={() => handleRefileRow(rowIdx)}
+                                                                            className="audit-btn audit-btn-refile"
+                                                                            title="Refile (reset to pending)"
+                                                                        >
+                                                                            <RefreshCw size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         </td>
                                                     )}
                                                     {currentSheet.headers.map(header => {
@@ -860,7 +1084,7 @@ const BankReconView: React.FC = () => {
 
                                                         if (header === 'Remarks') {
                                                             const remarks = (value !== null && value !== undefined) ? String(value) : '';
-                                                            const isEditable = !viewingStatement || viewingStatement.status !== 'COMPLETED';
+                                                            const isEditable = (!viewingStatement || viewingStatement.status !== 'COMPLETED') && canEdit;
 
                                                             let badge = <span className="text-slate-300 dark:text-slate-600 italic">No remark</span>;
                                                             if (remarks) {
@@ -887,14 +1111,72 @@ const BankReconView: React.FC = () => {
                                                                     )}
                                                                 </div>
                                                             );
+                                                        } else if (header === 'Linked Chart of Accounts') {
+                                                            const coaVal = (value !== null && value !== undefined) ? String(value) : '';
+                                                            const isCoaEditable = (!viewingStatement || viewingStatement.status !== 'COMPLETED') && canEdit;
+
+                                                            displayValue = (
+                                                                <div className="coa-cell" style={{ position: 'relative' }}>
+                                                                    {coaVal ? (
+                                                                        <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 shadow-sm">
+                                                                            <Layers size={12} className="mr-1.5 text-indigo-400 flex-shrink-0" /> {coaVal}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="text-slate-300 dark:text-slate-600 italic">No COA</span>
+                                                                    )}
+                                                                    {isCoaEditable && (
+                                                                        <button
+                                                                            onClick={() => setCoaDropdownRow(coaDropdownRow === rowIdx ? null : rowIdx)}
+                                                                            className="p-1 rounded-md text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:text-indigo-400 dark:hover:bg-indigo-900/30 transition-colors ml-1"
+                                                                            title="Edit Chart of Account"
+                                                                        >
+                                                                            <Edit2 size={14} />
+                                                                        </button>
+                                                                    )}
+                                                                    {coaDropdownRow === rowIdx && (
+                                                                        <div className="coa-dropdown">
+                                                                            <div className="coa-dropdown-header flex flex-col gap-2">
+                                                                                <span>Select Account</span>
+                                                                                <input 
+                                                                                    type="text" 
+                                                                                    autoFocus
+                                                                                    placeholder="Search account..." 
+                                                                                    value={coaSearchTerm}
+                                                                                    onChange={e => setCoaSearchTerm(e.target.value)}
+                                                                                    onClick={e => e.stopPropagation()}
+                                                                                    className="w-full px-2 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-slate-800 dark:text-white"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="coa-dropdown-list">
+                                                                                {coaAccounts
+                                                                                    .filter(coa => 
+                                                                                        coa.code.toLowerCase().includes(coaSearchTerm.toLowerCase()) || 
+                                                                                        coa.name.toLowerCase().includes(coaSearchTerm.toLowerCase())
+                                                                                    )
+                                                                                    .map(coa => (
+                                                                                    <button
+                                                                                        key={coa.code}
+                                                                                        className="coa-dropdown-item"
+                                                                                        onClick={() => {
+                                                                                            handleEditCoa(rowIdx, coa);
+                                                                                            setCoaSearchTerm('');
+                                                                                        }}
+                                                                                    >
+                                                                                        <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400">{coa.code}</span>
+                                                                                        <span className="text-xs">{coa.name}</span>
+                                                                                    </button>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
                                                         } else if (value !== null && value !== undefined && value !== '') {
                                                             if (isCurrency && typeof value === 'number') {
                                                                 displayValue = value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                                                             } else if (isCheck) {
                                                                 // Strip commas explicitly from check numbers per user request
                                                                 displayValue = String(value).replace(/,/g, '');
-                                                            } else if (header === 'Linked Chart of Accounts') {
-                                                                displayValue = <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-semibold border border-indigo-100 dark:border-indigo-500/20 bg-indigo-50/50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 shadow-sm"><Layers size={12} className="mr-1.5 text-indigo-400 flex-shrink-0" /> {String(value)}</span>;
                                                             } else {
                                                                 displayValue = String(value);
                                                             }
@@ -911,7 +1193,8 @@ const BankReconView: React.FC = () => {
                                                         );
                                                     })}
                                                 </tr>
-                                            ))}
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>

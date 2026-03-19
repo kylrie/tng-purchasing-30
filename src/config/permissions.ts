@@ -40,8 +40,10 @@ export const ALL_PERMISSIONS = [
   // Bank Reconciliation
   'bank_recon:upload',    // Upload bank statements
   'bank_recon:enrich',    // Run matching engine
+  'bank_recon:edit',      // Edit bank statement remarks
   'bank_recon:delete',    // Delete bank statements
   'bank_recon:audit',     // Audit/clear bank statement transactions
+  'bank_recon:view:all',  // View all BU bank statements
 
   // PCF (Petty Cash Fund)
   'pcf:view:own',
@@ -209,8 +211,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:bank_recon',
     'bank_recon:upload',
     'bank_recon:enrich',
+    'bank_recon:edit',
     'bank_recon:delete',
     'bank_recon:audit',
+    'bank_recon:view:all',
   ],
 
   // High-level approver, global view
@@ -457,8 +461,10 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:bank_recon',
     'bank_recon:upload',
     'bank_recon:enrich',
+    'bank_recon:edit',
     'bank_recon:delete',
     'bank_recon:audit',
+    'bank_recon:view:all',
   ],
 
   // Audits liquidations
@@ -529,7 +535,9 @@ export const ROLES_TO_PERMISSIONS: Record<UserRole, Permission[]> = {
     'module:view:bank_recon',
     'bank_recon:upload',
     'bank_recon:enrich',
+    'bank_recon:edit',
     'bank_recon:delete',
     'bank_recon:audit',
+    'bank_recon:view:all',
   ],
 };

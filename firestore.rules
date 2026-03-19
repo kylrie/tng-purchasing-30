@@ -88,6 +88,8 @@ service cloud.firestore {
     
     function canReadRequisition(resource) {
       return isSuperAdminOrAdmin() ||
+        hasPermission('requisition:view:all') ||
+        hasPermission('bank_recon:enrich') ||
         resource.data.requesterId == request.auth.uid ||
         belongsToSameBU(resource);
     }
