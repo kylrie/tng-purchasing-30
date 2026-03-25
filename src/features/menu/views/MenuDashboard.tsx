@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     ChefHat, Plus, Search, TrendingUp, Loader2,
-    Building2, Edit, Trash2, RefreshCw, Filter
+    Building2, Edit, Trash2, RefreshCw, Filter, ShieldAlert
 } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
 import type { MenuItem, MenuCategory } from '../types/menu.types';
@@ -132,6 +132,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
     const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
     const [viewingItem, setViewingItem] = useState<MenuItem | null>(null);
     const [isRecalculating, setIsRecalculating] = useState(false);
+    const [isMigrating, setIsMigrating] = useState(false);
 
     // Load menu items
     const loadMenuItems = async () => {
@@ -215,6 +216,22 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
         }
     };
 
+    // Handle migrating legacy recipes
+    const handleMigrateRecipes = async () => {
+        if (!confirm('Run one-time migration to sync all existing MenuItem recipes to the Inventory system?')) return;
+
+        setIsMigrating(true);
+        try {
+            const resultMsg = await RecipesService.migrateExistingRecipes(selectedBusinessUnit);
+            alert(resultMsg);
+        } catch (error: any) {
+            console.error('Error migrating recipes:', error);
+            alert('Error migrating recipes: ' + error.message);
+        } finally {
+            setIsMigrating(false);
+        }
+    };
+
     // Stats
     const totalItems = menuItems.length;
     const avgFoodCost = totalItems > 0
@@ -264,6 +281,17 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
                     >
                         <RefreshCw size={16} className={isRecalculating ? 'animate-spin' : ''} />
                         Recalculate
+                    </button>
+
+                    {/* Sync Legacy Recipes Button (Dev Tool) */}
+                    <button
+                        onClick={handleMigrateRecipes}
+                        disabled={isMigrating}
+                        className="px-4 py-2 bg-orange-100 dark:bg-orange-500/20 hover:bg-orange-200 dark:hover:bg-orange-500/30 text-orange-700 dark:text-orange-400 rounded-xl flex items-center gap-2 text-sm transition-colors disabled:opacity-50"
+                        title="One-time sync of legacy recipes to Inventory"
+                    >
+                        <ShieldAlert size={16} className={isMigrating ? 'animate-spin' : ''} />
+                        Sync Legacy Recipes
                     </button>
 
                     {/* Add New Button */}

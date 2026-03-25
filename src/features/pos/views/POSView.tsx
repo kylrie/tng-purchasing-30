@@ -43,7 +43,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
         fetchSuperAdminPin();
     }, []);
 
-    const { menuItems, isLoading } = usePOSMenu(selectedBusinessUnit);
+    const { menuItems, isLoading, sellableStockMap } = usePOSMenu(selectedBusinessUnit);
     const {
         cartItems,
         addToCart,
@@ -158,6 +158,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     menuItems={menuItems}
                     isLoading={isLoading}
                     onAddItem={handleAddItem}
+                    sellableStockMap={sellableStockMap}
                 />
                 <CartPane
                     cartItems={cartItems}

@@ -138,6 +138,7 @@ export class InventoryService {
     static async createInventoryItem(input: CreateInventoryItemInput): Promise<string> {
         const itemData = {
             ...input,
+            theoreticalStock: input.theoreticalStock ?? input.currentStock,
             isActive: true
         };
         return FirestoreService.createDocument(COLLECTIONS.INVENTORY_ITEMS, itemData);

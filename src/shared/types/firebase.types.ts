@@ -136,6 +136,9 @@ export const COLLECTIONS = {
   TRANSACTIONS: 'transactions',
   BANK_RECON_STATEMENTS: 'bankReconStatements',
   POS_ORDERS: 'pos_orders',
+  POS_SALES: 'pos_sales',
+  POS_SALES_BATCHES: 'pos_sales_batches',
+  STOCK_TRANSACTIONS: 'stock_transactions',
 } as const;
 
 // Query constraints type

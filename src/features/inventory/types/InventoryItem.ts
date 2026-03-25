@@ -53,6 +53,17 @@ export interface AssetDetails {
 }
 
 // ============================================================
+// BOM (Bill of Materials) INGREDIENT - For recipe explosion
+// ============================================================
+
+export interface BomIngredient {
+  ingredientId: string;        // ID of the RAW_MATERIAL inventory item
+  ingredientName: string;      // Denormalized for display
+  quantityUsed: number;        // Amount per 1 unit of FG sold
+  unit: string;                // Unit (g, ml, piece, etc.)
+}
+
+// ============================================================
 // INVENTORY ITEM TYPES - Multi-Tenant
 // ============================================================
 
@@ -67,12 +78,14 @@ export interface InventoryItem {
   storageAreas: string[];            // e.g., ["Kitchen", "Storage Room"]
   units: UnitConversion;
   parLevel: number;                  // Minimum stock level (in countUnits)
-  currentStock: number;              // Current stock in countUnits
+  currentStock: number;              // Physical stock from stock counts (in countUnits)
+  theoreticalStock: number;          // POS-derived expected stock (deducted by sales imports)
   costPerUnit: number;               // Cost per countUnit
   supplier?: string;
   notes?: string;
   menuItemId?: string;               // Link to menu item if FINISHED_GOOD from Menu Engineering
   assetDetails?: AssetDetails;       // Asset-specific details (only for type='ASSET')
+  recipe?: BomIngredient[];           // BOM recipe for FG → raw material explosion during POS import
   isActive: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -146,10 +159,12 @@ export interface CreateInventoryItemInput {
   units: UnitConversion;
   parLevel: number;
   currentStock: number;
+  theoreticalStock?: number;          // Defaults to currentStock if not provided
   costPerUnit: number;
   supplier?: string;
   notes?: string;
   menuItemId?: string;  // Link to menu item if this is a FINISHED_GOOD from Menu Engineering
+  recipe?: BomIngredient[];           // BOM recipe for FG
 }
 
 export interface StartSessionInput {
@@ -191,6 +206,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     units: { countUnit: 'kg', buyUnit: 'sack', conversion: 25 },
     parLevel: 50,
     currentStock: 75,
+    theoreticalStock: 75,
     costPerUnit: 45,
     isActive: true
   },
@@ -203,6 +219,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     units: { countUnit: 'bottle', buyUnit: 'case', conversion: 12 },
     parLevel: 6,
     currentStock: 8,
+    theoreticalStock: 8,
     costPerUnit: 1200,
     isActive: true
   },
@@ -216,6 +233,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     units: { countUnit: 'liter', buyUnit: 'batch', conversion: 5 },
     parLevel: 10,
     currentStock: 15,
+    theoreticalStock: 15,
     costPerUnit: 150,
     isActive: true
   },
@@ -229,6 +247,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     units: { countUnit: 'bottle', buyUnit: 'case', conversion: 24 },
     parLevel: 48,
     currentStock: 72,
+    theoreticalStock: 72,
     costPerUnit: 85,
     isActive: true
   },
@@ -242,6 +261,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     units: { countUnit: 'unit', buyUnit: 'unit', conversion: 1 },
     parLevel: 2,
     currentStock: 3,
+    theoreticalStock: 3,
     costPerUnit: 15000,
     isActive: true
   },
@@ -254,6 +274,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     units: { countUnit: 'piece', buyUnit: 'piece', conversion: 1 },
     parLevel: 20,
     currentStock: 24,
+    theoreticalStock: 24,
     costPerUnit: 3500,
     isActive: true
   },
@@ -267,6 +288,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     units: { countUnit: 'bottle', buyUnit: 'case', conversion: 12 },
     parLevel: 8,
     currentStock: 10,
+    theoreticalStock: 10,
     costPerUnit: 950,
     isActive: true
   }

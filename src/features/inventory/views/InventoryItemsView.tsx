@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     Package,
     Search,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { InventoryItem, InventoryItemType, CreateInventoryItemInput } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
+import { calculateSellableQuantity } from '../utils/sellable-quantity';
 import InventoryItemModal from '../components/InventoryItemModal';
 import type { Business } from '../../procurement/types';
 
@@ -144,6 +145,11 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [bulkValue, setBulkValue] = useState<string>('0');
 
+    // All items (unfiltered) for sellable quantity calculation
+    const [allItems, setAllItems] = useState<InventoryItem[]>([]);
+
+
+
     // Load inventory when BU or type changes
     useEffect(() => {
         const loadData = async () => {
@@ -153,11 +159,13 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
             setError(null);
             try {
                 const typeFilter = activeTypeTab === 'ALL' ? undefined : activeTypeTab;
-                const [fetchedItems, fetchedAreas] = await Promise.all([
+                const [fetchedItems, fetchedAllItems, fetchedAreas] = await Promise.all([
                     InventoryService.getInventory(selectedBusinessUnit, typeFilter),
+                    InventoryService.getInventory(selectedBusinessUnit),  // ALL items for sellable calc
                     InventoryService.getStorageAreas()
                 ]);
                 setItems(fetchedItems);
+                setAllItems(fetchedAllItems);
                 setStorageAreas(fetchedAreas);
                 setSelectedItems(new Set()); // Clear selection on reload
             } catch (err) {
@@ -170,6 +178,13 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
         loadData();
     }, [selectedBusinessUnit, activeTypeTab]);
+
+    // Build allItemsMap for sellable quantity calculations
+    const allItemsMap = useMemo(() => {
+        const map = new Map<string, InventoryItem>();
+        allItems.forEach(item => map.set(item.id, item));
+        return map;
+    }, [allItems]);
 
     // Focus input when editing starts
     useEffect(() => {
@@ -463,6 +478,15 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
     // Get stock status
     const getStockStatus = (item: InventoryItem) => {
+        // For Finished Goods with recipes, use sellable quantity
+        if (item.type === 'FINISHED_GOOD' && item.recipe && item.recipe.length > 0) {
+            const sellable = calculateSellableQuantity(item, allItemsMap);
+            if (sellable <= 0) {
+                return <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-red-500/20 text-red-400">OUT OF STOCK</span>;
+            }
+            return <span className="text-green-400 font-medium">Available: {sellable}</span>;
+        }
+        // Default for RAW_MATERIAL, PRODUCTION, etc.
         if (item.currentStock <= 0) {
             return <span className="text-red-400 font-medium">Out of Stock</span>;
         }
@@ -658,11 +682,15 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                 <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Type</th>
                                 <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Category</th>
                                 <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">
-                                    Current Stock
-                                    <span className="text-xs text-slate-400 dark:text-slate-500 block">(Click to edit)</span>
+                                    {activeTypeTab === 'FINISHED_GOOD' ? 'Sellable Stock' : 'Current Stock'}
+                                    {activeTypeTab !== 'FINISHED_GOOD' && (
+                                        <span className="text-xs text-slate-400 dark:text-slate-500 block">(Click to edit)</span>
+                                    )}
                                 </th>
                                 <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Par Level</th>
-                                <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Status</th>
+                                <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">
+                                    {activeTypeTab === 'FINISHED_GOOD' ? 'Stock Available' : 'Status'}
+                                </th>
                                 <th className="text-center p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Actions</th>
                             </tr>
                         </thead>
@@ -698,7 +726,18 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                         <td className="p-4">{getTypeBadge(item.type)}</td>
                                         <td className="p-4 text-slate-600 dark:text-slate-300">{item.category}</td>
                                         <td className="p-4 text-right">
-                                            {editingStockId === item.id ? (
+                                            {item.type === 'FINISHED_GOOD' ? (
+                                                (() => {
+                                                    const sellable = item.recipe && item.recipe.length > 0
+                                                        ? calculateSellableQuantity(item, allItemsMap)
+                                                        : Math.floor(item.theoreticalStock ?? item.currentStock ?? 0);
+                                                    return (
+                                                        <span className={`font-medium ${sellable <= 0 ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>
+                                                            {sellable} {item.units.countUnit}
+                                                        </span>
+                                                    );
+                                                })()
+                                            ) : editingStockId === item.id ? (
                                                 <div className="flex items-center justify-end gap-2">
                                                     <input
                                                         ref={stockInputRef}
@@ -727,6 +766,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                         <td className="p-4">{getStockStatus(item)}</td>
                                         <td className="p-4">
                                             <div className="flex items-center justify-center gap-2">
+
                                                 <button
                                                     onClick={() => handleEdit(item)}
                                                     className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
@@ -894,6 +934,8 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                     </div>
                 </div>
             )}
+
+
         </div>
     );
 };

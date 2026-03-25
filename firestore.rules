@@ -693,10 +693,10 @@ service cloud.firestore {
         hasPermission('pcf:audit_review')
       );
       
-      // Users can create liquidations for themselves (DRAFT or direct PENDING_APPROVAL)
+      // Users can create liquidations for themselves (DRAFT, PENDING_APPROVAL, or AUDIT_REVIEW)
       allow create: if isSignedIn() && 
         request.resource.data.userId == request.auth.uid &&
-        (request.resource.data.status == 'DRAFT' || request.resource.data.status == 'PENDING_APPROVAL');
+        (request.resource.data.status == 'DRAFT' || request.resource.data.status == 'PENDING_APPROVAL' || request.resource.data.status == 'AUDIT_REVIEW');
       
       // Owner can update DRAFT liquidations or submit for approval
       // Owner can refile REJECTED liquidations
@@ -708,11 +708,11 @@ service cloud.firestore {
         // Owner submitting DRAFT for approval
         (resource.data.userId == request.auth.uid && 
          resource.data.status == 'DRAFT' && 
-         request.resource.data.status == 'PENDING_APPROVAL') ||
+         (request.resource.data.status == 'PENDING_APPROVAL' || request.resource.data.status == 'AUDIT_REVIEW')) ||
         // Owner refiling REJECTED for approval
         (resource.data.userId == request.auth.uid && 
          resource.data.status == 'REJECTED' && 
-         request.resource.data.status == 'PENDING_APPROVAL') ||
+         (request.resource.data.status == 'PENDING_APPROVAL' || request.resource.data.status == 'AUDIT_REVIEW')) ||
         // Manager/Approver approving/rejecting PCF
         (hasPermission('pcf:approve') && 
          resource.data.status == 'PENDING_APPROVAL' &&
@@ -920,6 +920,61 @@ service cloud.firestore {
         allow update: if isSignedIn();
         allow delete: if isSignedIn();
       }
+    }
+    
+    // =====================================================
+    // POS ORDERS COLLECTION
+    // Point-of-sale orders
+    // =====================================================
+    match /pos_orders/{orderId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+    
+    // =====================================================
+    // POS SALES COLLECTION
+    // Imported POS sales records linked to inventory items
+    // =====================================================
+    match /pos_sales/{saleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // No updates or deletes — immutable audit trail
+      allow update, delete: if false;
+    }
+    
+    // =====================================================
+    // POS SALES BATCHES COLLECTION
+    // Metadata for each POS import batch (idempotency)
+    // =====================================================
+    match /pos_sales_batches/{batchId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // No updates or deletes — immutable record
+      allow update, delete: if false;
+    }
+    
+    // =====================================================
+    // STOCK TRANSACTIONS COLLECTION
+    // Immutable audit trail of all inventory movements
+    // =====================================================
+    match /stock_transactions/{txId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // No updates or deletes — immutable audit trail
+      allow update, delete: if false;
+    }
+    
+    // =====================================================
+    // RECONCILIATION HISTORY COLLECTION
+    // Immutable snapshots of inventory reconciliation records
+    // =====================================================
+    match /recon_history/{recordId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // No updates or deletes — immutable snapshot record
+      allow update, delete: if false;
     }
   }
 }

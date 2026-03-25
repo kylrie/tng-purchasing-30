@@ -355,7 +355,8 @@ const Layout: React.FC<LayoutProps> = ({
                     icon: BarChart3,
                     canView: hasPermission('inventory:view:reports'),
                     children: [
-                        { path: '/inventory/variance', label: 'Variance Report', icon: BarChart3, canView: hasPermission('inventory:view:reports') }
+                        { path: '/inventory/variance', label: 'Variance Report', icon: BarChart3, canView: hasPermission('inventory:view:reports') },
+                        { path: '/inventory/recon', label: 'Inventory Recon', icon: ClipboardCheck, canView: hasPermission('inventory:view:reports') }
                     ]
                 }
             ]

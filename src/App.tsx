@@ -45,7 +45,9 @@ const InventoryDashboard = React.lazy(() => import('./features/inventory/views/I
 const InventoryItemsView = React.lazy(() => import('./features/inventory/views/InventoryItemsView'));
 const FixedAssetsView = React.lazy(() => import('./features/inventory/views/FixedAssetsView'));
 const VarianceReportView = React.lazy(() => import('./features/inventory/views/VarianceReportView'));
+const VarianceReconReport = React.lazy(() => import('./features/inventory/views/VarianceReconReport'));
 const GoodsReceivingView = React.lazy(() => import('./features/inventory/views/GoodsReceivingView'));
+const StockTakeView = React.lazy(() => import('./features/inventory/views/StockTakeView'));
 const MenuDashboard = React.lazy(() => import('./features/menu/views/MenuDashboard'));
 const ProductionRecipeView = React.lazy(() => import('./features/menu/views/ProductionRecipeView'));
 const ChartOfAccountsView = React.lazy(() => import('./features/admin/views/ChartOfAccountsView'));
@@ -56,6 +58,7 @@ const LoginView = React.lazy(() => import('./features/auth/views/LoginView'));
 const DashboardView = React.lazy(() => import('./features/dashboard/views/DashboardView'));
 const NotificationsView = React.lazy(() => import('./features/notifications/views/NotificationsView'));
 const POSView = React.lazy(() => import('./features/pos/views/POSView'));
+const PosImportDashboard = React.lazy(() => import('./features/pos/views/PosImportDashboard'));
 
 // Loading component
 const PageLoader = () => (
@@ -332,10 +335,7 @@ function ProtectedApp() {
                 {/* Income placeholders */}
                 <Route path="/finance/income/sales" element={
                   <ProtectedRoute permission="module:view:finance">
-                    <div className="p-8">
-                      <h1 className="text-2xl font-bold text-white mb-4">Sales</h1>
-                      <p className="text-slate-400">Coming soon - Sales revenue tracking.</p>
-                    </div>
+                    <PosImportDashboard businesses={businesses} />
                   </ProtectedRoute>
                 } />
                 <Route path="/finance/income/invoices" element={
@@ -463,7 +463,7 @@ function ProtectedApp() {
                   <InventoryDashboard currentUser={currentUser} businesses={businesses} uomOptions={uomOptions} />
                 } />
                 <Route path="/inventory/stock-take" element={
-                  <Navigate to="/inventory" replace />
+                  <StockTakeView currentUser={currentUser} businesses={businesses} uomOptions={uomOptions} />
                 } />
                 <Route path="/inventory/reports" element={
                   <InventoryReports currentUser={currentUser} />
@@ -473,6 +473,9 @@ function ProtectedApp() {
                 } />
                 <Route path="/inventory/variance" element={
                   <VarianceReportView businesses={businesses} />
+                } />
+                <Route path="/inventory/recon" element={
+                  <VarianceReconReport businesses={businesses} currentUser={currentUser} />
                 } />
                 <Route path="/inventory/fixed-assets" element={
                   <FixedAssetsView businesses={businesses} currentUser={currentUser} allUsers={users} />

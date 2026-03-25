@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import type { MenuItem } from '../../menu/types/menu.types';
 import { MENU_CATEGORIES } from '../../menu/types/menu.types';
-import { Search, Sparkles } from 'lucide-react';
+import { Search, Sparkles, AlertCircle } from 'lucide-react';
 
 interface ProductGridProps {
     menuItems: MenuItem[];
     isLoading: boolean;
     onAddItem: (item: MenuItem) => void;
+    sellableStockMap?: Map<string, number>;
 }
 
-const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddItem }) => {
+const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddItem, sellableStockMap }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearchQuery = React.useDeferredValue(searchQuery);
     const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -104,55 +105,84 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
             {/* Products Grid */}
             <div className="flex-1 overflow-y-auto px-6 pb-6 z-10 scrollbar-hide">
                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5 md:gap-6 auto-rows-max">
-                    {filteredItems.map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => onAddItem(item)}
-                            className="group relative rounded-3xl text-left flex flex-col h-[180px] md:h-[200px] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020203] hover:-translate-y-2 hover:scale-[1.03]"
-                        >
-                            {/* Card Background & Borders */}
-                            <div className="absolute inset-0 bg-[#0a0a0f]/80 backdrop-blur-xl border border-white/[0.05] rounded-3xl overflow-hidden group-hover:bg-white/[0.04] transition-colors duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
-                                {/* Top highlight border */}
-                                <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/[0.15] to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
-                            </div>
+                    {filteredItems.map(item => {
+                        // Check sellable stock
+                        const sellableStock = sellableStockMap?.get(item.id);
+                        const isOutOfStock = sellableStock !== undefined && sellableStock <= 0;
 
-                            {/* Hover Reveal Mesh */}
-                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden rounded-3xl">
-                                <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/30 rounded-full blur-[40px] transform group-hover:translate-x-5 group-hover:translate-y-5 transition-transform duration-1000 ease-out"></div>
-                                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-[40px] transform group-hover:-translate-x-5 group-hover:-translate-y-5 transition-transform duration-1000 ease-out"></div>
-                            </div>
-
-                            <div className="flex-1 relative z-10 w-full p-4 md:p-5 flex flex-col">
-                                <div className="flex justify-between items-start mb-2">
-                                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] opacity-60 group-hover:opacity-100 transition-opacity">
-                                        {item.category}
-                                    </p>
+                        return (
+                            <button
+                                key={item.id}
+                                onClick={() => !isOutOfStock && onAddItem(item)}
+                                disabled={isOutOfStock}
+                                className={`group relative rounded-3xl text-left flex flex-col h-[180px] md:h-[200px] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020203] ${isOutOfStock
+                                        ? 'opacity-50 cursor-not-allowed'
+                                        : 'hover:-translate-y-2 hover:scale-[1.03]'
+                                    }`}
+                            >
+                                {/* Card Background & Borders */}
+                                <div className="absolute inset-0 bg-[#0a0a0f]/80 backdrop-blur-xl border border-white/[0.05] rounded-3xl overflow-hidden group-hover:bg-white/[0.04] transition-colors duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
+                                    {/* Top highlight border */}
+                                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/[0.15] to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
                                 </div>
-                                <h3 className="font-semibold text-slate-300 text-sm md:text-base leading-snug group-hover:text-white transition-colors duration-300 drop-shadow-sm line-clamp-3">
-                                    {item.name}
-                                </h3>
 
-                                <div className="mt-auto relative w-full flex items-end justify-between">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] text-slate-600 font-medium tracking-widest uppercase mb-0.5">Price</span>
-                                        <div className="font-bold text-slate-200 text-lg md:text-xl tracking-tighter group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-300 group-hover:to-purple-300 transition-all duration-300">
-                                            <span className="text-zinc-600 mr-1 text-sm md:text-base group-hover:text-indigo-400/50 transition-colors">₱</span>
-                                            {item.sellingPrice.toFixed(2)}
-                                        </div>
+                                {/* Out of Stock Overlay */}
+                                {isOutOfStock && (
+                                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-3xl bg-black/40">
+                                        <span className="px-3 py-1.5 bg-red-500/90 text-white text-xs font-black tracking-widest uppercase rounded-full flex items-center gap-1.5 shadow-lg">
+                                            <AlertCircle size={12} /> OUT OF STOCK
+                                        </span>
                                     </div>
+                                )}
 
-                                    {/* Liquid Action Button */}
-                                    <div className="relative w-8 h-8 md:w-10 md:h-10">
-                                        <div className="absolute inset-0 rounded-full bg-indigo-500 blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
-                                        <div className="absolute inset-0 rounded-full bg-white/[0.05] border border-white/[0.05] flex items-center justify-center group-hover:bg-indigo-500 group-hover:border-indigo-400/50 transition-colors duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden">
-                                            <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 group-hover:text-white transition-colors duration-500 transform group-hover:scale-110 relative z-10"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+                                {/* Hover Reveal Mesh */}
+                                {!isOutOfStock && (
+                                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden rounded-3xl">
+                                        <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/30 rounded-full blur-[40px] transform group-hover:translate-x-5 group-hover:translate-y-5 transition-transform duration-1000 ease-out"></div>
+                                        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-[40px] transform group-hover:-translate-x-5 group-hover:-translate-y-5 transition-transform duration-1000 ease-out"></div>
+                                    </div>
+                                )}
+
+                                <div className="flex-1 relative z-10 w-full p-4 md:p-5 flex flex-col">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] opacity-60 group-hover:opacity-100 transition-opacity">
+                                            {item.category}
+                                        </p>
+                                        {/* Sellable stock pill */}
+                                        {sellableStock !== undefined && sellableStock > 0 && (
+                                            <span className="text-[9px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-1.5 py-0.5 rounded-full">
+                                                {sellableStock} left
+                                            </span>
+                                        )}
+                                    </div>
+                                    <h3 className="font-semibold text-slate-300 text-sm md:text-base leading-snug group-hover:text-white transition-colors duration-300 drop-shadow-sm line-clamp-3">
+                                        {item.name}
+                                    </h3>
+
+                                    <div className="mt-auto relative w-full flex items-end justify-between">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-slate-600 font-medium tracking-widest uppercase mb-0.5">Price</span>
+                                            <div className="font-bold text-slate-200 text-lg md:text-xl tracking-tighter group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-300 group-hover:to-purple-300 transition-all duration-300">
+                                                <span className="text-zinc-600 mr-1 text-sm md:text-base group-hover:text-indigo-400/50 transition-colors">₱</span>
+                                                {item.sellingPrice.toFixed(2)}
+                                            </div>
                                         </div>
+
+                                        {/* Liquid Action Button - hidden when out of stock */}
+                                        {!isOutOfStock && (
+                                            <div className="relative w-8 h-8 md:w-10 md:h-10">
+                                                <div className="absolute inset-0 rounded-full bg-indigo-500 blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
+                                                <div className="absolute inset-0 rounded-full bg-white/[0.05] border border-white/[0.05] flex items-center justify-center group-hover:bg-indigo-500 group-hover:border-indigo-400/50 transition-colors duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden">
+                                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 group-hover:text-white transition-colors duration-500 transform group-hover:scale-110 relative z-10"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                            </div>
-                        </button>
-                    ))}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {filteredItems.length === 0 && (

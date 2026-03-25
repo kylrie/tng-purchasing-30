@@ -5,10 +5,12 @@ import {
     getDoc,
     addDoc,
     updateDoc,
+    writeBatch,
     query,
     where,
     orderBy,
-    Timestamp
+    Timestamp,
+    increment
 } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import type {
@@ -222,6 +224,141 @@ export class ProductionRecipeService {
                     console.error('Error updating linked inventory item cost:', err);
                 }
             }
+        }
+    }
+
+    // ================================================================
+    // RECORD PRODUCTION YIELD — Atomic batch write
+    // Increases PRODUCTION item stock, deducts all raw material ingredients
+    // ================================================================
+
+    /**
+     * Record a production run. Atomically:
+     * 1. Increase the PRODUCTION item's currentStock + theoreticalStock
+     * 2. Write a PRODUCTION_YIELD stock transaction
+     * 3. Deduct each raw material's currentStock + theoreticalStock
+     * 4. Write PRODUCTION_CONSUME stock transactions per ingredient
+     */
+    static async recordProductionYield(params: {
+        recipeId: string;
+        yieldQuantity: number;
+        businessUnitId: string;
+        userId: string;
+        userName: string;
+    }): Promise<{ success: boolean; message: string }> {
+        const { recipeId, yieldQuantity, businessUnitId, userId, userName } = params;
+
+        if (yieldQuantity <= 0) {
+            throw new Error('Yield quantity must be greater than 0.');
+        }
+
+        // ── Step A: Fetch the Production Recipe ──────────────────────
+        const recipe = await this.getRecipe(recipeId);
+        if (!recipe) {
+            throw new Error(`Production recipe "${recipeId}" not found.`);
+        }
+        if (!recipe.linkedInventoryItemId) {
+            throw new Error(`Recipe "${recipe.name}" has no linked inventory item. Please re-save the recipe.`);
+        }
+        if (!recipe.ingredients || recipe.ingredients.length === 0) {
+            throw new Error(`Recipe "${recipe.name}" has no ingredients defined.`);
+        }
+
+        // ── Step B: Fetch PRODUCTION item + all RAW_MATERIAL items ───
+        const prodItemRef = doc(db, 'inventory_items', recipe.linkedInventoryItemId);
+        const prodItemSnap = await getDoc(prodItemRef);
+        if (!prodItemSnap.exists()) {
+            throw new Error(`Linked inventory item "${recipe.linkedInventoryItemId}" not found.`);
+        }
+        const prodItem = { id: prodItemSnap.id, ...prodItemSnap.data() } as { id: string; name: string; currentStock: number; theoreticalStock: number; businessUnitId: string };
+
+        // Fetch all raw material docs referenced in the recipe
+        const rawMaterialDocs = new Map<string, { id: string; name: string; currentStock: number; theoreticalStock: number }>();
+        for (const ing of recipe.ingredients) {
+            const rmRef = doc(db, 'inventory_items', ing.inventoryItemId);
+            const rmSnap = await getDoc(rmRef);
+            if (!rmSnap.exists()) {
+                throw new Error(`Raw material "${ing.inventoryItemName || ing.inventoryItemId}" not found in inventory. Cannot record production.`);
+            }
+            const rmData = rmSnap.data();
+            rawMaterialDocs.set(ing.inventoryItemId, {
+                id: rmSnap.id,
+                name: rmData.name || ing.inventoryItemName,
+                currentStock: rmData.currentStock ?? 0,
+                theoreticalStock: rmData.theoreticalStock ?? rmData.currentStock ?? 0
+            });
+        }
+
+        // ── Step C: Initialize Firestore Batch ──────────────────────
+        const batch = writeBatch(db);
+        const now = Timestamp.now();
+
+        // ── Step D: Increase PRODUCTION item stock ──────────────────
+        const newProdTheoretical = (prodItem.theoreticalStock ?? prodItem.currentStock ?? 0) + yieldQuantity;
+
+        batch.update(prodItemRef, {
+            currentStock: increment(yieldQuantity),
+            theoreticalStock: increment(yieldQuantity),
+            updatedAt: now
+        });
+
+        // Write PRODUCTION_YIELD stock transaction
+        const yieldTxRef = doc(collection(db, 'stock_transactions'));
+        batch.set(yieldTxRef, {
+            itemId: prodItem.id,
+            itemName: prodItem.name,
+            businessUnitId,
+            type: 'PRODUCTION_YIELD',
+            quantity: yieldQuantity,
+            balanceAfter: newProdTheoretical,
+            referenceId: recipeId,
+            notes: `Production Run: yielded ${yieldQuantity} ${recipe.yieldUnit} of ${recipe.name}`,
+            performedBy: userId,
+            performedByName: userName,
+            timestamp: now
+        });
+
+        // ── Step E: Explode & Deduct Raw Materials ──────────────────
+        for (const ing of recipe.ingredients) {
+            const deductionAmount = ing.baseQuantity * yieldQuantity;
+            const rmItem = rawMaterialDocs.get(ing.inventoryItemId)!;
+            const newRmTheoretical = rmItem.theoreticalStock - deductionAmount;
+
+            const rmRef = doc(db, 'inventory_items', ing.inventoryItemId);
+            batch.update(rmRef, {
+                currentStock: increment(-deductionAmount),
+                theoreticalStock: increment(-deductionAmount),
+                updatedAt: now
+            });
+
+            // Write PRODUCTION_CONSUME stock transaction
+            const consumeTxRef = doc(collection(db, 'stock_transactions'));
+            batch.set(consumeTxRef, {
+                itemId: ing.inventoryItemId,
+                itemName: rmItem.name,
+                businessUnitId,
+                type: 'PRODUCTION_CONSUME',
+                quantity: deductionAmount,
+                balanceAfter: newRmTheoretical,
+                referenceId: recipeId,
+                notes: `Used in Production: ${recipe.name} (×${yieldQuantity} ${recipe.yieldUnit})`,
+                performedBy: userId,
+                performedByName: userName,
+                timestamp: now
+            });
+        }
+
+        // ── Step F: Commit the batch ────────────────────────────────
+        try {
+            await batch.commit();
+            console.log(`[ProductionRecipeService] Production yield recorded: ${yieldQuantity} ${recipe.yieldUnit} of ${recipe.name}`);
+            return {
+                success: true,
+                message: `Successfully produced ${yieldQuantity} ${recipe.yieldUnit} of ${recipe.name}. Raw materials deducted.`
+            };
+        } catch (err) {
+            console.error('[ProductionRecipeService] Batch commit failed:', err);
+            throw new Error(`Failed to record production run. No stock was modified. Error: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
 }

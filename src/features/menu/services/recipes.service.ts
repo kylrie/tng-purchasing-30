@@ -1,6 +1,6 @@
-import { FirestoreService, where } from '../../../shared/services/firestore.service';
+import { FirestoreService, where, Timestamp } from '../../../shared/services/firestore.service';
 import { InventoryService } from '../../inventory/services/inventory.service';
-import type { InventoryItem } from '../../inventory/types/InventoryItem';
+import type { InventoryItem, BomIngredient } from '../../inventory/types/InventoryItem';
 import type {
     MenuItem,
     RecipeIngredient,
@@ -8,9 +8,14 @@ import type {
     RecipeIngredientInput
 } from '../types/menu.types';
 import { UNIT_CONVERSIONS } from '../types/menu.types';
+import {
+    collection, doc, writeBatch, getDocs
+} from 'firebase/firestore';
+import { db } from '../../../config/firebase';
 
-// Collection name
+// Collection names
 const COLLECTION = 'menu_items';
+const INVENTORY_COLLECTION = 'inventory_items';
 
 // ============================================================
 // UNIT CONVERSION UTILITIES
@@ -101,6 +106,36 @@ export function calculateIngredientCost(
     const totalCost = baseQuantity * inventoryItem.costPerUnit;
 
     return { baseQuantity, totalCost };
+}
+
+// ============================================================
+// BOM SYNC HELPER
+// ============================================================
+
+/**
+ * Convert Menu Engineering RecipeIngredient[] → InventoryItem BomIngredient[]
+ * This is the bridge that ensures POS BOM explosion has the right data.
+ */
+function convertToBomIngredients(
+    ingredients: RecipeIngredient[],
+    inventoryItems: InventoryItem[]
+): BomIngredient[] {
+    const itemMap = new Map(inventoryItems.map(i => [i.id, i]));
+
+    return ingredients
+        .filter(ri => {
+            const inv = itemMap.get(ri.inventoryItemId);
+            return inv && (inv.type === 'RAW_MATERIAL' || inv.type === 'PRODUCTION');
+        })
+        .map(ri => {
+            const inv = itemMap.get(ri.inventoryItemId)!;
+            return {
+                ingredientId: ri.inventoryItemId,
+                ingredientName: ri.inventoryItemName,
+                quantityUsed: ri.baseQuantity,        // Already in base unit
+                unit: inv.units.countUnit,              // Base unit from inventory
+            };
+        });
 }
 
 /**
@@ -203,6 +238,7 @@ export async function getMenuItem(id: string): Promise<MenuItem | null> {
 /**
  * Create a new menu item with calculated costs
  * Also creates a linked FINISHED_GOOD inventory item
+ * Uses Firestore batch write to atomically sync the BOM recipe to the InventoryItem
  */
 export async function createMenuItem(input: CreateMenuItemInput): Promise<string> {
     // Calculate costs
@@ -217,56 +253,71 @@ export async function createMenuItem(input: CreateMenuItemInput): Promise<string
 
     const margins = calculateMargins(input.sellingPrice, totalCost);
 
-    const menuItem: Omit<MenuItem, 'id' | 'createdAt' | 'updatedAt'> = {
+    // Fetch all inventory items so we can build the BOM
+    const allInventoryItems = await InventoryService.getInventory(input.businessUnitId);
+    const bomRecipe = convertToBomIngredients(ingredients, allInventoryItems);
+
+    const now = Timestamp.now();
+
+    // ================================================================
+    // ATOMIC BATCH WRITE: MenuItem + linked FG InventoryItem + recipe
+    // ================================================================
+    const batch = writeBatch(db);
+
+    // 1. Create the menu item doc
+    const menuDocRef = doc(collection(db, COLLECTION));
+    const menuItemId = menuDocRef.id;
+    batch.set(menuDocRef, {
         businessUnitId: input.businessUnitId,
         name: input.name,
         category: input.category,
-        description: input.description || '', // Fallback to empty string to prevent undefined
+        description: input.description || '',
         sellingPrice: input.sellingPrice,
         ingredients,
         calculatedCost: totalCost,
         ...margins,
-        imageUrl: input.imageUrl || '', // Fallback to empty string to prevent undefined
-        isActive: true
-    };
+        imageUrl: input.imageUrl || '',
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+    });
 
-    // Create the menu item first
-    const menuItemId = await FirestoreService.createDocument(COLLECTION, menuItem);
+    // 2. Create the linked FINISHED_GOOD inventory item doc
+    const fgDocRef = doc(collection(db, INVENTORY_COLLECTION));
+    const finishedGoodId = fgDocRef.id;
+    batch.set(fgDocRef, {
+        businessUnitId: input.businessUnitId,
+        name: input.name,
+        type: 'FINISHED_GOOD',
+        category: 'Food',
+        storageAreas: [],
+        units: { countUnit: 'serving', buyUnit: 'serving', conversion: 1 },
+        parLevel: 0,
+        currentStock: 0,
+        theoreticalStock: 0,
+        costPerUnit: totalCost,
+        menuItemId: menuItemId,
+        recipe: bomRecipe,                      // ← BOM synced atomically
+        notes: `Auto-created from Menu Engineering: ${input.name}`,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+    });
 
-    // Create a linked FINISHED_GOOD inventory item
-    try {
-        const finishedGoodId = await InventoryService.createInventoryItem({
-            businessUnitId: input.businessUnitId,
-            name: input.name,
-            type: 'FINISHED_GOOD',
-            category: 'Food', // Use Food as default category for finished goods
-            storageAreas: [], // Can be set by user later
-            units: {
-                countUnit: 'serving',
-                buyUnit: 'serving',
-                conversion: 1
-            },
-            parLevel: 0,
-            currentStock: 0,
-            costPerUnit: totalCost, // Recipe cost becomes the cost per unit
-            menuItemId: menuItemId, // Link to the menu item
-            notes: `Auto-created from Menu Engineering: ${input.name}`
-        });
+    // 3. Link the FG ID back to the menu item
+    batch.update(menuDocRef, { linkedInventoryItemId: finishedGoodId });
 
-        // Update menu item with the linked inventory ID
-        await FirestoreService.updateDocument(COLLECTION, menuItemId, {
-            linkedInventoryItemId: finishedGoodId
-        });
-    } catch (error) {
-        console.error('Error creating linked inventory item:', error);
-        // Continue even if inventory creation fails - menu item is still valid
-    }
+    // Commit atomically — if any op fails, they all fail
+    await batch.commit();
+
+    console.log(`[RecipesService] Created MenuItem ${menuItemId} with linked FG ${finishedGoodId} (${bomRecipe.length} BOM ingredients synced)`);
 
     return menuItemId;
 }
 
 /**
  * Update an existing menu item
+ * Uses Firestore batch write to atomically sync BOM recipe to the linked InventoryItem
  */
 export async function updateMenuItem(
     id: string,
@@ -278,6 +329,7 @@ export async function updateMenuItem(
     }
 
     let updateData: Partial<MenuItem> = {};
+    let ingredientsChanged = false;
 
     // If ingredients changed, recalculate costs
     if (input.ingredients) {
@@ -297,9 +349,11 @@ export async function updateMenuItem(
             ...updateData,
             ingredients,
             calculatedCost: totalCost,
-            sellingPrice, // FIX: Ensure sellingPrice is saved!
+            sellingPrice,
             ...margins
         };
+
+        ingredientsChanged = true;
     }
 
     // If price changed but not ingredients, recalculate margins
@@ -318,27 +372,98 @@ export async function updateMenuItem(
     if (input.description !== undefined) updateData.description = input.description;
     if (input.imageUrl !== undefined) updateData.imageUrl = input.imageUrl;
 
-    try {
-        await FirestoreService.updateDocument(COLLECTION, id, updateData);
-        console.log(`[RecipesService] Successfully updated menu item ${id}`);
+    // ================================================================
+    // ATOMIC BATCH WRITE: MenuItem update + InventoryItem recipe sync
+    // ================================================================
+    const batch = writeBatch(db);
+    const now = Timestamp.now();
 
-        // Sync with linked inventory item (Finished Good) if exists
-        const currentItem = { ...existing, ...updateData };
-        if (currentItem.linkedInventoryItemId) {
-            try {
-                await InventoryService.updateInventoryItem(currentItem.linkedInventoryItemId, {
-                    name: currentItem.name,
-                    costPerUnit: currentItem.calculatedCost
-                }, { skipRecipeRecalculation: true });
-                console.log(`[RecipesService] Synced inventory item ${currentItem.linkedInventoryItemId}`);
-            } catch (invError) {
-                console.error(`[RecipesService] Failed to sync inventory item:`, invError);
-                // Don't throw here, the menu item update was successful
-            }
+    // 1. Update the MenuItem doc
+    const menuRef = doc(db, COLLECTION, id);
+    batch.update(menuRef, { ...updateData, updatedAt: now });
+
+    // 2. Sync to linked InventoryItem if it exists
+    const currentItem = { ...existing, ...updateData };
+    if (currentItem.linkedInventoryItemId) {
+        const invRef = doc(db, INVENTORY_COLLECTION, currentItem.linkedInventoryItemId);
+        const invUpdateData: Record<string, unknown> = {
+            name: currentItem.name,
+            costPerUnit: currentItem.calculatedCost,
+            updatedAt: now,
+        };
+
+        // If ingredients changed, rebuild and sync the BOM recipe
+        if (ingredientsChanged && updateData.ingredients) {
+            const allInventoryItems = await InventoryService.getInventory(existing.businessUnitId);
+            const bomRecipe = convertToBomIngredients(updateData.ingredients, allInventoryItems);
+            invUpdateData.recipe = bomRecipe;
+            console.log(`[RecipesService] Syncing ${bomRecipe.length} BOM ingredients to FG ${currentItem.linkedInventoryItemId}`);
         }
-    } catch (err) {
-        console.error(`[RecipesService] Error updating menu item ${id}:`, err);
-        throw err;
+
+        batch.update(invRef, invUpdateData);
+    }
+
+    // Commit atomically
+    await batch.commit();
+
+    console.log(`[RecipesService] Atomically updated MenuItem ${id}${currentItem.linkedInventoryItemId ? ` + FG ${currentItem.linkedInventoryItemId}` : ''
+        }`);
+}
+
+// ============================================================
+// DATA MIGRATION
+// ============================================================
+
+/**
+ * One-time migration to sync all existing MenuItem ingredients to InventoryItem recipes
+ * Resolves the "single source of truth" gap for legacy records created before the sync was added.
+ */
+export async function migrateExistingRecipes(businessUnitId: string): Promise<string> {
+    console.log(`[RecipesService] Starting recipe migration for BU: ${businessUnitId}`);
+
+    // 1. Fetch all menu items for the BU
+    const menuSnapshot = await getDocs(collection(db, COLLECTION));
+    const menuItems = menuSnapshot.docs
+        .map((d: any) => ({ id: d.id, ...d.data() }) as MenuItem & { id: string })
+        .filter((m: any) => m.businessUnitId === businessUnitId);
+
+    // 2. Fetch all inventory items (we need this to format BomIngredient units)
+    const inventoryItems = await InventoryService.getInventory(businessUnitId);
+    const invMap = new Map(inventoryItems.map(i => [i.id, i]));
+
+    // 3. Prepare Batch
+    const batch = writeBatch(db);
+    let count = 0;
+
+    for (const menu of menuItems) {
+        if (!menu.linkedInventoryItemId || !menu.ingredients || menu.ingredients.length === 0) {
+            continue;
+        }
+
+        // Ensure the linked inventory item exists and is a FINISHED_GOOD
+        const linkedInv = invMap.get(menu.linkedInventoryItemId);
+        if (!linkedInv || linkedInv.type !== 'FINISHED_GOOD') {
+            continue;
+        }
+
+        // Convert recipe
+        const bomRecipe = convertToBomIngredients(menu.ingredients, inventoryItems);
+
+        if (bomRecipe.length > 0) {
+            const invRef = doc(db, INVENTORY_COLLECTION, linkedInv.id);
+            batch.update(invRef, { recipe: bomRecipe });
+            count++;
+            console.log(`[Migration] Queued update for FG ${linkedInv.name} (${bomRecipe.length} ingredients)`);
+        }
+    }
+
+    if (count > 0) {
+        await batch.commit();
+        console.log(`[Migration] Successfully synced ${count} recipes to inventory!`);
+        return `Successfully synced ${count} recipes!`;
+    } else {
+        console.log('[Migration] No legacy recipes needed migration.');
+        return 'No recipes needed syncing. All up to date.';
     }
 }
 
@@ -406,6 +531,7 @@ export const RecipesService = {
     calculateRecipeCost,
     calculateMargins,
     recalculateAllCosts,
+    migrateExistingRecipes,
     convertUnits,
     getAvailableUnits
 };
