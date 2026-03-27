@@ -10,7 +10,7 @@ import { collection, query, where, getDocs, orderBy, limit } from 'firebase/fire
 import { db } from '../../../config/firebase';
 import { COLLECTIONS, type ChartOfAccount } from '../../../shared/types/firebase.types';
 import type { Business } from '../../procurement/types';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import { SystemRole } from '../../procurement/types';
 import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import './TransactionHistoryView.css';

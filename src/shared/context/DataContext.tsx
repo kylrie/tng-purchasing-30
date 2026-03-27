@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { Unsubscribe } from 'firebase/firestore';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import { RequisitionService } from '../../features/procurement/services/requisitions.service';
 import { FirestoreService, where } from '../services/firestore.service';
 import { NotificationsService } from '../services/notifications.service';

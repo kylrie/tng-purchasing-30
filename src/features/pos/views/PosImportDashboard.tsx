@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar } from 'lucide-react';
 import { PosImportService } from '../services/pos-import.service';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import type { PosImportRow, PosImportMappedRow, PosImportBatch, PosSaleRecord } from '../types/pos-import.types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 

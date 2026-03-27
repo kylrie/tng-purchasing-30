@@ -26,7 +26,7 @@ import InvestigationsTab from '../components/InvestigationsTab';
 import ShiftOverlayTab from '../components/ShiftOverlayTab';
 import AssignInvestigationModal, { type AssignModalData } from '../components/AssignInvestigationModal';
 import { useInventoryDashboard } from '../hooks/useInventoryDashboard';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import type { DashboardPeriod, SuspiciousItem } from '../services/inventory-dashboard.service';
 import { InvestigationsService } from '../services/investigations.service';
 

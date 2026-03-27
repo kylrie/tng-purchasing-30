@@ -18,7 +18,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { COLLECTIONS, type ChartOfAccount } from '../../../shared/types/firebase.types';
 import { useBudgetMonitor, type BudgetWithStatus } from '../../../hooks/useBudgetMonitor';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import { BudgetProgressBar } from './BudgetProgressBar';
 import { BudgetPrfDrawer } from './BudgetPrfDrawer';
 

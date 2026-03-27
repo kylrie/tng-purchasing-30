@@ -13,7 +13,7 @@ import { CoaService } from '../../../shared/services/coa.service';
 import type { ChartOfAccount } from '../../../shared/types/firebase.types';
 import { fetchBusinesses } from '../../../shared/services/businessService';
 import type { Business } from '../../../shared/types';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { exportToCSV, type ExportColumn } from '../../../shared/utils/exportUtils';
 import './BankReconView.css';

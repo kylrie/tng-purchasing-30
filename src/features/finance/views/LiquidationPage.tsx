@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Receipt, FileText, Link as LinkIcon, CheckCircle, Printer, Save, Plus, Trash2 } from 'lucide-react';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { useRequisitions } from '../../procurement/hooks/useRequisitions';
 import { useSuppliers } from '../../inventory/hooks/useSuppliers';

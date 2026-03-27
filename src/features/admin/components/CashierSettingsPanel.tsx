@@ -5,7 +5,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 import { SettingsService } from '../../../shared/services/settings.service';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 
 interface CashierSettingsPanelProps {
     allUsers: User[];

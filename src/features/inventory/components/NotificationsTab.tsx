@@ -12,7 +12,7 @@ import {
     ToggleLeft,
     ToggleRight,
 } from 'lucide-react';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import { UsersService } from '../../../shared/services/users.service';
 
 // ============================================================

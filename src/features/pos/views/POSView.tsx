@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import { usePOSMenu } from '../hooks/usePOSMenu';
 import { useCart } from '../hooks/useCart';
 import { POSService } from '../services/pos.service';

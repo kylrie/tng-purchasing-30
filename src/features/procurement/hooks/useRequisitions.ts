@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { RequisitionService } from '../services/requisitions.service';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import type { Requisition } from "../types";
 import { removeUndefinedFields } from '../../../shared/utils/firestore.utils';
 

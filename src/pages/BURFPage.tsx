@@ -29,7 +29,7 @@ import { RequisitionService } from '../features/procurement/services/requisition
 import { CounterService } from '../shared/services/counter.service';
 import { sanitizeText, sanitizeItems } from '../shared/utils/sanitize';
 import { isValidUrl } from '../shared/utils/validation';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { useUOM } from '../shared/hooks/useUOM';
 import { UI_CONSTANTS } from '../config/constants';
 

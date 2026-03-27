@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Mail, Sparkles, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { ThemeToggle } from '../../../shared/components/ThemeToggle';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import RegistrationModal from './RegistrationModal';
 import { UserRole } from '../../../shared/types/firebase.types';
 

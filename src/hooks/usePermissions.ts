@@ -1,4 +1,4 @@
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 import { usePermissionsContext } from '../contexts/PermissionsContext';
 import type { Permission } from '../config/permissions';
 import type { Requisition } from '../features/procurement/types';

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bell, X, Check, CheckCheck, ExternalLink, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '../context/DataContext';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/useAuth';
 import { NotificationsService } from '../services/notifications.service';
 import type { NotificationItem } from '../types';
 

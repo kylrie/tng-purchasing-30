@@ -4,7 +4,7 @@ import {
     AlertCircle, Check, Percent
 } from 'lucide-react';
 import { useBusinesses } from '../hooks/useBusinesses';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import { SettingsService, type AllocationRule, type ExpenseSharingSettings as ExpenseSharingSettingsType, type ExpenseAllocation } from '../../../shared/services/settings.service';
 import { UI_CONSTANTS } from '../../../config/constants';
 

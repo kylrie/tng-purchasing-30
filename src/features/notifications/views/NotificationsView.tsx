@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useData } from '../../../shared/context/DataContext';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/useAuth';
 import { NotificationsService } from '../../../shared/services/notifications.service';
 import { useNavigate } from 'react-router-dom';
 import {
