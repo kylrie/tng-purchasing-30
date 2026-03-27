@@ -14,6 +14,7 @@ const COL = {
 
 export interface SuspiciousItem {
     itemName: string;
+    category: string;
     expectedClosing: number;   // theoreticalStock
     actualClosing: number;     // currentStock (physical count)
     varianceQty: number;       // expected - actual
@@ -21,6 +22,15 @@ export interface SuspiciousItem {
     variancePercent: number;
     costPerUnit: number;
     status: 'Normal' | 'Watch' | 'Investigate';
+}
+
+export interface CategoryRiskRecord {
+    id: string;
+    name: string;
+    variancePercent: number;
+    lossValue: number;
+    expectedValue: number;
+    actualValue: number;
 }
 
 export interface DashboardKPIs {
@@ -33,6 +43,7 @@ export interface DashboardKPIs {
     periodLabel: string;
     recordedWaste: number;
     suspiciousItems: SuspiciousItem[];
+    categoryRisks: CategoryRiskRecord[];
 }
 
 export type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
@@ -173,15 +184,14 @@ export class InventoryDashboardService {
     }
 
     /**
-     * Section 2: Top 10 Suspicious Items
+     * Section 2: Top 10 Suspicious Items & Category Risks
      * Compares theoreticalStock (expected) vs currentStock (physical count)
-     * Sorted descending by variance VALUE (Peso), not quantity
      */
-    static async getTop10SuspiciousItems(businessUnitId: string): Promise<SuspiciousItem[]> {
+    static async getInventoryAnalysis(businessUnitId: string): Promise<{ suspiciousItems: SuspiciousItem[], categoryRisks: CategoryRiskRecord[] }> {
         try {
             const items = await InventoryService.getInventory(businessUnitId, 'FINISHED_GOOD');
 
-            const suspicious: SuspiciousItem[] = items
+            const allItems: SuspiciousItem[] = items
                 .filter(item => item.isActive)
                 .map(item => {
                     const expected = item.theoreticalStock ?? item.currentStock;
@@ -194,6 +204,7 @@ export class InventoryDashboardService {
 
                     return {
                         itemName: item.name,
+                        category: item.category || 'Other',
                         expectedClosing: expected,
                         actualClosing: actual,
                         varianceQty,
@@ -202,15 +213,40 @@ export class InventoryDashboardService {
                         costPerUnit: item.costPerUnit,
                         status: getItemStatus(variancePercent),
                     };
-                })
-                // Sort descending by variance VALUE (absolute peso amount)
-                .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue));
+                });
 
-            // Return top 10
-            return suspicious.slice(0, 10);
+            // Build Category Risks
+            const categoryMap = new Map<string, { expected: number, actual: number, loss: number }>();
+
+            allItems.forEach(item => {
+                const mapItem = categoryMap.get(item.category) || { expected: 0, actual: 0, loss: 0 };
+                mapItem.expected += item.expectedClosing * item.costPerUnit;
+                mapItem.actual += item.actualClosing * item.costPerUnit;
+                mapItem.loss += item.varianceValue;
+                categoryMap.set(item.category, mapItem);
+            });
+
+            const categoryRisks: CategoryRiskRecord[] = Array.from(categoryMap.entries()).map(([name, data]) => {
+                const variancePercent = data.expected > 0 ? (data.loss / data.expected) * 100 : 0;
+                return {
+                    id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                    name,
+                    variancePercent,
+                    lossValue: data.loss,
+                    expectedValue: data.expected,
+                    actualValue: data.actual
+                };
+            }).sort((a, b) => Math.abs(b.lossValue) - Math.abs(a.lossValue));
+
+            // Return top 10 suspicious items
+            const suspiciousItems = [...allItems]
+                .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue))
+                .slice(0, 10);
+
+            return { suspiciousItems, categoryRisks };
         } catch (error) {
-            console.error('Error calculating suspicious items:', error);
-            return [];
+            console.error('Error calculating inventory analysis:', error);
+            return { suspiciousItems: [], categoryRisks: [] };
         }
     }
 
@@ -231,11 +267,11 @@ export class InventoryDashboardService {
         const periodLabel = periodLabels[period];
 
         try {
-            const [netSales, theoreticalUsage, actualUsage, suspiciousItems] = await Promise.all([
+            const [netSales, theoreticalUsage, actualUsage, inventoryAnalysis] = await Promise.all([
                 this.getNetSales(businessUnitId, period, customRange),
                 this.getTheoreticalUsage(businessUnitId, period, customRange),
                 this.getActualUsage(businessUnitId),
-                this.getTop10SuspiciousItems(businessUnitId)
+                this.getInventoryAnalysis(businessUnitId)
             ]);
 
             const recordedWaste = 0;
@@ -256,7 +292,8 @@ export class InventoryDashboardService {
                 varianceStatus,
                 periodLabel,
                 recordedWaste,
-                suspiciousItems
+                suspiciousItems: inventoryAnalysis.suspiciousItems,
+                categoryRisks: inventoryAnalysis.categoryRisks
             };
         } catch (error) {
             console.error('Error loading dashboard KPIs:', error);
@@ -269,7 +306,8 @@ export class InventoryDashboardService {
                 varianceStatus: 'green',
                 periodLabel,
                 recordedWaste: 0,
-                suspiciousItems: []
+                suspiciousItems: [],
+                categoryRisks: []
             };
         }
     }

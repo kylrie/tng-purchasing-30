@@ -41,13 +41,13 @@ const TransactionHistoryView = React.lazy(() => import('./features/finance/views
 const BankReconView = React.lazy(() => import('./features/finance/views/BankReconView'));
 const SuppliersView = React.lazy(() => import('./features/inventory/views/SuppliersView'));
 const InventoryReports = React.lazy(() => import('./features/inventory/views/InventoryReports'));
-const InventoryDashboard = React.lazy(() => import('./features/inventory/views/InventoryDashboard'));
 const InventoryItemsView = React.lazy(() => import('./features/inventory/views/InventoryItemsView'));
 const FixedAssetsView = React.lazy(() => import('./features/inventory/views/FixedAssetsView'));
 const VarianceReportView = React.lazy(() => import('./features/inventory/views/VarianceReportView'));
 const VarianceReconReport = React.lazy(() => import('./features/inventory/views/VarianceReconReport'));
 const GoodsReceivingView = React.lazy(() => import('./features/inventory/views/GoodsReceivingView'));
 const StockTakeView = React.lazy(() => import('./features/inventory/views/StockTakeView'));
+const InventoryIntegrityMonitor = React.lazy(() => import('./features/inventory/views/InventoryIntegrityMonitor'));
 const MenuDashboard = React.lazy(() => import('./features/menu/views/MenuDashboard'));
 const ProductionRecipeView = React.lazy(() => import('./features/menu/views/ProductionRecipeView'));
 const ChartOfAccountsView = React.lazy(() => import('./features/admin/views/ChartOfAccountsView'));
@@ -55,7 +55,7 @@ const BudgetConfigPanel = React.lazy(() => import('./features/finance/components
 const SettingsView = React.lazy(() => import('./features/admin/views/SettingsView').then(module => ({ default: module.SettingsView })));
 const ActivityLogView = React.lazy(() => import('./features/admin/views/ActivityLogView'));
 const LoginView = React.lazy(() => import('./features/auth/views/LoginView'));
-const DashboardView = React.lazy(() => import('./features/dashboard/views/DashboardView'));
+const MainDashboardRouter = React.lazy(() => import('./features/dashboard/views/MainDashboardRouter'));
 const NotificationsView = React.lazy(() => import('./features/notifications/views/NotificationsView'));
 const POSView = React.lazy(() => import('./features/pos/views/POSView'));
 const PosImportDashboard = React.lazy(() => import('./features/pos/views/PosImportDashboard'));
@@ -225,7 +225,8 @@ function ProtectedApp() {
           <Route path="/*" element={
             <Layout {...layoutProps}>
               <Routes>
-                <Route path="/" element={<DashboardView requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
+                <Route path="/" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
+                <Route path="/dashboard" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
 
                 <Route path="/burf" element={
                   <ProtectedRoute permission="module:view:burf">
@@ -460,7 +461,7 @@ function ProtectedApp() {
 
                 {/* Inventory Module */}
                 <Route path="/inventory" element={
-                  <InventoryDashboard currentUser={currentUser} businesses={businesses} uomOptions={uomOptions} />
+                  <InventoryIntegrityMonitor />
                 } />
                 <Route path="/inventory/stock-take" element={
                   <StockTakeView currentUser={currentUser} businesses={businesses} uomOptions={uomOptions} />

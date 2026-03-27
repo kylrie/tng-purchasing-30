@@ -1,0 +1,50 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - button "Toggle Theme" [ref=e5]:
+    - generic [ref=e6]: Toggle Theme
+    - img [ref=e8]
+  - generic [ref=e10]:
+    - generic [ref=e11]:
+      - img [ref=e15]
+      - generic [ref=e20]:
+        - img [ref=e21]
+        - generic [ref=e24]: Next Experience Integrated
+      - heading "TES." [level=1] [ref=e25]
+      - paragraph [ref=e26]: Thenextperience ERP System
+    - generic [ref=e29]:
+      - generic [ref=e30]:
+        - heading "Initialize Session" [level=2] [ref=e31]
+        - paragraph [ref=e32]: Verify your organizational credentials.
+      - generic [ref=e33]:
+        - generic [ref=e34]:
+          - text: Identity Access
+          - generic [ref=e35]:
+            - textbox "professional@thenextperience.com" [ref=e36]
+            - img [ref=e37]
+        - generic [ref=e40]:
+          - generic [ref=e41]:
+            - generic [ref=e42]: Security Protocol
+            - button "Reset Key" [ref=e43]
+          - generic [ref=e44]:
+            - textbox "••••••••••••" [ref=e45]
+            - button [ref=e46]:
+              - img [ref=e47]
+        - button "Access Platform" [ref=e50]:
+          - generic [ref=e52]: Access Platform
+          - img [ref=e53]
+      - generic [ref=e57]: Integrated Auth
+      - button "Connect Workspace" [ref=e59]:
+        - img [ref=e60]
+        - generic [ref=e65]: Connect Workspace
+    - generic [ref=e66]:
+      - generic [ref=e67]:
+        - generic [ref=e68] [cursor=pointer]: Finance Control
+        - generic [ref=e69] [cursor=pointer]: Global Supply
+        - generic [ref=e70] [cursor=pointer]: HR Orchestration
+        - generic [ref=e71] [cursor=pointer]: Asset Mgmt
+      - generic [ref=e72]:
+        - generic [ref=e73]: Thenextperience Cinematic Ecosystem v3.0
+        - generic [ref=e75]: End-to-End Encryption Enabled
+```
