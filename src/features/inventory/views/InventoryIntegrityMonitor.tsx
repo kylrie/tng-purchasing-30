@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   AlertTriangle,
   DollarSign,
@@ -20,6 +20,8 @@ import {
   Layers,
   Clock,
   Search,
+  Building2,
+  ChevronDown,
 } from 'lucide-react';
 import NotificationsTab from '../components/NotificationsTab';
 import InvestigationsTab from '../components/InvestigationsTab';
@@ -27,6 +29,8 @@ import ShiftOverlayTab from '../components/ShiftOverlayTab';
 import AssignInvestigationModal, { type AssignModalData } from '../components/AssignInvestigationModal';
 import { useInventoryDashboard } from '../hooks/useInventoryDashboard';
 import { useAuth } from '../../../contexts/useAuth';
+import { useBusinesses } from '../../admin/hooks/useBusinesses';
+import { hasGlobalAccess } from '../../procurement/types';
 import type { DashboardPeriod, SuspiciousItem } from '../services/inventory-dashboard.service';
 import { InvestigationsService } from '../services/investigations.service';
 
@@ -386,19 +390,38 @@ const SuspiciousItemsTable: React.FC<{
 
 const InventoryIntegrityMonitor: React.FC = () => {
   const { currentUser } = useAuth();
+  const { businesses } = useBusinesses();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('Today');
   const [activeTab, setActiveTab] = useState<ActiveTab>('Overview');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState<AssignModalData | null>(null);
 
-  // Hook to pull all data
+  // Branch Selector — derive authorized branches for the current user
+  const authorizedBranches = useMemo(() => {
+    if (!currentUser) return [];
+    // SUPER_ADMIN sees all branches
+    if (hasGlobalAccess(currentUser.role)) return businesses;
+    // Filter by user's businessUnitIds, falling back to their single businessId
+    const allowedIds = currentUser.businessUnitIds?.length
+      ? currentUser.businessUnitIds
+      : [currentUser.businessId];
+    return businesses.filter(b => allowedIds.includes(b.id));
+  }, [currentUser, businesses]);
+
+  const [selectedBusinessId, setSelectedBusinessId] = useState<string>(
+    currentUser?.businessId || ''
+  );
+
+  // Hook to pull all data — re-fetches when branch or period changes
   const filterKey = timeFilter.toLowerCase() as DashboardPeriod;
   const {
     kpis: dashboardKPIs,
     shiftVariances,
     investigations,
-    loading
-  } = useInventoryDashboard(currentUser?.businessId, filterKey);
+    loading,
+    error,
+    refetch,
+  } = useInventoryDashboard(selectedBusinessId || currentUser?.businessId, filterKey);
 
   // Convert raw DashboardKPIs into UI components KpiItem[]
   const kpiItems: KpiItem[] = dashboardKPIs ? [
@@ -507,9 +530,10 @@ const InventoryIntegrityMonitor: React.FC = () => {
   };
 
   const handleResolveInvestigation = async (caseId: string, notes: string) => {
-    if (!currentUser?.businessId) return;
+    const bizId = selectedBusinessId || currentUser?.businessId;
+    if (!bizId) return;
     try {
-      await InvestigationsService.resolveInvestigation(currentUser.businessId, caseId, notes);
+      await InvestigationsService.resolveInvestigation(bizId, caseId, notes);
     } catch (e) {
       console.error('Failed to resolve investigation', e);
     }
@@ -545,8 +569,27 @@ const InventoryIntegrityMonitor: React.FC = () => {
             </div>
           </div>
 
-          {/* Time Filter Toggle */}
-          <div className="flex items-center">
+          {/* Controls: Branch Selector + Time Filter */}
+          <div className="flex items-center gap-4 flex-wrap">
+
+            {/* Branch Selector */}
+            {authorizedBranches.length > 1 && (
+              <div className="relative">
+                <Building2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none z-10" />
+                <select
+                  value={selectedBusinessId}
+                  onChange={(e) => setSelectedBusinessId(e.target.value)}
+                  className="appearance-none pl-10 pr-10 py-2.5 rounded-2xl text-sm font-bold tracking-wide bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md border border-slate-200/50 dark:border-slate-700/50 text-slate-900 dark:text-white shadow-inner focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition-all cursor-pointer min-w-[180px]"
+                >
+                  {authorizedBranches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+              </div>
+            )}
+
+            {/* Time Filter Toggle */}
             <div className="flex bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-1.5 border border-slate-200/50 dark:border-slate-700/50 shadow-inner">
               {timeOptions.map((opt) => (
                 <button
@@ -588,6 +631,22 @@ const InventoryIntegrityMonitor: React.FC = () => {
         {/* ============================================================ */}
         {activeTab === 'Overview' && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Error Banner */}
+            {error && (
+              <div className="w-full rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-900/20 backdrop-blur-xl px-6 py-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-300">{error}</p>
+                </div>
+                <button
+                  onClick={() => refetch()}
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all duration-200 active:scale-95 whitespace-nowrap"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
             {/* Alert Banner */}
             <HighAlertBanner
               itemsCount={suspiciousInvestigate.length}

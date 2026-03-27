@@ -1,11 +1,12 @@
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import { InventoryReportsService } from './inventory.reports.service';
-import { InventoryService } from './inventory.service';
 import type { PosSaleRecord } from '../../pos/types/pos-import.types';
+import type { InventoryItem } from '../types/InventoryItem';
 
 const COL = {
     POS_SALES: 'pos_sales',
+    STOCK_TRANSACTIONS: 'stock_transactions',
+    INVENTORY_ITEMS: 'inventory_items',
 };
 
 // ============================================================
@@ -134,96 +135,189 @@ export class InventoryDashboardService {
         }
     }
 
+    // ============================================================
+    // LEDGER AGGREGATION — Transaction-based queries
+    // ============================================================
+
     /**
-     * Card 2: Theoretical Usage Value (food cost from imported POS sales)
+     * Aggregate stock_transactions by type(s) for a date range.
+     * Joins with inventory_items to get costPerUnit for peso calculation.
+     * Returns Map<itemId, { itemName, category, totalQty, totalPeso, costPerUnit }>
+     *
+     * Uses client-side date filtering to avoid composite Firestore indexes
+     * (same proven pattern as ReconService.aggregateTransactions).
+     */
+    private static async aggregateStockTransactions(
+        businessUnitId: string,
+        startDate: Date,
+        endDate: Date,
+        types: string[]
+    ): Promise<Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number }>> {
+        const result = new Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number }>();
+
+        try {
+            // 1. Fetch all inventory items for costPerUnit + category lookup
+            const itemsQ = query(
+                collection(db, COL.INVENTORY_ITEMS),
+                where('businessUnitId', '==', businessUnitId)
+            );
+            const itemsSnap = await getDocs(itemsQ);
+            const costMap = new Map<string, { costPerUnit: number; name: string; category: string }>();
+            for (const d of itemsSnap.docs) {
+                const data = d.data() as InventoryItem;
+                costMap.set(d.id, {
+                    costPerUnit: data.costPerUnit || 0,
+                    name: data.name || 'Unknown',
+                    category: data.category || 'Other',
+                });
+            }
+
+            // 2. Fetch stock_transactions for this business unit
+            const txQ = query(
+                collection(db, COL.STOCK_TRANSACTIONS),
+                where('businessUnitId', '==', businessUnitId)
+            );
+            const txSnap = await getDocs(txQ);
+
+            for (const docSnap of txSnap.docs) {
+                const data = docSnap.data();
+                const txType = data.type as string;
+                if (!types.includes(txType)) continue;
+
+                // Client-side date filter
+                const txDate = data.timestamp?.toDate?.() || new Date(data.timestamp);
+                if (txDate < startDate || txDate > endDate) continue;
+
+                const itemId = data.itemId as string;
+                const qty = Math.abs(data.quantity as number || 0);
+                const itemInfo = costMap.get(itemId);
+                const costPerUnit = itemInfo?.costPerUnit || 0;
+                const peso = qty * costPerUnit;
+
+                const existing = result.get(itemId);
+                if (existing) {
+                    existing.totalQty += qty;
+                    existing.totalPeso += peso;
+                } else {
+                    result.set(itemId, {
+                        itemName: (data.itemName as string) || itemInfo?.name || 'Unknown',
+                        category: itemInfo?.category || 'Other',
+                        totalQty: qty,
+                        totalPeso: peso,
+                        costPerUnit,
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error aggregating stock transactions:', error);
+        }
+
+        return result;
+    }
+
+    /**
+     * Card 2: Theoretical Usage (CoGS) — Ledger Method
+     * Sum quantity × costPerUnit for THEORETICAL_USAGE transactions in the date range.
+     * These are created by BOM explosion during POS import.
      */
     static async getTheoreticalUsage(
         businessUnitId: string,
         period: DashboardPeriod,
         customRange?: DateRange
     ): Promise<number> {
-        try {
-            const sales = await this.getSalesByDateRange(businessUnitId, period, customRange);
-            return sales.reduce((sum, s) => sum + (s.costs || 0), 0);
-        } catch (error) {
-            console.error('Error calculating theoretical usage:', error);
-            return 0;
+        const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
+        const txMap = await this.aggregateStockTransactions(
+            businessUnitId, start, end, ['THEORETICAL_USAGE']
+        );
+        let total = 0;
+        for (const [, entry] of txMap) {
+            total += entry.totalPeso;
         }
+        return total;
     }
 
     /**
-     * Card 3: Actual Usage Value
+     * Unexplained Gap (Loss) — Ledger Method
+     * Sum quantity × costPerUnit for ADJUSTMENT transactions in the date range.
+     * These are created by ReconService.savePhysicalCounts() when physical
+     * counts differ from system-expected stock.
      */
-    static async getActualUsage(businessUnitId: string): Promise<number> {
+    static async getUnexplainedGap(
+        businessUnitId: string,
+        period: DashboardPeriod,
+        customRange?: DateRange
+    ): Promise<number> {
+        const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
+        const txMap = await this.aggregateStockTransactions(
+            businessUnitId, start, end, ['ADJUSTMENT']
+        );
+        // ADJUSTMENT quantity is signed: negative = loss, positive = surplus
+        // We want the net gap (negative = unexplained loss)
+        let total = 0;
+        for (const [, entry] of txMap) {
+            total += entry.totalPeso;
+        }
+        return total;
+    }
+
+    /**
+     * Top 10 Suspicious Items & Category Risks — Ledger Method
+     * Groups ADJUSTMENT transactions by itemId, sums peso value,
+     * sorts descending by absolute peso value, slices top 10.
+     * Completely time-bound to the selected period.
+     */
+    static async getInventoryAnalysis(
+        businessUnitId: string,
+        period: DashboardPeriod,
+        customRange?: DateRange
+    ): Promise<{ suspiciousItems: SuspiciousItem[]; categoryRisks: CategoryRiskRecord[] }> {
+        const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
+
         try {
-            const sessions = await InventoryReportsService.getCompletedSessions(businessUnitId);
-
-            if (sessions.length < 2) {
-                return 0;
-            }
-
-            const endSession = sessions[0];
-            const startSession = sessions[1];
-
-            const report = await InventoryReportsService.generateVarianceReport(
-                startSession.id,
-                endSession.id
+            // Get all ADJUSTMENT transactions grouped by item
+            const adjustmentMap = await this.aggregateStockTransactions(
+                businessUnitId, start, end, ['ADJUSTMENT']
             );
 
-            let totalActualUsage = 0;
-            for (const item of report.items) {
-                const usedQty = item.starting + item.purchased - item.actual;
-                totalActualUsage += usedQty * item.costPerUnit;
+            // Get THEORETICAL_USAGE transactions grouped by item (for expected closing calc)
+            const theoreticalMap = await this.aggregateStockTransactions(
+                businessUnitId, start, end, ['THEORETICAL_USAGE']
+            );
+
+            // Build suspicious items from ADJUSTMENT transactions
+            const allItems: SuspiciousItem[] = [];
+
+            for (const [, adjEntry] of adjustmentMap) {
+                const theoEntry = theoreticalMap.get(adjEntry.itemName) || null;
+                const expectedClosing = theoEntry?.totalQty || 0;
+                const varianceQty = adjEntry.totalQty; // ADJUSTMENT qty (signed)
+                const varianceValue = adjEntry.totalPeso; // ADJUSTMENT peso (signed)
+                const variancePercent = expectedClosing > 0
+                    ? (Math.abs(varianceQty) / expectedClosing) * 100
+                    : (varianceQty !== 0 ? 100 : 0);
+
+                allItems.push({
+                    itemName: adjEntry.itemName,
+                    category: adjEntry.category,
+                    expectedClosing,
+                    actualClosing: expectedClosing - varianceQty,
+                    varianceQty,
+                    varianceValue,
+                    variancePercent,
+                    costPerUnit: adjEntry.costPerUnit,
+                    status: getItemStatus(variancePercent),
+                });
             }
 
-            return totalActualUsage;
-        } catch (error) {
-            console.error('Error calculating actual usage:', error);
-            return 0;
-        }
-    }
-
-    /**
-     * Section 2: Top 10 Suspicious Items & Category Risks
-     * Compares theoreticalStock (expected) vs currentStock (physical count)
-     */
-    static async getInventoryAnalysis(businessUnitId: string): Promise<{ suspiciousItems: SuspiciousItem[], categoryRisks: CategoryRiskRecord[] }> {
-        try {
-            const items = await InventoryService.getInventory(businessUnitId, 'FINISHED_GOOD');
-
-            const allItems: SuspiciousItem[] = items
-                .filter(item => item.isActive)
-                .map(item => {
-                    const expected = item.theoreticalStock ?? item.currentStock;
-                    const actual = item.currentStock;
-                    const varianceQty = expected - actual;
-                    const varianceValue = varianceQty * item.costPerUnit;
-                    const variancePercent = expected > 0
-                        ? (varianceQty / expected) * 100
-                        : 0;
-
-                    return {
-                        itemName: item.name,
-                        category: item.category || 'Other',
-                        expectedClosing: expected,
-                        actualClosing: actual,
-                        varianceQty,
-                        varianceValue,
-                        variancePercent,
-                        costPerUnit: item.costPerUnit,
-                        status: getItemStatus(variancePercent),
-                    };
-                });
-
-            // Build Category Risks
-            const categoryMap = new Map<string, { expected: number, actual: number, loss: number }>();
+            // Build Category Risks from the same ADJUSTMENT data
+            const categoryMap = new Map<string, { expected: number; actual: number; loss: number }>();
 
             allItems.forEach(item => {
-                const mapItem = categoryMap.get(item.category) || { expected: 0, actual: 0, loss: 0 };
-                mapItem.expected += item.expectedClosing * item.costPerUnit;
-                mapItem.actual += item.actualClosing * item.costPerUnit;
-                mapItem.loss += item.varianceValue;
-                categoryMap.set(item.category, mapItem);
+                const catData = categoryMap.get(item.category) || { expected: 0, actual: 0, loss: 0 };
+                catData.expected += item.expectedClosing * item.costPerUnit;
+                catData.actual += item.actualClosing * item.costPerUnit;
+                catData.loss += item.varianceValue;
+                categoryMap.set(item.category, catData);
             });
 
             const categoryRisks: CategoryRiskRecord[] = Array.from(categoryMap.entries()).map(([name, data]) => {
@@ -234,11 +328,11 @@ export class InventoryDashboardService {
                     variancePercent,
                     lossValue: data.loss,
                     expectedValue: data.expected,
-                    actualValue: data.actual
+                    actualValue: data.actual,
                 };
             }).sort((a, b) => Math.abs(b.lossValue) - Math.abs(a.lossValue));
 
-            // Return top 10 suspicious items
+            // Top 10 suspicious items sorted by absolute peso value
             const suspiciousItems = [...allItems]
                 .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue))
                 .slice(0, 10);
@@ -251,7 +345,8 @@ export class InventoryDashboardService {
     }
 
     /**
-     * Get all 5 KPI cards + suspicious items in one call
+     * Get all 5 KPI cards + suspicious items in one call — Ledger Method.
+     * All values are now time-bound to the selected period.
      */
     static async getDashboardKPIs(
         businessUnitId: string,
@@ -262,20 +357,20 @@ export class InventoryDashboardService {
             today: 'Today',
             week: 'This Week',
             month: 'This Month',
-            custom: 'Custom Range'
+            custom: 'Custom Range',
         };
         const periodLabel = periodLabels[period];
 
         try {
-            const [netSales, theoreticalUsage, actualUsage, inventoryAnalysis] = await Promise.all([
+            const [netSales, theoreticalUsage, unexplainedVariance, inventoryAnalysis] = await Promise.all([
                 this.getNetSales(businessUnitId, period, customRange),
                 this.getTheoreticalUsage(businessUnitId, period, customRange),
-                this.getActualUsage(businessUnitId),
-                this.getInventoryAnalysis(businessUnitId)
+                this.getUnexplainedGap(businessUnitId, period, customRange),
+                this.getInventoryAnalysis(businessUnitId, period, customRange),
             ]);
 
-            const recordedWaste = 0;
-            const unexplainedVariance = actualUsage - theoreticalUsage - recordedWaste;
+            // Actual Usage = Theoretical + Unexplained Gap (derived)
+            const actualUsage = theoreticalUsage + Math.abs(unexplainedVariance);
 
             const variancePercent = theoreticalUsage > 0
                 ? (unexplainedVariance / theoreticalUsage) * 100
@@ -291,9 +386,9 @@ export class InventoryDashboardService {
                 variancePercent,
                 varianceStatus,
                 periodLabel,
-                recordedWaste,
+                recordedWaste: 0,
                 suspiciousItems: inventoryAnalysis.suspiciousItems,
-                categoryRisks: inventoryAnalysis.categoryRisks
+                categoryRisks: inventoryAnalysis.categoryRisks,
             };
         } catch (error) {
             console.error('Error loading dashboard KPIs:', error);
@@ -307,7 +402,7 @@ export class InventoryDashboardService {
                 periodLabel,
                 recordedWaste: 0,
                 suspiciousItems: [],
-                categoryRisks: []
+                categoryRisks: [],
             };
         }
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { InventoryDashboardService } from '../services/inventory-dashboard.service';
 import type { DashboardKPIs, DashboardPeriod } from '../services/inventory-dashboard.service';
 import { getRollingStaffVariance } from '../services/staff-variance.service';
@@ -11,10 +11,12 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
     const [shiftVariances, setShiftVariances] = useState<StaffVarianceRecord[]>([]);
     const [investigations, setInvestigations] = useState<InvestigationCase[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = useCallback(async () => {
         if (!businessId) return;
         setLoading(true);
+        setError(null);
         try {
             const [kpiData, varianceData] = await Promise.all([
                 InventoryDashboardService.getDashboardKPIs(businessId, timeFilter),
@@ -22,25 +24,24 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
             ]);
             setKpis(kpiData);
             setShiftVariances(varianceData);
-        } catch (error) {
-            console.error('Error fetching dashboard static data:', error);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to load dashboard data';
+            console.error('Error fetching dashboard data:', err);
+            setError(message);
         } finally {
-            // Small timeout to prevent flicker on fast loads
             setTimeout(() => setLoading(false), 300);
         }
-    };
+    }, [businessId, timeFilter]);
 
-    // Fetch standard KPI and Variance data on mount/filter change
+    // Fetch KPI and Variance data on mount/filter change
     useEffect(() => {
         fetchDashboardData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [businessId, timeFilter]);
+    }, [fetchDashboardData]);
 
     // Subscribe to real-time investigations
     useEffect(() => {
         if (!businessId) return;
 
-        // Subscribe sets up an onSnapshot listener
         const unsubscribe = InvestigationsService.subscribeToInvestigations(
             businessId,
             (cases) => {
@@ -56,6 +57,8 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
         shiftVariances,
         investigations,
         loading,
-        refreshData: fetchDashboardData
+        error,
+        refreshData: fetchDashboardData,
+        refetch: fetchDashboardData,
     };
 }
