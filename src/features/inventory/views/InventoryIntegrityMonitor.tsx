@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   AlertTriangle,
+  Building2,
   DollarSign,
   Package,
   TrendingDown,
@@ -27,6 +28,7 @@ import ShiftOverlayTab from '../components/ShiftOverlayTab';
 import AssignInvestigationModal, { type AssignModalData } from '../components/AssignInvestigationModal';
 import { useInventoryDashboard } from '../hooks/useInventoryDashboard';
 import { useAuth } from '../../../contexts/useAuth';
+import { useData } from '../../../shared/context/DataContext';
 import type { DashboardPeriod, SuspiciousItem } from '../services/inventory-dashboard.service';
 import { InvestigationsService } from '../services/investigations.service';
 
@@ -386,19 +388,28 @@ const SuspiciousItemsTable: React.FC<{
 
 const InventoryIntegrityMonitor: React.FC = () => {
   const { currentUser } = useAuth();
+  const { businesses } = useData();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('Today');
   const [activeTab, setActiveTab] = useState<ActiveTab>('Overview');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState<AssignModalData | null>(null);
+  const [selectedBU, setSelectedBU] = useState<string>(currentUser?.businessId || '');
 
-  // Hook to pull all data
+  // Keep selectedBU in sync if currentUser loads after mount
+  React.useEffect(() => {
+    if (!selectedBU && currentUser?.businessId) {
+      setSelectedBU(currentUser.businessId);
+    }
+  }, [currentUser?.businessId]);
+
+  // Hook to pull all data — driven by the BU selector, not the current user's fixed BU
   const filterKey = timeFilter.toLowerCase() as DashboardPeriod;
   const {
     kpis: dashboardKPIs,
     shiftVariances,
     investigations,
     loading
-  } = useInventoryDashboard(currentUser?.businessId, filterKey);
+  } = useInventoryDashboard(selectedBU || currentUser?.businessId, filterKey);
 
   // Convert raw DashboardKPIs into UI components KpiItem[]
   const kpiItems: KpiItem[] = dashboardKPIs ? [
@@ -545,8 +556,26 @@ const InventoryIntegrityMonitor: React.FC = () => {
             </div>
           </div>
 
-          {/* Time Filter Toggle */}
-          <div className="flex items-center">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* BU Selector */}
+            {businesses.length > 1 && (
+              <div className="flex items-center gap-2 bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/60 rounded-2xl px-4 py-2.5 shadow-sm">
+                <Building2 size={16} className="text-purple-500 flex-shrink-0" />
+                <select
+                  value={selectedBU}
+                  onChange={(e) => setSelectedBU(e.target.value)}
+                  className="bg-transparent text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
+                >
+                  {businesses.map(bu => (
+                    <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800">
+                      {bu.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Time Filter Toggle */}
             <div className="flex bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-1.5 border border-slate-200/50 dark:border-slate-700/50 shadow-inner">
               {timeOptions.map((opt) => (
                 <button

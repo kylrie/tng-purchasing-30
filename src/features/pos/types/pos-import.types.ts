@@ -94,3 +94,18 @@ export interface PosImportBatch {
   importedByName: string;
   importedAt: Timestamp;
 }
+
+// ============================================================
+// POS IMPORT - Simulation for Dry Run Preview
+// ============================================================
+
+export interface SimulatedDeduction {
+  itemId: string;
+  itemName: string;
+  type: 'FG' | 'RM' | 'PRODUCTION';
+  currentTheoreticalStock: number;
+  deductionAmount: number;
+  newTheoreticalStock: number;
+  parentItemId?: string;    // ID of the FG or PRODUCTION parent
+  parentItemName?: string;  // Display name of the parent (e.g., "Cheeseburger")
+}

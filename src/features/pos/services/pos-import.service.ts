@@ -15,6 +15,7 @@ import type {
     PosImportMappedRow,
     PosImportBatch,
     PosSaleRecord,
+    SimulatedDeduction,
 } from '../types/pos-import.types';
 
 // Collection names (mirrored from COLLECTIONS for direct use)
@@ -182,6 +183,109 @@ export class PosImportService {
     }
 
     // ================================================================
+    // SIMULATED IMPORT (DRY RUN)
+    // ================================================================
+
+    /**
+     * Simulate a POS import without writing to Firestore.
+     * Useful for seeing what BOM explosion (theoreticalStock deductions) will happen.
+     */
+    static async simulatePosImport(
+        mappedRows: PosImportMappedRow[],
+        allItemsMap: Map<string, InventoryItem & { id: string }>
+    ): Promise<SimulatedDeduction[]> {
+        const rowsToCommit = mappedRows.filter(r => r.matchedItemId !== null);
+        const simulatedDeductions: SimulatedDeduction[] = [];
+
+        // Running theoretical stock tracker — shared across all POS rows
+        // so cumulative deductions are applied correctly
+        const runningStock = new Map<string, number>();
+
+        for (const row of rowsToCommit) {
+            const fgItem = allItemsMap.get(row.matchedItemId!);
+            if (!fgItem) continue;
+
+            // FINISHED_GOOD is a pure routing mechanism — do NOT add it to the
+            // deduction map and do NOT touch its theoreticalStock.
+            // Only explode its recipe into underlying ingredients.
+            this.simulateRecursiveBOM(
+                fgItem,
+                row.qtySold,
+                row.matchedItemId!,
+                row.matchedItemName || row.itemName, // pass FG name for context
+                allItemsMap,
+                runningStock,
+                simulatedDeductions
+            );
+        }
+
+        return simulatedDeductions;
+    }
+
+    private static simulateRecursiveBOM(
+        item: InventoryItem & { id: string },
+        multiplier: number,
+        parentItemId: string,
+        parentItemName: string, // FG or PRODUCTION name, for audit note context
+        allItemsMap: Map<string, InventoryItem & { id: string }>,
+        runningStock: Map<string, number>,
+        simulatedDeductions: SimulatedDeduction[]
+    ) {
+        if (!item.recipe || item.recipe.length === 0) return;
+
+        for (const ingredient of item.recipe) {
+            const ingredientItem = allItemsMap.get(ingredient.ingredientId);
+            if (!ingredientItem) continue;
+
+            const totalDeduction = ingredient.quantityUsed * multiplier;
+
+            const currentStock = runningStock.has(ingredientItem.id)
+                ? runningStock.get(ingredientItem.id)!
+                : (ingredientItem.theoreticalStock ?? ingredientItem.currentStock ?? 0);
+
+            if (ingredientItem.type === 'RAW_MATERIAL') {
+                const newStock = currentStock - totalDeduction;
+                runningStock.set(ingredientItem.id, newStock);
+
+                simulatedDeductions.push({
+                    itemId: ingredientItem.id,
+                    itemName: ingredientItem.name,
+                    type: 'RM',
+                    currentTheoreticalStock: currentStock,
+                    deductionAmount: totalDeduction,
+                    newTheoreticalStock: newStock,
+                    parentItemId,
+                    parentItemName,
+                });
+            } else if (ingredientItem.type === 'PRODUCTION') {
+                // PRODUCTION sub-assemblies are routing nodes — show them in the
+                // preview hierarchy but do NOT deduct their own stock.
+                simulatedDeductions.push({
+                    itemId: ingredientItem.id,
+                    itemName: ingredientItem.name,
+                    type: 'PRODUCTION',
+                    currentTheoreticalStock: currentStock,
+                    deductionAmount: totalDeduction,
+                    newTheoreticalStock: currentStock, // unchanged
+                    parentItemId,
+                    parentItemName,
+                });
+
+                // Recurse into the sub-assembly's own recipe
+                this.simulateRecursiveBOM(
+                    ingredientItem,
+                    totalDeduction,
+                    ingredientItem.id,
+                    ingredientItem.name,
+                    allItemsMap,
+                    runningStock,
+                    simulatedDeductions
+                );
+            }
+        }
+    }
+
+    // ================================================================
     // COMMIT IMPORT (BATCH WRITE)
     // ================================================================
 
@@ -228,45 +332,53 @@ export class PosImportService {
             allItemsMap.set(d.id, { id: d.id, ...d.data() } as InventoryItem & { id: string });
         });
 
-        // Build stock maps (for FG theoreticalStock deductions)
-        const fgStockMap = new Map<string, number>();
-        const fgDeductionMap = new Map<string, number>();
+        // ================================================================
+        // STEP B: BOM Explosion — aggregate raw material deductions.
+        // RULE: FINISHED_GOOD is only a routing mechanism.
+        //   - Do NOT deduct FG theoreticalStock.
+        //   - Do NOT write stock_transactions for the FG.
+        //   - ONLY deduct the underlying RAW_MATERIAL (and recursed PRODUCTION) ingredients.
+        // ================================================================
+        const rmDeductionMap = new Map<string, { totalQty: number; fgName: string }>();
 
-        // Build raw material deduction map (BOM explosion aggregation)
-        const rmDeductionMap = new Map<string, number>();
+        const recursiveExplosion = (
+            itemArg: InventoryItem & { id: string },
+            multiplier: number,
+            rootFgName: string // for audit notes: "Deducted Xg Beef Patty for POS Sale: Cheeseburger"
+        ) => {
+            if (!itemArg.recipe || itemArg.recipe.length === 0) return;
+            for (const ingredient of itemArg.recipe) {
+                const iItem = allItemsMap.get(ingredient.ingredientId);
+                if (!iItem) continue;
+                const ded = ingredient.quantityUsed * multiplier;
+
+                if (iItem.type === 'RAW_MATERIAL') {
+                    const prev = rmDeductionMap.get(ingredient.ingredientId);
+                    rmDeductionMap.set(ingredient.ingredientId, {
+                        totalQty: (prev?.totalQty ?? 0) + ded,
+                        fgName: prev?.fgName ?? rootFgName, // keep first FG for single-item batches
+                    });
+                } else if (iItem.type === 'PRODUCTION') {
+                    // Route through PRODUCTION — do not add to deduction map itself
+                    recursiveExplosion(iItem, ded, rootFgName);
+                }
+                // FINISHED_GOOD nested inside a recipe is unusual but handled the same way
+            }
+        };
 
         for (const row of rowsToCommit) {
-            const itemId = row.matchedItemId!;
-            const item = allItemsMap.get(itemId);
-            if (!item) continue;
-
-            // Initialize FG stock if not yet tracked
-            if (!fgStockMap.has(itemId)) {
-                fgStockMap.set(itemId, item.theoreticalStock ?? item.currentStock);
-            }
-
-            // Aggregate FG deductions
-            const prevDeduction = fgDeductionMap.get(itemId) || 0;
-            fgDeductionMap.set(itemId, prevDeduction + row.qtySold);
-
-            // ================================================================
-            // STEP B & C: BOM Explosion — iterate recipe ingredients
-            // ================================================================
-            if (item.recipe && item.recipe.length > 0) {
-                for (const ingredient of item.recipe) {
-                    const totalDeduction = ingredient.quantityUsed * row.qtySold;
-                    const prevRmDeduction = rmDeductionMap.get(ingredient.ingredientId) || 0;
-                    rmDeductionMap.set(ingredient.ingredientId, prevRmDeduction + totalDeduction);
-                }
-            }
+            const fgItem = allItemsMap.get(row.matchedItemId!);
+            if (!fgItem) continue;
+            const fgName = row.matchedItemName || row.itemName;
+            recursiveExplosion(fgItem, row.qtySold, fgName);
         }
 
-        // Pre-load raw material current stock for balanceAfter calculation
+        // Pre-load raw material theoretical stock for balanceAfter calculation
         const rmStockMap = new Map<string, number>();
         for (const [rmId] of rmDeductionMap) {
             const rmItem = allItemsMap.get(rmId);
             if (rmItem) {
-                rmStockMap.set(rmId, rmItem.theoreticalStock ?? rmItem.currentStock);
+                rmStockMap.set(rmId, rmItem.theoreticalStock ?? rmItem.currentStock ?? 0);
             }
         }
 
@@ -275,7 +387,7 @@ export class PosImportService {
         const batchImportId = batchDocRef.id;
 
         // Build batch writes — Firestore limit is 500 ops per batch
-        const MAX_OPS = 490; // Safe margin under 500
+        const MAX_OPS = 490;
 
         const batches: ReturnType<typeof writeBatch>[] = [];
         let currentBatch = writeBatch(db);
@@ -289,79 +401,47 @@ export class PosImportService {
             }
         };
 
-        // Running stock tracker for balanceAfter calculations (FG)
-        const runningFgStock = new Map<string, number>();
-        for (const [itemId, stock] of fgStockMap) {
-            runningFgStock.set(itemId, stock);
-        }
-
-        // 1. Write pos_sales docs + stock_transactions (POS_SALE)
+        // ================================================================
+        // STEP C: Write pos_sales docs (for reporting only — no FG stock changes)
+        // ================================================================
         for (const row of rowsToCommit) {
-            const itemId = row.matchedItemId!;
-            const currentRunning = runningFgStock.get(itemId) ?? 0;
-            const newBalance = currentRunning - row.qtySold;
-            runningFgStock.set(itemId, newBalance);
-
-            // pos_sales document
             const saleRef = doc(collection(db, COL.POS_SALES));
             ensureBatch();
             currentBatch.set(saleRef, {
                 batchImportId,
                 businessUnitId,
-                inventoryItemId: itemId,
+                inventoryItemId: row.matchedItemId,
                 inventoryItemName: row.matchedItemName || row.itemName,
                 category: row.category,
                 qtySold: row.qtySold,
                 amount: row.amount,
                 costs: row.costs,
                 profit: row.profit,
-                negativeStockFlag: newBalance < 0,
+                negativeStockFlag: false, // FG stock is not tracked
                 importDate,
                 createdAt: Timestamp.now(),
             });
             opCount++;
-
-            // stock_transactions document (POS_SALE for the FG)
-            const txRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
-            ensureBatch();
-            currentBatch.set(txRef, {
-                itemId,
-                itemName: row.matchedItemName || row.itemName,
-                businessUnitId,
-                type: 'POS_SALE',
-                quantity: row.qtySold,
-                balanceAfter: newBalance,
-                referenceId: batchImportId,
-                notes: `POS Import: ${fileName}`,
-                performedBy: userId,
-                performedByName: userName,
-                timestamp: Timestamp.now(),
-            });
-            opCount++;
-        }
-
-        // 2. Update FG inventory items (deduct from theoreticalStock)
-        for (const [itemId, totalDeducted] of fgDeductionMap) {
-            const theoStock = fgStockMap.get(itemId) ?? 0;
-            const newTheoStock = theoStock - totalDeducted;
-
-            ensureBatch();
-            currentBatch.update(doc(db, COL.INVENTORY_ITEMS, itemId), {
-                theoreticalStock: newTheoStock,
-                updatedAt: Timestamp.now(),
-            });
-            opCount++;
+            // NOTE: No POS_SALE stock_transaction for the FINISHED_GOOD.
+            // FG is a routing mechanism only — its stock is derived from raw material availability.
         }
 
         // ================================================================
-        // STEP D & E: BOM Explosion writes — raw material deductions
+        // STEP D: BOM Explosion writes — raw material deductions only
+        // Notes include the originating Finished Good name for full audit trail.
         // ================================================================
-        for (const [rmId, totalDeducted] of rmDeductionMap) {
+        const runningRmStock = new Map<string, number>();
+        for (const [rmId, stock] of rmStockMap) {
+            runningRmStock.set(rmId, stock);
+        }
+
+        for (const [rmId, { totalQty, fgName }] of rmDeductionMap) {
             const rmItem = allItemsMap.get(rmId);
             if (!rmItem) continue;
 
-            const theoStock = rmStockMap.get(rmId) ?? 0;
-            const newTheoStock = theoStock - totalDeducted;
+            const theoStock = runningRmStock.get(rmId) ?? 0;
+            const newTheoStock = theoStock - totalQty;
+            runningRmStock.set(rmId, newTheoStock);
 
             // Write THEORETICAL_USAGE stock transaction
             const rmTxRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
@@ -371,13 +451,16 @@ export class PosImportService {
                 itemName: rmItem.name,
                 businessUnitId,
                 type: 'THEORETICAL_USAGE',
-                quantity: totalDeducted,
+                quantity: totalQty,
+                unitCost: rmItem.costPerUnit ?? 0,           // cost per count unit (for dashboard KPI)
+                totalValue: totalQty * (rmItem.costPerUnit ?? 0), // pre-computed ₱ value for fast aggregation
                 balanceAfter: newTheoStock,
                 referenceId: batchImportId,
-                notes: `BOM explosion from POS Import: ${fileName}`,
+                notes: `Deducted ${totalQty} ${rmItem.units?.countUnit ?? ''} ${rmItem.name} for POS Sale: ${fgName} (${fileName})`,
                 performedBy: userId,
                 performedByName: userName,
                 timestamp: Timestamp.now(),
+                createdAt: Timestamp.now(), // duplicate for query compatibility
             });
             opCount++;
 

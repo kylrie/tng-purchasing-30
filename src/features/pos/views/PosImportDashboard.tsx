@@ -2,8 +2,11 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar } from 'lucide-react';
 import { PosImportService } from '../services/pos-import.service';
 import { useAuth } from '../../../contexts/useAuth';
-import type { PosImportRow, PosImportMappedRow, PosImportBatch, PosSaleRecord } from '../types/pos-import.types';
+import type { PosImportRow, PosImportMappedRow, PosImportBatch, PosSaleRecord, SimulatedDeduction } from '../types/pos-import.types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
+import { PosImportPreviewModal } from '../components/PosImportPreviewModal';
 
 interface Props {
     businesses: { id: string; name: string }[];
@@ -47,6 +50,11 @@ const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
     const [error, setError] = useState<string | null>(null);
     const [successId, setSuccessId] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
+
+    // Preview Modal State
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [simulatedDeductions, setSimulatedDeductions] = useState<SimulatedDeduction[]>([]);
+    const [isSimulating, setIsSimulating] = useState(false);
 
     // -- Date range helper --
     const getDateBounds = useCallback((): { start: Date; end: Date } | null => {
@@ -204,9 +212,30 @@ const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
     // COMMIT IMPORT
     // ================================================================
 
-    const handleCommit = async () => {
+    const handlePreviewAndSimulate = async () => {
+        if (!currentUser || !selectedBU) return;
+        setIsSimulating(true);
+        setError(null);
+        try {
+            const q = query(collection(db, 'inventory_items'), where('businessUnitId', '==', selectedBU), where('isActive', '==', true));
+            const snap = await getDocs(q);
+            const allItemsMap = new Map<string, InventoryItem & { id: string }>();
+            snap.docs.forEach(d => allItemsMap.set(d.id, { id: d.id, ...d.data() } as InventoryItem & { id: string }));
+            
+            const deductions = await PosImportService.simulatePosImport(mappedRows, allItemsMap);
+            setSimulatedDeductions(deductions);
+            setIsPreviewOpen(true);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Simulation failed');
+        } finally {
+            setIsSimulating(false);
+        }
+    };
+
+    const handleExecuteCommit = async () => {
         if (!currentUser || !selectedBU) return;
         setViewState('COMMITTING');
+        setIsPreviewOpen(false);
         setError(null);
 
         try {
@@ -499,12 +528,12 @@ const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
                                     Cancel
                                 </button>
                                 <button
-                                    onClick={handleCommit}
-                                    disabled={!canCommit}
-                                    className={`px-8 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${canCommit ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20' : 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'}`}
+                                    onClick={handlePreviewAndSimulate}
+                                    disabled={!canCommit || isSimulating}
+                                    className={`px-8 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${canCommit && !isSimulating ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20' : 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed'}`}
                                 >
-                                    <CheckCircle2 className="w-5 h-5" />
-                                    Commit Import ({matchedCount} items)
+                                    {isSimulating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Eye className="w-5 h-5" />}
+                                    Preview Import ({matchedCount} items)
                                 </button>
                             </div>
                         </div>
@@ -802,6 +831,15 @@ const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
                     )}
                 </div>
             )}
+
+            {/* PREVIEW MODAL */}
+            <PosImportPreviewModal
+                isOpen={isPreviewOpen}
+                simulatedDeductions={simulatedDeductions}
+                onConfirm={handleExecuteCommit}
+                onCancel={() => setIsPreviewOpen(false)}
+                isSubmitting={viewState === 'COMMITTING'}
+            />
         </div>
     );
 };
