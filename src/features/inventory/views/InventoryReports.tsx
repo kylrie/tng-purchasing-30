@@ -216,7 +216,7 @@ const StockValueChart: React.FC<{
                                 borderRadius: '8px',
                                 color: 'var(--tooltip-text, #fff)'
                             }}
-                            formatter={(val: number) => [`₱${val.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, 'Stock Value']}
+                            formatter={(val: any) => [`₱${Number(val).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, 'Stock Value']}
                             labelStyle={{ color: '#94a3b8' }}
                         />
                         <Area

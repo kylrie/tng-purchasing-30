@@ -313,17 +313,17 @@ const SuspiciousItemsTable: React.FC<{
 
                 {/* OPEN */}
                 <td className="px-6 py-4 text-right">
-                  <span className="text-sm font-medium text-slate-400 dark:text-slate-500">—</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{row.open.toLocaleString()}</span>
                 </td>
 
                 {/* RECV */}
                 <td className="px-6 py-4 text-right">
-                  <span className="text-sm font-medium text-slate-400 dark:text-slate-500">—</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{row.recv.toLocaleString()}</span>
                 </td>
 
                 {/* SOLD */}
                 <td className="px-6 py-4 text-right">
-                  <span className="text-sm font-medium text-slate-400 dark:text-slate-500">—</span>
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{row.sold.toLocaleString()}</span>
                 </td>
 
                 {/* EXP. CLOSE */}
@@ -485,26 +485,32 @@ const InventoryIntegrityMonitor: React.FC = () => {
     name: c.name,
     icon: getCategoryIcon(c.name),
     variance: c.variancePercent,
-    sales: '₱—', // Requires deeper POS parsing later
+    sales: c.salesValue > 0 ? `₱${c.salesValue.toLocaleString()}` : '₱0',
     loss: `₱${c.lossValue.toLocaleString()}`,
     expected: `₱${c.expectedValue.toLocaleString()}`,
     actual: `₱${c.actualValue.toLocaleString()}`,
   }));
 
   // Convert raw SuspiciousItem[] into UI SuspiciousRow[]
-  const suspiciousItemsRows: SuspiciousRow[] = dashboardKPIs?.suspiciousItems.map((item: SuspiciousItem, index) => ({
-    id: `suspicious-${index}`,
-    item: item.itemName,
-    category: item.category || 'Inventory',
-    open: item.expectedClosing, // Hidden/0 as we don't have tracking snapshot easily
-    recv: 0,
-    sold: 0,
-    expClose: item.expectedClosing,
-    actClose: item.actualClosing,
-    varQty: item.actualClosing - item.expectedClosing,
-    varPeso: item.varianceValue,
-    status: item.status,
-  })) || [];
+  // All quantities are converted to Base/Count Units (× conversionRate)
+  // VAR ₱ is computed from base-unit variance: varQtyBase × costPerBaseUnit
+  const suspiciousItemsRows: SuspiciousRow[] = dashboardKPIs?.suspiciousItems.map((item: SuspiciousItem, index) => {
+    const c = item.conversionRate || 1;
+    const varQtyBase = (item.actualClosing - item.expectedClosing) * c;
+    return {
+      id: `suspicious-${index}`,
+      item: item.itemName,
+      category: `${item.category || 'Inventory'}${item.countUnit ? ' • ' + item.countUnit : ''}`,
+      open: Math.round(((item.openQty || 0) * c) * 100) / 100,
+      recv: Math.round(((item.recvQty || 0) * c) * 100) / 100,
+      sold: Math.round(((item.soldQty || 0) * c) * 100) / 100,
+      expClose: Math.round((item.expectedClosing * c) * 100) / 100,
+      actClose: Math.round((item.actualClosing * c) * 100) / 100,
+      varQty: Math.round(varQtyBase * 100) / 100,
+      varPeso: Math.round(varQtyBase * item.costPerUnit * 100) / 100,
+      status: item.status,
+    };
+  }) || [];
 
   const handleAssign = (row: SuspiciousRow) => {
     setModalData({

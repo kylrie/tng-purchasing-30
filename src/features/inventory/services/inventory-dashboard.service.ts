@@ -13,8 +13,12 @@ const COL = {
 // ============================================================
 
 export interface SuspiciousItem {
+    itemId: string;
     itemName: string;
+    type: string;
     category: string;
+    countUnit: string;         // base/count unit for display (e.g. "pcs", "g")
+    conversionRate: number;    // how many countUnits per buyUnit
     expectedClosing: number;   // theoreticalStock
     actualClosing: number;     // currentStock (physical count)
     varianceQty: number;       // expected - actual
@@ -22,6 +26,9 @@ export interface SuspiciousItem {
     variancePercent: number;
     costPerUnit: number;
     status: 'Normal' | 'Watch' | 'Investigate';
+    soldQty?: number;
+    recvQty?: number;
+    openQty?: number;
 }
 
 export interface CategoryRiskRecord {
@@ -31,6 +38,7 @@ export interface CategoryRiskRecord {
     lossValue: number;
     expectedValue: number;
     actualValue: number;
+    salesValue: number;        // POS revenue for this category
 }
 
 export interface DashboardKPIs {
@@ -44,6 +52,7 @@ export interface DashboardKPIs {
     recordedWaste: number;
     suspiciousItems: SuspiciousItem[];
     categoryRisks: CategoryRiskRecord[];
+    itemCategoryMap: Record<string, string>;  // itemId → category for hook grouping
 }
 
 export type DashboardPeriod = 'today' | 'week' | 'month' | 'custom';
@@ -187,12 +196,21 @@ export class InventoryDashboardService {
      * Section 2: Top 10 Suspicious Items & Category Risks
      * Compares theoreticalStock (expected) vs currentStock (physical count)
      */
-    static async getInventoryAnalysis(businessUnitId: string): Promise<{ suspiciousItems: SuspiciousItem[], categoryRisks: CategoryRiskRecord[] }> {
+    static async getInventoryAnalysis(businessUnitId: string): Promise<{ suspiciousItems: SuspiciousItem[], categoryRisks: CategoryRiskRecord[], itemCategoryMap: Record<string, string> }> {
         try {
-            const items = await InventoryService.getInventory(businessUnitId, 'FINISHED_GOOD');
+            // Fetch ALL items for this BU (no type filter), then client-side filter
+            // to only include RAW_MATERIAL and PRODUCTION.
+            // FINISHED_GOODs are made-to-order routing mechanisms and must NEVER
+            // appear on the integrity dashboard.
+            const TRACKABLE_TYPES: Set<string> = new Set(['RAW_MATERIAL', 'PRODUCTION']);
+            const items = await InventoryService.getInventory(businessUnitId);
+
+            // Build itemId → category map for ALL trackable items (used by the hook
+            // to group THEORETICAL_USAGE transaction values by category).
+            const itemCategoryMap: Record<string, string> = {};
 
             const allItems: SuspiciousItem[] = items
-                .filter(item => item.isActive)
+                .filter(item => item.isActive && TRACKABLE_TYPES.has(item.type))
                 .map(item => {
                     const expected = item.theoreticalStock ?? item.currentStock;
                     const actual = item.currentStock;
@@ -202,9 +220,18 @@ export class InventoryDashboardService {
                         ? (varianceQty / expected) * 100
                         : 0;
 
+                    // Populate the category lookup
+                    if (item.id) {
+                        itemCategoryMap[item.id] = item.category || 'Other';
+                    }
+
                     return {
+                        itemId: item.id || '',
                         itemName: item.name,
+                        type: item.type,
                         category: item.category || 'Other',
+                        countUnit: item.units?.countUnit || '',
+                        conversionRate: item.units?.conversion || 1,
                         expectedClosing: expected,
                         actualClosing: actual,
                         varianceQty,
@@ -215,7 +242,10 @@ export class InventoryDashboardService {
                     };
                 });
 
-            // Build Category Risks
+            // Build Category Risks (loss/variance from inventory snapshot).
+            // NOTE: expectedValue and actualValue here are inventory-level values.
+            // The hook will override expectedValue with THEORETICAL_USAGE transaction
+            // sums to keep KPIs and Category Panel in sync.
             const categoryMap = new Map<string, { expected: number, actual: number, loss: number }>();
 
             allItems.forEach(item => {
@@ -234,7 +264,8 @@ export class InventoryDashboardService {
                     variancePercent,
                     lossValue: data.loss,
                     expectedValue: data.expected,
-                    actualValue: data.actual
+                    actualValue: data.actual,
+                    salesValue: 0,
                 };
             }).sort((a, b) => Math.abs(b.lossValue) - Math.abs(a.lossValue));
 
@@ -243,10 +274,10 @@ export class InventoryDashboardService {
                 .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue))
                 .slice(0, 10);
 
-            return { suspiciousItems, categoryRisks };
+            return { suspiciousItems, categoryRisks, itemCategoryMap };
         } catch (error) {
             console.error('Error calculating inventory analysis:', error);
-            return { suspiciousItems: [], categoryRisks: [] };
+            return { suspiciousItems: [], categoryRisks: [], itemCategoryMap: {} };
         }
     }
 
@@ -293,7 +324,8 @@ export class InventoryDashboardService {
                 periodLabel,
                 recordedWaste,
                 suspiciousItems: inventoryAnalysis.suspiciousItems,
-                categoryRisks: inventoryAnalysis.categoryRisks
+                categoryRisks: inventoryAnalysis.categoryRisks,
+                itemCategoryMap: inventoryAnalysis.itemCategoryMap,
             };
         } catch (error) {
             console.error('Error loading dashboard KPIs:', error);
@@ -307,7 +339,8 @@ export class InventoryDashboardService {
                 periodLabel,
                 recordedWaste: 0,
                 suspiciousItems: [],
-                categoryRisks: []
+                categoryRisks: [],
+                itemCategoryMap: {},
             };
         }
     }

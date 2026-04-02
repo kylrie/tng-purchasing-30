@@ -33,7 +33,7 @@ interface FormData {
     conversion: number;
     parLevel: number;
     currentStock: number;
-    costPerUnit: number;
+    buyCost: number;
     supplier: string;
     notes: string;
 }
@@ -65,7 +65,7 @@ const INITIAL_FORM_DATA: FormData = {
     conversion: 1,
     parLevel: 0,
     currentStock: 0,
-    costPerUnit: 0,
+    buyCost: 0,
     supplier: '',
     notes: ''
 };
@@ -89,6 +89,9 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 
     const isEditing = !!item;
 
+    // Derived state for base cost calculation
+    const baseCost = formData.conversion > 0 ? (formData.buyCost / formData.conversion) : 0;
+
     // Populate form when editing
     useEffect(() => {
         if (item) {
@@ -103,7 +106,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 conversion: item.units.conversion,
                 parLevel: item.parLevel,
                 currentStock: item.currentStock,
-                costPerUnit: item.costPerUnit,
+                buyCost: item.buyCost ?? item.costPerUnit ?? 0,
                 supplier: item.supplier || '',
                 notes: item.notes || ''
             });
@@ -125,8 +128,8 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
             newErrors.conversion = 'Conversion must be greater than 0';
         }
 
-        if (formData.costPerUnit < 0) {
-            newErrors.costPerUnit = 'Cost cannot be negative';
+        if (formData.buyCost < 0) {
+            newErrors.buyCost = 'Cost cannot be negative';
         }
 
         if (formData.parLevel < 0) {
@@ -160,7 +163,9 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 units,
                 parLevel: formData.parLevel,
                 currentStock: formData.currentStock,
-                costPerUnit: formData.costPerUnit,
+                costPerUnit: baseCost, // Legacy fallback
+                buyCost: formData.buyCost,
+                baseCost: baseCost,    // Crucial: baseCost is the primary value used by POS BOM explosion and Recipe builder
                 // Only include optional fields if they have values (avoid undefined)
                 ...(formData.sku.trim() && { sku: formData.sku.trim() }),
                 ...(formData.supplier.trim() && { supplier: formData.supplier.trim() }),
@@ -412,19 +417,34 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                     />
                                 </div>
 
-                                {/* Cost Per Unit */}
+                                {/* Cost per Buy Unit */}
                                 <div>
-                                    <label className={labelClass}>Cost Per Unit (₱)</label>
+                                    <label className={labelClass}>Cost per Buy Unit (₱)</label>
                                     <input
                                         type="number"
                                         min="0"
                                         step="0.01"
-                                        value={formData.costPerUnit}
-                                        onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
-                                        className={`${inputClass} ${errors.costPerUnit ? 'border-red-500' : ''}`}
-                                        placeholder="0.00"
+                                        value={formData.buyCost}
+                                        onChange={(e) => setFormData({ ...formData, buyCost: parseFloat(e.target.value) || 0 })}
+                                        className={`${inputClass} ${errors.buyCost ? 'border-red-500' : ''}`}
+                                        placeholder="e.g., How much does 1 Buy Unit cost?"
                                     />
-                                    {errors.costPerUnit && <p className={errorClass}>{errors.costPerUnit}</p>}
+                                    {errors.buyCost && <p className={errorClass}>{errors.buyCost}</p>}
+                                </div>
+
+                                {/* Cost per Base Unit (Calculated) */}
+                                <div>
+                                    <label className={labelClass}>Cost per Base Unit (₱)</label>
+                                    <input
+                                        type="text"
+                                        readOnly
+                                        value={baseCost.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}
+                                        className={`${inputClass} bg-slate-100 dark:bg-slate-800 text-slate-500 cursor-not-allowed`}
+                                        placeholder="0.0000"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        = {formData.buyCost || 0} / {formData.conversion || 1}
+                                    </p>
                                 </div>
                             </div>
                         </div>

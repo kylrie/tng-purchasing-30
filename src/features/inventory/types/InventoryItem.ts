@@ -80,7 +80,9 @@ export interface InventoryItem {
   parLevel: number;                  // Minimum stock level (in countUnits)
   currentStock: number;              // Physical stock from stock counts (in countUnits)
   theoreticalStock: number;          // POS-derived expected stock (deducted by sales imports)
-  costPerUnit: number;               // Cost per countUnit
+  costPerUnit: number;               // Legacy Cost per countUnit (kept for compatibility)
+  buyCost?: number;                  // Cost per Buy Unit (e.g. per case)
+  baseCost?: number;                 // Cost per Base Unit (used by POS BOM explosion and Recipe builder)
   supplier?: string;
   notes?: string;
   menuItemId?: string;               // Link to menu item if FINISHED_GOOD from Menu Engineering
@@ -160,7 +162,9 @@ export interface CreateInventoryItemInput {
   parLevel: number;
   currentStock: number;
   theoreticalStock?: number;          // Defaults to currentStock if not provided
-  costPerUnit: number;
+  costPerUnit: number;                // Legacy
+  buyCost?: number;                   // Cost per Buy Unit
+  baseCost?: number;                  // Cost per Base Unit (primary value for POS BOM explosion and Recipe builder)
   supplier?: string;
   notes?: string;
   menuItemId?: string;  // Link to menu item if this is a FINISHED_GOOD from Menu Engineering
