@@ -239,9 +239,11 @@ export class PosImportService {
 
             const totalDeduction = ingredient.quantityUsed * multiplier;
 
+            const safeStock = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
+
             const currentStock = runningStock.has(ingredientItem.id)
                 ? runningStock.get(ingredientItem.id)!
-                : (ingredientItem.theoreticalStock ?? ingredientItem.currentStock ?? 0);
+                : safeStock(ingredientItem.theoreticalStock) || safeStock(ingredientItem.currentStock);
 
             if (ingredientItem.type === 'RAW_MATERIAL') {
                 const newStock = currentStock - totalDeduction;
@@ -374,11 +376,12 @@ export class PosImportService {
         }
 
         // Pre-load raw material theoretical stock for balanceAfter calculation
+        const safeNum = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
         const rmStockMap = new Map<string, number>();
         for (const [rmId] of rmDeductionMap) {
             const rmItem = allItemsMap.get(rmId);
             if (rmItem) {
-                rmStockMap.set(rmId, rmItem.theoreticalStock ?? rmItem.currentStock ?? 0);
+                rmStockMap.set(rmId, safeNum(rmItem.theoreticalStock) || safeNum(rmItem.currentStock));
             }
         }
 

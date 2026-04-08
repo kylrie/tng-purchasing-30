@@ -1,4 +1,7 @@
 import { FirestoreService, Timestamp, where } from '../../../shared/services/firestore.service';
+import { writeBatch, doc, collection } from 'firebase/firestore';
+import { db } from '../../../config/firebase';
+import type { StockTransaction } from '../../pos/types/pos-import.types';
 import type {
     InventoryItem,
     InventoryItemType,
@@ -9,7 +12,8 @@ import type {
     CreateInventoryItemInput,
     StartSessionInput,
     SaveCountInput,
-    StockCountStatus
+    StockCountStatus,
+    ReceiveGoodsPayload
 } from '../types/InventoryItem';
 import { MOCK_INVENTORY_ITEMS, MOCK_STORAGE_AREAS } from '../types/InventoryItem';
 
@@ -450,6 +454,111 @@ export class InventoryService {
         if (currentStock < parLevel * 0.5) return 'low';
         if (currentStock > parLevel * 1.5) return 'excess';
         return 'ok';
+    }
+
+    // ============================================================
+    // GOODS RECEIVING
+    // ============================================================
+
+    /**
+     * Handle batch insertion of received goods
+     */
+    static async receiveGoodsBatch(
+        businessUnitId: string,
+        receivedItems: ReceiveGoodsPayload[],
+        performedBy: { id: string; name: string },
+        referenceId: string = ''
+    ): Promise<void> {
+        if (!receivedItems.length) return;
+
+        const batch = writeBatch(db);
+        let shouldRecalculate = false;
+
+        // Fetch all current inventory items in one go to ensure accuracy
+        const currentItems = await this.getInventory(businessUnitId);
+        const inventoryItemsMap = new Map<string, InventoryItem>();
+        for (const item of currentItems) {
+            inventoryItemsMap.set(item.id, item);
+        }
+
+        const now = Timestamp.now();
+
+        for (const received of receivedItems) {
+            const inventoryItem = inventoryItemsMap.get(received.inventoryItemId);
+            if (!inventoryItem) {
+                console.error(`Skipping mismatch: Item ID ${received.inventoryItemId} not found.`);
+                continue;
+            }
+
+            // Calculate Base Unit quantity
+            const baseQtyToAdd = received.qtyReceived * inventoryItem.units.conversion;
+
+            // Update item stock
+            const newCurrentStock = inventoryItem.currentStock + baseQtyToAdd;
+            const newTheoreticalStock = inventoryItem.theoreticalStock + baseQtyToAdd;
+
+            const updateData: Partial<InventoryItem> & { updatedAt: Timestamp } = {
+                currentStock: newCurrentStock,
+                theoreticalStock: newTheoreticalStock,
+                updatedAt: now
+            };
+
+            // Process Cost Updates
+            // Check if the received unit price differs from the stored buyCost.
+            if (received.unitPrice > 0 && received.unitPrice !== inventoryItem.buyCost) {
+                updateData.buyCost = received.unitPrice;
+                // Calculate new base cost (cost per single base/count unit)
+                const newBaseCost = received.unitPrice / inventoryItem.units.conversion;
+                updateData.baseCost = newBaseCost;
+                updateData.costPerUnit = newBaseCost; // Update legacy field as well
+                shouldRecalculate = true;
+            }
+
+            const itemRef = doc(db, COLLECTIONS.INVENTORY_ITEMS, inventoryItem.id);
+            batch.update(itemRef, updateData);
+
+            // Create Stock Transaction
+            const transactionId = doc(collection(db, 'stock_transactions')).id;
+            const transactionRef = doc(db, 'stock_transactions', transactionId);
+
+            const transactionData: StockTransaction = {
+                id: transactionId,
+                itemId: inventoryItem.id,
+                itemName: inventoryItem.name,
+                businessUnitId,
+                type: 'RECEIVE',
+                quantity: baseQtyToAdd,
+                balanceAfter: newCurrentStock, // Use new stock value
+                referenceId: referenceId || 'MANUAL_RECEIVE',
+                notes: `Received ${received.qtyReceived} ${inventoryItem.units.buyUnit}(s) via receiving module.`,
+                performedBy: performedBy.id,
+                performedByName: performedBy.name,
+                timestamp: now
+            };
+
+            batch.set(transactionRef, transactionData);
+        }
+
+        await batch.commit();
+
+        // If cost changed for any item, trigger recalculation of all linked recipes
+        if (shouldRecalculate) {
+            console.log(`[InventoryService] Costs changed during batch receive. Triggering recipe recalculation for BU ${businessUnitId}`);
+            try {
+                // Dynamically import to avoid circular dependencies
+                const { ProductionRecipeService } = await import('../../menu/services/production-recipe.service');
+                const { RecipesService } = await import('../../menu/services/recipes.service');
+
+                // Recalculate production recipes first, as menu items might depend on them
+                await ProductionRecipeService.recalculateCosts(businessUnitId);
+                // Then recalculate all menu items
+                await RecipesService.recalculateAllCosts(businessUnitId);
+
+                console.log(`[InventoryService] Successfully finished recipe recalculations after goods receiving for BU ${businessUnitId}`);
+            } catch (err) {
+                console.error('[InventoryService] Failed to recalculate recipes:', err);
+            }
+        }
     }
 }
 

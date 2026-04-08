@@ -76,13 +76,13 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-3.5 text-right font-medium">
-                                                    {deduction.currentTheoreticalStock.toFixed(2)}
+                                                    {(Number.isFinite(deduction.currentTheoreticalStock) ? deduction.currentTheoreticalStock : 0).toFixed(2)}
                                                 </td>
                                                 <td className={`px-6 py-3.5 text-right font-medium ${deduction.type === 'PRODUCTION' ? 'text-gray-400' : 'text-red-600'}`}>
                                                     {deduction.type === 'PRODUCTION' ? '-' : `-${deduction.deductionAmount.toFixed(2)}`}
                                                 </td>
                                                 <td className={`px-6 py-3.5 text-right font-bold ${isNegative ? 'text-red-600' : 'text-gray-900'}`}>
-                                                    {deduction.newTheoreticalStock.toFixed(2)}
+                                                    {(Number.isFinite(deduction.newTheoreticalStock) ? deduction.newTheoreticalStock : 0).toFixed(2)}
                                                     {isNegative && (
                                                         <AlertCircle className="inline-block w-4 h-4 ml-1.5 text-red-500" />
                                                     )}

@@ -8,6 +8,7 @@ export interface ExtractedItem {
     name: string;
     quantity: number;
     unit: string;
+    unitPrice?: number;
     confidence: 'high' | 'medium' | 'low';
     rawText?: string;
 }
@@ -90,6 +91,7 @@ Analyze this document and extract ALL inventory items. Return ONLY a valid JSON 
       "name": "exact item name as written",
       "quantity": 1.5,
       "unit": "unit of measure (e.g. kg, bottle, box, pcs, case, sack, liter)",
+      "unitPrice": 150.50,
       "confidence": "high|medium|low",
       "rawText": "the raw text you found this in"
     }
@@ -100,9 +102,10 @@ Rules:
 - Extract ALL line items you see, even if confidence is low
 - For quantity, use decimals if needed (e.g. 2.5 kg)
 - For unit, use the shortest common form: kg, g, liter, ml, bottle, box, case, pcs, sack, dozen, pack
+- Extract unitPrice if visible on the document. If not, use 0 or null.
 - If quantity is unclear, use 1 and set confidence to "low"
 - Include items even if you can't read the full name - use what you can see
-- DO NOT include prices, totals, or non-inventory lines (like tax rows, subtotals)
+- DO NOT include non-inventory lines (like tax rows, subtotals, grand totals)
 - Return ONLY the JSON, no other text`;
 
         const response = await client.models.generateContent({
@@ -145,6 +148,7 @@ Rules:
                     name: item.name || 'Unknown Item',
                     quantity: typeof item.quantity === 'number' ? item.quantity : 1,
                     unit: item.unit || 'pcs',
+                    unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice : undefined,
                     confidence: (['high', 'medium', 'low'].includes(item.confidence as string)
                         ? item.confidence
                         : 'medium') as 'high' | 'medium' | 'low',

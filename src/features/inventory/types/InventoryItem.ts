@@ -188,6 +188,16 @@ export interface SaveCountInput {
 }
 
 // ============================================================
+// RECEIVING GOODS
+// ============================================================
+
+export interface ReceiveGoodsPayload {
+  inventoryItemId: string;    // The mapped item ID
+  qtyReceived: number;        // The quantity entered by user (in buy units)
+  unitPrice: number;          // The unit price entered by user
+}
+
+// ============================================================
 // MOCK DATA - Multi-Tenant with Types
 // ============================================================
 

@@ -14,7 +14,8 @@ import {
     Building2,
     ChevronRight,
     Eye,
-    Edit3,
+    Plus,
+    Trash2,
     Check,
     Info,
     ArrowRight,
@@ -26,22 +27,24 @@ import {
 import type { InventoryItem } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
 import { GeminiVisionService, type ExtractedItem, type ExtractionResult } from '../../../shared/services/gemini-vision.service';
-import type { Business } from '../../procurement/types';
+import type { Business, User } from '../../procurement/types';
 
 // ============================================================
 // TYPES
 // ============================================================
 
 interface MatchedReceivingRow {
-    extractedItem: ExtractedItem;
+    extractedItem: ExtractedItem | null;
     inventoryItem: InventoryItem | null;
-    matchedBy: 'sku' | 'name' | 'fuzzy' | null;
+    matchedBy: 'sku' | 'name' | 'fuzzy' | 'manual' | null;
     quantity: number;
+    unitPrice: number;
     confirmed: boolean;
 }
 
 interface GoodsReceivingViewProps {
     businesses: Business[];
+    currentUser?: User | null;
 }
 
 type InputMode = 'upload' | 'camera';
@@ -117,7 +120,7 @@ const StepIndicator: React.FC<{ currentStep: number }> = ({ currentStep }) => (
 // COMPONENT
 // ============================================================
 
-const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) => {
+const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, currentUser }) => {
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState(businesses[0]?.id || '');
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [step, setStep] = useState(0);
@@ -129,8 +132,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
     const [analyzeError, setAnalyzeError] = useState<string | null>(null);
     const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
     const [rows, setRows] = useState<MatchedReceivingRow[]>([]);
-    const [editingRowIdx, setEditingRowIdx] = useState<number | null>(null);
-    const [editingQty, setEditingQty] = useState('');
+    const [referenceNumber, setReferenceNumber] = useState('');
     const [isApplying, setIsApplying] = useState(false);
     const [applySuccess, setApplySuccess] = useState(false);
     const [applyError, setApplyError] = useState<string | null>(null);
@@ -282,7 +284,14 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
             setExtraction(result);
             const matched: MatchedReceivingRow[] = result.items.map(extracted => {
                 const { item, matchedBy } = fuzzyMatchItem(extracted.name, items);
-                return { extractedItem: extracted, inventoryItem: item, matchedBy, quantity: extracted.quantity, confirmed: !!item };
+                return { 
+                    extractedItem: extracted, 
+                    inventoryItem: item, 
+                    matchedBy, 
+                    quantity: extracted.quantity || 1, 
+                    unitPrice: extracted.unitPrice || 0,
+                    confirmed: !!item 
+                };
             });
             setRows(matched);
             setStep(1);
@@ -295,25 +304,64 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
 
     // ---- Row editing ----
 
-    const startEdit = (idx: number) => { setEditingRowIdx(idx); setEditingQty(rows[idx].quantity.toString()); };
-    const saveEdit = () => {
-        if (editingRowIdx === null) return;
-        setRows(prev => prev.map((r, i) => i === editingRowIdx ? { ...r, quantity: parseFloat(editingQty) || 0 } : r));
-        setEditingRowIdx(null);
+    const handleAddManualRow = () => {
+        setRows(prev => [...prev, {
+            extractedItem: null,
+            inventoryItem: null,
+            matchedBy: 'manual',
+            quantity: 1,
+            unitPrice: 0,
+            confirmed: false
+        }]);
     };
+
+    const handleDeleteRow = (idx: number) => {
+        setRows(prev => prev.filter((_, i) => i !== idx));
+    };
+
+    const handleItemChange = (idx: number, itemId: string) => {
+        const item = items.find(i => i.id === itemId) || null;
+        setRows(prev => prev.map((r, i) => i === idx ? { 
+            ...r, 
+            inventoryItem: item, 
+            matchedBy: item && r.matchedBy !== 'manual' ? 'manual' : r.matchedBy,
+            confirmed: !!item
+        } : r));
+    };
+
+    const handleRowChange = (idx: number, field: 'quantity' | 'unitPrice', value: string) => {
+        const num = parseFloat(value);
+        setRows(prev => prev.map((r, i) => i === idx ? {
+            ...r,
+            [field]: isNaN(num) ? '' : num
+        } : r));
+    };
+
     const toggleConfirm = (idx: number) => setRows(prev => prev.map((r, i) => i === idx ? { ...r, confirmed: !r.confirmed } : r));
     const confirmedRows = rows.filter(r => r.confirmed && r.inventoryItem);
 
     // ---- Apply to inventory ----
 
     const handleApply = async () => {
+        if (!currentUser) {
+            setApplyError("You must be logged in to apply changes.");
+            return;
+        }
         setIsApplying(true);
         setApplyError(null);
         try {
-            for (const row of confirmedRows) {
-                const item = row.inventoryItem!;
-                await InventoryService.updateInventoryItem(item.id, { currentStock: item.currentStock + row.quantity });
-            }
+            const payload = confirmedRows.map(row => ({
+                inventoryItemId: row.inventoryItem!.id,
+                qtyReceived: Number(row.quantity) || 0,
+                unitPrice: Number(row.unitPrice) || 0
+            }));
+            
+            await InventoryService.receiveGoodsBatch(
+                selectedBusinessUnit, 
+                payload, 
+                { id: currentUser.id, name: currentUser.name || currentUser.email },
+                referenceNumber
+            );
             setApplySuccess(true);
             setItems(await InventoryService.getInventory(selectedBusinessUnit));
         } catch (err) {
@@ -331,6 +379,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
         setFilePreview(null);
         setExtraction(null);
         setRows([]);
+        setReferenceNumber('');
         setAnalyzeError(null);
         setApplySuccess(false);
         setApplyError(null);
@@ -650,10 +699,19 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
                         </div>
                         {extraction.supplierName && <div><p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Supplier</p><p className="text-slate-900 dark:text-white font-medium">{extraction.supplierName}</p></div>}
                         {extraction.documentDate && <div><p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">Date</p><p className="text-slate-900 dark:text-white font-medium">{extraction.documentDate}</p></div>}
-                        {extraction.documentNumber && <div><p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide">DR/PO #</p><p className="text-slate-900 dark:text-white font-medium">{extraction.documentNumber}</p></div>}
-                        <div className="ml-auto flex items-center gap-2">
+                        <div className="flex-1 min-w-[200px]">
+                            <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Invoice / Reference #</p>
+                            <input
+                                type="text"
+                                placeholder="Enter Reference Number"
+                                value={referenceNumber}
+                                onChange={e => setReferenceNumber(e.target.value)}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                            />
+                        </div>
+                        <div className="ml-auto w-full sm:w-auto flex items-center justify-end gap-2 mt-2 sm:mt-0">
                             <span className="text-xs text-slate-400">{file?.name}</span>
-                            <button onClick={handleReset} className="text-xs text-slate-400 hover:text-slate-100 flex items-center gap-1 transition-colors">
+                            <button onClick={handleReset} className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors px-2 py-1 bg-slate-800 rounded">
                                 <RefreshCw size={12} /> Re-upload
                             </button>
                         </div>
@@ -675,9 +733,14 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
                     </div>
 
                     <div className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden">
-                        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-                            <h3 className="font-semibold text-slate-900 dark:text-white">Extracted Items</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Check items to include. Click quantity to edit.</p>
+                        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                            <div>
+                                <h3 className="font-semibold text-slate-900 dark:text-white">Extracted Items</h3>
+                                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Check items to include. Edit matches, quantities and unit prices.</p>
+                            </div>
+                            <button onClick={handleAddManualRow} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white text-sm font-medium rounded-lg transition-colors">
+                                <Plus size={14} /> Add Row
+                            </button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
@@ -688,50 +751,94 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
                                         </th>
                                         <th className="text-left p-3 text-slate-500 dark:text-slate-400 font-medium">AI Extracted Name</th>
                                         <th className="text-left p-3 text-slate-500 dark:text-slate-400 font-medium hidden sm:table-cell">Matched Inventory Item</th>
-                                        <th className="text-center p-3 text-slate-500 dark:text-slate-400 font-medium">Qty to Add</th>
-                                        <th className="text-center p-3 text-slate-500 dark:text-slate-400 font-medium hidden sm:table-cell">Confidence</th>
+                                        <th className="text-center p-3 text-slate-500 dark:text-slate-400 font-medium w-28">Qty Received</th>
+                                        <th className="text-center p-3 text-slate-500 dark:text-slate-400 font-medium w-32">Unit Price (₱)</th>
+                                        <th className="text-right p-3 text-slate-500 dark:text-slate-400 font-medium w-28">Total Price</th>
+                                        <th className="text-center p-3 text-slate-500 dark:text-slate-400 font-medium w-12">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {rows.map((row, idx) => (
-                                        <tr key={idx} className={`border-t border-slate-200 dark:border-slate-700/50 transition-colors ${row.confirmed ? 'bg-emerald-500/5' : ''} ${!row.inventoryItem ? 'opacity-60' : ''}`}>
-                                            <td className="p-3 text-center">
+                                        <tr key={idx} className={`border-t border-slate-200 dark:border-slate-700/50 transition-colors ${row.confirmed ? 'bg-emerald-500/5' : ''} ${!row.inventoryItem ? 'opacity-80' : ''}`}>
+                                            <td className="p-3 text-center align-top pt-4">
                                                 <button onClick={() => toggleConfirm(idx)} disabled={!row.inventoryItem} className={`w-5 h-5 rounded border-2 flex items-center justify-center mx-auto transition-all ${row.confirmed && row.inventoryItem ? 'bg-emerald-500 border-emerald-500' : 'border-slate-400 dark:border-slate-600'} disabled:cursor-not-allowed`}>
                                                     {row.confirmed && row.inventoryItem && <Check size={12} className="text-white" />}
                                                 </button>
                                             </td>
-                                            <td className="p-3">
-                                                <p className="text-slate-900 dark:text-white font-medium">{row.extractedItem.name}</p>
-                                                <p className="text-xs text-slate-500 dark:text-slate-400">{row.extractedItem.unit}</p>
+                                            <td className="p-3 align-top pt-4">
+                                                {row.extractedItem ? (
+                                                    <>
+                                                        <p className="text-slate-900 dark:text-white font-medium">{row.extractedItem.name}</p>
+                                                        <div className="flex gap-2 items-center mt-1">
+                                                            <span className="text-xs text-slate-500 dark:text-slate-400">Extracted: {row.extractedItem.quantity} {row.extractedItem.unit}</span>
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${row.extractedItem.confidence === 'high' ? 'bg-emerald-500/20 text-emerald-400' : row.extractedItem.confidence === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                                {row.extractedItem.confidence}
+                                                            </span>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-slate-400 italic text-sm">Manual Entry</span>
+                                                )}
                                             </td>
-                                            <td className="p-3 hidden sm:table-cell">
-                                                {row.inventoryItem ? (
-                                                    <div>
-                                                        <p className="text-slate-900 dark:text-white">{row.inventoryItem.name}</p>
-                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <span className={`text-xs px-1.5 py-0.5 rounded ${row.matchedBy === 'name' ? 'bg-emerald-500/20 text-emerald-400' : row.matchedBy === 'sku' ? 'bg-purple-500/20 text-purple-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                                            <td className="p-3 hidden sm:table-cell align-top pt-3">
+                                                <div className="flex flex-col gap-1.5">
+                                                    <select
+                                                        value={row.inventoryItem?.id || ''}
+                                                        onChange={(e) => handleItemChange(idx, e.target.value)}
+                                                        className={`w-full p-2 bg-slate-50 dark:bg-slate-900 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${row.inventoryItem ? 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white' : 'border-amber-500/50 text-amber-400'}`}
+                                                    >
+                                                        <option value="">-- Select Inventory Item --</option>
+                                                        {items.map(i => <option key={i.id} value={i.id}>{i.name} ({i.category})</option>)}
+                                                    </select>
+                                                    {row.inventoryItem && (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${row.matchedBy === 'name' ? 'bg-emerald-500/20 text-emerald-400' : row.matchedBy === 'sku' ? 'bg-purple-500/20 text-purple-400' : row.matchedBy === 'manual' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                                                 {row.matchedBy === 'fuzzy' ? 'Fuzzy' : row.matchedBy}
                                                             </span>
-                                                            <span className="text-xs text-slate-500 dark:text-slate-400">Current: {row.inventoryItem.currentStock} {row.inventoryItem.units.countUnit}</span>
+                                                            <span className="text-xs text-slate-500 dark:text-slate-400">In stock: {row.inventoryItem.currentStock} {row.inventoryItem.units.countUnit}</span>
                                                         </div>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 text-center align-top pt-3">
+                                                <div className="flex flex-col gap-1 items-center">
+                                                    <input 
+                                                        type="number" 
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={row.quantity} 
+                                                        onChange={e => handleRowChange(idx, 'quantity', e.target.value)} 
+                                                        className="w-full max-w-[80px] px-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-center text-sm text-slate-900 dark:text-white focus:outline-none focus:border-purple-500" 
+                                                    />
+                                                    {row.inventoryItem && (
+                                                        <span className="text-[10px] text-slate-400">Buy: {row.inventoryItem.units.buyUnit}</span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 text-center align-top pt-3">
+                                                <div className="flex flex-col gap-1 items-center">
+                                                    <div className="relative w-full max-w-[100px]">
+                                                        <span className="absolute left-2.5 top-1.5 text-slate-500 dark:text-slate-400 text-sm">₱</span>
+                                                        <input 
+                                                            type="number" 
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={row.unitPrice} 
+                                                            onChange={e => handleRowChange(idx, 'unitPrice', e.target.value)} 
+                                                            className="w-full pl-6 pr-2 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-left text-sm text-slate-900 dark:text-white focus:outline-none focus:border-purple-500" 
+                                                        />
                                                     </div>
-                                                ) : (
-                                                    <span className="text-amber-400 text-xs flex items-center gap-1"><AlertCircle size={12} /> Not in inventory</span>
-                                                )}
+                                                </div>
                                             </td>
-                                            <td className="p-3 text-center">
-                                                {editingRowIdx === idx ? (
-                                                    <input type="number" value={editingQty} onChange={e => setEditingQty(e.target.value)} onBlur={saveEdit} onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') setEditingRowIdx(null); }} className="w-20 px-2 py-1 bg-white dark:bg-slate-700 border border-purple-500 rounded text-center text-slate-900 dark:text-white focus:outline-none" autoFocus />
-                                                ) : (
-                                                    <button onClick={() => startEdit(idx)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-semibold transition-colors group" title="Click to edit">
-                                                        {row.quantity}<Edit3 size={12} className="text-slate-400 opacity-0 group-hover:opacity-100" />
-                                                    </button>
-                                                )}
-                                            </td>
-                                            <td className="p-3 text-center hidden sm:table-cell">
-                                                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${row.extractedItem.confidence === 'high' ? 'bg-emerald-500/20 text-emerald-400' : row.extractedItem.confidence === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>
-                                                    {row.extractedItem.confidence}
+                                            <td className="p-3 text-right align-top pt-5">
+                                                <span className="font-semibold text-slate-900 dark:text-white text-sm">
+                                                    ₱{((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </span>
+                                            </td>
+                                            <td className="p-3 text-center align-top pt-4">
+                                                <button onClick={() => handleDeleteRow(idx)} className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors mx-auto block" title="Remove row">
+                                                    <Trash2 size={16} />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -760,9 +867,18 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
                     <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
                         The following quantities will be <strong className="text-emerald-400">added</strong> to stock for <strong className="text-white">{currentBusiness?.name}</strong>:
                     </p>
+                    
+                    {referenceNumber && (
+                        <div className="mb-4 inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 border border-slate-700 rounded-lg">
+                            <FileText size={14} className="text-slate-400" />
+                            <span className="text-sm text-slate-300">Ref: <span className="text-white font-medium">{referenceNumber}</span></span>
+                        </div>
+                    )}
+
                     <div className="space-y-2 mb-6">
                         {confirmedRows.map((row, idx) => {
                             const item = row.inventoryItem!;
+                            const total = (Number(row.quantity) || 0) * (Number(row.unitPrice) || 0);
                             return (
                                 <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
                                     <div className="flex items-center gap-3">
@@ -772,15 +888,31 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses }) =
                                             <p className="text-xs text-slate-500 dark:text-slate-400">{item.category}</p>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3 text-sm">
-                                        <span className="text-slate-500 dark:text-slate-400">{item.currentStock} {item.units.countUnit}</span>
-                                        <ArrowRight size={14} className="text-slate-400" />
-                                        <span className="font-bold text-emerald-400">{item.currentStock + row.quantity} {item.units.countUnit}</span>
-                                        <span className="text-xs text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">+{row.quantity}</span>
+                                    <div className="flex items-center justify-end gap-5">
+                                        <div className="text-right flex flex-col items-end">
+                                            <span className="text-slate-400 text-xs">Stock Added</span>
+                                            <div className="flex items-center gap-2 text-sm mt-0.5">
+                                                <span className="font-bold text-emerald-400">+{row.quantity} {item.units.buyUnit}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right flex flex-col items-end w-24">
+                                            <span className="text-slate-400 text-xs">Total Cost</span>
+                                            <span className="font-bold text-slate-900 dark:text-white mt-0.5">
+                                                ₱{total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             );
                         })}
+                        <div className="flex justify-end p-4 bg-slate-800/80 rounded-xl border border-slate-700 mt-4">
+                            <div className="text-right flex items-center gap-4">
+                                <span className="text-slate-400">Grand Total:</span>
+                                <span className="text-xl font-bold text-purple-400">
+                                    ₱{confirmedRows.reduce((sum, row) => sum + ((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                     {applyError && (
                         <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/30 rounded-xl mb-4">

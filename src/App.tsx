@@ -483,7 +483,7 @@ function ProtectedApp() {
                   <FixedAssetsView businesses={businesses} currentUser={currentUser} allUsers={users} />
                 } />
                 <Route path="/inventory/receiving" element={
-                  <GoodsReceivingView businesses={businesses} />
+                  <GoodsReceivingView businesses={businesses} currentUser={currentUser} />
                 } />
 
                 {/* Menu Engineering Module */}

@@ -118,6 +118,9 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
                 unexplainedGap += value;
             });
 
+            // Actual Usage = Expected (theoretical) + Unexplained (adjustments/shrinkage)
+            const actualUsage = expectedUsage + unexplainedGap;
+
             recvSnap.forEach(doc => {
                 const data = doc.data();
                 const itemId = data.itemId;
@@ -168,6 +171,7 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
 
             if (kpiData) {
                 kpiData.theoreticalUsage = expectedUsage;
+                kpiData.actualUsage = actualUsage;
                 kpiData.unexplainedVariance = unexplainedGap;
                 
                 // Recalculate variance percentage based on new values
@@ -175,6 +179,9 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
                     kpiData.variancePercent = (unexplainedGap / expectedUsage) * 100;
                     const absVP = Math.abs(kpiData.variancePercent);
                     kpiData.varianceStatus = absVP <= 2 ? 'green' : absVP <= 5 ? 'yellow' : 'red';
+                } else {
+                    kpiData.variancePercent = 0;
+                    kpiData.varianceStatus = 'green';
                 }
 
                 // ── Build Category Risk Panel from FG/Menu categories ──
@@ -200,22 +207,25 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
                         (item) => TRACKABLE_TYPES.has(item.type)
                     );
 
-                    kpiData.suspiciousItems = trackableItems.map(item => {
-                        const stats = itemStats[item.itemId] || { soldQty: 0, recvQty: 0 };
-                        const soldQty = stats.soldQty;
-                        const recvQty = stats.recvQty;
-                        const expClose = item.expectedClosing || 0;
-                        
-                        // Calculate OPEN: EXP. CLOSE = OPEN + RECV - SOLD => OPEN = EXP. CLOSE - RECV + SOLD
-                        const openQty = expClose - recvQty + soldQty;
-                        
-                        return {
-                            ...item,
-                            soldQty,
-                            recvQty,
-                            openQty
-                        };
-                    });
+                    kpiData.suspiciousItems = trackableItems
+                        .map(item => {
+                            const stats = itemStats[item.itemId] || { soldQty: 0, recvQty: 0 };
+                            const soldQty = stats.soldQty;
+                            const recvQty = stats.recvQty;
+                            const expClose = item.expectedClosing || 0;
+                            
+                            // Calculate OPEN: EXP. CLOSE = OPEN + RECV - SOLD => OPEN = EXP. CLOSE - RECV + SOLD
+                            const openQty = expClose - recvQty + soldQty;
+                            
+                            return {
+                                ...item,
+                                soldQty,
+                                recvQty,
+                                openQty
+                            };
+                        })
+                        // Only show items with a real variance — hide perfectly balanced rows
+                        .filter(item => item.varianceQty !== 0 || item.varianceValue !== 0);
                 }
             }
 
