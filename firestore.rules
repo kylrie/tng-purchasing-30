@@ -770,9 +770,16 @@ service cloud.firestore {
       // All authenticated users can read inventory items
       allow read: if isSignedIn();
       
-      // Create/Update: Requires inventory:manage:items permission
+      // Create: Requires inventory:manage:items permission
       // This prevents unauthorized data manipulation via direct API calls
-      allow create, update: if isSignedIn() && hasPermission('inventory:manage:items');
+      allow create: if isSignedIn() && hasPermission('inventory:manage:items');
+      
+      // Update: Requires inventory:manage:items OR specific system-level updates
+      // Allow POS Import module to update theoreticalStock and updatedAt
+      allow update: if isSignedIn() && (
+        hasPermission('inventory:manage:items') ||
+        (hasPermission('module:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['theoreticalStock', 'updatedAt']))
+      );
       
       // Delete: Admin only (to prevent accidental data loss)
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
