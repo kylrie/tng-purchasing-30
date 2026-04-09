@@ -4,7 +4,8 @@ import {
     query,
     where,
     getDocs,
-    Timestamp
+    Timestamp,
+    orderBy
 } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import {
