@@ -497,6 +497,8 @@ function ProtectedApp() {
                   <ProductionRecipeView businesses={businesses} currentUser={currentUser} />
                 } />
 
+
+
                 <Route path="/settings" element={
                   <ProtectedRoute permission="module:view:settings">
                     <SettingsView

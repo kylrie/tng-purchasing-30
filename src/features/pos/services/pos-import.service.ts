@@ -340,21 +340,24 @@ export class PosImportService {
             opCount++;
         }
 
-        // 2. Update FG inventory items (deduct from theoreticalStock)
-        for (const [itemId, totalDeducted] of fgDeductionMap) {
-            const theoStock = fgStockMap.get(itemId) ?? 0;
-            const newTheoStock = theoStock - totalDeducted;
-
-            ensureBatch();
-            currentBatch.update(doc(db, COL.INVENTORY_ITEMS, itemId), {
-                theoreticalStock: newTheoStock,
-                updatedAt: Timestamp.now(),
-            });
-            opCount++;
-        }
+        // ================================================================
+        // STEP B: Update FG inventory items
+        // ----------------------------------------------------------------
+        // INTENTIONALLY SKIPPED: We do NOT deduct theoreticalStock from
+        // FINISHED_GOOD items during a POS import. The Finished Good's stock
+        // level is a virtual number derived from its recipe and raw material
+        // consumption — it is NOT physically tracked.
+        //
+        // ALL inventory impact flows exclusively through the BOM explosion
+        // (rmDeductionMap) below, which decrements the underlying RAW_MATERIAL
+        // and PRODUCTION ingredient items instead.
+        // ================================================================
 
         // ================================================================
-        // STEP D & E: BOM Explosion writes — raw material deductions
+        // STEP C & D: BOM Explosion writes — raw material deductions
+        // For each matched Finished Good with a recipe, the accumulated
+        // ingredient usage is written as THEORETICAL_USAGE transactions and
+        // the raw material theoreticalStock is decremented accordingly.
         // ================================================================
         for (const [rmId, totalDeducted] of rmDeductionMap) {
             const rmItem = allItemsMap.get(rmId);

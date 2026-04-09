@@ -40,7 +40,7 @@ export const generateProcurementInsight = async (
     Keep the response concise (under 150 words), professional, and actionable. Use bullet points for clarity.`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-3.0-flash',
             contents: `Analyze this procurement data: ${promptContext}`,
             config: {
                 systemInstruction: systemInstruction,
@@ -70,7 +70,7 @@ export const estimateItemCost = async (itemName: string): Promise<number> => {
     Example output: 1500`;
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-3.0-flash',
             contents: prompt,
         });
 

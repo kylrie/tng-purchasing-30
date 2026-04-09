@@ -9,7 +9,9 @@ import {
     Trash2,
     Package,
     Play,
-    X
+    X,
+    Layers,
+    ClipboardList
 } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
 import type { ProductionRecipe } from '../types/menu.types';
@@ -18,6 +20,7 @@ import ProductionRecipeModal from '../components/ProductionRecipeModal';
 import type { Business, User } from '../../procurement/types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 import { InventoryService } from '../../inventory/services/inventory.service';
+import ProductionLogsView from './ProductionLogsView';
 
 // ============================================================
 // PROPS
@@ -34,10 +37,11 @@ interface ProductionRecipeViewProps {
 
 const RecipeCard: React.FC<{
     recipe: ProductionRecipe;
+    productionStock: number | null;   // live currentStock from inventory
     onEdit: (recipe: ProductionRecipe) => void;
     onDelete: (recipe: ProductionRecipe) => void;
     onRecordYield: (recipe: ProductionRecipe) => void;
-}> = ({ recipe, onEdit, onDelete, onRecordYield }) => {
+}> = ({ recipe, productionStock, onEdit, onDelete, onRecordYield }) => {
     return (
         <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-amber-500/50 transition-all shadow-sm dark:shadow-none">
             {/* Header */}
@@ -78,10 +82,42 @@ const RecipeCard: React.FC<{
 
             {/* Yield Info */}
             <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 mb-3">
-                <p className="text-xs text-slate-500 mb-1">Yield</p>
+                <p className="text-xs text-slate-500 mb-1">Batch Yield</p>
                 <p className="text-lg font-bold text-slate-900 dark:text-white">
                     {recipe.yieldQuantity} {recipe.yieldUnit}
                 </p>
+            </div>
+
+            {/* Stock Remaining */}
+            <div className={`rounded-lg p-3 mb-3 flex items-center gap-2 ${
+                productionStock === null
+                    ? 'bg-slate-50 dark:bg-slate-900/50'
+                    : productionStock <= 0
+                        ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30'
+                        : 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/30'
+            }`}>
+                <Layers size={14} className={
+                    productionStock === null
+                        ? 'text-slate-400'
+                        : productionStock <= 0
+                            ? 'text-red-500 dark:text-red-400'
+                            : 'text-green-600 dark:text-green-400'
+                } />
+                <div>
+                    <p className="text-xs text-slate-500">Servings Remaining</p>
+                    <p className={`text-sm font-bold ${
+                        productionStock === null
+                            ? 'text-slate-400'
+                            : productionStock <= 0
+                                ? 'text-red-600 dark:text-red-400'
+                                : 'text-green-700 dark:text-green-400'
+                    }`}>
+                        {productionStock === null
+                            ? '—'
+                            : `${productionStock.toLocaleString()} ${recipe.yieldUnit}`
+                        }
+                    </p>
+                </div>
             </div>
 
             {/* Cost Info */}
@@ -118,11 +154,13 @@ const RecipeCard: React.FC<{
 
 const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses, currentUser }) => {
     // State
+    const [activeTab, setActiveTab] = useState<'recipes' | 'logs'>('recipes');
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
         businesses.length > 0 ? businesses[0].id : ''
     );
     const [recipes, setRecipes] = useState<ProductionRecipe[]>([]);
     const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+    const [productionItems, setProductionItems] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [showModal, setShowModal] = useState(false);
@@ -133,6 +171,25 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
     const [yieldQuantity, setYieldQuantity] = useState<string>('');
     const [yieldLoading, setYieldLoading] = useState(false);
     const [yieldMessage, setYieldMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    // Build a map: linkedInventoryItemId -> currentStock for O(1) lookup on cards
+    const productionStockMap = React.useMemo(() => {
+        const map = new Map<string, number>();
+        for (const item of productionItems) {
+            map.set(item.id, item.currentStock ?? 0);
+        }
+        return map;
+    }, [productionItems]);
+
+    // Helper to reload production stock
+    const refreshProductionStock = async (buId: string) => {
+        try {
+            const fetched = await InventoryService.getInventory(buId, 'PRODUCTION');
+            setProductionItems(fetched);
+        } catch (err) {
+            console.error('Error refreshing production stock:', err);
+        }
+    };
 
     // Load data
     useEffect(() => {
@@ -150,13 +207,22 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                     console.error('Error loading recipes (Perms/Network):', recipeErr);
                 }
 
-                // Fetch Inventory
+                // Fetch Raw Material Inventory (for ingredient picker)
                 try {
                     const fetchedItems = await InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL');
-                    console.log(`[ProductionRecipeView] Loaded ${fetchedItems.length} inventory items.`);
+                    console.log(`[ProductionRecipeView] Loaded ${fetchedItems.length} raw material items.`);
                     setInventoryItems(fetchedItems);
                 } catch (invErr) {
-                    console.error('Error loading inventory (Perms/Network):', invErr);
+                    console.error('Error loading raw material inventory:', invErr);
+                }
+
+                // Fetch Production Inventory (for "servings remaining")
+                try {
+                    const fetchedProd = await InventoryService.getInventory(selectedBusinessUnit, 'PRODUCTION');
+                    console.log(`[ProductionRecipeView] Loaded ${fetchedProd.length} production items.`);
+                    setProductionItems(fetchedProd);
+                } catch (prodErr) {
+                    console.error('Error loading production inventory:', prodErr);
                 }
 
             } catch (err) {
@@ -203,6 +269,8 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
         // Reload recipes after save
         const fetchedRecipes = await ProductionRecipeService.getRecipes(selectedBusinessUnit);
         setRecipes(fetchedRecipes);
+        // Also refresh production stock so new linked items appear
+        await refreshProductionStock(selectedBusinessUnit);
         setShowModal(false);
         setEditingRecipe(null);
     };
@@ -232,9 +300,14 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                 userName: currentUser.name
             });
             setYieldMessage({ type: 'success', text: result.message });
-            // Reload inventory data
-            const fetchedItems = await InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL');
+
+            // Refresh BOTH raw material stock AND production item stock
+            const [fetchedItems, fetchedProd] = await Promise.all([
+                InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL'),
+                InventoryService.getInventory(selectedBusinessUnit, 'PRODUCTION')
+            ]);
             setInventoryItems(fetchedItems);
+            setProductionItems(fetchedProd);
         } catch (err) {
             setYieldMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to record production yield.' });
         } finally {
@@ -256,29 +329,29 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
 
     return (
         <div className="space-y-6">
-            {/* Header */}
+            {/* Page Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
                         <Factory className="text-amber-500 dark:text-amber-400" />
-                        Production Recipes
+                        Production
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Create recipes for production items (syrups, mixes, prep items)
+                        Manage recipes and view production run history
                     </p>
                 </div>
 
-                {/* Actions */}
+                {/* Right: BU selector + New Recipe (only on recipes tab) */}
                 <div className="flex flex-wrap items-center gap-3">
-                    <button
-                        onClick={handleAddNew}
-                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
-                    >
-                        <Plus size={18} />
-                        New Recipe
-                    </button>
-
-                    {/* Business Unit Selector */}
+                    {activeTab === 'recipes' && (
+                        <button
+                            onClick={handleAddNew}
+                            className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
+                        >
+                            <Plus size={18} />
+                            New Recipe
+                        </button>
+                    )}
                     <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
                         <Building2 size={16} className="text-slate-500 dark:text-slate-400" />
                         <select
@@ -295,6 +368,40 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                     </div>
                 </div>
             </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl p-1 w-fit">
+                <button
+                    onClick={() => setActiveTab('recipes')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                        activeTab === 'recipes'
+                            ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
+                    }`}
+                >
+                    <Factory size={16} />
+                    Recipes
+                </button>
+                <button
+                    onClick={() => setActiveTab('logs')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                        activeTab === 'logs'
+                            ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
+                    }`}
+                >
+                    <ClipboardList size={16} />
+                    Production Logs
+                </button>
+            </div>
+
+            {/* ── LOGS TAB ─────────────────────────────────────────── */}
+            {activeTab === 'logs' && (
+                <ProductionLogsView businesses={businesses} defaultBusinessUnitId={selectedBusinessUnit} embedded />
+            )}
+
+            {/* ── RECIPES TAB ──────────────────────────────────────── */}
+            {activeTab === 'recipes' && (<>
 
             {/* Search */}
             <div className="relative max-w-md">
@@ -358,6 +465,11 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                         <RecipeCard
                             key={recipe.id}
                             recipe={recipe}
+                            productionStock={
+                                recipe.linkedInventoryItemId
+                                    ? (productionStockMap.get(recipe.linkedInventoryItemId) ?? null)
+                                    : null
+                            }
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             onRecordYield={handleOpenYieldModal}
@@ -365,6 +477,8 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                     ))}
                 </div>
             )}
+
+            </>)}{/* end recipes tab */}
 
             {/* Modal */}
             <ProductionRecipeModal
@@ -412,6 +526,19 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                                 </p>
                             </div>
 
+                            {/* Current Stock */}
+                            {yieldModalRecipe.linkedInventoryItemId && (
+                                <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 rounded-xl">
+                                    <Layers size={16} className="text-blue-500 dark:text-blue-400 shrink-0" />
+                                    <div>
+                                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Current stock before this run</p>
+                                        <p className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                                            {(productionStockMap.get(yieldModalRecipe.linkedInventoryItemId) ?? 0).toLocaleString()} {yieldModalRecipe.yieldUnit} remaining
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Yield Input */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
@@ -443,6 +570,17 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                                             </li>
                                         ))}
                                     </ul>
+                                    {/* Stock After Preview */}
+                                    {yieldModalRecipe.linkedInventoryItemId && (
+                                        <div className="mt-2 pt-2 border-t border-amber-200 dark:border-amber-500/30 flex justify-between text-xs font-semibold">
+                                            <span className="text-slate-600 dark:text-slate-400">Stock after this run:</span>
+                                            <span className="text-green-700 dark:text-green-400">
+                                                +{Number(yieldQuantity).toLocaleString()} → {(
+                                                    (productionStockMap.get(yieldModalRecipe.linkedInventoryItemId) ?? 0) + Number(yieldQuantity)
+                                                ).toLocaleString()} {yieldModalRecipe.yieldUnit}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

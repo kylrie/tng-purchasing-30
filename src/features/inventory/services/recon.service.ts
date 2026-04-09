@@ -112,8 +112,11 @@ export class ReconService {
         );
 
         // 6. Build rows
+        // CRITICAL: FINISHED_GOOD items are intentionally excluded from physical counting.
+        // FG stock is managed virtually (via BOM explosion from POS sales), not physically counted.
+        // Only RAW_MATERIAL and PRODUCTION items require a physical count.
         const rows: ReconRow[] = items
-            .filter(item => item.type === 'RAW_MATERIAL' || item.type === 'FINISHED_GOOD' || item.type === 'PRODUCTION')
+            .filter(item => item.type === 'RAW_MATERIAL' || item.type === 'PRODUCTION')
             .map(item => {
                 const purchasesIn = purchasesMap.get(item.id) || 0;
                 const purchasesOut = returnsMap.get(item.id) || 0;
@@ -128,9 +131,7 @@ export class ReconService {
                 const stockOnHand = beginningInventory + purchasesIn - purchasesOut;
                 const endingSystem = stockOnHand - posSales - eventSales;
 
-                const categoryLabel = item.type === 'RAW_MATERIAL' ? 'RAW MAT'
-                    : item.type === 'FINISHED_GOOD' ? 'FG'
-                        : 'PROD';
+                const categoryLabel = item.type === 'RAW_MATERIAL' ? 'RAW MAT' : 'PROD';
 
                 return {
                     itemId: item.id,
