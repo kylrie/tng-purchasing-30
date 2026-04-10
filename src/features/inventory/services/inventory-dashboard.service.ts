@@ -279,7 +279,7 @@ export class InventoryDashboardService {
         businessUnitId: string,
         period: DashboardPeriod,
         customRange?: DateRange
-    ): Promise<{ suspiciousItems: SuspiciousItem[]; categoryRisks: CategoryRiskRecord[] }> {
+    ): Promise<{ suspiciousItems: SuspiciousItem[]; categoryRisks: CategoryRiskRecord[]; itemCategoryMap: Record<string, string> }> {
         const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
 
         try {
@@ -295,8 +295,9 @@ export class InventoryDashboardService {
 
             // Build suspicious items from ADJUSTMENT transactions
             const allItems: SuspiciousItem[] = [];
+            const itemCategoryMap: Record<string, string> = {};
 
-            for (const [, adjEntry] of adjustmentMap) {
+            for (const [itemId, adjEntry] of adjustmentMap) {
                 const theoEntry = theoreticalMap.get(adjEntry.itemName) || null;
                 const expectedClosing = theoEntry?.totalQty || 0;
                 const varianceQty = adjEntry.totalQty; // ADJUSTMENT qty (signed)
@@ -305,8 +306,14 @@ export class InventoryDashboardService {
                     ? (Math.abs(varianceQty) / expectedClosing) * 100
                     : (varianceQty !== 0 ? 100 : 0);
 
+                itemCategoryMap[itemId] = adjEntry.category;
+
                 allItems.push({
+                    itemId,
                     itemName: adjEntry.itemName,
+                    type: 'RAW_MATERIAL',
+                    countUnit: '',
+                    conversionRate: 1,
                     category: adjEntry.category,
                     expectedClosing,
                     actualClosing: expectedClosing - varianceQty,
@@ -347,7 +354,7 @@ export class InventoryDashboardService {
                 .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue))
                 .slice(0, 10);
 
-            return { suspiciousItems, categoryRisks, itemCategoryMap: {} };
+            return { suspiciousItems, categoryRisks, itemCategoryMap };
         } catch (error) {
             console.error('Error calculating inventory analysis:', error);
             return { suspiciousItems: [], categoryRisks: [], itemCategoryMap: {} };

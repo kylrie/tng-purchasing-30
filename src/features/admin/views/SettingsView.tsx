@@ -44,7 +44,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onApproveUser,
     onRejectUser,
     loadingUserId,
-    uomOptions,
+    uomOptions: _uomOptions,
 }) => {
     const { updatePermissions, updateRoles } = usePermissionsContext();
     const { hasPermission } = usePermissions();

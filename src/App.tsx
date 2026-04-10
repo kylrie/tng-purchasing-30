@@ -77,7 +77,7 @@ function ProtectedApp() {
 
   const [notifications] = useState<NotificationItem[]>([]);
   const [approvalLoadingId, setApprovalLoadingId] = useState<string | null>(null);
-  const { uomOptions, updateUOMs } = useUOM();
+  const { uomOptions } = useUOM();
 
   const handleApproveUser = async (userId: string) => {
     setApprovalLoadingId(userId);
