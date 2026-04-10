@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { HARDCODED_UOMS } from '../../../shared/constants/uom.constants';
 
 import { usePermissionsContext } from '../../../contexts/PermissionsContext';
 import PermissionsMatrix from '../components/PermissionsMatrix';
@@ -29,7 +30,6 @@ interface SettingsViewProps {
     onRejectUser: (userId: string) => void;
     loadingUserId: string | null;
     uomOptions: string[];
-    setUomOptions: (uoms: string[]) => Promise<void>;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -45,7 +45,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onRejectUser,
     loadingUserId,
     uomOptions,
-    setUomOptions,
 }) => {
     const { updatePermissions, updateRoles } = usePermissionsContext();
     const { hasPermission } = usePermissions();
@@ -74,9 +73,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     // User Search
     const [searchQuery, setSearchQuery] = useState('');
 
-    // UOM State
-    const [newUOM, setNewUOM] = useState('');
-    const [editingUOMIndex, setEditingUOMIndex] = useState<number | null>(null);
+    // UOM State – removed (UOMs are now hardcoded, no user edits allowed)
 
     // PCF Settings State
     const [pcfSettings, setPcfSettings] = useState<PCFSettings>({ deadlineDay: 5 });
@@ -369,54 +366,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             addBodApprover(newBodUserId);
             setNewBodUserId('');
         }
-    };
-
-    // UOM Handlers
-    const handleAddOrUpdateUOM = async () => {
-        if (!newUOM.trim()) return;
-
-        const trimmedUOM = newUOM.trim().toLowerCase();
-
-        if (editingUOMIndex !== null) {
-            // Update existing UOM
-            const updatedList = [...uomOptions];
-            updatedList[editingUOMIndex] = trimmedUOM;
-            await setUomOptions(updatedList);
-            alert('UOM Updated Successfully');
-        } else {
-            // Add new UOM
-            if (uomOptions.includes(trimmedUOM)) {
-                alert('This UOM already exists!');
-                return;
-            }
-            await setUomOptions([...uomOptions, trimmedUOM]);
-            alert('UOM Added Successfully');
-        }
-
-        setNewUOM('');
-        setEditingUOMIndex(null);
-    };
-
-    const handleEditUOM = (index: number) => {
-        setNewUOM(uomOptions[index]);
-        setEditingUOMIndex(index);
-    };
-
-    const handleDeleteUOM = async (index: number) => {
-        if (confirm(`Are you sure you want to delete "${uomOptions[index]}"?`)) {
-            try {
-                await setUomOptions(uomOptions.filter((_: string, i: number) => i !== index));
-                alert('UOM Deleted Successfully');
-            } catch (error) {
-                console.error('Error deleting UOM:', error);
-                alert('Failed to delete UOM. Please try again.');
-            }
-        }
-    };
-
-    const handleCancelEditUOM = () => {
-        setNewUOM('');
-        setEditingUOMIndex(null);
     };
 
     // Storage Area Handlers
@@ -1160,88 +1109,38 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white">
                                 <Sliders size={20} className="text-green-400" /> Inventory Settings
                             </h3>
-                            <p className="text-slate-400 text-sm mb-6">
-                                Manage Units of Measurement (UOM) used throughout the procurement system.
-                            </p>
 
-                            {/* Add/Edit UOM Form */}
-                            <div className="bg-slate-900/30 p-4 rounded-lg border border-slate-700 mb-6">
-                                <h4 className="text-sm font-bold text-slate-300 mb-3">
-                                    {editingUOMIndex !== null ? 'Edit UOM' : 'Add New UOM'}
-                                </h4>
-                                <div className="flex flex-col md:flex-row gap-3">
-                                    <input
-                                        type="text"
-                                        className={inputClass}
-                                        placeholder="e.g., dozen, liter, meter"
-                                        value={newUOM}
-                                        onChange={(e) => setNewUOM(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && handleAddOrUpdateUOM()}
-                                    />
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={handleAddOrUpdateUOM}
-                                            disabled={!newUOM.trim()}
-                                            className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 whitespace-nowrap
-                                            ${editingUOMIndex !== null ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'}
-                                            disabled:opacity-50 disabled:cursor-not-allowed
-                                        `}
-                                        >
-                                            {editingUOMIndex !== null ? (
-                                                <><Check size={16} /> Update</>
-                                            ) : (
-                                                <><Plus size={16} /> Add UOM</>
-                                            )}
-                                        </button>
-                                        {editingUOMIndex !== null && (
-                                            <button
-                                                onClick={handleCancelEditUOM}
-                                                className="flex-1 md:flex-none bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-slate-600 font-medium transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <X size={16} /> Cancel
-                                            </button>
-                                        )}
-                                    </div>
+                            {/* UOM – read-only, system-managed */}
+                            <div className="mb-6">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wide">Units of Measurement</h4>
+                                    <span className="flex items-center gap-1 text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full">
+                                        <Lock size={10} /> System-Managed
+                                    </span>
                                 </div>
-                            </div>
+                                <p className="text-slate-400 text-sm mb-4">
+                                    These units are built into the system and cannot be changed. They are used across procurement, inventory, recipes, and costing.
+                                </p>
 
-                            {/* UOM List */}
-                            <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
-                                <h4 className="text-sm font-bold text-slate-400 uppercase mb-3">
-                                    Available Units ({uomOptions.length})
-                                </h4>
-                                {uomOptions.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-500">
-                                        No UOMs available. Add one above.
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                        {uomOptions.map((uom, index) => (
-                                            <div
-                                                key={index}
-                                                className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 text-sm flex justify-between items-center hover:bg-slate-800/50 transition-colors group"
-                                            >
-                                                <div className="font-medium text-slate-200 font-mono">{uom}</div>
-                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => handleEditUOM(index)}
-                                                        className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors"
-                                                        title="Edit UOM"
+                                {(['Count', 'Packaging', 'Weight', 'Volume'] as const).map(category => {
+                                    const group = HARDCODED_UOMS.filter(u => u.category === category);
+                                    return (
+                                        <div key={category} className="mb-4">
+                                            <h5 className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">{category}</h5>
+                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                                {group.map(uom => (
+                                                    <div
+                                                        key={uom.code}
+                                                        className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 flex items-center gap-3"
                                                     >
-                                                        <Edit2 size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDeleteUOM(index)}
-                                                        className="p-1.5 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
-                                                        title="Delete UOM"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
+                                                        <span className="font-mono font-bold text-green-400 text-sm min-w-[3rem]">{uom.code}</span>
+                                                        <span className="text-slate-300 text-sm">{uom.label}</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
+                                        </div>
+                                    );
+                                })}
                             </div>
 
                             {/* Divider */}

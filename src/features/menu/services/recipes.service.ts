@@ -8,6 +8,7 @@ import type {
     RecipeIngredientInput
 } from '../types/menu.types';
 import { UNIT_CONVERSIONS } from '../types/menu.types';
+import { UOM_CONVERSIONS } from '../../../shared/constants/uom.constants';
 import {
     collection, doc, writeBatch, getDocs
 } from 'firebase/firestore';
@@ -31,39 +32,54 @@ export function convertUnits(
     toUnit: string
 ): number {
     // Same unit - no conversion needed
-    if (fromUnit.toLowerCase() === toUnit.toLowerCase()) {
+    if (fromUnit.toUpperCase() === toUnit.toUpperCase()) {
         return quantity;
     }
 
     const fromLower = fromUnit.toLowerCase();
-    const toLower = toUnit.toLowerCase();
+    const toLower   = toUnit.toLowerCase();
+    const fromUpper = fromUnit.toUpperCase();
+    const toUpper   = toUnit.toUpperCase();
 
-    // Direct conversion
+    // ── 1. New hardcoded UOM_CONVERSIONS (uppercase) ──────────
+    if (UOM_CONVERSIONS[fromUpper]?.[toUpper]) {
+        return quantity * UOM_CONVERSIONS[fromUpper][toUpper];
+    }
+    if (UOM_CONVERSIONS[toUpper]?.[fromUpper]) {
+        return quantity / UOM_CONVERSIONS[toUpper][fromUpper];
+    }
+    // Via intermediate unit in UOM_CONVERSIONS
+    const uomBridge = Object.keys(UOM_CONVERSIONS[fromUpper] ?? {}).find(
+        mid => UOM_CONVERSIONS[mid]?.[toUpper]
+    );
+    if (uomBridge) {
+        const toMid   = quantity * UOM_CONVERSIONS[fromUpper][uomBridge];
+        return toMid * UOM_CONVERSIONS[uomBridge][toUpper];
+    }
+
+    // ── 2. Legacy UNIT_CONVERSIONS (lowercase) ────────────────
     if (UNIT_CONVERSIONS[fromLower]?.[toLower]) {
         return quantity * UNIT_CONVERSIONS[fromLower][toLower];
     }
-
-    // Reverse conversion
     if (UNIT_CONVERSIONS[toLower]?.[fromLower]) {
         return quantity / UNIT_CONVERSIONS[toLower][fromLower];
     }
-
-    // Try via ml for volume conversions
+    // Via ml
     if (UNIT_CONVERSIONS[fromLower]?.['ml'] && UNIT_CONVERSIONS['ml']?.[toLower]) {
         const inMl = quantity * UNIT_CONVERSIONS[fromLower]['ml'];
         return inMl * UNIT_CONVERSIONS['ml'][toLower];
     }
-
-    // Try via g for weight conversions
+    // Via g
     if (UNIT_CONVERSIONS[fromLower]?.['g'] && UNIT_CONVERSIONS['g']?.[toLower]) {
         const inG = quantity * UNIT_CONVERSIONS[fromLower]['g'];
         return inG * UNIT_CONVERSIONS['g'][toLower];
     }
 
-    // No conversion found - return original
+    // No conversion found - return original quantity (1:1 assumption)
     console.warn(`No conversion found from ${fromUnit} to ${toUnit}`);
     return quantity;
 }
+
 
 /**
  * Get available recipe units for an inventory item's base unit
@@ -102,8 +118,13 @@ export function calculateIngredientCost(
     // Convert recipe quantity to inventory base unit
     const baseQuantity = convertUnits(quantity, recipeUnit, inventoryItem.units.countUnit);
 
+    // Use baseCost (cost per base/count unit) if available.
+    // baseCost = buyCost / conversion (set by InventoryItemModal and receiveGoodsBatch).
+    // Fall back to costPerUnit for legacy items created before the baseCost/buyCost split.
+    const costPerBaseUnit = inventoryItem.baseCost ?? inventoryItem.costPerUnit;
+
     // Calculate cost
-    const totalCost = baseQuantity * inventoryItem.costPerUnit;
+    const totalCost = baseQuantity * costPerBaseUnit;
 
     return { baseQuantity, totalCost };
 }
@@ -172,7 +193,8 @@ export async function calculateRecipeCost(
             quantity: input.quantity,
             unit: input.unit,
             baseQuantity,
-            costPerBaseUnit: inventoryItem.costPerUnit,
+            // Stamp the correct per-base-unit cost (not the buy-unit cost)
+            costPerBaseUnit: inventoryItem.baseCost ?? inventoryItem.costPerUnit,
             totalCost: ingredientCost
         });
 
@@ -424,8 +446,8 @@ export async function migrateExistingRecipes(businessUnitId: string): Promise<st
     // 1. Fetch all menu items for the BU
     const menuSnapshot = await getDocs(collection(db, COLLECTION));
     const menuItems = menuSnapshot.docs
-        .map((d: any) => ({ id: d.id, ...d.data() }) as MenuItem & { id: string })
-        .filter((m: any) => m.businessUnitId === businessUnitId);
+        .map((d) => ({ id: d.id, ...d.data() }) as MenuItem & { id: string })
+        .filter((m: MenuItem & { id: string }) => m.businessUnitId === businessUnitId);
 
     // 2. Fetch all inventory items (we need this to format BomIngredient units)
     const inventoryItems = await InventoryService.getInventory(businessUnitId);

@@ -547,6 +547,26 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                         Export Balances
                     </button>
 
+                    {/* Temporary Dev Button - Fix Costs */}
+                    <button
+                        onClick={async () => {
+                            if (confirm('Run base cost migration to fix missing costs?')) {
+                                try {
+                                    await InventoryService.migrateInventoryBaseCosts(selectedBusinessUnit);
+                                    alert('Cost migration completed. Please refresh the page to see changes.');
+                                } catch (e) {
+                                    console.error(e);
+                                    alert('Migration failed.');
+                                }
+                            }
+                        }}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                        title="Run this to recalculate legacy cost values"
+                    >
+                        <AlertTriangle size={16} />
+                        Fix Legacy Costs
+                    </button>
+
                     {/* Import Beginning Balance */}
                     <label className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer">
                         <Upload size={16} />

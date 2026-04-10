@@ -13,7 +13,9 @@ import type {
     RecipeIngredient,
     CreateProductionRecipeInput
 } from '../types/menu.types';
-import { PRODUCTION_CATEGORIES, UNIT_CONVERSIONS } from '../types/menu.types';
+import { PRODUCTION_CATEGORIES } from '../types/menu.types';
+import { convertUnits } from '../services/recipes.service';
+import { UOM_CODES } from '../../../shared/constants/uom.constants';
 import { ProductionRecipeService } from '../services/production-recipe.service';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 
@@ -47,7 +49,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
     const [category, setCategory] = useState<ProductionCategory>('Other');
     const [description, setDescription] = useState('');
     const [yieldQuantity, setYieldQuantity] = useState<number>(1);
-    const [yieldUnit, setYieldUnit] = useState('serving');
+    const [yieldUnit, setYieldUnit] = useState('G');
     const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     // FIX: Replace alert() with inline error state
@@ -72,7 +74,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             setCategory('Other');
             setDescription('');
             setYieldQuantity(1);
-            setYieldUnit('serving');
+            setYieldUnit('G');
             setIngredients([]);
         }
         // FIX: Reset errors when modal opens
@@ -116,10 +118,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             let baseQuantity = quantity;
             const item = inventoryItems.find(it => it.id === ing.inventoryItemId);
             if (item && unit !== item.units.countUnit) {
-                const conversion = UNIT_CONVERSIONS[unit]?.[item.units.countUnit];
-                if (conversion) {
-                    baseQuantity = quantity * conversion;
-                }
+                baseQuantity = convertUnits(quantity, unit, item.units.countUnit);
             }
 
             const totalCost = baseQuantity * ing.costPerBaseUnit;
@@ -269,13 +268,15 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                         </div>
                         <div>
                             <label className="block text-sm text-slate-700 dark:text-slate-400 mb-2">Unit</label>
-                            <input
-                                type="text"
+                            <select
                                 value={yieldUnit}
                                 onChange={(e) => setYieldUnit(e.target.value)}
-                                placeholder="e.g., ml, kg, serving"
                                 className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
-                            />
+                            >
+                                {UOM_CODES.map(code => (
+                                    <option key={code} value={code}>{code}</option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
@@ -359,12 +360,15 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                             step="0.1"
                                             className="w-20 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm text-center focus:outline-none focus:border-amber-500"
                                         />
-                                        <input
-                                            type="text"
+                                        <select
                                             value={ing.unit}
                                             onChange={(e) => updateIngredient(index, ing.quantity, e.target.value)}
-                                            className="w-20 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm text-center focus:outline-none focus:border-amber-500"
-                                        />
+                                            className="w-24 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm focus:outline-none focus:border-amber-500"
+                                        >
+                                            {UOM_CODES.map(code => (
+                                                <option key={code} value={code}>{code}</option>
+                                            ))}
+                                        </select>
                                         <div className="w-24 text-right text-amber-600 dark:text-amber-400 text-sm flex items-center justify-end gap-1">
                                             <PesoSign size={12} />
                                             {ing.totalCost.toFixed(2)}

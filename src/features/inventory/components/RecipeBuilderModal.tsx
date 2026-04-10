@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { X, Plus, Trash2, FlaskConical, Save } from 'lucide-react';
 import type { InventoryItem, BomIngredient } from '../types/InventoryItem';
 import InventoryService from '../services/inventory.service';
+import { UOM_CODES, UOM_LABEL } from '../../../shared/constants/uom.constants';
 
 // ============================================================
 // PROPS
@@ -39,8 +40,7 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
         setRecipe(item.recipe?.length ? [...item.recipe] : []);
     }
 
-    // Common units for recipe ingredients
-    const RECIPE_UNITS = ['g', 'kg', 'ml', 'liter', 'piece', 'unit', 'oz', 'shot', 'bottle', 'cup', 'tbsp', 'tsp'];
+    // Use the system-wide hardcoded UOM list (no free-text, no legacy strings)
 
     // Filter out already-used ingredients
     const availableRawMaterials = useMemo(() => {
@@ -57,7 +57,7 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                 ingredientId: rm.id,
                 ingredientName: rm.name,
                 quantityUsed: 0,
-                unit: rm.units?.countUnit || 'g',
+                unit: rm.units?.countUnit || 'G',
             },
         ]);
     };
@@ -76,7 +76,7 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                         ...ing,
                         ingredientId: value as string,
                         ingredientName: rm?.name || '',
-                        unit: rm?.units?.countUnit || ing.unit,
+                        unit: rm?.units?.countUnit || ing.unit || 'EA',
                     };
                 }
                 return { ...ing, [field]: value };
@@ -247,8 +247,10 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                                             padding: '8px 10px', fontSize: '13px', width: '100%',
                                         }}
                                     >
-                                        {RECIPE_UNITS.map(u => (
-                                            <option key={u} value={u}>{u}</option>
+                                        {UOM_CODES.map(code => (
+                                            <option key={code} value={code}>
+                                                {code} — {UOM_LABEL[code]}
+                                            </option>
                                         ))}
                                     </select>
 

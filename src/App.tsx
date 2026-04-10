@@ -514,7 +514,6 @@ function ProtectedApp() {
                       onRejectUser={handleRejectUser}
                       loadingUserId={approvalLoadingId}
                       uomOptions={uomOptions}
-                      setUomOptions={updateUOMs}
                     />
                   </ProtectedRoute>
                 } />

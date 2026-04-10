@@ -560,6 +560,73 @@ export class InventoryService {
             }
         }
     }
+
+    // ============================================================
+    // MIGRATION / DEVELOPER TOOLS
+    // ============================================================
+
+    /**
+     * One-time migration to fix all existing Inventory items to ensure
+     * baseCost is properly calculated and costPerUnit matches baseCost.
+     * Run this if cost calculation errors are appearing on older parts of the system.
+     */
+    static async migrateInventoryBaseCosts(businessUnitId: string): Promise<void> {
+        try {
+            console.log(`[InventoryService] Starting cost migration for BU ${businessUnitId}`);
+            
+            const items = await FirestoreService.getDocuments<InventoryItem>(
+                COLLECTIONS.INVENTORY_ITEMS,
+                [where('businessUnitId', '==', businessUnitId)]
+            );
+
+            // Use batched writes
+            let batch = writeBatch(db);
+            let updateCount = 0;
+            let totalUpdated = 0;
+
+            for (const data of items) {
+                let updated = false;
+                const updateData: Partial<InventoryItem> = {};
+
+                if (data.buyCost !== undefined && data.buyCost !== null && data.units?.conversion) {
+                    const expectedBaseCost = data.buyCost / data.units.conversion;
+
+                    if (data.baseCost !== expectedBaseCost) {
+                        updateData.baseCost = expectedBaseCost;
+                        updated = true;
+                    }
+                    if (data.costPerUnit !== expectedBaseCost) {
+                        updateData.costPerUnit = expectedBaseCost;
+                        updated = true;
+                    }
+                }
+
+                if (updated) {
+                    updateData.updatedAt = Timestamp.now();
+                    const itemRef = doc(db, COLLECTIONS.INVENTORY_ITEMS, data.id);
+                    batch.update(itemRef, updateData);
+                    updateCount++;
+                    totalUpdated++;
+                }
+
+                if (updateCount === 450) {
+                    await batch.commit();
+                    batch = writeBatch(db); // Create a new batch
+                    console.log(`[InventoryService] Committed 450 cost migrations.`);
+                    updateCount = 0;
+                }
+            }
+
+            if (updateCount > 0) {
+                await batch.commit();
+            }
+
+            console.log(`[InventoryService] Cost migration complete. Total items updated: ${totalUpdated}`);
+        } catch (error) {
+            console.error('[InventoryService] Cost migration failed:', error);
+            throw error;
+        }
+    }
 }
 
 export default InventoryService;
