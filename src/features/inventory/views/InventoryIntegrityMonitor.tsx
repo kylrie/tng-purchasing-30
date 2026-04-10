@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   AlertTriangle,
   Building2,
@@ -526,7 +526,7 @@ const InventoryIntegrityMonitor: React.FC = () => {
   };
 
   const handleResolveInvestigation = async (caseId: string, notes: string) => {
-    const bizId = selectedBusinessId || currentUser?.businessId;
+    const bizId = selectedBU || currentUser?.businessId;
     if (!bizId) return;
     try {
       await InvestigationsService.resolveInvestigation(bizId, caseId, notes);
