@@ -1,0 +1,33 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "stock_transactions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "timestamp",
+                    "order": "DESCENDING"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "pos_sales",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

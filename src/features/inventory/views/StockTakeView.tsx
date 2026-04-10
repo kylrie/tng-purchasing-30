@@ -8,7 +8,6 @@ import {
     AlertTriangle,
     Boxes,
     Factory,
-    ShoppingBag,
     Wrench,
     Building2,
     MapPin,
@@ -43,11 +42,12 @@ interface CountItemState {
 }
 
 // Type tab configuration
+// NOTE: FINISHED_GOOD is intentionally excluded — FGs are sold items managed
+// via BOM explosion from POS imports and must NOT be physically counted.
 const TYPE_TABS: { key: InventoryItemType | 'ALL'; label: string; icon: React.ElementType }[] = [
     { key: 'ALL', label: 'All Items', icon: Package },
     { key: 'RAW_MATERIAL', label: 'Raw Materials', icon: Boxes },
     { key: 'PRODUCTION', label: 'Production', icon: Factory },
-    { key: 'FINISHED_GOOD', label: 'Finished Goods', icon: ShoppingBag },
     { key: 'ASSET', label: 'Assets', icon: Wrench }
 ];
 
@@ -263,7 +263,13 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                     InventoryService.getStorageAreas()
                 ]);
 
-                setItems(fetchedItems);
+                // CRITICAL: Always exclude FINISHED_GOOD from the stock-take list.
+                // Finished Goods are managed virtually via BOM explosion from POS sales.
+                // They must never appear in a physical counting session.
+                const countableItems = fetchedItems.filter(
+                    item => item.type !== 'FINISHED_GOOD'
+                );
+                setItems(countableItems);
                 setStorageAreas(fetchedAreas);
 
                 const openSession = await InventoryService.getOpenSession(selectedBusinessUnit, currentUser.id);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { InventoryDashboardService } from '../services/inventory-dashboard.service';
@@ -30,16 +30,16 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
     const [shiftVariances, setShiftVariances] = useState<StaffVarianceRecord[]>([]);
     const [investigations, setInvestigations] = useState<InvestigationCase[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = useCallback(async () => {
         if (!businessId) return;
         setLoading(true);
-
+        setError(null);
         const dateRange = getDateRangeFromPeriod(timeFilter);
         
         // Log 1: Hook Inputs
         console.log("1. Hook Inputs:", { businessUnitId: businessId, dateRange });
-
         try {
             const startTs = Timestamp.fromDate(dateRange[0]);
             const endTs = Timestamp.fromDate(dateRange[1]);
@@ -231,19 +231,19 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
 
             setKpis(kpiData);
             setShiftVariances(varianceData);
-
-        } catch (error: any) {
-            console.error("FIREBASE QUERY ERROR:", error.message);
+        } catch (err: any) {
+            const message = err instanceof Error ? err.message : 'Failed to load dashboard data';
+            console.error("FIREBASE QUERY ERROR:", err.message);
+            setError(message);
         } finally {
             setTimeout(() => setLoading(false), 300);
         }
-    };
+    }, [businessId, timeFilter]);
 
-    // Fetch standard KPI and Variance data on mount/filter change
+    // Fetch KPI and Variance data on mount/filter change
     useEffect(() => {
         fetchDashboardData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [businessId, timeFilter]);
+    }, [fetchDashboardData]);
 
     // Subscribe to real-time investigations
     useEffect(() => {
@@ -264,6 +264,8 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
         shiftVariances,
         investigations,
         loading,
-        refreshData: fetchDashboardData
+        error,
+        refreshData: fetchDashboardData,
+        refetch: fetchDashboardData,
     };
 }

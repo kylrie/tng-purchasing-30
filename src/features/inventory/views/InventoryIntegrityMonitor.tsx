@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   AlertTriangle,
   Building2,
@@ -408,7 +408,9 @@ const InventoryIntegrityMonitor: React.FC = () => {
     kpis: dashboardKPIs,
     shiftVariances,
     investigations,
-    loading
+    loading,
+    error,
+    refetch,
   } = useInventoryDashboard(selectedBU || currentUser?.businessId, filterKey);
 
   // Convert raw DashboardKPIs into UI components KpiItem[]
@@ -524,9 +526,10 @@ const InventoryIntegrityMonitor: React.FC = () => {
   };
 
   const handleResolveInvestigation = async (caseId: string, notes: string) => {
-    if (!currentUser?.businessId) return;
+    const bizId = selectedBusinessId || currentUser?.businessId;
+    if (!bizId) return;
     try {
-      await InvestigationsService.resolveInvestigation(currentUser.businessId, caseId, notes);
+      await InvestigationsService.resolveInvestigation(bizId, caseId, notes);
     } catch (e) {
       console.error('Failed to resolve investigation', e);
     }
@@ -623,6 +626,22 @@ const InventoryIntegrityMonitor: React.FC = () => {
         {/* ============================================================ */}
         {activeTab === 'Overview' && (
           <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Error Banner */}
+            {error && (
+              <div className="w-full rounded-2xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-900/20 backdrop-blur-xl px-6 py-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                  <p className="text-sm font-medium text-amber-700 dark:text-amber-300">{error}</p>
+                </div>
+                <button
+                  onClick={() => refetch()}
+                  className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all duration-200 active:scale-95 whitespace-nowrap"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
             {/* Alert Banner */}
             <HighAlertBanner
               itemsCount={suspiciousInvestigate.length}

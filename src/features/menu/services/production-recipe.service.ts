@@ -201,7 +201,7 @@ export class ProductionRecipeService {
                     } else {
                         totalCost += ing.totalCost; // Keep existing if item not found
                     }
-                } catch (err) {
+                } catch {
                     totalCost += ing.totalCost;
                 }
             }
@@ -293,6 +293,9 @@ export class ProductionRecipeService {
         const batch = writeBatch(db);
         const now = Timestamp.now();
 
+        // Unique ID for this specific production run (used to link yield → consumes)
+        const batchId = `BATCH-${recipeId.slice(0, 6)}-${now.seconds}`;
+
         // ── Step D: Increase PRODUCTION item stock ──────────────────
         const newProdTheoretical = (prodItem.theoreticalStock ?? prodItem.currentStock ?? 0) + yieldQuantity;
 
@@ -303,6 +306,8 @@ export class ProductionRecipeService {
         });
 
         // Write PRODUCTION_YIELD stock transaction
+        const unitCost = recipe.costPerUnit ?? 0;
+        const totalCostRun = unitCost * yieldQuantity;
         const yieldTxRef = doc(collection(db, 'stock_transactions'));
         batch.set(yieldTxRef, {
             itemId: prodItem.id,
@@ -311,7 +316,12 @@ export class ProductionRecipeService {
             type: 'PRODUCTION_YIELD',
             quantity: yieldQuantity,
             balanceAfter: newProdTheoretical,
-            referenceId: recipeId,
+            referenceId: recipeId,   // recipe-level reference (for recipe filtering)
+            batchId,                  // unique per production run (for consume drill-down)
+            recipeName: recipe.name,
+            yieldUnit: recipe.yieldUnit,
+            unitCost,                 // cost per yield unit at time of run
+            totalCost: totalCostRun,  // total cost of this run
             notes: `Production Run: yielded ${yieldQuantity} ${recipe.yieldUnit} of ${recipe.name}`,
             performedBy: userId,
             performedByName: userName,
@@ -340,7 +350,8 @@ export class ProductionRecipeService {
                 type: 'PRODUCTION_CONSUME',
                 quantity: deductionAmount,
                 balanceAfter: newRmTheoretical,
-                referenceId: recipeId,
+                referenceId: recipeId,   // recipe-level reference
+                batchId,                  // unique per production run — matches the YIELD row
                 notes: `Used in Production: ${recipe.name} (×${yieldQuantity} ${recipe.yieldUnit})`,
                 performedBy: userId,
                 performedByName: userName,
