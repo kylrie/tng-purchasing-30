@@ -1,8 +1,14 @@
 {
-    "firestore":  {
-                      "database":  "tng-systems",
-                      "rules":  "firestore.rules"
-                  },
+    "firestore":  [
+                      {
+                          "database":  "(default)",
+                          "rules":  "firestore.rules"
+                      },
+                      {
+                          "database":  "tng-systems",
+                          "rules":  "firestore.rules"
+                      }
+                  ],
     "functions":  {
                       "source":  "functions",
                       "codebase":  "default",

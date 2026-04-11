@@ -78,12 +78,21 @@ service cloud.firestore {
     // hasAny() checks if ANY element in the first list is in the second list
     // =====================================================
     
+    function getResourceBU(resource) {
+      return 'businessUnitId' in resource.data ? resource.data.businessUnitId : 
+             ('businessId' in resource.data ? resource.data.businessId : null);
+    }
+
     function belongsToSameBU(resource) {
       let userData = getUserData();
+      let resourceBuId = getResourceBU(resource);
+      
       return isSuperAdminOrAdmin() ||
-        userData.businessId == resource.data.businessId ||
-        (userData.businessUnitIds != null && 
-         userData.businessUnitIds.hasAny([resource.data.businessId]));
+        (resourceBuId != null && (
+          userData.businessId == resourceBuId ||
+          (userData.businessUnitIds != null && 
+           userData.businessUnitIds.hasAny([resourceBuId]))
+        ));
     }
     
     function canReadRequisition(resource) {
@@ -767,8 +776,8 @@ service cloud.firestore {
     // Multi-tenant inventory items scoped by businessUnitId
     // =====================================================
     match /inventory_items/{itemId} {
-      // All authenticated users can read inventory items
-      allow read: if isSignedIn();
+      // Users can only read inventory items belonging to their BU
+      allow read: if isSignedIn() && belongsToSameBU(resource);
       
       // Create: Requires inventory:manage:items permission
       // This prevents unauthorized data manipulation via direct API calls
@@ -790,8 +799,8 @@ service cloud.firestore {
     // Session-based stock counting records
     // =====================================================
     match /stock_counts/{countId} {
-      // All authenticated users can read stock counts
-      allow read: if isSignedIn();
+      // Users can only read stock counts belonging to their BU
+      allow read: if isSignedIn() && belongsToSameBU(resource);
       
       // Users can create stock count sessions
       allow create: if isSignedIn();
@@ -811,8 +820,8 @@ service cloud.firestore {
     // Multi-tenant menu items with recipes scoped by businessUnitId
     // =====================================================
     match /menu_items/{itemId} {
-      // All authenticated users can read menu items
-      allow read: if isSignedIn();
+      // Users can only read menu items belonging to their BU
+      allow read: if isSignedIn() && belongsToSameBU(resource);
       
       // Create/Update: Any authenticated user can manage menu items
       // Delete: Admin only (to prevent accidental data loss)
@@ -825,8 +834,8 @@ service cloud.firestore {
     // Multi-tenant recipes including yield and ingredients
     // =====================================================
     match /productionRecipes/{recipeId} {
-      // All authenticated users can read recipes
-      allow read: if isSignedIn();
+      // Users can only read recipes belonging to their BU
+      allow read: if isSignedIn() && belongsToSameBU(resource);
       
       // Create/Update: Any authenticated user can manage recipes
       allow create, update: if isSignedIn();
