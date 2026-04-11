@@ -60,7 +60,8 @@ export type StockTransactionType =
   | 'THEORETICAL_USAGE'   // BOM explosion: raw material deducted from FG sale
   | 'PRODUCTION_YIELD'    // Production run: finished production item yield increase
   | 'PRODUCTION_CONSUME'  // Production run: raw material consumed during production
-  | 'STOCK_COUNT';
+  | 'STOCK_COUNT'
+  | 'WASTAGE';            // Material wastage: stock manually deducted due to loss
 
 export interface StockTransaction {
   id: string;

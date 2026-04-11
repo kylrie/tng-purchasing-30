@@ -60,6 +60,7 @@ const MainDashboardRouter = React.lazy(() => import('./features/dashboard/views/
 const NotificationsView = React.lazy(() => import('./features/notifications/views/NotificationsView'));
 const POSView = React.lazy(() => import('./features/pos/views/POSView'));
 const PosImportDashboard = React.lazy(() => import('./features/pos/views/PosImportDashboard'));
+const WastageView = React.lazy(() => import('./features/inventory/views/WastageView'));
 
 // Loading component
 const PageLoader = () => (
@@ -484,6 +485,9 @@ function ProtectedApp() {
                 } />
                 <Route path="/inventory/receiving" element={
                   <GoodsReceivingView businesses={businesses} currentUser={currentUser} />
+                } />
+                <Route path="/inventory/wastage" element={
+                  <WastageView businesses={businesses} currentUser={currentUser} />
                 } />
 
                 {/* Menu Engineering Module */}

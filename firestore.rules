@@ -992,5 +992,16 @@ service cloud.firestore {
       // No updates or deletes — immutable snapshot record
       allow update, delete: if false;
     }
+    
+    // =====================================================
+    // WASTAGE RECORDS COLLECTION
+    // Immutable records of inventory wastage events
+    // =====================================================
+    match /wastage_records/{recordId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // No updates or deletes — immutable wastage audit trail
+      allow update, delete: if false;
+    }
   }
 }

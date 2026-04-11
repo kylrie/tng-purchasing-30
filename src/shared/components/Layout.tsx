@@ -38,7 +38,8 @@ import {
     ClipboardCheck,
     Search,
     Landmark,
-    Store
+    Store,
+    Trash2
 } from 'lucide-react';
 import type { User } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -336,7 +337,8 @@ const Layout: React.FC<LayoutProps> = ({
                     canView: hasPermission('inventory:view:items'),
                     children: [
                         { path: '/inventory/items', label: 'All Items', icon: Package, canView: hasPermission('inventory:view:items') },
-                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:view:items') }
+                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:view:items') },
+                        { path: '/inventory/wastage', label: 'Wastage', icon: Trash2, canView: hasPermission('inventory:manage:items') }
                     ]
                 },
                 { path: '/inventory/fixed-assets', label: 'Fixed Assets', icon: Monitor, canView: hasPermission('inventory:manage:assets') },

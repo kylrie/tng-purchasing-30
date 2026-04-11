@@ -201,6 +201,47 @@ export interface ReceiveGoodsPayload {
 }
 
 // ============================================================
+// WASTAGE TRACKING TYPES
+// ============================================================
+
+export type WastageReason =
+  | 'Spillage'
+  | 'Expired'
+  | 'Damaged'
+  | 'Contaminated'
+  | 'Overproduction'
+  | 'Equipment Failure'
+  | 'Human Error'
+  | 'Other';
+
+export interface WastageRecord {
+  id: string;
+  businessUnitId: string;           // Multi-tenant filter
+  itemId: string;                   // Inventory item FK
+  itemName: string;                 // Denormalized for log display
+  itemType: InventoryItemType;      // RAW_MATERIAL or PRODUCTION
+  quantity: number;                 // Amount wasted (in countUnits, always positive)
+  unit: string;                     // Unit label (e.g., "kg", "bottle")
+  reason: WastageReason;
+  notes?: string;
+  costPerUnit: number;              // Snapshot of cost at time of wastage
+  totalCost: number;                // quantity × costPerUnit
+  balanceAfter: number;             // Stock snapshot after deduction
+  performedBy: string;              // User UID
+  performedByName: string;          // User display name
+  createdAt: Timestamp;
+}
+
+export interface RecordWastageInput {
+  businessUnitId: string;
+  itemId: string;
+  quantity: number;
+  reason: WastageReason;
+  notes?: string;
+  performedBy: { id: string; name: string };
+}
+
+// ============================================================
 // MOCK DATA - Multi-Tenant with Types
 // ============================================================
 
