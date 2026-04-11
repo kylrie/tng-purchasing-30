@@ -55,8 +55,8 @@ const CSV_HEADERS = [
 // Valid types and categories for validation
 const VALID_TYPES: InventoryItemType[] = ['RAW_MATERIAL', 'FINISHED_GOOD', 'PRODUCTION', 'ASSET'];
 const VALID_CATEGORIES: InventoryCategory[] = [
-    'Spirits', 'Wine', 'Beer', 'Mixers', 'Food',
-    'Dry Goods', 'Equipment', 'Furniture', 'Supplies', 'Glassware', 'Other'
+    'Spirits', 'Wine', 'Beer', 'Mixers', 'Beverage', 'Food', 'Frozen Good',
+    'Dry Goods', 'Equipment', 'Furniture', 'Supplies', 'Glassware', 'Souvenir', 'Other'
 ];
 
 // ============================================================

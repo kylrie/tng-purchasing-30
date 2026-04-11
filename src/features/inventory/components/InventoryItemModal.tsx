@@ -50,8 +50,8 @@ const ITEM_TYPES: { value: InventoryItemType; label: string }[] = [
 ];
 
 const CATEGORIES: InventoryCategory[] = [
-    'Spirits', 'Wine', 'Beer', 'Mixers', 'Food',
-    'Dry Goods', 'Equipment', 'Furniture', 'Supplies', 'Glassware', 'Other'
+    'Spirits', 'Wine', 'Beer', 'Mixers', 'Beverage', 'Food', 'Frozen Good',
+    'Dry Goods', 'Equipment', 'Furniture', 'Supplies', 'Glassware', 'Souvenir', 'Other'
 ];
 
 const INITIAL_FORM_DATA: FormData = {

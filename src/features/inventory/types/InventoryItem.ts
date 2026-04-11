@@ -15,12 +15,15 @@ export type InventoryCategory =
   | 'Wine'
   | 'Beer'
   | 'Mixers'
+  | 'Beverage'
   | 'Food'
+  | 'Frozen Good'
   | 'Dry Goods'
   | 'Equipment'
   | 'Furniture'
   | 'Supplies'
   | 'Glassware'
+  | 'Souvenir'
   | 'Other';
 
 // ============================================================
