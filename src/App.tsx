@@ -204,6 +204,12 @@ function ProtectedApp() {
   const pendingUsers = users.filter(user => user.status === UserStatus.PENDING_APPROVAL);
   const userNotifications = notifications.filter(n => n.targetRoles?.includes(currentUser.role) || currentUser.role === UserRole.SUPER_ADMIN);
 
+  const accessibleBusinesses = React.useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === UserRole.SUPER_ADMIN) return businesses;
+    return businesses.filter(b => currentUser.accessibleBusinessUnits?.includes(b.id));
+  }, [businesses, currentUser]);
+
   const layoutProps = {
     currentUser,
     notifications: userNotifications,
@@ -219,7 +225,7 @@ function ProtectedApp() {
           {/* External Routes (No Layout) */}
           <Route path="/pos" element={
             <ProtectedRoute permission="module:view:pos">
-              <POSView businesses={businesses} allUsers={users} />
+              <POSView businesses={accessibleBusinesses} allUsers={users} />
             </ProtectedRoute>
           } />
 
@@ -227,8 +233,8 @@ function ProtectedApp() {
           <Route path="/*" element={
             <Layout {...layoutProps}>
               <Routes>
-                <Route path="/" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
-                <Route path="/dashboard" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={businesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
+                <Route path="/" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
+                <Route path="/dashboard" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
 
                 <Route path="/burf" element={
                   <ProtectedRoute permission="module:view:burf">
@@ -236,7 +242,7 @@ function ProtectedApp() {
                       currentUser={currentUser}
                       visibleRequisitions={requisitions}
                       allUsers={users}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       getStatusBadge={getStatusBadge}
                       onCreateRequisition={createRequisition}
                       onUpdateRequisition={updateRequisition}
@@ -263,7 +269,7 @@ function ProtectedApp() {
                       currentUser={currentUser}
                       visibleRequisitions={requisitions}
                       getStatusBadge={getStatusBadge}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       allUsers={users}
                       onCreateRequisition={createRequisition}
                       onUpdateRequisition={updateRequisition}
@@ -279,7 +285,7 @@ function ProtectedApp() {
                       currentUser={currentUser}
                       requisitions={requisitions}
                       getStatusBadge={getStatusBadge}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       allUsers={users}
                     />
                   </ProtectedRoute>
@@ -291,7 +297,7 @@ function ProtectedApp() {
                       currentUser={currentUser}
                       requisitions={requisitions}
                       allUsers={users}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       onUpdateRequisition={updateRequisition}
                       getStatusBadge={getStatusBadge}
                     />
@@ -304,7 +310,7 @@ function ProtectedApp() {
                       currentUser={currentUser}
                       requisitions={requisitions}
                       allUsers={users}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       getStatusBadge={getStatusBadge}
                     />
                   </ProtectedRoute>
@@ -314,7 +320,7 @@ function ProtectedApp() {
                 {/* Overview - Strategic Finance Dashboard */}
                 <Route path="/finance/overview" element={
                   <ProtectedRoute permission="module:view:finance">
-                    <FinanceOverview businesses={businesses} />
+                    <FinanceOverview businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
 
@@ -326,7 +332,7 @@ function ProtectedApp() {
                       requisitions={requisitions}
                       getStatusBadge={getStatusBadge}
                       handleReleaseFunds={handleReleaseFunds}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       allUsers={users}
                     />
                   </ProtectedRoute>
@@ -338,7 +344,7 @@ function ProtectedApp() {
                 {/* Income placeholders */}
                 <Route path="/finance/income/sales" element={
                   <ProtectedRoute permission="module:view:finance">
-                    <PosImportDashboard businesses={businesses} />
+                    <PosImportDashboard businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
                 <Route path="/finance/income/invoices" element={
@@ -357,7 +363,7 @@ function ProtectedApp() {
                       requisitions={requisitions}
                       getStatusBadge={getStatusBadge}
                       handleReleaseFunds={handleReleaseFunds}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       onUpdateRequisition={updateRequisition}
                       allUsers={users}
                       suppliers={suppliers}
@@ -373,7 +379,7 @@ function ProtectedApp() {
                       requisitions={requisitions}
                       getStatusBadge={getStatusBadge}
                       handleReleaseFunds={handleReleaseFunds}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       onUpdateRequisition={updateRequisition}
                       allUsers={users}
                       suppliers={suppliers}
@@ -393,7 +399,7 @@ function ProtectedApp() {
                   <ProtectedRoute permission="module:view:pcf">
                     <PCFView
                       currentUser={currentUser}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       allUsers={users}
                     />
                   </ProtectedRoute>
@@ -403,7 +409,7 @@ function ProtectedApp() {
                   <ProtectedRoute permission="pcf:approve">
                     <PCFApprovalView
                       currentUser={currentUser}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       allUsers={users}
                     />
                   </ProtectedRoute>
@@ -413,7 +419,7 @@ function ProtectedApp() {
                   <ProtectedRoute permission="pcf:audit_review">
                     <PCFAuditReviewView
                       currentUser={currentUser}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                       allUsers={users}
                     />
                   </ProtectedRoute>
@@ -427,7 +433,7 @@ function ProtectedApp() {
                       onUpdateSupplier={updateSupplier}
                       onDeleteSupplier={deleteSupplier}
                       currentUser={currentUser}
-                      businesses={businesses}
+                      businesses={accessibleBusinesses}
                     />
                   </ProtectedRoute>
                 } />
@@ -442,7 +448,7 @@ function ProtectedApp() {
                 <Route path="/budgets" element={
                   <ProtectedRoute permission="budget:manage">
                     <div className="p-8">
-                      <BudgetConfigPanel businesses={businesses} />
+                      <BudgetConfigPanel businesses={accessibleBusinesses} />
                     </div>
                   </ProtectedRoute>
                 } />
@@ -450,7 +456,7 @@ function ProtectedApp() {
                 {/* Transaction History - View all budget transactions */}
                 <Route path="/finance/transactions" element={
                   <ProtectedRoute permission="module:view:finance">
-                    <TransactionHistoryView businesses={businesses} />
+                    <TransactionHistoryView businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
 
@@ -466,28 +472,28 @@ function ProtectedApp() {
                   <InventoryIntegrityMonitor />
                 } />
                 <Route path="/inventory/stock-take" element={
-                  <StockTakeView currentUser={currentUser} businesses={businesses} uomOptions={uomOptions} />
+                  <StockTakeView currentUser={currentUser} businesses={accessibleBusinesses} uomOptions={uomOptions} />
                 } />
                 <Route path="/inventory/reports" element={
                   <InventoryReports currentUser={currentUser} />
                 } />
                 <Route path="/inventory/items" element={
-                  <InventoryItemsView businesses={businesses} uomOptions={uomOptions} />
+                  <InventoryItemsView businesses={accessibleBusinesses} uomOptions={uomOptions} />
                 } />
                 <Route path="/inventory/variance" element={
-                  <VarianceReportView businesses={businesses} />
+                  <VarianceReportView businesses={accessibleBusinesses} />
                 } />
                 <Route path="/inventory/recon" element={
-                  <VarianceReconReport businesses={businesses} currentUser={currentUser} />
+                  <VarianceReconReport businesses={accessibleBusinesses} currentUser={currentUser} />
                 } />
                 <Route path="/inventory/fixed-assets" element={
-                  <FixedAssetsView businesses={businesses} currentUser={currentUser} allUsers={users} />
+                  <FixedAssetsView businesses={accessibleBusinesses} currentUser={currentUser} allUsers={users} />
                 } />
                 <Route path="/inventory/receiving" element={
-                  <GoodsReceivingView businesses={businesses} currentUser={currentUser} />
+                  <GoodsReceivingView businesses={accessibleBusinesses} currentUser={currentUser} />
                 } />
                 <Route path="/inventory/wastage" element={
-                  <WastageView businesses={businesses} currentUser={currentUser} />
+                  <WastageView businesses={accessibleBusinesses} currentUser={currentUser} />
                 } />
 
                 {/* Menu Engineering Module */}
@@ -495,10 +501,10 @@ function ProtectedApp() {
                   <Navigate to="/menu/finished-goods" replace />
                 } />
                 <Route path="/menu/finished-goods" element={
-                  <MenuDashboard businesses={businesses} currentUser={currentUser} />
+                  <MenuDashboard businesses={accessibleBusinesses} currentUser={currentUser} />
                 } />
                 <Route path="/menu/production-recipes" element={
-                  <ProductionRecipeView businesses={businesses} currentUser={currentUser} />
+                  <ProductionRecipeView businesses={accessibleBusinesses} currentUser={currentUser} />
                 } />
 
 
