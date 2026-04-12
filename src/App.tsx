@@ -193,6 +193,11 @@ function ProtectedApp() {
     );
   };
 
+  const accessibleBusinesses = React.useMemo(() => {
+    if (!currentUser) return [];
+    if (currentUser.role === UserRole.SUPER_ADMIN) return businesses;
+    return businesses.filter(b => currentUser.businessUnitIds?.includes(b.id));
+  }, [businesses, currentUser]);
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -204,11 +209,7 @@ function ProtectedApp() {
   const pendingUsers = users.filter(user => user.status === UserStatus.PENDING_APPROVAL);
   const userNotifications = notifications.filter(n => n.targetRoles?.includes(currentUser.role) || currentUser.role === UserRole.SUPER_ADMIN);
 
-  const accessibleBusinesses = React.useMemo(() => {
-    if (!currentUser) return [];
-    if (currentUser.role === UserRole.SUPER_ADMIN) return businesses;
-    return businesses.filter(b => currentUser.businessUnitIds?.includes(b.id));
-  }, [businesses, currentUser]);
+
 
   const layoutProps = {
     currentUser,
