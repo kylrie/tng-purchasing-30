@@ -197,10 +197,11 @@ export class InventoryService {
                 const { ProductionRecipeService } = await import('../../menu/services/production-recipe.service');
                 const { RecipesService } = await import('../../menu/services/recipes.service');
 
-                // Recalculate production recipes first, as menu items might depend on them
-                await ProductionRecipeService.recalculateCosts(businessUnitId);
-                // Then recalculate all menu items
-                await RecipesService.recalculateAllCosts(businessUnitId);
+                // Run both recalculations in parallel — they are independent
+                await Promise.all([
+                    ProductionRecipeService.recalculateCosts(businessUnitId),
+                    RecipesService.recalculateAllCosts(businessUnitId),
+                ]);
 
                 console.log(`[InventoryService] Successfully finished recipe recalculations for BU ${businessUnitId}`);
             } catch (err) {

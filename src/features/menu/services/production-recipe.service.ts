@@ -184,47 +184,78 @@ export class ProductionRecipeService {
     /**
      * Recalculate costs for all recipes in a business unit
      * (useful when ingredient costs change)
+     *
+     * OPTIMIZED: Fetches inventory ONCE, computes all costs in-memory,
+     * then commits all updates in a single Firestore batch.
      */
     static async recalculateCosts(businessUnitId: string): Promise<void> {
         const recipes = await this.getRecipes(businessUnitId);
+        if (recipes.length === 0) return;
+
+        // ── Single fetch: build an O(1) lookup map ──────────────────
+        const inventoryItems = await InventoryService.getInventory(businessUnitId);
+        const itemMap = new Map(inventoryItems.map(i => [i.id, i]));
+
+        // ── Compute new costs in-memory ─────────────────────────────
+        const updates: Array<{
+            recipeId: string;
+            totalCost: number;
+            costPerUnit: number;
+            linkedInventoryItemId?: string | null;
+        }> = [];
 
         for (const recipe of recipes) {
-            // Get current inventory costs
             let totalCost = 0;
             for (const ing of recipe.ingredients) {
-                try {
-                    const items = await InventoryService.getInventory(businessUnitId);
-                    const item = items.find(i => i.id === ing.inventoryItemId);
-                    if (item) {
-                        const newCost = ing.baseQuantity * item.costPerUnit;
-                        totalCost += newCost;
-                    } else {
-                        totalCost += ing.totalCost; // Keep existing if item not found
-                    }
-                } catch {
-                    totalCost += ing.totalCost;
+                const item = itemMap.get(ing.inventoryItemId);
+                if (item) {
+                    // Use baseCost (per count-unit) when available, fall back to costPerUnit
+                    const costPerBaseUnit = item.baseCost ?? item.costPerUnit;
+                    totalCost += ing.baseQuantity * costPerBaseUnit;
+                } else {
+                    totalCost += ing.totalCost; // Keep existing if item not found
                 }
             }
 
             const costPerUnit = recipe.yieldQuantity > 0 ? totalCost / recipe.yieldQuantity : 0;
-
-            await updateDoc(doc(db, COLLECTION, recipe.id), {
-                calculatedCost: totalCost,
+            updates.push({
+                recipeId: recipe.id,
+                totalCost,
                 costPerUnit,
-                updatedAt: Timestamp.now()
+                linkedInventoryItemId: recipe.linkedInventoryItemId,
             });
+        }
 
-            // Update linked inventory item
-            if (recipe.linkedInventoryItemId) {
-                try {
-                    await InventoryService.updateInventoryItem(recipe.linkedInventoryItemId, {
-                        costPerUnit
-                    }, { skipRecipeRecalculation: true });
-                } catch (err) {
-                    console.error('Error updating linked inventory item cost:', err);
+        // ── Batch write: recipes + linked inventory items ───────────
+        // Firestore batches support max 500 operations; chunk if needed
+        const BATCH_LIMIT = 450; // leave headroom
+        const now = Timestamp.now();
+
+        for (let i = 0; i < updates.length; i += BATCH_LIMIT) {
+            const chunk = updates.slice(i, i + BATCH_LIMIT);
+            const batch = writeBatch(db);
+
+            for (const u of chunk) {
+                // Update the recipe doc
+                batch.update(doc(db, COLLECTION, u.recipeId), {
+                    calculatedCost: u.totalCost,
+                    costPerUnit: u.costPerUnit,
+                    updatedAt: now,
+                });
+
+                // Update the linked inventory item (if any)
+                if (u.linkedInventoryItemId) {
+                    batch.update(doc(db, 'inventory_items', u.linkedInventoryItemId), {
+                        costPerUnit: u.costPerUnit,
+                        updatedAt: now,
+                    });
                 }
             }
+
+            await batch.commit();
         }
+
+        console.log(`[ProductionRecipeService] Batch-recalculated ${updates.length} recipes for BU ${businessUnitId}`);
     }
 
     // ================================================================

@@ -68,11 +68,17 @@ export class PosImportService {
 
         // Validate that we found the minimum required columns
         const mapped = Object.values(headerMap);
-        const required: (keyof PosImportRow)[] = ['itemName', 'qtySold', 'amount'];
-        for (const field of required) {
-            if (!mapped.includes(field)) {
-                throw new Error(`Required column "${field}" not found. Found columns: ${Object.keys(firstRow).join(', ')}`);
-            }
+        const requiredFields: { key: keyof PosImportRow; display: string }[] = [
+            { key: 'itemName', display: 'ITEM NAME' },
+            { key: 'qtySold',  display: 'QTY SOLD'  },
+            { key: 'amount',   display: 'AMOUNT'    },
+        ];
+        const missing = requiredFields.filter(f => !mapped.includes(f.key)).map(f => f.display);
+        if (missing.length > 0) {
+            throw new Error(
+                `Missing required column(s): ${missing.join(', ')}. ` +
+                `Columns found in file: ${Object.keys(firstRow).join(', ')}`
+            );
         }
 
         // Map rows to typed objects
@@ -302,6 +308,17 @@ export class PosImportService {
      *
      * Rows with matchedItemId === null are SKIPPED (unmatched)
      */
+    /**
+     * Convert a "YYYY-MM-DD" string into a Firestore Timestamp at midnight LOCAL time.
+     * This ensures that the selected import date is stored correctly regardless of timezone.
+     */
+    private static importDateToTimestamp(dateStr: string): Timestamp {
+        // Parse as local date (not UTC) by splitting the parts
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const d = new Date(year, month - 1, day, 0, 0, 0, 0); // local midnight
+        return Timestamp.fromDate(d);
+    }
+
     static async commitImport(params: {
         mappedRows: PosImportMappedRow[];
         businessUnitId: string;
@@ -312,6 +329,10 @@ export class PosImportService {
         importDate: string;
     }): Promise<string> {
         const { mappedRows, businessUnitId, userId, userName, fileHash, fileName, importDate } = params;
+
+        // Convert the user-selected date once — used for ALL Firestore timestamps
+        // so that history filtering and reports show records under the correct date.
+        const importDateTs = PosImportService.importDateToTimestamp(importDate);
 
         // Only process matched rows
         const rowsToCommit = mappedRows.filter(r => r.matchedItemId !== null);
@@ -422,7 +443,8 @@ export class PosImportService {
                 profit: row.profit,
                 negativeStockFlag: false, // FG stock is not tracked
                 importDate,
-                createdAt: Timestamp.now(),
+                // Use the user-selected date (not now) so report date filters work correctly
+                createdAt: importDateTs,
             });
             opCount++;
             // NOTE: No POS_SALE stock_transaction for the FINISHED_GOOD.
@@ -455,15 +477,16 @@ export class PosImportService {
                 businessUnitId,
                 type: 'THEORETICAL_USAGE',
                 quantity: totalQty,
-                unitCost: rmItem.costPerUnit ?? 0,           // cost per count unit (for dashboard KPI)
-                totalValue: totalQty * (rmItem.costPerUnit ?? 0), // pre-computed ₱ value for fast aggregation
+                unitCost: rmItem.costPerUnit ?? 0,
+                totalValue: totalQty * (rmItem.costPerUnit ?? 0),
                 balanceAfter: newTheoStock,
                 referenceId: batchImportId,
                 notes: `Deducted ${totalQty} ${rmItem.units?.countUnit ?? ''} ${rmItem.name} for POS Sale: ${fgName} (${fileName})`,
                 performedBy: userId,
                 performedByName: userName,
-                timestamp: Timestamp.now(),
-                createdAt: Timestamp.now(), // duplicate for query compatibility
+                // Use importDate so stock transaction history matches the selected date
+                timestamp: importDateTs,
+                createdAt: importDateTs,
             });
             opCount++;
 
@@ -471,7 +494,7 @@ export class PosImportService {
             ensureBatch();
             currentBatch.update(doc(db, COL.INVENTORY_ITEMS, rmId), {
                 theoreticalStock: newTheoStock,
-                updatedAt: Timestamp.now(),
+                updatedAt: importDateTs,
             });
             opCount++;
         }
@@ -491,7 +514,9 @@ export class PosImportService {
             totalProfit,
             importedBy: userId,
             importedByName: userName,
-            importedAt: Timestamp.now(),
+            importDate, // store the string for display
+            // Use the selected date so history filtering shows records under the right day
+            importedAt: importDateTs,
         });
         opCount++;
 

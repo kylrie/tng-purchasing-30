@@ -498,48 +498,109 @@ export async function deleteMenuItem(id: string): Promise<void> {
 
 /**
  * Recalculate costs for all menu items (useful when inventory prices change)
+ *
+ * OPTIMIZED: Fetches inventory ONCE, computes all costs in-memory,
+ * then commits all updates in a single Firestore batch.
  */
 export async function recalculateAllCosts(businessUnitId: string): Promise<number> {
     const menuItems = await getMenuItems(businessUnitId);
-    let updated = 0;
+    if (menuItems.length === 0) return 0;
+
+    // ── Single fetch: build an O(1) lookup map ──────────────────
+    const inventoryItems = await InventoryService.getInventory(businessUnitId);
+    const itemMap = new Map(inventoryItems.map(item => [item.id, item]));
+
+    // ── Compute new costs in-memory for every menu item ─────────
+    const updates: Array<{
+        menuItemId: string;
+        ingredients: RecipeIngredient[];
+        totalCost: number;
+        margins: ReturnType<typeof calculateMargins>;
+        linkedInventoryItemId?: string;
+    }> = [];
 
     for (const item of menuItems) {
         try {
-            const { ingredients, totalCost } = await calculateRecipeCost(
-                item.ingredients.map(i => ({
-                    inventoryItemId: i.inventoryItemId,
-                    quantity: i.quantity,
-                    unit: i.unit
-                })),
-                businessUnitId
-            );
+            let totalCost = 0;
+            const calculatedIngredients: RecipeIngredient[] = [];
+
+            for (const ing of item.ingredients) {
+                const inventoryItem = itemMap.get(ing.inventoryItemId);
+                if (!inventoryItem) {
+                    // Keep existing ingredient data if item not found
+                    calculatedIngredients.push(ing);
+                    totalCost += ing.totalCost;
+                    continue;
+                }
+
+                const { baseQuantity, totalCost: ingredientCost } = calculateIngredientCost(
+                    ing.quantity,
+                    ing.unit,
+                    inventoryItem
+                );
+
+                calculatedIngredients.push({
+                    inventoryItemId: ing.inventoryItemId,
+                    inventoryItemName: inventoryItem.name,
+                    quantity: ing.quantity,
+                    unit: ing.unit,
+                    baseQuantity,
+                    costPerBaseUnit: inventoryItem.baseCost ?? inventoryItem.costPerUnit,
+                    totalCost: ingredientCost,
+                });
+
+                totalCost += ingredientCost;
+            }
 
             const margins = calculateMargins(item.sellingPrice, totalCost);
 
-            await FirestoreService.updateDocument(COLLECTION, item.id, {
-                ingredients,
-                calculatedCost: totalCost,
-                ...margins
+            updates.push({
+                menuItemId: item.id,
+                ingredients: calculatedIngredients,
+                totalCost,
+                margins,
+                linkedInventoryItemId: item.linkedInventoryItemId,
             });
-
-            // Update linked inventory item if it exists
-            if (item.linkedInventoryItemId) {
-                try {
-                    await InventoryService.updateInventoryItem(item.linkedInventoryItemId, {
-                        costPerUnit: totalCost
-                    }, { skipRecipeRecalculation: true });
-                    console.log(`[RecipesService] Synced inventory item cost ${item.linkedInventoryItemId} during recalculation`);
-                } catch (invError) {
-                    console.error(`[RecipesService] Failed to sync inventory item during recalculation:`, invError);
-                }
-            }
-
-            updated++;
         } catch (error) {
             console.error(`Error recalculating costs for ${item.name}:`, error);
         }
     }
 
+    // ── Batch write: menu items + linked inventory items ────────
+    const BATCH_LIMIT = 450;
+    const now = Timestamp.now();
+    let updated = 0;
+
+    for (let i = 0; i < updates.length; i += BATCH_LIMIT) {
+        const chunk = updates.slice(i, i + BATCH_LIMIT);
+        const batch = writeBatch(db);
+
+        for (const u of chunk) {
+            // Update the menu item doc
+            const menuRef = doc(db, COLLECTION, u.menuItemId);
+            batch.update(menuRef, {
+                ingredients: u.ingredients,
+                calculatedCost: u.totalCost,
+                ...u.margins,
+                updatedAt: now,
+            });
+
+            // Update the linked inventory item (if any)
+            if (u.linkedInventoryItemId) {
+                const invRef = doc(db, INVENTORY_COLLECTION, u.linkedInventoryItemId);
+                batch.update(invRef, {
+                    costPerUnit: u.totalCost,
+                    updatedAt: now,
+                });
+            }
+
+            updated++;
+        }
+
+        await batch.commit();
+    }
+
+    console.log(`[RecipesService] Batch-recalculated ${updated} menu items for BU ${businessUnitId}`);
     return updated;
 }
 

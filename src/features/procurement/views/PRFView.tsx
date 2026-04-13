@@ -51,7 +51,6 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     uomOptions: string[];
     users?: User[];
 }) => {
-    const { hasPermission } = usePermissions();
     const [newItems, setNewItems] = useState<RequisitionItem[]>(initialData?.items || []);
     const [tempItem, setTempItem] = useState<Partial<RequisitionItem>>({ name: '', quantity: 1, uom: 'pcs', price: 0 });
 
@@ -741,7 +740,6 @@ export const PrfView: React.FC<PrfViewProps> = ({
 }) => {
     const [isDirectOpen, setIsDirectOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const [activeTab, setActiveTab] = useState<'drafts' | 'processing' | 'liquidation' | 'history'>('processing');
     const [preparePRFReq, setPreparePRFReq] = useState<Requisition | null>(null);
@@ -1044,12 +1042,6 @@ export const PrfView: React.FC<PrfViewProps> = ({
     };
 
     const filteredAndSortedReqs = getTabData()
-        .filter(r => {
-            if (selectedBusinessUnit !== 'all' && r.businessId !== selectedBusinessUnit) {
-                return false;
-            }
-            return true;
-        })
         .filter(r =>
             (r.id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
             (r.description || '').toLowerCase().includes(searchTerm.toLowerCase())
