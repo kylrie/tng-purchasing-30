@@ -3,10 +3,11 @@
  * Provides REAL data aggregation from Firestore for the Finance Overview Dashboard
  */
 
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where, QueryConstraint } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
-import { RequisitionStatus, type Requisition } from '../../procurement/types';
+import { RequisitionStatus, type Requisition, type User } from '../../procurement/types';
+import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
 
 // ============================================================
 // TYPES
@@ -100,7 +101,7 @@ function getLast6Months(): string[] {
 /**
  * Fetch all released requisitions (expenses)
  */
-async function fetchReleasedRequisitions(businessUnitId?: string): Promise<Requisition[]> {
+async function fetchReleasedRequisitions(userOrBuId?: User | string): Promise<Requisition[]> {
     try {
         const requisitionsRef = collection(db, COLLECTIONS.REQUISITIONS);
 
@@ -111,15 +112,24 @@ async function fetchReleasedRequisitions(businessUnitId?: string): Promise<Requi
             RequisitionStatus.AUDITED_CLEARED
         ];
 
-        let requisitions: Requisition[] = [];
+        const requisitions: Requisition[] = [];
+        
+        let tenantConstraints: QueryConstraint[] = [];
+        if (userOrBuId && userOrBuId !== 'all') {
+            if (typeof userOrBuId === 'string') {
+                tenantConstraints = [where('businessId', '==', userOrBuId)];
+            } else {
+                tenantConstraints = getTenantConstraints(userOrBuId, 'businessId');
+            }
+        }
 
         // Firestore doesn't support "in" with more than 10 values, so we query each status
         for (const status of releaseStatuses) {
-            const q = businessUnitId && businessUnitId !== 'all'
-                ? query(requisitionsRef,
-                    where('status', '==', status),
-                    where('businessId', '==', businessUnitId))
-                : query(requisitionsRef, where('status', '==', status));
+            const q = query(
+                requisitionsRef,
+                where('status', '==', status),
+                ...tenantConstraints
+            );
 
             const snapshot = await getDocs(q);
             snapshot.docs.forEach(doc => {
@@ -137,8 +147,8 @@ async function fetchReleasedRequisitions(businessUnitId?: string): Promise<Requi
 /**
  * Get financial health summary for the current month
  */
-export async function getFinancialHealth(businessUnitId?: string): Promise<FinancialHealthData> {
-    const requisitions = await fetchReleasedRequisitions(businessUnitId);
+export async function getFinancialHealth(userOrBuId?: User | string): Promise<FinancialHealthData> {
+    const requisitions = await fetchReleasedRequisitions(userOrBuId);
 
     // Calculate current month expenses
     const currentMonthExpenses = requisitions
@@ -197,8 +207,8 @@ export async function getFinancialHealth(businessUnitId?: string): Promise<Finan
 /**
  * Get cash flow data for the last 6 months
  */
-export async function getCashFlowTrends(businessUnitId?: string): Promise<CashFlowDataPoint[]> {
-    const requisitions = await fetchReleasedRequisitions(businessUnitId);
+export async function getCashFlowTrends(userOrBuId?: User | string): Promise<CashFlowDataPoint[]> {
+    const requisitions = await fetchReleasedRequisitions(userOrBuId);
     const last6Months = getLast6Months();
 
     // Group expenses by month
@@ -231,8 +241,8 @@ export async function getCashFlowTrends(businessUnitId?: string): Promise<CashFl
 /**
  * Get expense distribution for current month by COA category
  */
-export async function getExpenseDistribution(businessUnitId?: string): Promise<ExpenseCategory[]> {
-    const requisitions = await fetchReleasedRequisitions(businessUnitId);
+export async function getExpenseDistribution(userOrBuId?: User | string): Promise<ExpenseCategory[]> {
+    const requisitions = await fetchReleasedRequisitions(userOrBuId);
 
     // Filter to current month and aggregate by COA
     const categoryTotals: Record<string, number> = {};
@@ -292,9 +302,9 @@ export async function getExpenseDistribution(businessUnitId?: string): Promise<E
  */
 export async function getHighValueTransactions(
     threshold: number = 50000,
-    businessUnitId?: string
+    userOrBuId?: User | string
 ): Promise<HighValueTransaction[]> {
-    const requisitions = await fetchReleasedRequisitions(businessUnitId);
+    const requisitions = await fetchReleasedRequisitions(userOrBuId);
 
     // Filter by threshold and sort by date
     const highValueReqs = requisitions

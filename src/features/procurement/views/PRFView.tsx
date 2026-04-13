@@ -100,57 +100,24 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
     const [dateNeeded, setDateNeeded] = useState<string>(initialData?.dateNeeded || '');
 
     // ========== BUSINESS UNIT FILTERING LOGIC ==========
-    // Determine accessible business units based on user role
-    // NOTE: requisition:view:all is for VIEWING - not for CREATING in any BU
-    const accessibleBusinessUnits = useMemo(() => {
-        // Users with global access can create PRF in any BU
-        if (hasPermission('requisition:view:all')) {
-            return businesses;
-        }
-
-        // COMBINE Primary BU (businessId) + Additional BUs (businessUnitIds)
-        // Use Set to deduplicate in case primary is also in the array
-        const userBuIds = new Set<string>();
-
-        // Add primary business unit
-        if (currentUser.businessId) {
-            userBuIds.add(currentUser.businessId);
-        }
-
-        // Add additional accessible business units
-        if (Array.isArray(currentUser.businessUnitIds)) {
-            currentUser.businessUnitIds.forEach(id => userBuIds.add(id));
-        }
-
-        return businesses.filter(bu => userBuIds.has(bu.id));
-    }, [businesses, currentUser]);
-
-    // Determine if user can change business unit selection
-    const hasGlobalAccess = hasPermission('requisition:view:all');
-    const canSelectBusiness = hasGlobalAccess || accessibleBusinessUnits.length > 1;
-
-    // Validate and set default business ID
+    // Validate and set default business ID based on role
     const getValidBusinessId = () => {
         // If editing, use existing businessId
         if (initialData?.businessId && businesses.some(b => b.id === initialData.businessId)) {
             return initialData.businessId;
         }
-        // Use first accessible BU
-        if (accessibleBusinessUnits.length > 0) {
-            return accessibleBusinessUnits[0].id;
-        }
-        // Fallback to user's primary businessId
-        return currentUser.businessId || '';
+        // Fallback to user's primary businessId or first from additional BUs
+        return currentUser.businessId || (currentUser.businessUnitIds && currentUser.businessUnitIds[0]) || '';
     };
 
     const [selectedBusinessId, setSelectedBusinessId] = useState<string>(getValidBusinessId());
 
-    // Auto-select business unit if user has only one
+    // Auto-select business unit if user data changes
     useEffect(() => {
-        if (accessibleBusinessUnits.length === 1 && !initialData) {
-            setSelectedBusinessId(accessibleBusinessUnits[0].id);
+        if (!initialData) {
+            setSelectedBusinessId(getValidBusinessId());
         }
-    }, [accessibleBusinessUnits, initialData]);
+    }, [currentUser, initialData, businesses]);
 
     // Fetch budgeted COAs when business unit or date changes
     useEffect(() => {
@@ -393,24 +360,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
 
                 <div className="p-6 overflow-y-auto space-y-4 flex-1">
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm text-slate-400 mb-1">Business Unit</label>
-                            {canSelectBusiness ? (
-                                <select
-                                    className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                                    value={selectedBusinessId}
-                                    onChange={(e) => setSelectedBusinessId(e.target.value)}
-                                >
-                                    {accessibleBusinessUnits.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <div className="w-full p-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-600 rounded text-slate-500 dark:text-slate-300 cursor-not-allowed">
-                                    {businesses.find(b => b.id === selectedBusinessId)?.name || `Unknown Business Unit${import.meta.env.DEV ? ` (ID: ${selectedBusinessId})` : ''}`}
-                                </div>
-                            )}
-                        </div>
+
                         <div>
                             <label className="block text-sm text-slate-400 mb-1">Custom PRF ID (Optional)</label>
                             <input
@@ -1194,25 +1144,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                         <DateRangeFilter
                             onFilterChange={(start, end) => setDateRange({ start, end })}
                         />
-                        {(hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
-                            <select
-                                value={selectedBusinessUnit}
-                                onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 shadow-sm dark:shadow-none"
-                            >
-                                <option value="all">{hasPermission('requisition:view:all') ? 'All Business Units' : 'All My Business Units'}</option>
-                                {hasPermission('requisition:view:all') ? (
-                                    businesses.map(business => (
-                                        <option key={business.id} value={business.id}>{business.name}</option>
-                                    ))
-                                ) : (
-                                    currentUser.businessUnitIds?.map(buId => {
-                                        const bu = businesses.find(b => b.id === buId);
-                                        return bu ? <option key={bu.id} value={bu.id}>{bu.name}</option> : null;
-                                    })
-                                )}
-                            </select>
-                        )}
+
                         {hasPermission('requisition:create:prf') && (
                             <button onClick={() => setIsDirectOpen(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 font-medium">
                                 <Plus size={16} /> Create PRF

@@ -34,6 +34,7 @@ import {
 } from '../services/finance.dashboard.service';
 import type { Business } from '../../procurement/types';
 import { BudgetDashboardWidget } from '../components/BudgetDashboardWidget';
+import { useAuth } from '../../../contexts/useAuth';
 
 // ============================================================
 // TYPES
@@ -194,6 +195,7 @@ const TransactionRow: React.FC<{ transaction: HighValueTransaction }> = ({ trans
 // ============================================================
 
 const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
+    const { currentUser } = useAuth();
     // Business unit selection
     const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
         businesses.length > 0 ? businesses[0].id : 'all'
@@ -213,7 +215,12 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
         const loadData = async () => {
             setIsLoading(true);
             try {
-                const buFilter = selectedBusinessUnit === 'all' ? undefined : selectedBusinessUnit;
+                // If "all" is selected, pass currentUser so it applies tenant constraints based on roles/BUs. 
+                // If a specific BU is selected, pass that BU ID string.
+                const buFilter = selectedBusinessUnit === 'all' 
+                    ? (currentUser || undefined) 
+                    : selectedBusinessUnit;
+
                 const [health, cashFlow, expenses, txns] = await Promise.all([
                     FinanceDashboardService.getFinancialHealth(buFilter),
                     FinanceDashboardService.getCashFlowTrends(buFilter),
@@ -232,8 +239,10 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
             }
         };
 
-        loadData();
-    }, [selectedBusinessUnit]);
+        if (currentUser) {
+            loadData();
+        }
+    }, [selectedBusinessUnit, currentUser]);
 
     // Calculate total expenses for pie chart center
     const totalExpenses = expenseData.reduce((sum, item) => sum + item.value, 0);

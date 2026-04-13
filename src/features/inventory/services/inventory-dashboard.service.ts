@@ -1,7 +1,9 @@
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, QueryConstraint } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import type { PosSaleRecord } from '../../pos/types/pos-import.types';
 import type { InventoryItem } from '../types/InventoryItem';
+import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+import type { User } from '../../procurement/types';
 
 const COL = {
     POS_SALES: 'pos_sales',
@@ -106,20 +108,31 @@ function getItemStatus(variancePercent: number): 'Normal' | 'Watch' | 'Investiga
 
 export class InventoryDashboardService {
 
+    /** Resolve a User | string to QueryConstraints for a given field. */
+    private static resolveConstraints(
+        userOrBuId: User | string,
+        fieldName: string
+    ): QueryConstraint[] {
+        return typeof userOrBuId === 'string'
+            ? [where(fieldName, '==', userOrBuId)]
+            : getTenantConstraints(userOrBuId, fieldName);
+    }
+
     /**
      * Fetch pos_sales records for a business unit within a date range.
      * Uses `createdAt` (Timestamp) for filtering.
      */
     static async getSalesByDateRange(
-        businessUnitId: string,
+        userOrBuId: User | string,
         period: DashboardPeriod,
         customRange?: DateRange
     ): Promise<PosSaleRecord[]> {
         const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
+        const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
 
         const q = query(
             collection(db, COL.POS_SALES),
-            where('businessUnitId', '==', businessUnitId),
+            ...tenantConstraints,
             where('createdAt', '>=', Timestamp.fromDate(start)),
             where('createdAt', '<=', Timestamp.fromDate(end))
         );
@@ -131,12 +144,12 @@ export class InventoryDashboardService {
      * Card 1: Net Sales for the period (from imported POS sales)
      */
     static async getNetSales(
-        businessUnitId: string,
+        userOrBuId: User | string,
         period: DashboardPeriod,
         customRange?: DateRange
     ): Promise<number> {
         try {
-            const sales = await this.getSalesByDateRange(businessUnitId, period, customRange);
+            const sales = await this.getSalesByDateRange(userOrBuId, period, customRange);
             return sales.reduce((sum, s) => sum + (s.amount || 0), 0);
         } catch (error) {
             console.error('Error fetching net sales:', error);
@@ -155,9 +168,11 @@ export class InventoryDashboardService {
      *
      * Uses client-side date filtering to avoid composite Firestore indexes
      * (same proven pattern as ReconService.aggregateTransactions).
+     *
+     * @param tenantConstraints - Pre-computed QueryConstraints for BU scoping.
      */
     private static async aggregateStockTransactions(
-        businessUnitId: string,
+        tenantConstraints: QueryConstraint[],
         startDate: Date,
         endDate: Date,
         types: string[]
@@ -168,7 +183,7 @@ export class InventoryDashboardService {
             // 1. Fetch all inventory items for costPerUnit + category lookup
             const itemsQ = query(
                 collection(db, COL.INVENTORY_ITEMS),
-                where('businessUnitId', '==', businessUnitId)
+                ...tenantConstraints
             );
             const itemsSnap = await getDocs(itemsQ);
             const costMap = new Map<string, { costPerUnit: number; name: string; category: string }>();
@@ -181,10 +196,10 @@ export class InventoryDashboardService {
                 });
             }
 
-            // 2. Fetch stock_transactions for this business unit
+            // 2. Fetch stock_transactions scoped to the same tenant constraints
             const txQ = query(
                 collection(db, COL.STOCK_TRANSACTIONS),
-                where('businessUnitId', '==', businessUnitId)
+                ...tenantConstraints
             );
             const txSnap = await getDocs(txQ);
 
@@ -230,13 +245,14 @@ export class InventoryDashboardService {
      * These are created by BOM explosion during POS import.
      */
     static async getTheoreticalUsage(
-        businessUnitId: string,
+        userOrBuId: User | string,
         period: DashboardPeriod,
         customRange?: DateRange
     ): Promise<number> {
         const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
+        const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
         const txMap = await this.aggregateStockTransactions(
-            businessUnitId, start, end, ['THEORETICAL_USAGE']
+            tenantConstraints, start, end, ['THEORETICAL_USAGE']
         );
         let total = 0;
         for (const [, entry] of txMap) {
@@ -252,13 +268,14 @@ export class InventoryDashboardService {
      * counts differ from system-expected stock.
      */
     static async getUnexplainedGap(
-        businessUnitId: string,
+        userOrBuId: User | string,
         period: DashboardPeriod,
         customRange?: DateRange
     ): Promise<number> {
         const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
+        const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
         const txMap = await this.aggregateStockTransactions(
-            businessUnitId, start, end, ['ADJUSTMENT']
+            tenantConstraints, start, end, ['ADJUSTMENT']
         );
         // ADJUSTMENT quantity is signed: negative = loss, positive = surplus
         // We want the net gap (negative = unexplained loss)
@@ -276,21 +293,22 @@ export class InventoryDashboardService {
      * Completely time-bound to the selected period.
      */
     static async getInventoryAnalysis(
-        businessUnitId: string,
+        userOrBuId: User | string,
         period: DashboardPeriod,
         customRange?: DateRange
     ): Promise<{ suspiciousItems: SuspiciousItem[]; categoryRisks: CategoryRiskRecord[]; itemCategoryMap: Record<string, string> }> {
         const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
+        const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
 
         try {
             // Get all ADJUSTMENT transactions grouped by item
             const adjustmentMap = await this.aggregateStockTransactions(
-                businessUnitId, start, end, ['ADJUSTMENT']
+                tenantConstraints, start, end, ['ADJUSTMENT']
             );
 
             // Get THEORETICAL_USAGE transactions grouped by item (for expected closing calc)
             const theoreticalMap = await this.aggregateStockTransactions(
-                businessUnitId, start, end, ['THEORETICAL_USAGE']
+                tenantConstraints, start, end, ['THEORETICAL_USAGE']
             );
 
             // Build suspicious items from ADJUSTMENT transactions
@@ -366,7 +384,7 @@ export class InventoryDashboardService {
      * All values are now time-bound to the selected period.
      */
     static async getDashboardKPIs(
-        businessUnitId: string,
+        userOrBuId: User | string,
         period: DashboardPeriod,
         customRange?: DateRange
     ): Promise<DashboardKPIs> {
@@ -380,10 +398,10 @@ export class InventoryDashboardService {
 
         try {
             const [netSales, theoreticalUsage, unexplainedVariance, inventoryAnalysis] = await Promise.all([
-                this.getNetSales(businessUnitId, period, customRange),
-                this.getTheoreticalUsage(businessUnitId, period, customRange),
-                this.getUnexplainedGap(businessUnitId, period, customRange),
-                this.getInventoryAnalysis(businessUnitId, period, customRange),
+                this.getNetSales(userOrBuId, period, customRange),
+                this.getTheoreticalUsage(userOrBuId, period, customRange),
+                this.getUnexplainedGap(userOrBuId, period, customRange),
+                this.getInventoryAnalysis(userOrBuId, period, customRange),
             ]);
 
             // Actual Usage = Theoretical + Unexplained Gap (derived)

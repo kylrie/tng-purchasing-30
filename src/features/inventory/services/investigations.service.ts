@@ -12,6 +12,8 @@ import {
     getDocs
 } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
+import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+import type { User } from '../../procurement/types';
 
 export interface TimelineEvent {
     id: string;
@@ -42,13 +44,23 @@ export interface InvestigationCase {
 }
 
 export class InvestigationsService {
+    /**
+     * Subscribe to investigation cases in real-time.
+     *
+     * @param userOrBuId - Pass a `User` for multi-BU-aware subscription,
+     *                     or a `string` businessId for single-BU scope.
+     */
     static subscribeToInvestigations(
-        businessId: string,
+        userOrBuId: User | string,
         callback: (cases: InvestigationCase[]) => void
     ) {
+        const tenantConstraints = typeof userOrBuId === 'string'
+            ? [where('businessId', '==', userOrBuId)]
+            : getTenantConstraints(userOrBuId, 'businessId');
+
         const q = query(
             collection(db, 'inventory_investigations'),
-            where('businessId', '==', businessId),
+            ...tenantConstraints,
             orderBy('createdAt', 'desc')
         );
 

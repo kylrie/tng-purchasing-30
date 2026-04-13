@@ -400,7 +400,7 @@ const InventoryIntegrityMonitor: React.FC = () => {
     if (!selectedBU && currentUser?.businessId) {
       setSelectedBU(currentUser.businessId);
     }
-  }, [currentUser?.businessId]);
+  }, [currentUser?.businessId, selectedBU]);
 
   // Hook to pull all data — driven by the BU selector, not the current user's fixed BU
   const filterKey = timeFilter.toLowerCase() as DashboardPeriod;
@@ -411,7 +411,10 @@ const InventoryIntegrityMonitor: React.FC = () => {
     loading,
     error,
     refetch,
-  } = useInventoryDashboard(selectedBU || currentUser?.businessId, filterKey);
+  } = useInventoryDashboard(
+    selectedBU === 'ALL' && currentUser ? currentUser : (selectedBU || currentUser?.businessId), 
+    filterKey
+  );
 
   // Convert raw DashboardKPIs into UI components KpiItem[]
   const kpiItems: KpiItem[] = dashboardKPIs ? [
@@ -575,6 +578,7 @@ const InventoryIntegrityMonitor: React.FC = () => {
                   onChange={(e) => setSelectedBU(e.target.value)}
                   className="bg-transparent text-sm font-semibold text-slate-800 dark:text-slate-200 focus:outline-none cursor-pointer pr-1"
                 >
+                  <option value="ALL" className="bg-white dark:bg-slate-800">All Business Units (System-wide)</option>
                   {businesses.map(bu => (
                     <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800">
                       {bu.name}

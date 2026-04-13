@@ -7,6 +7,8 @@ import {
     orderBy,
     Timestamp,
 } from 'firebase/firestore';
+import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+import type { User } from '../../procurement/types';
 
 // ============================================================
 // TYPES
@@ -140,12 +142,13 @@ function daysAgo(days: number): Date {
  *              avgVariancePercent = (totalLossPeso / totalTheoreticalUsage) × 100
  *            Then tag the pattern as 'Recurring — Investigate' / 'Watch' / 'Normal'.
  *
- * @param businessUnitId - The BU to scope the query to
+ * @param userOrBuId - Pass a `User` for multi-BU-aware analysis,
+ *                     or a plain BU `string` for single-BU scope.
  * @param days - Rolling window in days (default: 7)
  * @returns StaffVarianceRecord[] sorted descending by totalLossPeso
  */
 export async function getRollingStaffVariance(
-    businessUnitId: string,
+    userOrBuId: User | string,
     days: number = 7
 ): Promise<StaffVarianceRecord[]> {
 
@@ -156,9 +159,13 @@ export async function getRollingStaffVariance(
     const cutoffDate = daysAgo(days);
 
     try {
+        const tenantConstraints = typeof userOrBuId === 'string'
+            ? [where('businessUnitId', '==', userOrBuId)]
+            : getTenantConstraints(userOrBuId, 'businessUnitId');
+
         const reconQ = query(
             collection(db, COL.RECON_HISTORY),
-            where('businessUnitId', '==', businessUnitId),
+            ...tenantConstraints,
             where('savedAt', '>=', Timestamp.fromDate(cutoffDate)),
             orderBy('savedAt', 'desc')
         );
@@ -166,7 +173,8 @@ export async function getRollingStaffVariance(
         const reconSnap = await getDocs(reconQ);
 
         if (reconSnap.empty) {
-            console.log(`[StaffVariance] No recon snapshots found for BU ${businessUnitId} in last ${days} days`);
+            const label = typeof userOrBuId === 'string' ? `BU ${userOrBuId}` : `user ${userOrBuId.id}`;
+            console.log(`[StaffVariance] No recon snapshots found for ${label} in last ${days} days`);
             return [];
         }
 
@@ -317,7 +325,8 @@ export async function getRollingStaffVariance(
 
         results.sort((a, b) => b.totalLossPeso - a.totalLossPeso);
 
-        console.log(`[StaffVariance] Computed ${results.length} staff records for BU ${businessUnitId} over ${days} days`);
+        const label = typeof userOrBuId === 'string' ? `BU ${userOrBuId}` : `user ${userOrBuId.id}`;
+        console.log(`[StaffVariance] Computed ${results.length} staff records for ${label} over ${days} days`);
         return results;
 
     } catch (error) {

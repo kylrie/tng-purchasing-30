@@ -15,6 +15,7 @@ import type {
 import type { Requisition, Business, NotificationItem, User } from '../types';
 import type { Supplier, RequisitionStatus } from '../../features/procurement/types';
 import { UserRole } from '../types/firebase.types';
+import { getUserVisibleBuIds } from '../utils/tenantFilters';
 
 interface DataContextType {
     // Data
@@ -150,16 +151,30 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         };
     }, [currentUser]);
 
-    // Subscribe to businesses
+    // Subscribe to businesses — filtered by user's assigned BUs
     useEffect(() => {
         // REMOVED: setLoadingBusinesses(true);
 
+        // Determine which BUs the current user is allowed to see
+        const visibleBuIds = getUserVisibleBuIds(currentUser ?? null);
+
+        const handleBizData = (firestoreBizs: (FirestoreBusiness & { id: string })[]) => {
+            let filtered = firestoreBizs;
+            // visibleBuIds === null means global role → show all
+            // visibleBuIds is an array → client-side filter by doc.id
+            if (visibleBuIds !== null) {
+                filtered = firestoreBizs.filter(b => visibleBuIds.includes(b.id));
+            }
+            setBusinesses(filtered.map(convertBusiness));
+            setLoadingBusinesses(false);
+        };
+
+        // We still fetch all businesses and filter client-side because
+        // Firestore 'documentId()' in queries are complex. The businesses
+        // collection is small (typically < 50 docs), so this is efficient.
         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreBusiness>(
             COLLECTIONS.BUSINESSES,
-            (firestoreBizs) => {
-                setBusinesses(firestoreBizs.map(convertBusiness));
-                setLoadingBusinesses(false);
-            },
+            handleBizData,
             [],
             (err) => {
                 setError(err.message);
@@ -168,7 +183,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         );
 
         return () => unsubscribe();
-    }, []);
+    }, [currentUser]);
 
     // Subscribe to suppliers
     useEffect(() => {

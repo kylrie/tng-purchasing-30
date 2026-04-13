@@ -7,6 +7,8 @@ import { getRollingStaffVariance } from '../services/staff-variance.service';
 import type { StaffVarianceRecord } from '../services/staff-variance.service';
 import { InvestigationsService } from '../services/investigations.service';
 import type { InvestigationCase } from '../services/investigations.service';
+import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+import type { User } from '../../procurement/types';
 
 function getDateRangeFromPeriod(period: DashboardPeriod): [Date, Date] {
     const now = new Date();
@@ -25,7 +27,7 @@ function getDateRangeFromPeriod(period: DashboardPeriod): [Date, Date] {
     return [start, end];
 }
 
-export function useInventoryDashboard(businessId: string | undefined, timeFilter: DashboardPeriod) {
+export function useInventoryDashboard(userOrBuId: User | string | undefined, timeFilter: DashboardPeriod) {
     const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
     const [shiftVariances, setShiftVariances] = useState<StaffVarianceRecord[]>([]);
     const [investigations, setInvestigations] = useState<InvestigationCase[]>([]);
@@ -33,16 +35,20 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
     const [error, setError] = useState<string | null>(null);
 
     const fetchDashboardData = useCallback(async () => {
-        if (!businessId) return;
+        if (!userOrBuId) return;
         setLoading(true);
         setError(null);
         const dateRange = getDateRangeFromPeriod(timeFilter);
         
         // Log 1: Hook Inputs
-        console.log("1. Hook Inputs:", { businessUnitId: businessId, dateRange });
+        console.log("1. Hook Inputs:", { userOrBuId, dateRange });
         try {
             const startTs = Timestamp.fromDate(dateRange[0]);
             const endTs = Timestamp.fromDate(dateRange[1]);
+            
+            const tenantConstraints = typeof userOrBuId === 'string'
+                ? (userOrBuId === 'ALL' ? [] : [where('businessUnitId', '==', userOrBuId)])
+                : getTenantConstraints(userOrBuId, 'businessUnitId');
             
             // Log 2: Date Formats
             console.log("2. Date Formats (Firestore Timestamps):", { startTs, endTs });
@@ -51,7 +57,7 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
             // NOTE: stock_transactions are written with field `timestamp` (not `createdAt`)
             const usageQuery = query(
                 collection(db, 'stock_transactions'),
-                where('businessUnitId', '==', businessId),
+                ...tenantConstraints,
                 where('type', '==', 'THEORETICAL_USAGE'),
                 where('timestamp', '>=', startTs),
                 where('timestamp', '<=', endTs)
@@ -61,7 +67,7 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
             // NOTE: Same field — use `timestamp` not `createdAt`
             const adjustmentQuery = query(
                 collection(db, 'stock_transactions'),
-                where('businessUnitId', '==', businessId),
+                ...tenantConstraints,
                 where('type', '==', 'ADJUSTMENT'),
                 where('timestamp', '>=', startTs),
                 where('timestamp', '<=', endTs)
@@ -70,7 +76,7 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
             // Diagnostic Query 3: RECEIVE
             const receiveQuery = query(
                 collection(db, 'stock_transactions'),
-                where('businessUnitId', '==', businessId),
+                ...tenantConstraints,
                 where('type', '==', 'RECEIVE'),
                 where('timestamp', '>=', startTs),
                 where('timestamp', '<=', endTs)
@@ -84,8 +90,9 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
                     getDocs(adjustmentQuery),
                     getDocs(receiveQuery)
                 ]);
-            } catch (err: any) {
-                console.error("FIREBASE QUERY ERROR (Index missing?):", err.message);
+            } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                console.error("FIREBASE QUERY ERROR (Index missing?):", message);
                 throw err; // Re-throw to hit the outer catch block
             }
 
@@ -134,7 +141,7 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
             // POS sales records already carry the FG category, so we use them directly.
             const posSalesQuery = query(
                 collection(db, 'pos_sales'),
-                where('businessUnitId', '==', businessId),
+                ...tenantConstraints,
                 where('createdAt', '>=', startTs),
                 where('createdAt', '<=', endTs)
             );
@@ -165,8 +172,8 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
             // Since this is diagnostic mode, we still load the rest of the KPIs from the service 
             // but we override the theoreticalUsage and unexplainedVariance with our direct transaction query results!
             const [kpiData, varianceData] = await Promise.all([
-                InventoryDashboardService.getDashboardKPIs(businessId, timeFilter),
-                getRollingStaffVariance(businessId, 7)
+                InventoryDashboardService.getDashboardKPIs(userOrBuId, timeFilter),
+                getRollingStaffVariance(userOrBuId, 7)
             ]);
 
             if (kpiData) {
@@ -231,14 +238,14 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
 
             setKpis(kpiData);
             setShiftVariances(varianceData);
-        } catch (err: any) {
+        } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to load dashboard data';
-            console.error("FIREBASE QUERY ERROR:", err.message);
+            console.error("FIREBASE QUERY ERROR:", message);
             setError(message);
         } finally {
             setTimeout(() => setLoading(false), 300);
         }
-    }, [businessId, timeFilter]);
+    }, [userOrBuId, timeFilter]);
 
     // Fetch KPI and Variance data on mount/filter change
     useEffect(() => {
@@ -247,17 +254,17 @@ export function useInventoryDashboard(businessId: string | undefined, timeFilter
 
     // Subscribe to real-time investigations
     useEffect(() => {
-        if (!businessId) return;
+        if (!userOrBuId) return;
 
         const unsubscribe = InvestigationsService.subscribeToInvestigations(
-            businessId,
+            userOrBuId,
             (cases) => {
                 setInvestigations(cases);
             }
         );
 
         return () => unsubscribe();
-    }, [businessId]);
+    }, [userOrBuId]);
 
     return {
         kpis,

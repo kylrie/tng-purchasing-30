@@ -1,6 +1,8 @@
 import { FirestoreService, Timestamp, where } from '../../../shared/services/firestore.service';
 import { writeBatch, doc, collection } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
+import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+import type { User } from '../../procurement/types';
 import type { StockTransaction } from '../../pos/types/pos-import.types';
 import type {
     InventoryItem,
@@ -39,17 +41,20 @@ export class InventoryService {
      * Uses simple query + client-side filtering to avoid composite index requirement
      */
     static async getInventory(
-        businessUnitId: string,
+        userOrBuId: User | string,
         typeFilter?: InventoryItemType
     ): Promise<InventoryItem[]> {
         try {
-            // Simple query on businessUnitId only - filter the rest client-side
+            const constraints = typeof userOrBuId === 'string'
+                ? (userOrBuId === 'ALL' ? [] : [where('businessUnitId', '==', userOrBuId)])
+                : getTenantConstraints(userOrBuId, 'businessUnitId');
+
             const items = await FirestoreService.getDocuments<InventoryItem>(
                 COLLECTIONS.INVENTORY_ITEMS,
-                [where('businessUnitId', '==', businessUnitId)]
+                constraints
             );
 
-            console.log(`[InventoryService] Fetched ${items.length} items for BU ${businessUnitId}`);
+            console.log(`[InventoryService] Fetched ${items.length} items for tenant filter`);
             if (items.length > 0) {
                 console.log(`[InventoryService] Sample item type:`, items[0].type);
             }
@@ -67,7 +72,9 @@ export class InventoryService {
             // Return mock data filtered by business unit and type
             return MOCK_INVENTORY_ITEMS
                 .filter(item => {
-                    const matchesBU = item.businessUnitId === businessUnitId;
+                    const matchesBU = typeof userOrBuId === 'string'
+                        ? (userOrBuId === 'ALL' || item.businessUnitId === userOrBuId)
+                        : (userOrBuId?.businessUnitIds?.includes('ALL') || userOrBuId?.businessUnitIds?.includes(item.businessUnitId) || userOrBuId?.businessId === item.businessUnitId);
                     const matchesType = !typeFilter || item.type === typeFilter;
                     return matchesBU && matchesType;
                 })
@@ -108,14 +115,18 @@ export class InventoryService {
      * Get items by storage area for a business unit
      */
     static async getItemsByStorageArea(
-        businessUnitId: string,
+        userOrBuId: User | string,
         storageArea: string
     ): Promise<InventoryItem[]> {
         try {
+            const constraints = typeof userOrBuId === 'string'
+                ? (userOrBuId === 'ALL' ? [] : [where('businessUnitId', '==', userOrBuId)])
+                : getTenantConstraints(userOrBuId, 'businessUnitId');
+
             const items = await FirestoreService.getDocuments<InventoryItem>(
                 COLLECTIONS.INVENTORY_ITEMS,
                 [
-                    where('businessUnitId', '==', businessUnitId),
+                    ...constraints,
                     where('storageAreas', 'array-contains', storageArea)
                 ]
             );
@@ -123,10 +134,12 @@ export class InventoryService {
         } catch (error) {
             console.error('Error fetching items by storage area:', error);
             return MOCK_INVENTORY_ITEMS
-                .filter(item =>
-                    item.businessUnitId === businessUnitId &&
-                    item.storageAreas.includes(storageArea)
-                )
+                .filter(item => {
+                    const matchesBU = typeof userOrBuId === 'string'
+                        ? (userOrBuId === 'ALL' || item.businessUnitId === userOrBuId)
+                        : (userOrBuId?.businessUnitIds?.includes('ALL') || userOrBuId?.businessUnitIds?.includes(item.businessUnitId) || userOrBuId?.businessId === item.businessUnitId);
+                    return matchesBU && item.storageAreas.includes(storageArea);
+                })
                 .map((item, index) => ({
                     ...item,
                     id: `mock-${index}`,
@@ -238,14 +251,18 @@ export class InventoryService {
      * Get an open session for a user in a specific business unit
      */
     static async getOpenSession(
-        businessUnitId: string,
+        userOrBuId: User | string,
         userId: string
     ): Promise<StockCountSession | null> {
         try {
+            const constraints = typeof userOrBuId === 'string'
+                ? (userOrBuId === 'ALL' ? [] : [where('businessUnitId', '==', userOrBuId)])
+                : getTenantConstraints(userOrBuId, 'businessUnitId');
+
             const sessions = await FirestoreService.getDocuments<StockCountSession>(
                 COLLECTIONS.STOCK_COUNTS,
                 [
-                    where('businessUnitId', '==', businessUnitId),
+                    ...constraints,
                     where('performedBy', '==', userId),
                     where('status', '==', 'OPEN')
                 ]
@@ -262,11 +279,13 @@ export class InventoryService {
      * Uses simple query + client-side sorting to avoid composite index
      */
     static async getSessions(
-        businessUnitId: string,
+        userOrBuId: User | string,
         status?: StockCountStatus
     ): Promise<StockCountSession[]> {
         try {
-            const constraints = [where('businessUnitId', '==', businessUnitId)];
+            const constraints = typeof userOrBuId === 'string'
+                ? (userOrBuId === 'ALL' ? [] : [where('businessUnitId', '==', userOrBuId)])
+                : getTenantConstraints(userOrBuId, 'businessUnitId');
 
             if (status) {
                 constraints.push(where('status', '==', status));
@@ -570,13 +589,17 @@ export class InventoryService {
      * baseCost is properly calculated and costPerUnit matches baseCost.
      * Run this if cost calculation errors are appearing on older parts of the system.
      */
-    static async migrateInventoryBaseCosts(businessUnitId: string): Promise<void> {
+    static async migrateInventoryBaseCosts(userOrBuId: User | string): Promise<void> {
         try {
-            console.log(`[InventoryService] Starting cost migration for BU ${businessUnitId}`);
+            console.log(`[InventoryService] Starting cost migration for tenant filter`);
             
+            const constraints = typeof userOrBuId === 'string'
+                ? (userOrBuId === 'ALL' ? [] : [where('businessUnitId', '==', userOrBuId)])
+                : getTenantConstraints(userOrBuId, 'businessUnitId');
+
             const items = await FirestoreService.getDocuments<InventoryItem>(
                 COLLECTIONS.INVENTORY_ITEMS,
-                [where('businessUnitId', '==', businessUnitId)]
+                constraints
             );
 
             // Use batched writes

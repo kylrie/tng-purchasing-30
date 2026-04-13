@@ -4,6 +4,8 @@ import { Timestamp } from '../../../shared/services/firestore.service';
 import type { WastageRecord, RecordWastageInput, WastageReason } from '../types/InventoryItem';
 import type { StockTransaction } from '../../pos/types/pos-import.types';
 import { InventoryService } from './inventory.service';
+import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+import type { User } from '../../procurement/types';
 
 // ============================================================
 // WASTAGE REASONS — Single source of truth
@@ -128,16 +130,25 @@ export class WastageService {
     }
 
     /**
-     * Fetch wastage records for a business unit, ordered newest-first.
+     * Fetch wastage records ordered newest-first.
+     *
+     * @param userOrBuId - Pass a `User` object for multi-BU-aware filtering,
+     *                     or a plain `string` businessUnitId for single-BU queries
+     *                     (e.g. when recording wastage for a specific BU).
      */
     static async getWastageRecords(
-        businessUnitId: string,
+        userOrBuId: User | string,
         maxRecords: number = 200
     ): Promise<WastageRecord[]> {
         try {
+            // Determine constraints based on caller type
+            const tenantConstraints = typeof userOrBuId === 'string'
+                ? [where('businessUnitId', '==', userOrBuId)]
+                : getTenantConstraints(userOrBuId, 'businessUnitId');
+
             const q = query(
                 collection(db, 'wastage_records'),
-                where('businessUnitId', '==', businessUnitId),
+                ...tenantConstraints,
                 orderBy('createdAt', 'desc'),
                 firestoreLimit(maxRecords)
             );

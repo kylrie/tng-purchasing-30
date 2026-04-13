@@ -12,6 +12,8 @@ import {
     addDoc
 } from 'firebase/firestore';
 import type { InventoryItem } from '../types/InventoryItem';
+import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+import type { User } from '../../procurement/types';
 
 // ============================================================
 // TYPES
@@ -311,16 +313,24 @@ export class ReconService {
     }
 
     /**
-     * Get recon history records for a business unit
+     * Get recon history records.
+     *
+     * @param userOrBuId - Pass a `User` for cross-BU history, or a `string` BU ID
+     *                     to scope to a single business unit.
+     * @param maxRecords  - Max records to return (default 20).
      */
     static async getHistory(
-        businessUnitId: string,
+        userOrBuId: User | string,
         maxRecords = 20
     ): Promise<ReconHistoryRecord[]> {
         try {
+            const tenantConstraints = typeof userOrBuId === 'string'
+                ? [where('businessUnitId', '==', userOrBuId)]
+                : getTenantConstraints(userOrBuId, 'businessUnitId');
+
             const q = query(
                 collection(db, COL.RECON_HISTORY),
-                where('businessUnitId', '==', businessUnitId),
+                ...tenantConstraints,
                 orderBy('savedAt', 'desc'),
                 firestoreLimit(maxRecords)
             );
