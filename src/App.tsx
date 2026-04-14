@@ -400,7 +400,7 @@ function ProtectedApp() {
                   <ProtectedRoute permission="module:view:pcf">
                     <PCFView
                       currentUser={currentUser}
-                      businesses={accessibleBusinesses}
+                      businesses={businesses}
                       allUsers={users}
                     />
                   </ProtectedRoute>
