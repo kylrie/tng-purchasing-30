@@ -360,6 +360,43 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
                 <div className="p-6 overflow-y-auto space-y-4 flex-1">
                     <div className="grid grid-cols-2 gap-4">
 
+                        {/* Business Unit Selection - only shown when user has multiple BUs */}
+                        {(() => {
+                            const userBuIds: string[] = [
+                                ...(currentUser.businessUnitIds || []),
+                                ...(currentUser.businessId ? [currentUser.businessId] : [])
+                            ].filter((id, idx, arr) => id && arr.indexOf(id) === idx);
+                            const availableBusinesses = isSuperAdmin(currentUser.role)
+                                ? businesses
+                                : businesses.filter(b => userBuIds.includes(b.id));
+                            if (availableBusinesses.length <= 1) return null;
+                            return (
+                                <div className="col-span-2">
+                                    <div className="bg-blue-900/20 p-3 rounded-lg border border-blue-500/30">
+                                        <label className="block text-sm font-medium text-blue-300 mb-1">
+                                            🏢 Business Unit
+                                        </label>
+                                        <select
+                                            value={selectedBusinessId}
+                                            onChange={(e) => {
+                                                setSelectedBusinessId(e.target.value);
+                                                setDesignatedApproverId(''); // reset approver when BU changes
+                                            }}
+                                            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        >
+                                            <option value="">-- Select Business Unit --</option>
+                                            {availableBusinesses.map(b => (
+                                                <option key={b.id} value={b.id}>{b.name}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-blue-400 mt-1">
+                                            Determines budget tracking and approval routing.
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+
                         <div>
                             <label className="block text-sm text-slate-400 mb-1">Custom PRF ID (Optional)</label>
                             <input
