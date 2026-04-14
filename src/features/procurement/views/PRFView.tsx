@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Plus, Search, Printer, RefreshCw, Ban, ExternalLink, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown, X, Save, Paperclip, Pencil, Loader2, Check } from 'lucide-react';
 import type { Requisition, RequisitionItem, Supplier, SupplierDetails } from '../types';
 import { RequisitionStatus, isSuperAdmin } from '../types';
@@ -11,7 +11,7 @@ import PRFPrintModal from '../components/PRFPrintModal';
 import PCFPrintModal from '../../finance/components/PCFPrintModal';
 import { PCFService, type PCFLiquidation } from '../../finance/services/pcf.service';
 import EditableItemTable from '../components/EditableItemTable';
-import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
+import RequisitionDrawer, { type LiquidationSubmitPayload } from '../../../shared/components/RequisitionDrawer';
 import Card from '../../../shared/components/Card';
 import { CounterService } from '../../../shared/services/counter.service';
 import SearchableDropdown from '../../../shared/components/SearchableDropdown';
@@ -100,14 +100,14 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
 
     // ========== BUSINESS UNIT FILTERING LOGIC ==========
     // Validate and set default business ID based on role
-    const getValidBusinessId = () => {
+    const getValidBusinessId = useCallback(() => {
         // If editing, use existing businessId
         if (initialData?.businessId && businesses.some(b => b.id === initialData.businessId)) {
             return initialData.businessId;
         }
         // Fallback to user's primary businessId or first from additional BUs
         return currentUser.businessId || (currentUser.businessUnitIds && currentUser.businessUnitIds[0]) || '';
-    };
+    }, [initialData, businesses, currentUser]);
 
     const [selectedBusinessId, setSelectedBusinessId] = useState<string>(getValidBusinessId());
 
@@ -116,7 +116,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
         if (!initialData) {
             setSelectedBusinessId(getValidBusinessId());
         }
-    }, [currentUser, initialData, businesses]);
+    }, [initialData, getValidBusinessId]);
 
     // Fetch budgeted COAs when business unit or date changes
     useEffect(() => {
@@ -268,6 +268,7 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
             // Set status based on isDraft flag
             const status = isDraft ? RequisitionStatus.DRAFT : RequisitionStatus.PRF_PENDING_MANAGER;
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const baseReq: any = {
                 id: prfId,
                 requesterId: currentUser.id,
@@ -339,7 +340,8 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
             }
 
             onCancel();
-        } catch (error: any) {
+        } catch (e: unknown) {
+            const error = e as Error;
             console.error('Error saving PRF:', error);
             alert(`Failed to save PRF: ${error.message || 'Unknown error'}`);
         } finally {
@@ -833,7 +835,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
                     'Approved via Quick Peek', undefined
                 );
                 setSelectedReq(null);
-            } catch (error: any) {
+            } catch (e: unknown) {
+                const error = e as Error;
                 console.error('Error approving:', error);
                 alert(`Failed to approve: ${error.message}`);
             } finally {
@@ -862,7 +865,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
             );
             setSigningReq(null);
             setSelectedReq(null);
-        } catch (error: any) {
+        } catch (e: unknown) {
+            const error = e as Error;
             console.error('Error approving:', error);
             alert(`Failed to approve: ${error.message}`);
         } finally {
@@ -886,7 +890,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 reason.trim()
             );
             setSelectedReq(null);
-        } catch (error: any) {
+        } catch (e: unknown) {
+            const error = e as Error;
             console.error('Error rejecting:', error);
             alert(`Failed to reject: ${error.message}`);
         } finally {
@@ -909,7 +914,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
     );
 
     // Handle liquidation submission from drawer
-    const handleDrawerSubmitLiquidation = async (payload: any) => {
+    const handleDrawerSubmitLiquidation = async (payload: LiquidationSubmitPayload) => {
         if (!selectedReq) return;
         setDrawerLoading(true);
         try {
@@ -921,7 +926,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
             );
             alert('Liquidation submitted successfully!');
             setSelectedReq(null);
-        } catch (error: any) {
+        } catch (e: unknown) {
+            const error = e as Error;
             console.error('Error submitting liquidation:', error);
             alert(`Failed to submit liquidation: ${error.message}`);
         } finally {
@@ -947,7 +953,8 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 reason: 'Cancelled by SuperAdmin'
             });
             setSelectedReq(null);
-        } catch (error: any) {
+        } catch (e: unknown) {
+            const error = e as Error;
             console.error('Error cancelling requisition:', error);
             alert(`Failed to cancel: ${error.message || 'Unknown error'}`);
         } finally {
@@ -1053,14 +1060,14 @@ export const PrfView: React.FC<PrfViewProps> = ({
     }, [visibleRequisitions]);
 
     // Tab 3: "History" - Completed/Rejected/Liquidated items
-    const historyStatuses = [
-        RequisitionStatus.LIQUIDATION_FILED,
-        RequisitionStatus.AUDITED_CLEARED,
-        RequisitionStatus.LIQUIDATION_REJECTED,
-        RequisitionStatus.REJECTED,
-        RequisitionStatus.CANCELLED,
-    ];
     const historyReqs = useMemo(() => {
+        const historyStatuses = [
+            RequisitionStatus.LIQUIDATION_FILED,
+            RequisitionStatus.AUDITED_CLEARED,
+            RequisitionStatus.LIQUIDATION_REJECTED,
+            RequisitionStatus.REJECTED,
+            RequisitionStatus.CANCELLED,
+        ];
         return visibleRequisitions.filter(r =>
             historyStatuses.includes(r.status) &&
             (r.prfDetails || r.status === RequisitionStatus.REJECTED) // PRFs or rejected items
@@ -1094,7 +1101,9 @@ export const PrfView: React.FC<PrfViewProps> = ({
             return true;
         })
         .sort((a, b) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let aValue: any = a[sortField];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let bValue: any = b[sortField];
 
             if (sortField === 'businessId') {
@@ -1297,6 +1306,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                 const canEdit = (req.status === RequisitionStatus.DRAFT || req.status === RequisitionStatus.REJECTED) && isOwner;
 
                                 // Safe date formatting - handles Firestore Timestamps and ISO strings
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 const formatSafeDate = (dateValue: any): string => {
                                     if (!dateValue) return '-';
                                     // Firestore Timestamp object
