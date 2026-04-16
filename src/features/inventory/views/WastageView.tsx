@@ -474,7 +474,7 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
                                                 </p>
                                                 {selectedItem.currentStock - parseFloat(quantity) < selectedItem.parLevel && (
                                                     <p className="text-xs text-amber-500 flex items-center gap-1 mt-1">
-                                                        <AlertTriangle className="w-3 h-3" /> Below par level ({selectedItem.parLevel})
+                                                        <AlertTriangle className="w-3 h-3" /> Below par level ({selectedItem.units.conversion > 0 ? (selectedItem.parLevel / selectedItem.units.conversion) : selectedItem.parLevel} {selectedItem.units.buyUnit})
                                                     </p>
                                                 )}
                                             </div>

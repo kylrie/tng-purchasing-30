@@ -87,7 +87,7 @@ export async function exportInventoryToCSV(
             'Count Unit': item.units.countUnit,
             'Buy Unit': item.units.buyUnit,
             'Conversion Rate': item.units.conversion.toString(),
-            'Par Level': item.parLevel.toString(),
+            'Par Level': (item.units.conversion > 0 ? item.parLevel / item.units.conversion : item.parLevel).toString(),
             'Cost': item.costPerUnit.toString(),
             'SKU': item.sku || '',
             'Supplier': item.supplier || '',
@@ -212,7 +212,7 @@ function transformRow(
             buyUnit: row['Buy Unit']?.trim() || 'piece',
             conversion
         },
-        parLevel,
+        parLevel: Math.round(parLevel * conversion),
         currentStock: 0, // New imports start with 0 stock
         costPerUnit: cost,
         // Only include optional fields if they have values (Firestore rejects undefined)

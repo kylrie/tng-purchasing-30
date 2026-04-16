@@ -104,7 +104,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 countUnit: item.units.countUnit,
                 buyUnit: item.units.buyUnit,
                 conversion: item.units.conversion,
-                parLevel: item.parLevel,
+                parLevel: item.units.conversion > 0 ? item.parLevel / item.units.conversion : item.parLevel,
                 currentStock: item.currentStock,
                 buyCost: item.buyCost ?? item.costPerUnit ?? 0,
                 supplier: item.supplier || '',
@@ -161,7 +161,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 category: formData.category,
                 storageAreas: formData.storageAreas,
                 units,
-                parLevel: formData.parLevel,
+                parLevel: Math.round(formData.parLevel * formData.conversion),
                 currentStock: formData.currentStock,
                 costPerUnit: baseCost, // Legacy fallback
                 buyCost: formData.buyCost,
@@ -390,17 +390,20 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {/* Par Level */}
                                 <div>
-                                    <label className={labelClass}>Par Level</label>
+                                    <label className={labelClass}>Par Level ({formData.buyUnit || 'buy unit'})</label>
                                     <input
                                         type="number"
                                         min="0"
-                                        step="1"
+                                        step="0.01"
                                         value={formData.parLevel}
-                                        onChange={(e) => setFormData({ ...formData, parLevel: parseInt(e.target.value) || 0 })}
+                                        onChange={(e) => setFormData({ ...formData, parLevel: parseFloat(e.target.value) || 0 })}
                                         className={`${inputClass} ${errors.parLevel ? 'border-red-500' : ''}`}
-                                        placeholder="Minimum stock"
+                                        placeholder="Minimum stock in buy units"
                                     />
                                     {errors.parLevel && <p className={errorClass}>{errors.parLevel}</p>}
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        = {Math.round(formData.parLevel * formData.conversion)} {formData.countUnit}(s)
+                                    </p>
                                 </div>
 
                                 {/* Current Stock */}

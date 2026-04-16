@@ -781,7 +781,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                             )}
                                         </td>
                                         <td className="p-4 text-right text-slate-500 dark:text-slate-400">
-                                            {item.parLevel} {item.units.countUnit}
+                                            {item.units.conversion > 0 ? (item.parLevel / item.units.conversion) : item.parLevel} {item.units.buyUnit}
                                         </td>
                                         <td className="p-4">{getStockStatus(item)}</td>
                                         <td className="p-4">

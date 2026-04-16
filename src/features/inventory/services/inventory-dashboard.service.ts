@@ -176,8 +176,8 @@ export class InventoryDashboardService {
         startDate: Date,
         endDate: Date,
         types: string[]
-    ): Promise<Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number }>> {
-        const result = new Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number }>();
+    ): Promise<Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number; type: string; countUnit: string; conversionRate: number }>> {
+        const result = new Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number; type: string; countUnit: string; conversionRate: number }>();
 
         try {
             // 1. Fetch all inventory items for costPerUnit + category lookup
@@ -186,13 +186,16 @@ export class InventoryDashboardService {
                 ...tenantConstraints
             );
             const itemsSnap = await getDocs(itemsQ);
-            const costMap = new Map<string, { costPerUnit: number; name: string; category: string }>();
+            const costMap = new Map<string, { costPerUnit: number; name: string; category: string; type: string; countUnit: string; conversionRate: number }>();
             for (const d of itemsSnap.docs) {
                 const data = d.data() as InventoryItem;
                 costMap.set(d.id, {
                     costPerUnit: data.costPerUnit || 0,
                     name: data.name || 'Unknown',
                     category: data.category || 'Other',
+                    type: data.type || 'Other',
+                    countUnit: data.units?.countUnit || 'pcs',
+                    conversionRate: data.units?.conversion || 1,
                 });
             }
 
@@ -218,19 +221,22 @@ export class InventoryDashboardService {
                 const costPerUnit = itemInfo?.costPerUnit || 0;
                 const peso = qty * costPerUnit;
 
-                const existing = result.get(itemId);
-                if (existing) {
-                    existing.totalQty += qty;
-                    existing.totalPeso += peso;
-                } else {
-                    result.set(itemId, {
+                let entry = result.get(itemId);
+                if (!entry) {
+                    entry = {
                         itemName: (data.itemName as string) || itemInfo?.name || 'Unknown',
                         category: itemInfo?.category || 'Other',
-                        totalQty: qty,
-                        totalPeso: peso,
-                        costPerUnit,
-                    });
+                        totalQty: 0,
+                        totalPeso: 0,
+                        costPerUnit: costPerUnit,
+                        type: itemInfo?.type || 'Other',
+                        countUnit: itemInfo?.countUnit || 'pcs',
+                        conversionRate: itemInfo?.conversionRate || 1,
+                    };
+                    result.set(itemId, entry);
                 }
+                entry.totalQty += qty;
+                entry.totalPeso += peso;
             }
         } catch (error) {
             console.error('Error aggregating stock transactions:', error);
@@ -316,7 +322,7 @@ export class InventoryDashboardService {
             const itemCategoryMap: Record<string, string> = {};
 
             for (const [itemId, adjEntry] of adjustmentMap) {
-                const theoEntry = theoreticalMap.get(adjEntry.itemName) || null;
+                const theoEntry = theoreticalMap.get(itemId) || null;
                 const expectedClosing = theoEntry?.totalQty || 0;
                 const varianceQty = adjEntry.totalQty; // ADJUSTMENT qty (signed)
                 const varianceValue = adjEntry.totalPeso; // ADJUSTMENT peso (signed)
@@ -329,9 +335,9 @@ export class InventoryDashboardService {
                 allItems.push({
                     itemId,
                     itemName: adjEntry.itemName,
-                    type: 'RAW_MATERIAL',
-                    countUnit: '',
-                    conversionRate: 1,
+                    type: adjEntry.type,
+                    countUnit: adjEntry.countUnit,
+                    conversionRate: adjEntry.conversionRate,
                     category: adjEntry.category,
                     expectedClosing,
                     actualClosing: expectedClosing - varianceQty,
@@ -424,7 +430,7 @@ export class InventoryDashboardService {
                 recordedWaste: 0,
                 suspiciousItems: inventoryAnalysis.suspiciousItems,
                 categoryRisks: inventoryAnalysis.categoryRisks,
-                itemCategoryMap: {},
+                itemCategoryMap: inventoryAnalysis.itemCategoryMap,
             };
         } catch (error) {
             console.error('Error loading dashboard KPIs:', error);

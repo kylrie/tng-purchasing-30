@@ -283,10 +283,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
                 setItemCount(items.length);
 
                 const lowStock = items.filter(item => {
-                    // Use the conversion factor from buyUnit to countUnit
-                    const countUnitFactor = item.units.conversion || 1;
-                    const stockInCountUnits = item.currentStock / countUnitFactor;
-                    return stockInCountUnits < item.parLevel * 0.5;
+                    return item.currentStock < item.parLevel * 0.5;
                 });
                 setLowStockCount(lowStock.length);
 
