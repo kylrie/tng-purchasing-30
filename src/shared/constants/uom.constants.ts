@@ -11,7 +11,7 @@ export interface UOMDefinition {
 
 export const HARDCODED_UOMS: UOMDefinition[] = [
     // ── Count / Piece ──────────────────────────────────────────
-    { code: 'EA', label: 'Each / Piece', category: 'Count' },
+    { code: 'EA', label: 'Pieces', category: 'Count' },
     { code: 'SET', label: 'Set', category: 'Count' },
 
     // ── Packaging ──────────────────────────────────────────────
@@ -23,6 +23,7 @@ export const HARDCODED_UOMS: UOMDefinition[] = [
     // ── Weight ─────────────────────────────────────────────────
     { code: 'KG', label: 'Kilogram', category: 'Weight' },
     { code: 'G', label: 'Gram', category: 'Weight' },
+    { code: 'MG', label: 'Milligram', category: 'Weight' },
     { code: 'LB', label: 'Pound', category: 'Weight' },
     { code: 'OZ', label: 'Ounce', category: 'Weight' },
 
@@ -58,13 +59,21 @@ export const UOM_CONVERSIONS: Record<string, Record<string, number>> = {
     // ── Weight ─────────────────────────────────────────────────
     KG: {
         G: 1000,
+        MG: 1000000,
         LB: 2.20462,
         OZ: 35.274,
     },
     G: {
         KG: 0.001,
+        MG: 1000,
         LB: 0.00220462,
         OZ: 0.035274,
+    },
+    MG: {
+        KG: 0.000001,
+        G: 0.001,
+        LB: 0.00000220462,
+        OZ: 0.000035274,
     },
     LB: {
         G: 453.592,
