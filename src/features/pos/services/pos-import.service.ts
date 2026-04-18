@@ -481,7 +481,7 @@ export class PosImportService {
                 totalValue: totalQty * (rmItem.costPerUnit ?? 0),
                 balanceAfter: newTheoStock,
                 referenceId: batchImportId,
-                notes: `Deducted ${totalQty} ${rmItem.units?.countUnit ?? ''} ${rmItem.name} for POS Sale: ${fgName} (${fileName})`,
+                notes: `Deducted ${totalQty} ${rmItem.units?.recipeUnit ?? ''} ${rmItem.name} for POS Sale: ${fgName} (${fileName})`,
                 performedBy: userId,
                 performedByName: userName,
                 // Use importDate so stock transaction history matches the selected date

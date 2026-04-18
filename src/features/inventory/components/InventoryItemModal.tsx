@@ -28,7 +28,7 @@ interface FormData {
     category: InventoryCategory;
     sku: string;
     storageAreas: string[];
-    countUnit: string;
+    recipeUnit: string;
     buyUnit: string;
     conversion: number;
     parLevel: number;
@@ -60,7 +60,7 @@ const INITIAL_FORM_DATA: FormData = {
     category: 'Other',
     sku: '',
     storageAreas: [],
-    countUnit: 'piece',
+    recipeUnit: 'piece',
     buyUnit: 'piece',
     conversion: 1,
     parLevel: 0,
@@ -101,7 +101,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 category: item.category,
                 sku: item.sku || '',
                 storageAreas: item.storageAreas || [],
-                countUnit: item.units.countUnit,
+                recipeUnit: item.units.recipeUnit,
                 buyUnit: item.units.buyUnit,
                 conversion: item.units.conversion,
                 parLevel: item.units.conversion > 0 ? item.parLevel / item.units.conversion : item.parLevel,
@@ -149,7 +149,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
         setSaving(true);
         try {
             const units: UnitConversion = {
-                countUnit: formData.countUnit.trim() || 'piece',
+                recipeUnit: formData.recipeUnit.trim() || 'piece',
                 buyUnit: formData.buyUnit.trim() || 'piece',
                 conversion: formData.conversion
             };
@@ -336,15 +336,15 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 {/* Count Unit */}
                                 <div>
-                                    <label className={labelClass}>Count Unit (Base)</label>
+                                    <label className={labelClass}>Recipe Unit (Base)</label>
                                     <select
-                                        value={formData.countUnit}
-                                        onChange={(e) => setFormData({ ...formData, countUnit: e.target.value })}
+                                        value={formData.recipeUnit}
+                                        onChange={(e) => setFormData({ ...formData, recipeUnit: e.target.value })}
                                         className={inputClass}
                                     >
                                         {uomOptions.map((u: string) => <option key={u} value={u}>{u}</option>)}
                                     </select>
-                                    <p className="text-xs text-slate-500 mt-1">Unit used for counting</p>
+                                    <p className="text-xs text-slate-500 mt-1">Unit used for recipes</p>
                                 </div>
 
                                 {/* Buy Unit */}
@@ -374,9 +374,9 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                     />
                                     {errors.conversion && <p className={errorClass}>{errors.conversion}</p>}
                                     <p className="text-xs text-slate-500 mt-1">
-                                        {formData.conversion > 0 && formData.countUnit && formData.buyUnit
-                                            ? `${formData.conversion} ${formData.countUnit}(s) = 1 ${formData.buyUnit}`
-                                            : 'Count units per buy unit'}
+                                        {formData.conversion > 0 && formData.recipeUnit && formData.buyUnit
+                                            ? `${formData.conversion} ${formData.recipeUnit}(s) = 1 ${formData.buyUnit}`
+                                            : 'Recipe units per buy unit'}
                                     </p>
                                 </div>
                             </div>
@@ -402,7 +402,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                     />
                                     {errors.parLevel && <p className={errorClass}>{errors.parLevel}</p>}
                                     <p className="text-xs text-slate-500 mt-1">
-                                        = {Math.round(formData.parLevel * formData.conversion)} {formData.countUnit}(s)
+                                        = {Math.round(formData.parLevel * formData.conversion)} {formData.recipeUnit}(s)
                                     </p>
                                 </div>
 

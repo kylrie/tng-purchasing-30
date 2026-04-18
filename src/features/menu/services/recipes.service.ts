@@ -28,11 +28,11 @@ const INVENTORY_COLLECTION = 'inventory_items';
  */
 export function convertUnits(
     quantity: number,
-    fromUnit: string,
-    toUnit: string
+    fromUnit: string | undefined | null,
+    toUnit: string | undefined | null
 ): number {
-    // Same unit - no conversion needed
-    if (fromUnit.toUpperCase() === toUnit.toUpperCase()) {
+    // If either unit is missing, or they are exactly the same, no conversion is possible/needed
+    if (!fromUnit || !toUnit || fromUnit.toUpperCase() === toUnit.toUpperCase()) {
         return quantity;
     }
 
@@ -84,7 +84,8 @@ export function convertUnits(
 /**
  * Get available recipe units for an inventory item's base unit
  */
-export function getAvailableUnits(baseUnit: string): string[] {
+export function getAvailableUnits(baseUnit: string | undefined | null): string[] {
+    if (!baseUnit) return ['EACH'];
     const baseLower = baseUnit.toLowerCase();
     const available = new Set<string>([baseUnit]);
 
@@ -116,7 +117,7 @@ export function calculateIngredientCost(
     inventoryItem: InventoryItem
 ): { baseQuantity: number; totalCost: number } {
     // Convert recipe quantity to inventory base unit
-    const baseQuantity = convertUnits(quantity, recipeUnit, inventoryItem.units.countUnit);
+    const baseQuantity = convertUnits(quantity, recipeUnit, inventoryItem.units.recipeUnit);
 
     // Use baseCost (cost per base/count unit) if available.
     // baseCost = buyCost / conversion (set by InventoryItemModal and receiveGoodsBatch).
@@ -154,7 +155,7 @@ function convertToBomIngredients(
                 ingredientId: ri.inventoryItemId,
                 ingredientName: ri.inventoryItemName,
                 quantityUsed: ri.baseQuantity,        // Already in base unit
-                unit: inv.units.countUnit,              // Base unit from inventory
+                unit: inv.units.recipeUnit,              // Base unit from inventory
             };
         });
 }
@@ -313,7 +314,7 @@ export async function createMenuItem(input: CreateMenuItemInput): Promise<string
         type: 'FINISHED_GOOD',
         category: 'Food',
         storageAreas: [],
-        units: { countUnit: 'serving', buyUnit: 'serving', conversion: 1 },
+        units: { recipeUnit: 'serving', buyUnit: 'serving', conversion: 1 },
         parLevel: 0,
         currentStock: 0,
         theoreticalStock: 0,

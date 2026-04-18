@@ -48,13 +48,15 @@ export class WastageService {
             throw new Error(`Wastage can only be recorded for RAW_MATERIAL or PRODUCTION items. Got: ${item.type}`);
         }
 
+        const displayUnit = item.units?.recipeUnit || ('countUnit' in item.units ? (item.units as unknown as Record<string, string>).countUnit : undefined) || 'unit';
+
         if (input.quantity <= 0) {
             throw new Error('Wastage quantity must be greater than 0.');
         }
 
         if (input.quantity > item.currentStock) {
             throw new Error(
-                `Cannot waste ${input.quantity} ${item.units.countUnit}(s). Current stock is only ${item.currentStock}.`
+                `Cannot waste ${input.quantity} ${displayUnit}(s). Current stock is only ${item.currentStock}.`
             );
         }
 
@@ -85,7 +87,7 @@ export class WastageService {
             itemName: item.name,
             itemType: item.type,
             quantity: input.quantity,
-            unit: item.units.countUnit,
+            unit: displayUnit,
             reason: input.reason,
             notes: input.notes || '',
             costPerUnit,
@@ -123,7 +125,7 @@ export class WastageService {
         await batch.commit();
 
         console.log(
-            `[WastageService] Recorded ${input.quantity} ${item.units.countUnit} wastage for "${item.name}" (${input.reason}). New stock: ${newStock}`
+            `[WastageService] Recorded ${input.quantity} ${displayUnit} wastage for "${item.name}" (${input.reason}). New stock: ${newStock}`
         );
 
         return wastageRecord;

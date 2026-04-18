@@ -16,12 +16,14 @@ import {
     CheckCircle,
     X,
     Square,
-    CheckSquare
+    CheckSquare,
+    Layers
 } from 'lucide-react';
 import type { InventoryItem, InventoryItemType, CreateInventoryItemInput } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
 import { calculateSellableQuantity } from '../utils/sellable-quantity';
 import InventoryItemModal from '../components/InventoryItemModal';
+import ProduceBatchModal from '../components/ProduceBatchModal';
 import type { Business } from '../../procurement/types';
 
 // ============================================================
@@ -148,6 +150,8 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     // All items (unfiltered) for sellable quantity calculation
     const [allItems, setAllItems] = useState<InventoryItem[]>([]);
 
+    // Produce Batch modal state
+    const [producingItem, setProducingItem] = useState<InventoryItem | null>(null);
 
 
     // Load inventory when BU or type changes
@@ -326,7 +330,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
         // Include ALL items with SKU and current stock values
         const header = 'SKU,Name,Current Stock,Unit';
         const rows = items.map(i =>
-            `${i.sku || ''},${i.name.replace(/,/g, ' ')},${i.currentStock},${i.units.countUnit}`
+            `${i.sku || ''},${i.name.replace(/,/g, ' ')},${i.currentStock},${i.units.recipeUnit}`
         );
         const template = [header, ...rows].join('\n');
 
@@ -753,7 +757,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                                         : Math.floor(item.theoreticalStock ?? item.currentStock ?? 0);
                                                     return (
                                                         <span className={`font-medium ${sellable <= 0 ? 'text-red-400' : 'text-slate-900 dark:text-white'}`}>
-                                                            {sellable} {item.units.countUnit}
+                                                            {sellable} {item.units.recipeUnit}
                                                         </span>
                                                     );
                                                 })()
@@ -768,16 +772,21 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                                         onBlur={saveInlineEdit}
                                                         className="w-20 px-2 py-1 bg-white dark:bg-slate-700 border border-cyan-500 rounded text-slate-900 dark:text-white text-right focus:outline-none"
                                                     />
-                                                    <span className="text-slate-500 dark:text-slate-400 text-sm">{item.units.countUnit}</span>
+                                                    <span className="text-slate-500 dark:text-slate-400 text-sm">{item.units.recipeUnit}</span>
                                                 </div>
                                             ) : (
-                                                <button
-                                                    onClick={() => startInlineEdit(item)}
-                                                    className="text-slate-900 dark:text-white font-medium hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline cursor-pointer transition-colors"
-                                                    title="Click to edit"
-                                                >
-                                                    {item.currentStock} {item.units.countUnit}
-                                                </button>
+                                                <div className="flex flex-col items-end gap-1">
+                                                    <button
+                                                        onClick={() => startInlineEdit(item)}
+                                                        className="text-slate-900 dark:text-white font-medium hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline cursor-pointer transition-colors"
+                                                        title="Click to edit"
+                                                    >
+                                                        {item.currentStock} {item.units.recipeUnit}
+                                                    </button>
+                                                    <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                                        = <span className="text-cyan-600 dark:text-cyan-500">{((item.currentStock / (item.units.conversion > 0 ? item.units.conversion : 1)).toFixed(2).replace(/\.00$/, ''))} {item.units.buyUnit}</span>
+                                                    </div>
+                                                </div>
                                             )}
                                         </td>
                                         <td className="p-4 text-right text-slate-500 dark:text-slate-400">
@@ -786,6 +795,17 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                         <td className="p-4">{getStockStatus(item)}</td>
                                         <td className="p-4">
                                             <div className="flex items-center justify-center gap-2">
+
+                                                {/* Produce Batch — only for PRODUCTION items */}
+                                                {item.type === 'PRODUCTION' && (
+                                                    <button
+                                                        onClick={() => setProducingItem(item)}
+                                                        className="p-2 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 rounded-lg text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                                                        title="Produce batch"
+                                                    >
+                                                        <Layers size={16} />
+                                                    </button>
+                                                )}
 
                                                 <button
                                                     onClick={() => handleEdit(item)}
@@ -953,6 +973,26 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                         </div>
                     </div>
                 </div>
+            )}
+            {/* Produce Batch Modal */}
+            {producingItem && (
+                <ProduceBatchModal
+                    isOpen={true}
+                    onClose={() => setProducingItem(null)}
+                    item={producingItem}
+                    allItems={allItems as (InventoryItem & { id: string })[]}
+                    businessUnitId={selectedBusinessUnit}
+                    performedBy={{ id: 'system', name: 'Inventory Manager' }}
+                    onProduced={() => {
+                        // Reload inventory after successful production
+                        setProducingItem(null);
+                        void InventoryService.getInventory(selectedBusinessUnit).then(data => {
+                            setAllItems(data);
+                            const typeFilter = activeTypeTab === 'ALL' ? undefined : activeTypeTab;
+                            void InventoryService.getInventory(selectedBusinessUnit, typeFilter).then(setItems);
+                        });
+                    }}
+                />
             )}
 
 

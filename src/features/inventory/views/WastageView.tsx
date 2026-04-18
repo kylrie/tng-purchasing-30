@@ -134,7 +134,7 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
         if (qty > selectedItem.currentStock) {
             setSubmitResult({
                 type: 'error',
-                message: `Cannot waste ${qty} ${selectedItem.units.countUnit}(s). Current stock is only ${selectedItem.currentStock}.`
+                message: `Cannot waste ${qty} ${selectedItem.units.recipeUnit}(s). Current stock is only ${selectedItem.currentStock}.`
             });
             return;
         }
@@ -156,7 +156,7 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
 
             setSubmitResult({
                 type: 'success',
-                message: `Recorded ${qty} ${selectedItem.units.countUnit}(s) of "${selectedItem.name}" as ${reason} wastage.`
+                message: `Recorded ${qty} ${selectedItem.units.recipeUnit}(s) of "${selectedItem.name}" as ${reason} wastage.`
             });
 
             // Reset form
@@ -168,17 +168,23 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
 
             // Refresh items to get updated stock
             await loadItems();
-        } catch (err: any) {
-            setSubmitResult({ type: 'error', message: err.message || 'Failed to record wastage.' });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to record wastage.';
+            setSubmitResult({ type: 'error', message });
         } finally {
             setSubmitting(false);
         }
     };
 
     // ---- Format timestamp ----
-    const formatTimestamp = (ts: any): string => {
+    const formatTimestamp = (ts: { toDate?: () => Date } | string | number | null | undefined): string => {
         if (!ts) return '—';
-        const d = ts.toDate ? ts.toDate() : new Date(ts);
+        let d: Date;
+        if (typeof ts === 'object' && typeof ts.toDate === 'function') {
+            d = ts.toDate();
+        } else {
+            d = new Date(ts as string | number);
+        }
         return d.toLocaleDateString('en-US', {
             year: 'numeric', month: 'short', day: 'numeric',
             hour: '2-digit', minute: '2-digit'
@@ -334,7 +340,12 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
                                                         <span className="text-white">{item.name}</span>
                                                         <span className="text-slate-500 ml-2 text-xs">({item.type})</span>
                                                     </div>
-                                                    <span className="text-slate-400 text-xs">{item.currentStock} {item.units.countUnit}</span>
+                                                    <div className="flex flex-col items-end">
+                                                        <span className="text-slate-400 text-xs">{item.currentStock} {item.units.recipeUnit}</span>
+                                                        <span className="text-cyan-500 text-[10px]">
+                                                            = {((item.currentStock / (item.units.conversion > 0 ? item.units.conversion : 1)).toFixed(2).replace(/\.00$/, ''))} {item.units.buyUnit}
+                                                        </span>
+                                                    </div>
                                                 </button>
                                             ))
                                         )}
@@ -349,7 +360,7 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
                                         Quantity <span className="text-rose-400">*</span>
                                         {selectedItem && (
                                             <span className="text-slate-500 font-normal ml-1">
-                                                ({selectedItem.units.countUnit})
+                                                ({selectedItem.units.recipeUnit})
                                             </span>
                                         )}
                                     </label>
@@ -364,9 +375,14 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
                                         required
                                     />
                                     {selectedItem && (
-                                        <p className="text-xs text-slate-500 mt-1">
-                                            Available: {selectedItem.currentStock} {selectedItem.units.countUnit}
-                                        </p>
+                                        <div className="flex flex-col mt-1">
+                                            <p className="text-xs text-slate-500">
+                                                Available: {selectedItem.currentStock} {selectedItem.units.recipeUnit}
+                                            </p>
+                                            <p className="text-[10px] text-cyan-500">
+                                                = {((selectedItem.currentStock / (selectedItem.units.conversion > 0 ? selectedItem.units.conversion : 1)).toFixed(2).replace(/\.00$/, ''))} {selectedItem.units.buyUnit}
+                                            </p>
+                                        </div>
                                     )}
                                 </div>
                                 <div>
@@ -440,9 +456,14 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
                                             </div>
                                             <div>
                                                 <p className="text-xs text-slate-500">Current Stock</p>
-                                                <p className="text-white font-medium">
-                                                    {selectedItem.currentStock} <span className="text-slate-400 text-xs">{selectedItem.units.countUnit}</span>
-                                                </p>
+                                                <div className="flex flex-col">
+                                                    <p className="text-white font-medium">
+                                                        {selectedItem.currentStock} <span className="text-slate-400 text-xs">{selectedItem.units.recipeUnit}</span>
+                                                    </p>
+                                                    <div className="text-xs font-medium text-slate-400">
+                                                        = <span className="text-cyan-400">{((selectedItem.currentStock / (selectedItem.units.conversion > 0 ? selectedItem.units.conversion : 1)).toFixed(2).replace(/\.00$/, ''))} {selectedItem.units.buyUnit}</span>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
@@ -470,7 +491,7 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
                                                     selectedItem.currentStock - parseFloat(quantity) < selectedItem.parLevel
                                                         ? 'text-amber-400' : 'text-emerald-400'
                                                 }`}>
-                                                    {(selectedItem.currentStock - parseFloat(quantity)).toFixed(2)} {selectedItem.units.countUnit}
+                                                    {(selectedItem.currentStock - parseFloat(quantity)).toFixed(2)} {selectedItem.units.recipeUnit}
                                                 </p>
                                                 {selectedItem.currentStock - parseFloat(quantity) < selectedItem.parLevel && (
                                                     <p className="text-xs text-amber-500 flex items-center gap-1 mt-1">

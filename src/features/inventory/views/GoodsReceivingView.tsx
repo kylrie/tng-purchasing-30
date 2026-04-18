@@ -795,7 +795,12 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                                                             <span className={`text-[10px] px-1.5 py-0.5 rounded ${row.matchedBy === 'name' ? 'bg-emerald-500/20 text-emerald-400' : row.matchedBy === 'sku' ? 'bg-purple-500/20 text-purple-400' : row.matchedBy === 'manual' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}>
                                                                 {row.matchedBy === 'fuzzy' ? 'Fuzzy' : row.matchedBy}
                                                             </span>
-                                                            <span className="text-xs text-slate-500 dark:text-slate-400">In stock: {row.inventoryItem.currentStock} {row.inventoryItem.units.countUnit}</span>
+                                                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                                                                In stock: {row.inventoryItem.currentStock} {row.inventoryItem.units.recipeUnit}
+                                                            </span>
+                                                            <span className="text-xs font-medium text-cyan-600 dark:text-cyan-500">
+                                                                = {((row.inventoryItem.currentStock / (row.inventoryItem.units.conversion > 0 ? row.inventoryItem.units.conversion : 1)).toFixed(2).replace(/\.00$/, ''))} {row.inventoryItem.units.buyUnit}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>

@@ -82,9 +82,15 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
         setSaveError(null);
     }, [recipe, isOpen]);
 
-    // Calculate total cost
+    // Calculate total ingredient cost
     const totalCost = ingredients.reduce((sum, ing) => sum + ing.totalCost, 0);
     const costPerUnit = yieldQuantity > 0 ? totalCost / yieldQuantity : 0;
+    // Calculate total wastage cost (percentage of ingredient cost)
+    const totalWastageCost = ingredients.reduce((sum, ing) => {
+        const wPct = ing.wastagePercent ?? 0;
+        return sum + (wPct > 0 ? (wPct / 100) * ing.totalCost : 0);
+    }, 0);
+    const totalTrueCost = totalCost + totalWastageCost;
 
     // Filter available inventory items
     const availableItems = inventoryItems.filter(item =>
@@ -99,14 +105,22 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             inventoryItemId: item.id,
             inventoryItemName: item.name,
             quantity: 1,
-            unit: item.units.countUnit,
+            unit: item.units.recipeUnit,
             baseQuantity: 1,
             costPerBaseUnit: item.costPerUnit,
-            totalCost: item.costPerUnit
+            totalCost: item.costPerUnit,
+            wastagePercent: 0
         };
         setIngredients([...ingredients, newIngredient]);
         setShowIngredientPicker(false);
         setSearchQuery('');
+    };
+
+    // Update wastage percentage
+    const updateWastagePercent = (index: number, wastagePercent: number) => {
+        setIngredients(prev => prev.map((ing, i) =>
+            i === index ? { ...ing, wastagePercent } : ing
+        ));
     };
 
     // Update ingredient
@@ -117,8 +131,8 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             // Calculate base quantity based on unit conversion
             let baseQuantity = quantity;
             const item = inventoryItems.find(it => it.id === ing.inventoryItemId);
-            if (item && unit !== item.units.countUnit) {
-                baseQuantity = convertUnits(quantity, unit, item.units.countUnit);
+            if (item && unit !== item.units.recipeUnit) {
+                baseQuantity = convertUnits(quantity, unit, item.units.recipeUnit);
             }
 
             const totalCost = baseQuantity * ing.costPerBaseUnit;
@@ -159,7 +173,8 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                     quantity: ing.quantity,
                     unit: ing.unit,
                     baseQuantity: ing.baseQuantity,
-                    costPerBaseUnit: ing.costPerBaseUnit
+                    costPerBaseUnit: ing.costPerBaseUnit,
+                    wastagePercent: ing.wastagePercent ?? 0
                 }))
             };
 
@@ -322,7 +337,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                                 <span className="text-slate-900 dark:text-white text-sm">{item.name}</span>
                                                 <span className="text-slate-500 dark:text-slate-400 text-xs flex items-center gap-1">
                                                     <PesoSign size={10} />
-                                                    {item.costPerUnit.toFixed(2)}/{item.units.countUnit}
+                                                    {item.costPerUnit.toFixed(2)}/{item.units.recipeUnit}
                                                 </span>
                                             </button>
                                         ))
@@ -344,14 +359,31 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                             </div>
                         ) : (
                             <div className="space-y-2">
+                                {/* Column Headers */}
+                                <div className="flex items-center gap-2 px-3 pb-1">
+                                    <div className="flex-1 text-xs font-semibold text-slate-400 uppercase tracking-wide">Ingredient</div>
+                                    <div className="w-20 text-xs font-semibold text-slate-400 uppercase tracking-wide text-center">Qty</div>
+                                    <div className="w-24 text-xs font-semibold text-slate-400 uppercase tracking-wide text-center">Unit</div>
+                                    <div className="w-20 text-xs font-semibold text-orange-400 uppercase tracking-wide text-center">Wastage %</div>
+                                    <div className="w-24 text-xs font-semibold text-orange-400 uppercase tracking-wide text-right">Waste Cost</div>
+                                    <div className="w-24 text-xs font-semibold text-slate-400 uppercase tracking-wide text-right">Ing. Cost</div>
+                                    <div className="w-6" />
+                                </div>
                                 {ingredients.map((ing, index) => (
                                     <div
                                         key={ing.inventoryItemId}
-                                        className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800"
+                                        className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800"
                                     >
+                                        {/* Name */}
                                         <div className="flex-1 text-slate-900 dark:text-white font-medium text-sm">
                                             {ing.inventoryItemName}
+                                            {(ing.wastagePercent ?? 0) > 0 && (
+                                                <span className="ml-2 text-xs text-orange-500 dark:text-orange-400 font-normal">
+                                                    {ing.wastagePercent}% waste
+                                                </span>
+                                            )}
                                         </div>
+                                        {/* Qty */}
                                         <input
                                             type="number"
                                             value={ing.quantity}
@@ -360,6 +392,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                             step="0.1"
                                             className="w-20 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm text-center focus:outline-none focus:border-amber-500"
                                         />
+                                        {/* Unit */}
                                         <select
                                             value={ing.unit}
                                             onChange={(e) => updateIngredient(index, ing.quantity, e.target.value)}
@@ -369,6 +402,36 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                                 <option key={code} value={code}>{code}</option>
                                             ))}
                                         </select>
+                                        {/* Wastage % */}
+                                        <div className="w-20 flex items-center gap-1">
+                                            <input
+                                                type="number"
+                                                value={ing.wastagePercent ?? 0}
+                                                onChange={(e) => updateWastagePercent(index, Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                                                min="0"
+                                                max="100"
+                                                step="1"
+                                                title="Expected prep-loss percentage (e.g. 10 for 10%)"
+                                                placeholder="0"
+                                                className="w-14 px-2 py-1 bg-white dark:bg-slate-700 border border-orange-300 dark:border-orange-500/50 rounded text-slate-900 dark:text-white text-sm text-center focus:outline-none focus:border-orange-500"
+                                            />
+                                            <span className="text-xs text-orange-400 font-semibold">%</span>
+                                        </div>
+                                        {/* Wastage cost */}
+                                        {(() => {
+                                            const wPct = ing.wastagePercent ?? 0;
+                                            const wCost = wPct > 0 ? (wPct / 100) * ing.totalCost : 0;
+                                            return (
+                                                <div className="w-24 text-right text-orange-500 dark:text-orange-400 text-sm flex items-center justify-end gap-1">
+                                                    {wCost > 0 ? (
+                                                        <><PesoSign size={12} />{wCost.toFixed(2)}</>
+                                                    ) : (
+                                                        <span className="text-slate-300 dark:text-slate-600">—</span>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                        {/* Ingredient cost */}
                                         <div className="w-24 text-right text-amber-600 dark:text-amber-400 text-sm flex items-center justify-end gap-1">
                                             <PesoSign size={12} />
                                             {ing.totalCost.toFixed(2)}
@@ -387,22 +450,38 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
 
                     {/* Cost Summary */}
                     <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4">
-                        <div className="grid grid-cols-2 gap-4 text-center">
+                        <div className="grid grid-cols-3 gap-4 text-center">
                             <div>
-                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Total Cost</p>
-                                <p className="text-2xl font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1">
-                                    <PesoSign size={20} />
+                                <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Ingredient Cost</p>
+                                <p className="text-xl font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1">
+                                    <PesoSign size={18} />
                                     {totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                             <div>
+                                <p className="text-sm text-orange-600 dark:text-orange-400 mb-1">Wastage Cost</p>
+                                <p className="text-xl font-bold text-orange-600 dark:text-orange-400 flex items-center justify-center gap-1">
+                                    <PesoSign size={18} />
+                                    {totalWastageCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                </p>
+                            </div>
+                            <div className="border-l border-amber-200 dark:border-amber-500/30 pl-4">
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Cost per {yieldUnit}</p>
-                                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
-                                    <PesoSign size={20} />
+                                <p className="text-xl font-bold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
+                                    <PesoSign size={18} />
                                     {costPerUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
                         </div>
+                        {totalWastageCost > 0 && (
+                            <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-500/30 flex items-center justify-between">
+                                <span className="text-xs text-slate-500">Total true cost (incl. wastage)</span>
+                                <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                                    <PesoSign size={14} />
+                                    {totalTrueCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

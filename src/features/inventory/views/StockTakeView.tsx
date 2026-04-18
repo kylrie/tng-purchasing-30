@@ -148,7 +148,9 @@ const ReviewPanel: React.FC<{
     countStates.forEach((state, itemId) => {
         const item = items.find(i => i.id === itemId);
         if (item) {
-            totalValue += (state.count + state.partialCount) * item.costPerUnit;
+            const conversion = item.units.conversion > 0 ? item.units.conversion : 1;
+            const totalCountUnits = (state.count + state.partialCount) * conversion;
+            totalValue += totalCountUnits * item.costPerUnit;
         }
     });
 
@@ -381,7 +383,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                 calculatorItem.id,
                 value,
                 state?.partialCount ?? 0,
-                state?.unit ?? calculatorItem.units.countUnit
+                state?.unit ?? calculatorItem.units.recipeUnit
             );
         }
         setCalculatorItem(null);
@@ -653,7 +655,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                                             count={state?.count ?? 0}
                                             partialCount={state?.partialCount ?? 0}
                                             onCountChange={(count, partial) =>
-                                                handleCountChange(item.id, count, partial, item.units.countUnit)
+                                                handleCountChange(item.id, count, partial, item.units.buyUnit)
                                             }
                                             onCalculatorOpen={() => openCalculator(item)}
                                         />
@@ -704,7 +706,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                     onSubmit={handleCalculatorSubmit}
                     currentValue={countStates.get(calculatorItem.id)?.count ?? 0}
                     itemName={calculatorItem.name}
-                    unit={calculatorItem.units.countUnit}
+                    unit={calculatorItem.units.buyUnit}
                 />
             )}
 

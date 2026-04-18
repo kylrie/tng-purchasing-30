@@ -31,9 +31,9 @@ export type InventoryCategory =
 // ============================================================
 
 export interface UnitConversion {
-  countUnit: string;     // Default counting unit (e.g., "bottle", "piece")
+  recipeUnit: string;    // Base recipe/costing unit (e.g., "G", "ML", "piece")
   buyUnit: string;       // Purchasing unit (e.g., "case", "box")
-  conversion: number;    // How many countUnits in a buyUnit
+  conversion: number;    // How many recipeUnits in a buyUnit
 }
 
 
@@ -62,8 +62,10 @@ export interface AssetDetails {
 export interface BomIngredient {
   ingredientId: string;        // ID of the RAW_MATERIAL inventory item
   ingredientName: string;      // Denormalized for display
-  quantityUsed: number;        // Amount per 1 unit of FG sold
+  quantityUsed: number;        // Amount per 1 unit of FG sold / per batch
   unit: string;                // Unit (g, ml, piece, etc.)
+  wastagePercent?: number;     // % of quantityUsed that becomes waste during prep (0–100)
+                               // e.g. 40 means 40% of mango weight is seeds/skin
 }
 
 // ============================================================
@@ -80,10 +82,10 @@ export interface InventoryItem {
   imageUrl?: string;
   storageAreas: string[];            // e.g., ["Kitchen", "Storage Room"]
   units: UnitConversion;
-  parLevel: number;                  // Minimum stock level (in countUnits)
-  currentStock: number;              // Physical stock from stock counts (in countUnits)
+  parLevel: number;                  // Minimum stock level (in recipeUnits)
+  currentStock: number;              // Physical stock from stock counts (in recipeUnits)
   theoreticalStock: number;          // POS-derived expected stock (deducted by sales imports)
-  costPerUnit: number;               // Legacy Cost per countUnit (kept for compatibility)
+  costPerUnit: number;               // Legacy Cost per recipeUnit (kept for compatibility)
   buyCost?: number;                  // Cost per Buy Unit (e.g. per case)
   baseCost?: number;                 // Cost per Base Unit (used by POS BOM explosion and Recipe builder)
   supplier?: string;
@@ -220,7 +222,7 @@ export interface WastageRecord {
   itemId: string;                   // Inventory item FK
   itemName: string;                 // Denormalized for log display
   itemType: InventoryItemType;      // RAW_MATERIAL or PRODUCTION
-  quantity: number;                 // Amount wasted (in countUnits, always positive)
+  quantity: number;                 // Amount wasted (in recipeUnits, always positive)
   unit: string;                     // Unit label (e.g., "kg", "bottle")
   reason: WastageReason;
   notes?: string;
@@ -239,6 +241,27 @@ export interface RecordWastageInput {
   reason: WastageReason;
   notes?: string;
   performedBy: { id: string; name: string };
+}
+
+// ============================================================
+// PRODUCTION BATCH TYPES
+// ============================================================
+
+export interface ProductionBatchInput {
+  businessUnitId: string;
+  productionItemId: string;          // The PRODUCTION item whose stock is being increased
+  batchMultiplier: number;           // How many batches are being produced (default: 1)
+  performedBy: { id: string; name: string };
+  notes?: string;
+}
+
+export interface ProductionBatchResult {
+  productionItem: string;            // Name of the produced item
+  batchesProduced: number;
+  outputAdded: number;               // recipeUnits added to PRODUCTION item stock
+  ingredientsConsumed: { name: string; qty: number; unit: string }[];
+  wastageRecorded: { name: string; qty: number; unit: string; cost: number }[];
+  totalWastageCost: number;
 }
 
 // ============================================================
@@ -261,7 +284,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     type: 'RAW_MATERIAL',
     category: 'Dry Goods',
     storageAreas: ['Kitchen', 'Storage Room'],
-    units: { countUnit: 'kg', buyUnit: 'sack', conversion: 25 },
+    units: { recipeUnit: 'kg', buyUnit: 'sack', conversion: 25 },
     parLevel: 50,
     currentStock: 75,
     theoreticalStock: 75,
@@ -274,7 +297,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     type: 'RAW_MATERIAL',
     category: 'Spirits',
     storageAreas: ['Bar', 'Storage Room'],
-    units: { countUnit: 'bottle', buyUnit: 'case', conversion: 12 },
+    units: { recipeUnit: 'bottle', buyUnit: 'case', conversion: 12 },
     parLevel: 6,
     currentStock: 8,
     theoreticalStock: 8,
@@ -288,7 +311,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     type: 'PRODUCTION',
     category: 'Mixers',
     storageAreas: ['Bar'],
-    units: { countUnit: 'liter', buyUnit: 'batch', conversion: 5 },
+    units: { recipeUnit: 'liter', buyUnit: 'batch', conversion: 5 },
     parLevel: 10,
     currentStock: 15,
     theoreticalStock: 15,
@@ -302,7 +325,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     type: 'FINISHED_GOOD',
     category: 'Food',
     storageAreas: ['Kitchen', 'Storage Room'],
-    units: { countUnit: 'bottle', buyUnit: 'case', conversion: 24 },
+    units: { recipeUnit: 'bottle', buyUnit: 'case', conversion: 24 },
     parLevel: 48,
     currentStock: 72,
     theoreticalStock: 72,
@@ -316,7 +339,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     type: 'ASSET',
     category: 'Equipment',
     storageAreas: ['Kitchen'],
-    units: { countUnit: 'unit', buyUnit: 'unit', conversion: 1 },
+    units: { recipeUnit: 'unit', buyUnit: 'unit', conversion: 1 },
     parLevel: 2,
     currentStock: 3,
     theoreticalStock: 3,
@@ -329,7 +352,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     type: 'ASSET',
     category: 'Furniture',
     storageAreas: ['Bar'],
-    units: { countUnit: 'piece', buyUnit: 'piece', conversion: 1 },
+    units: { recipeUnit: 'piece', buyUnit: 'piece', conversion: 1 },
     parLevel: 20,
     currentStock: 24,
     theoreticalStock: 24,
@@ -343,7 +366,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     type: 'RAW_MATERIAL',
     category: 'Spirits',
     storageAreas: ['Bar'],
-    units: { countUnit: 'bottle', buyUnit: 'case', conversion: 12 },
+    units: { recipeUnit: 'bottle', buyUnit: 'case', conversion: 12 },
     parLevel: 8,
     currentStock: 10,
     theoreticalStock: 10,

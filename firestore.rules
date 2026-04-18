@@ -814,6 +814,36 @@ service cloud.firestore {
       // Only admins can delete stock counts
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
     }
+
+    // =====================================================
+    // WASTAGE RECORDS COLLECTION
+    // Multi-tenant wastage audit logs
+    // =====================================================
+    match /wastage_records/{wastageId} {
+      // Users can only read wastage records belonging to their BU
+      allow read: if isSignedIn() && belongsToSameBU(resource);
+      
+      // Users can create wastage records
+      allow create: if isSignedIn();
+      
+      // Prevent update/delete - immutable audit logs
+      allow update, delete: if false;
+    }
+
+    // =====================================================
+    // STOCK TRANSACTIONS COLLECTION
+    // Multi-tenant stock transactions log
+    // =====================================================
+    match /stock_transactions/{txnId} {
+      // Users can only read stock transactions belonging to their BU
+      allow read: if isSignedIn() && belongsToSameBU(resource);
+      
+      // Users can create stock transactions
+      allow create: if isSignedIn();
+      
+      // Prevent update/delete - immutable audit logs
+      allow update, delete: if false;
+    }
     
     // =====================================================
     // MENU ITEMS COLLECTION (Menu Engineering)

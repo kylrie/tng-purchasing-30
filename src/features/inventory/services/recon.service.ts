@@ -139,7 +139,7 @@ export class ReconService {
                     itemId: item.id,
                     itemName: item.name,
                     category: categoryLabel,
-                    uom: item.units.countUnit,
+                    uom: item.units.recipeUnit,
                     beginningInventory,
                     purchasesIn,
                     purchasesOut,

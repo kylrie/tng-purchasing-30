@@ -15,7 +15,7 @@ export interface CSVRow {
     Type: string;
     Category: string;
     'Storage Areas': string;
-    'Count Unit': string;
+    'Recipe Unit': string;
     'Buy Unit': string;
     'Conversion Rate': string;
     'Par Level': string;
@@ -42,7 +42,7 @@ const CSV_HEADERS = [
     'Type',
     'Category',
     'Storage Areas',
-    'Count Unit',
+    'Recipe Unit',
     'Buy Unit',
     'Conversion Rate',
     'Par Level',
@@ -84,7 +84,7 @@ export async function exportInventoryToCSV(
             'Type': item.type,
             'Category': item.category,
             'Storage Areas': item.storageAreas.join(';'),
-            'Count Unit': item.units.countUnit,
+            'Recipe Unit': item.units.recipeUnit,
             'Buy Unit': item.units.buyUnit,
             'Conversion Rate': item.units.conversion.toString(),
             'Par Level': (item.units.conversion > 0 ? item.parLevel / item.units.conversion : item.parLevel).toString(),
@@ -208,7 +208,7 @@ function transformRow(
         category,
         storageAreas,
         units: {
-            countUnit: row['Count Unit']?.trim() || 'piece',
+            recipeUnit: row['Recipe Unit']?.trim() || 'piece',
             buyUnit: row['Buy Unit']?.trim() || 'piece',
             conversion
         },
@@ -313,7 +313,7 @@ export function getSampleCSV(): string {
             'Type': 'RAW_MATERIAL',
             'Category': 'Spirits',
             'Storage Areas': 'Bar;Storage Room',
-            'Count Unit': 'bottle',
+            'Recipe Unit': 'bottle',
             'Buy Unit': 'case',
             'Conversion Rate': '12',
             'Par Level': '6',
@@ -327,7 +327,7 @@ export function getSampleCSV(): string {
             'Type': 'RAW_MATERIAL',
             'Category': 'Dry Goods',
             'Storage Areas': 'Kitchen;Storage Room',
-            'Count Unit': 'kg',
+            'Recipe Unit': 'kg',
             'Buy Unit': 'sack',
             'Conversion Rate': '25',
             'Par Level': '50',

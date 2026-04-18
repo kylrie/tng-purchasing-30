@@ -129,11 +129,15 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
     onCountChange,
     onCalculatorOpen
 }) => {
-    const CategoryIcon = getCategoryIcon(item);
+    const itemIcon = getCategoryIcon(item);
 
     // Determine which UI to show based on item type
     const showSlider = item.type === 'RAW_MATERIAL' || item.type === 'PRODUCTION';
     const showStepper = item.type === 'ASSET' || item.type === 'FINISHED_GOOD';
+    
+    // Calculate stock equivalents
+    const conversion = item.units.conversion > 0 ? item.units.conversion : 1;
+    const currentStockBuyUnits = (item.currentStock / conversion).toFixed(2).replace(/\.00$/, '');
 
     const handleCountAdjust = (delta: number) => {
         const newCount = Math.max(0, count + delta);
@@ -172,7 +176,7 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
                     {item.imageUrl ? (
                         <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover rounded-lg" />
                     ) : (
-                        <CategoryIcon size={24} className="text-purple-400" />
+                        React.createElement(itemIcon, { size: 24, className: "text-purple-400" })
                     )}
                 </div>
 
@@ -185,8 +189,8 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
                         </span>
                     </div>
                     <p className="text-sm text-slate-400">{item.category}</p>
-                    <p className="text-xs text-slate-500">
-                        Current: {item.currentStock} {item.units.countUnit}s
+                    <p className="text-sm font-semibold text-slate-300 mt-1">
+                        Current: {item.currentStock} {item.units.recipeUnit}s <span className="text-slate-500 font-bold mx-1">=</span> <span className="text-cyan-400">{currentStockBuyUnits} {item.units.buyUnit}s</span>
                     </p>
                 </div>
 
@@ -205,7 +209,7 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
                     {/* Full Units */}
                     <div>
                         <label className="text-xs text-slate-500 uppercase tracking-wide mb-2 block">
-                            Full {item.units.countUnit}s
+                            Full {item.units.buyUnit}s
                         </label>
                         <div className="flex items-center gap-2">
                             <button
@@ -231,7 +235,7 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
                     {/* Partial Unit - Slider */}
                     <div>
                         <label className="text-xs text-slate-500 uppercase tracking-wide mb-2 block">
-                            Partial {item.units.countUnit}
+                            Partial {item.units.buyUnit}
                         </label>
                         <PartialSlider
                             value={partialCount}
@@ -249,7 +253,7 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
                     <SimpleStepper
                         value={count}
                         onChange={handleStepperChange}
-                        unit={item.units.countUnit}
+                        unit={item.units.buyUnit}
                     />
                 </div>
             )}
@@ -258,7 +262,7 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
             <div className="mt-4 pt-3 border-t border-slate-700/50 flex items-center justify-between">
                 <span className="text-sm text-slate-400">Total Count:</span>
                 <span className="text-lg font-bold text-cyan-400">
-                    {(count + partialCount).toFixed(showSlider ? 1 : 0)} {item.units.countUnit}s
+                    {(count + partialCount).toFixed(showSlider ? 1 : 0)} {item.units.buyUnit}s
                 </span>
             </div>
         </div>

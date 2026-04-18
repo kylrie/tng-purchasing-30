@@ -57,7 +57,8 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                 ingredientId: rm.id,
                 ingredientName: rm.name,
                 quantityUsed: 0,
-                unit: rm.units?.countUnit || 'G',
+                unit: rm.units?.recipeUnit || 'G',
+                wastagePercent: 0,
             },
         ]);
     };
@@ -76,7 +77,7 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                         ...ing,
                         ingredientId: value as string,
                         ingredientName: rm?.name || '',
-                        unit: rm?.units?.countUnit || ing.unit || 'EA',
+                        unit: rm?.units?.recipeUnit || ing.unit || 'EA',
                     };
                 }
                 return { ...ing, [field]: value };
@@ -166,8 +167,10 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                         borderRadius: '10px', padding: '12px 16px', marginBottom: '20px',
                         fontSize: '13px', color: '#c4b5fd', lineHeight: '1.5',
                     }}>
-                        Define the raw materials consumed when <strong>1 unit</strong> of "<strong>{item.name}</strong>" is sold via POS.
-                        During POS imports, each ingredient's theoretical stock will be automatically deducted.
+                        Define the raw materials consumed per batch of "<strong>{item.name}</strong>".
+                        When a production batch is run, ingredients are automatically deducted
+                        and any <strong>Wastage %</strong> is recorded as prep waste
+                        (e.g. mango bone / skin).
                     </div>
 
                     {/* Ingredients list */}
@@ -183,19 +186,20 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                             {/* Header row */}
                             <div style={{
-                                display: 'grid', gridTemplateColumns: '1fr 120px 120px 40px',
+                                display: 'grid', gridTemplateColumns: '1fr 110px 100px 100px 40px',
                                 gap: '10px', padding: '0 4px', fontSize: '11px', fontWeight: 600,
                                 color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em',
                             }}>
                                 <span>Ingredient</span>
-                                <span>Qty / Unit Sold</span>
+                                <span>Qty / Batch</span>
                                 <span>Unit</span>
+                                <span style={{ color: '#f59e0b' }}>Wastage %</span>
                                 <span></span>
                             </div>
 
                             {recipe.map((ing, idx) => (
                                 <div key={idx} style={{
-                                    display: 'grid', gridTemplateColumns: '1fr 120px 120px 40px',
+                                    display: 'grid', gridTemplateColumns: '1fr 110px 100px 100px 40px',
                                     gap: '10px', alignItems: 'center',
                                     background: 'rgba(30,41,59,0.6)', borderRadius: '10px',
                                     padding: '10px 12px', border: '1px solid rgba(148,163,184,0.08)',
@@ -253,6 +257,44 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                                             </option>
                                         ))}
                                     </select>
+
+                                    {/* Wastage % input */}
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            max={100}
+                                            step="0.1"
+                                            value={ing.wastagePercent ?? ''}
+                                            onChange={(e) =>
+                                                handleIngredientChange(
+                                                    idx,
+                                                    'wastagePercent',
+                                                    Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
+                                                )
+                                            }
+                                            placeholder="0"
+                                            title="% of this ingredient that becomes prep waste (e.g. 40 means 40% is bone/skin)"
+                                            style={{
+                                                background: 'rgba(15,23,42,0.6)',
+                                                color: (ing.wastagePercent ?? 0) > 0 ? '#fbbf24' : '#e2e8f0',
+                                                border: `1px solid ${
+                                                    (ing.wastagePercent ?? 0) > 0
+                                                        ? 'rgba(251,191,36,0.35)'
+                                                        : 'rgba(148,163,184,0.15)'
+                                                }`,
+                                                borderRadius: '8px',
+                                                padding: '8px 22px 8px 10px',
+                                                fontSize: '13px', width: '100%',
+                                                textAlign: 'right',
+                                            }}
+                                        />
+                                        <span style={{
+                                            position: 'absolute', right: '8px', top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            fontSize: '11px', color: '#64748b', pointerEvents: 'none',
+                                        }}>%</span>
+                                    </div>
 
                                     {/* Remove button */}
                                     <button

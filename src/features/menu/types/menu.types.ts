@@ -80,6 +80,7 @@ export interface RecipeIngredient {
     baseQuantity: number;           // Converted to inventory base unit
     costPerBaseUnit: number;        // Cost from inventory (per base unit)
     totalCost: number;              // Calculated: baseQuantity × costPerBaseUnit
+    wastagePercent?: number;        // Expected prep-loss as percentage (0–100). e.g. 10 means 10% of ingredient is wasted. Audit/cost tracking only — does NOT change stock.
 }
 
 // ============================================================

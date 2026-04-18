@@ -304,7 +304,7 @@ const FixedAssetModal: React.FC<FixedAssetModalProps> = ({
                     category: formData.category,
                     storageAreas: formData.location ? [formData.location] : [],
                     units: {
-                        countUnit: 'unit',
+                        recipeUnit: 'unit',
                         buyUnit: 'unit',
                         conversion: 1
                     },

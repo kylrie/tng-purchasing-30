@@ -101,7 +101,7 @@ export class ProductionRecipeService {
                 sku: `PROD-${docRef.id.slice(0, 6).toUpperCase()}`,
                 storageAreas: [],
                 units: {
-                    countUnit: input.yieldUnit,
+                    recipeUnit: input.yieldUnit,
                     buyUnit: input.yieldUnit,
                     conversion: 1
                 },
@@ -388,6 +388,34 @@ export class ProductionRecipeService {
                 performedByName: userName,
                 timestamp: now
             });
+
+            // ── Wastage record (if ingredient has a prep-loss percentage) ───
+            const wastagePercent = ing.wastagePercent ?? 0;
+            if (wastagePercent > 0) {
+                const wastageQty = (wastagePercent / 100) * ing.quantity;
+                const wastageUnit = ing.unit;
+                const wastageCost = (wastagePercent / 100) * ing.totalCost;
+                const wastageRef = doc(collection(db, 'wastage_records'));
+                batch.set(wastageRef, {
+                    businessUnitId,
+                    itemId: ing.inventoryItemId,
+                    itemName: rmItem.name,
+                    type: 'PRODUCTION',
+                    category: 'PRODUCTION_BATCH',
+                    quantity: wastageQty,
+                    unit: wastageUnit,
+                    wastagePercent,
+                    costPerUnit: ing.costPerBaseUnit,
+                    totalCost: wastageCost,
+                    reason: `Production wastage: ${recipe.name} — ${wastagePercent}% prep-loss on ${rmItem.name}`,
+                    batchId,
+                    referenceId: recipeId,
+                    recipeName: recipe.name,
+                    recordedBy: userId,
+                    recordedByName: userName,
+                    createdAt: now
+                });
+            }
         }
 
         // ── Step F: Commit the batch ────────────────────────────────

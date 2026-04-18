@@ -60,7 +60,7 @@ const IngredientRow: React.FC<{
             <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-900 dark:text-white truncate">{ingredient.inventoryItemName}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {selectedItem?.category} • ₱{ingredient.costPerUnit.toFixed(2)}/{selectedItem?.units.countUnit}
+                    {selectedItem?.category} • ₱{ingredient.costPerUnit.toFixed(2)}/{selectedItem?.units.recipeUnit}
                 </p>
             </div>
 
@@ -244,7 +244,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                     inventoryItemName: ing.inventoryItemName,
                     quantity: ing.quantity,
                     unit: ing.unit,
-                    availableUnits: invItem ? getAvailableUnits(invItem.units.countUnit) : [ing.unit],
+                    availableUnits: invItem ? getAvailableUnits(invItem.units.recipeUnit) : [ing.unit],
                     costPerUnit: ing.costPerBaseUnit,
                     totalCost: ing.totalCost
                 };
@@ -282,10 +282,10 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
             return;
         }
 
-        const availableUnits = getAvailableUnits(item.units.countUnit);
+        const availableUnits = getAvailableUnits(item.units.recipeUnit);
         const defaultUnit = availableUnits.includes('g') ? 'g' :
             availableUnits.includes('ml') ? 'ml' :
-                item.units.countUnit;
+                item.units.recipeUnit;
 
         const newIngredient: IngredientFormData = {
             id: `new-${Date.now()}`,
@@ -548,7 +548,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                                                 <p className="text-xs text-slate-500 dark:text-slate-400">{item.category}</p>
                                                             </div>
                                                             <span className="text-xs text-slate-500 dark:text-slate-500">
-                                                                ₱{item.costPerUnit}/{item.units.countUnit}
+                                                                ₱{item.costPerUnit}/{item.units.recipeUnit}
                                                             </span>
                                                         </button>
                                                     ))

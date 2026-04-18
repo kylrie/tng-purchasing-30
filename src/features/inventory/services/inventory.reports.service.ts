@@ -241,7 +241,7 @@ export class InventoryReportsService {
                 variance,
                 varianceCost,
                 costPerUnit,
-                unit: endItem.unit || inventoryItem?.units?.countUnit || 'unit'
+                unit: endItem.unit || inventoryItem?.units?.recipeUnit || 'unit'
             });
         }
 

@@ -252,7 +252,7 @@ export function processStockImport(
                 itemName: matchedItem.name,
                 sku: matchedItem.sku,
                 quantity: row.quantity,
-                unit: row.unit || matchedItem.units.countUnit,
+                unit: row.unit || matchedItem.units.recipeUnit,
                 matchedBy
             });
         } else {

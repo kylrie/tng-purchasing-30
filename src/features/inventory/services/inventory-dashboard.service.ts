@@ -20,8 +20,8 @@ export interface SuspiciousItem {
     itemName: string;
     type: string;
     category: string;
-    countUnit: string;         // base/count unit for display (e.g. "pcs", "g")
-    conversionRate: number;    // how many countUnits per buyUnit
+    recipeUnit: string;         // base recipe unit for display (e.g. "G", "ML")
+    conversionRate: number;    // how many recipeUnits per buyUnit
     expectedClosing: number;   // theoreticalStock
     actualClosing: number;     // currentStock (physical count)
     varianceQty: number;       // expected - actual
@@ -176,8 +176,8 @@ export class InventoryDashboardService {
         startDate: Date,
         endDate: Date,
         types: string[]
-    ): Promise<Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number; type: string; countUnit: string; conversionRate: number }>> {
-        const result = new Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number; type: string; countUnit: string; conversionRate: number }>();
+    ): Promise<Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number; type: string; recipeUnit: string; conversionRate: number }>> {
+        const result = new Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number; type: string; recipeUnit: string; conversionRate: number }>();
 
         try {
             // 1. Fetch all inventory items for costPerUnit + category lookup
@@ -186,7 +186,7 @@ export class InventoryDashboardService {
                 ...tenantConstraints
             );
             const itemsSnap = await getDocs(itemsQ);
-            const costMap = new Map<string, { costPerUnit: number; name: string; category: string; type: string; countUnit: string; conversionRate: number }>();
+            const costMap = new Map<string, { costPerUnit: number; name: string; category: string; type: string; recipeUnit: string; conversionRate: number }>();
             for (const d of itemsSnap.docs) {
                 const data = d.data() as InventoryItem;
                 costMap.set(d.id, {
@@ -194,7 +194,7 @@ export class InventoryDashboardService {
                     name: data.name || 'Unknown',
                     category: data.category || 'Other',
                     type: data.type || 'Other',
-                    countUnit: data.units?.countUnit || 'pcs',
+                    recipeUnit: data.units?.recipeUnit || 'pcs',
                     conversionRate: data.units?.conversion || 1,
                 });
             }
@@ -230,7 +230,7 @@ export class InventoryDashboardService {
                         totalPeso: 0,
                         costPerUnit: costPerUnit,
                         type: itemInfo?.type || 'Other',
-                        countUnit: itemInfo?.countUnit || 'pcs',
+                        recipeUnit: itemInfo?.recipeUnit || 'pcs',
                         conversionRate: itemInfo?.conversionRate || 1,
                     };
                     result.set(itemId, entry);
@@ -336,7 +336,7 @@ export class InventoryDashboardService {
                     itemId,
                     itemName: adjEntry.itemName,
                     type: adjEntry.type,
-                    countUnit: adjEntry.countUnit,
+                    recipeUnit: adjEntry.recipeUnit,
                     conversionRate: adjEntry.conversionRate,
                     category: adjEntry.category,
                     expectedClosing,

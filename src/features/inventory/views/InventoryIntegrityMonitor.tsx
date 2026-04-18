@@ -505,7 +505,7 @@ const InventoryIntegrityMonitor: React.FC = () => {
     return {
       id: `suspicious-${index}`,
       item: item.itemName,
-      category: `${item.category || 'Inventory'}${item.countUnit ? ' • ' + item.countUnit : ''}`,
+      category: `${item.category || 'Inventory'}${item.recipeUnit ? ' • ' + item.recipeUnit : ''}`,
       open: Math.round(((item.openQty || 0) * c) * 100) / 100,
       recv: Math.round(((item.recvQty || 0) * c) * 100) / 100,
       sold: Math.round(((item.soldQty || 0) * c) * 100) / 100,

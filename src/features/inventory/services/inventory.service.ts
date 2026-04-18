@@ -15,7 +15,9 @@ import type {
     StartSessionInput,
     SaveCountInput,
     StockCountStatus,
-    ReceiveGoodsPayload
+    ReceiveGoodsPayload,
+    ProductionBatchInput,
+    ProductionBatchResult
 } from '../types/InventoryItem';
 import { MOCK_INVENTORY_ITEMS, MOCK_STORAGE_AREAS } from '../types/InventoryItem';
 
@@ -364,7 +366,12 @@ export class InventoryService {
 
             // Update inventory stock levels
             for (const countItem of session.items) {
-                const newStock = countItem.count + countItem.partialCount;
+                const itemDoc = await FirestoreService.getDocument<InventoryItem>(
+                    COLLECTIONS.INVENTORY_ITEMS,
+                    countItem.itemId
+                );
+                const conversion = itemDoc && itemDoc.units.conversion > 0 ? itemDoc.units.conversion : 1;
+                const newStock = (countItem.count + countItem.partialCount) * conversion;
                 await FirestoreService.updateDocument(
                     COLLECTIONS.INVENTORY_ITEMS,
                     countItem.itemId,
@@ -650,6 +657,177 @@ export class InventoryService {
             console.error('[InventoryService] Cost migration failed:', error);
             throw error;
         }
+    }
+
+    // ============================================================
+    // PRODUCTION BATCH
+    // Consumes raw-material ingredients, increases PRODUCTION item
+    // stock, and creates wastage_records for prep waste — all atomic.
+    // ============================================================
+
+    /**
+     * Produce one or more batches of a PRODUCTION item.
+     *
+     * For each BOM ingredient the service will:
+     *  1. Deduct (quantityUsed × multiplier) from the raw-material's currentStock
+     *  2. If the ingredient has a wastagePercent, create a wastage_record for that
+     *     portion (the "edible" portion is already accounted for in the deduction
+     *     because the full quantityUsed was subtracted — the wastage record is purely
+     *     an audit / cost-tracking entry).
+     *  3. Add the batch yield (production item's buyUnit × multiplier) to the
+     *     PRODUCTION item's currentStock.
+     *
+     * Everything is committed in a single writeBatch.
+     */
+    static async produceProductionBatch(
+        input: ProductionBatchInput
+    ): Promise<ProductionBatchResult> {
+        const { businessUnitId, productionItemId, batchMultiplier, performedBy, notes } = input;
+
+        if (batchMultiplier <= 0) throw new Error('Batch multiplier must be greater than 0.');
+
+        // 1. Load all items for this BU
+        const allItems = await InventoryService.getInventory(businessUnitId);
+        const productionItem = allItems.find(i => i.id === productionItemId);
+
+        if (!productionItem) throw new Error(`Production item ${productionItemId} not found.`);
+        if (productionItem.type !== 'PRODUCTION') {
+            throw new Error(`Item "${productionItem.name}" is not a PRODUCTION item.`);
+        }
+        if (!productionItem.recipe || productionItem.recipe.length === 0) {
+            throw new Error(`"${productionItem.name}" has no recipe defined. Please add ingredients first.`);
+        }
+
+        const now = Timestamp.now();
+        const batch = writeBatch(db);
+
+        const ingredientsConsumed: ProductionBatchResult['ingredientsConsumed'] = [];
+        const wastageRecorded: ProductionBatchResult['wastageRecorded'] = [];
+        let totalWastageCost = 0;
+
+        // 2. Process each BOM ingredient
+        for (const ing of productionItem.recipe) {
+            const rawItem = allItems.find(i => i.id === ing.ingredientId);
+            if (!rawItem) {
+                throw new Error(
+                    `Ingredient "${ing.ingredientName}" (${ing.ingredientId}) not found in inventory.`
+                );
+            }
+
+            const totalConsumed = ing.quantityUsed * batchMultiplier;
+
+            if (rawItem.currentStock < totalConsumed) {
+                throw new Error(
+                    `Insufficient stock for "${rawItem.name}". ` +
+                    `Need ${totalConsumed} ${ing.unit}, have ${rawItem.currentStock} ${rawItem.units.recipeUnit}.`
+                );
+            }
+
+            // 2a. Deduct full consumed quantity from raw material
+            const rawItemRef = doc(db, 'inventory_items', rawItem.id);
+            const rawNewStock = rawItem.currentStock - totalConsumed;
+            batch.update(rawItemRef, { currentStock: rawNewStock, updatedAt: now });
+
+            // 2b. Stock transaction audit for the deduction
+            const deductTxnId = doc(collection(db, 'stock_transactions')).id;
+            batch.set(doc(db, 'stock_transactions', deductTxnId), {
+                id: deductTxnId,
+                itemId: rawItem.id,
+                itemName: rawItem.name,
+                businessUnitId,
+                type: 'PRODUCTION_CONSUMPTION',
+                quantity: -totalConsumed,
+                balanceAfter: rawNewStock,
+                referenceId: productionItemId,
+                notes: `Consumed for ${batchMultiplier}× batch of "${productionItem.name}"${notes ? ': ' + notes : ''}`,
+                performedBy: performedBy.id,
+                performedByName: performedBy.name,
+                timestamp: now
+            });
+
+            ingredientsConsumed.push({ name: rawItem.name, qty: totalConsumed, unit: ing.unit });
+
+            // 2c. If there's a wastage percent, create a wastage_record
+            if (ing.wastagePercent && ing.wastagePercent > 0) {
+                const wasteQty = parseFloat(
+                    (totalConsumed * (ing.wastagePercent / 100)).toFixed(4)
+                );
+                if (wasteQty > 0) {
+                    const costPerUnit = rawItem.baseCost ?? rawItem.costPerUnit ?? 0;
+                    const wastageCost = wasteQty * costPerUnit;
+                    totalWastageCost += wastageCost;
+
+                    const wastageId = doc(collection(db, 'wastage_records')).id;
+                    batch.set(doc(db, 'wastage_records', wastageId), {
+                        id: wastageId,
+                        businessUnitId,
+                        itemId: rawItem.id,
+                        itemName: rawItem.name,
+                        itemType: rawItem.type,
+                        quantity: wasteQty,
+                        unit: ing.unit,
+                        reason: 'Production Batch',
+                        notes: `Auto-generated prep waste for ${batchMultiplier}× batch of "${productionItem.name}" (${ing.wastagePercent}% wastage)`,
+                        costPerUnit,
+                        totalCost: wastageCost,
+                        // balanceAfter already reflects the full deduction — waste is a sub-portion
+                        balanceAfter: rawNewStock,
+                        performedBy: performedBy.id,
+                        performedByName: performedBy.name,
+                        createdAt: now
+                    });
+
+                    wastageRecorded.push({
+                        name: rawItem.name,
+                        qty: wasteQty,
+                        unit: ing.unit,
+                        cost: wastageCost
+                    });
+                }
+            }
+        }
+
+        // 3. Increase PRODUCTION item stock by (buyUnit × multiplier)
+        //    Each "batch" = 1 buyUnit worth of output (e.g. 1 batch = 5 litres)
+        const outputAdded = productionItem.units.conversion * batchMultiplier;
+        const prodNewStock = productionItem.currentStock + outputAdded;
+        const prodItemRef = doc(db, 'inventory_items', productionItem.id);
+        batch.update(prodItemRef, { currentStock: prodNewStock, updatedAt: now });
+
+        // 3a. Stock transaction for the production output
+        const prodTxnId = doc(collection(db, 'stock_transactions')).id;
+        batch.set(doc(db, 'stock_transactions', prodTxnId), {
+            id: prodTxnId,
+            itemId: productionItem.id,
+            itemName: productionItem.name,
+            businessUnitId,
+            type: 'PRODUCTION_OUTPUT',
+            quantity: outputAdded,
+            balanceAfter: prodNewStock,
+            referenceId: productionItemId,
+            notes: `${batchMultiplier}× batch produced${notes ? ': ' + notes : ''}`,
+            performedBy: performedBy.id,
+            performedByName: performedBy.name,
+            timestamp: now
+        });
+
+        // 4. Commit everything atomically
+        await batch.commit();
+
+        console.log(
+            `[InventoryService] Produced ${batchMultiplier}× batch of "${productionItem.name}". ` +
+            `Output: +${outputAdded} ${productionItem.units.recipeUnit}. ` +
+            `Wastage cost: ₱${totalWastageCost.toFixed(2)}`
+        );
+
+        return {
+            productionItem: productionItem.name,
+            batchesProduced: batchMultiplier,
+            outputAdded,
+            ingredientsConsumed,
+            wastageRecorded,
+            totalWastageCost
+        };
     }
 }
 
