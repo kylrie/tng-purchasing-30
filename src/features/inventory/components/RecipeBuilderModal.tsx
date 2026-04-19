@@ -88,10 +88,19 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Filter out ingredients with zero quantity
-            const validRecipe = recipe.filter(r => r.quantityUsed > 0 && r.ingredientId);
+            // Filter out ingredients with zero quantity and strip undefined properties for Firestore
+            const validRecipe = recipe
+                .filter(r => r.quantityUsed > 0 && r.ingredientId)
+                .map(r => {
+                    const clean = { ...r };
+                    if (clean.wastagePercent === undefined) {
+                        delete clean.wastagePercent;
+                    }
+                    return clean;
+                });
+
             await InventoryService.updateInventoryItem(item.id, {
-                recipe: validRecipe.length > 0 ? validRecipe : undefined,
+                recipe: validRecipe.length > 0 ? validRecipe : null, // Use null instead of undefined to delete
             } as Partial<InventoryItem>);
             onSaved();
             onClose();
@@ -265,15 +274,20 @@ const RecipeBuilderModal: React.FC<RecipeBuilderModalProps> = ({
                                             min={0}
                                             max={100}
                                             step="0.1"
-                                            value={ing.wastagePercent ?? ''}
-                                            onChange={(e) =>
-                                                handleIngredientChange(
-                                                    idx,
-                                                    'wastagePercent',
-                                                    Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
-                                                )
-                                            }
-                                            placeholder="0"
+                                            value={ing.wastagePercent === undefined ? '' : ing.wastagePercent}
+                                            onChange={(e) => {
+                                                const rawVal = e.target.value;
+                                                if (rawVal === '') {
+                                                    // Clear wastagePercent directly on state (undefined not allowed in handleIngredientChange)
+                                                    setRecipe(prev => prev.map((r, i) =>
+                                                        i === idx ? { ...r, wastagePercent: undefined } : r
+                                                    ));
+                                                } else {
+                                                    const val = Math.min(100, Math.max(0, parseFloat(rawVal) || 0));
+                                                    handleIngredientChange(idx, 'wastagePercent', val);
+                                                }
+                                            }}
+                                            placeholder=""
                                             title="% of this ingredient that becomes prep waste (e.g. 40 means 40% is bone/skin)"
                                             style={{
                                                 background: 'rgba(15,23,42,0.6)',

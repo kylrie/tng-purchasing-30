@@ -109,7 +109,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             baseQuantity: 1,
             costPerBaseUnit: item.costPerUnit,
             totalCost: item.costPerUnit,
-            wastagePercent: 0
+            wastagePercent: undefined
         };
         setIngredients([...ingredients, newIngredient]);
         setShowIngredientPicker(false);
@@ -117,7 +117,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
     };
 
     // Update wastage percentage
-    const updateWastagePercent = (index: number, wastagePercent: number) => {
+    const updateWastagePercent = (index: number, wastagePercent: number | undefined) => {
         setIngredients(prev => prev.map((ing, i) =>
             i === index ? { ...ing, wastagePercent } : ing
         ));
@@ -167,15 +167,21 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                 description: description || undefined,
                 yieldQuantity,
                 yieldUnit,
-                ingredients: ingredients.map(ing => ({
-                    inventoryItemId: ing.inventoryItemId,
-                    inventoryItemName: ing.inventoryItemName,
-                    quantity: ing.quantity,
-                    unit: ing.unit,
-                    baseQuantity: ing.baseQuantity,
-                    costPerBaseUnit: ing.costPerBaseUnit,
-                    wastagePercent: ing.wastagePercent ?? 0
-                }))
+                ingredients: ingredients.map(ing => {
+                    const mapped: RecipeIngredient = {
+                        inventoryItemId: ing.inventoryItemId,
+                        inventoryItemName: ing.inventoryItemName,
+                        quantity: ing.quantity,
+                        unit: ing.unit,
+                        baseQuantity: ing.baseQuantity,
+                        costPerBaseUnit: ing.costPerBaseUnit,
+                        totalCost: ing.totalCost,
+                    };
+                    if (ing.wastagePercent !== undefined) {
+                        mapped.wastagePercent = ing.wastagePercent;
+                    }
+                    return mapped;
+                })
             };
 
             if (recipe) {
@@ -406,13 +412,17 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                         <div className="w-20 flex items-center gap-1">
                                             <input
                                                 type="number"
-                                                value={ing.wastagePercent ?? 0}
-                                                onChange={(e) => updateWastagePercent(index, Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                                                value={ing.wastagePercent === undefined ? '' : ing.wastagePercent}
+                                                onChange={(e) => {
+                                                    const rawVal = e.target.value;
+                                                    const val = rawVal === '' ? undefined : parseFloat(rawVal);
+                                                    updateWastagePercent(index, val === undefined ? undefined : Math.min(100, Math.max(0, val)));
+                                                }}
                                                 min="0"
                                                 max="100"
                                                 step="1"
                                                 title="Expected prep-loss percentage (e.g. 10 for 10%)"
-                                                placeholder="0"
+                                                placeholder=""
                                                 className="w-14 px-2 py-1 bg-white dark:bg-slate-700 border border-orange-300 dark:border-orange-500/50 rounded text-slate-900 dark:text-white text-sm text-center focus:outline-none focus:border-orange-500"
                                             />
                                             <span className="text-xs text-orange-400 font-semibold">%</span>
