@@ -73,14 +73,23 @@ export class ProductionRecipeService {
         const totalCost = ingredientsWithCost.reduce((sum, ing) => sum + ing.totalCost, 0);
         const costPerUnit = input.yieldQuantity > 0 ? totalCost / input.yieldQuantity : 0;
 
+        // Sanitize ingredients: remove keys with undefined values (Firestore rejects undefined)
+        const sanitizedIngredients = ingredientsWithCost.map(ing => {
+            const clean: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(ing)) {
+                if (v !== undefined) clean[k] = v;
+            }
+            return clean;
+        });
+
         const recipeData = {
             businessUnitId: input.businessUnitId,
             name: input.name,
             category: input.category,
-            description: input.description || null,
+            description: input.description ?? null,
             yieldQuantity: input.yieldQuantity,
             yieldUnit: input.yieldUnit,
-            ingredients: ingredientsWithCost,
+            ingredients: sanitizedIngredients,
             calculatedCost: totalCost,
             costPerUnit,
             linkedInventoryItemId: null as string | null,
@@ -143,13 +152,22 @@ export class ProductionRecipeService {
         const totalCost = ingredientsWithCost.reduce((sum, ing) => sum + ing.totalCost, 0);
         const costPerUnit = input.yieldQuantity > 0 ? totalCost / input.yieldQuantity : 0;
 
+        // Sanitize ingredients: remove keys with undefined values (Firestore rejects undefined)
+        const sanitizedIngredients = ingredientsWithCost.map(ing => {
+            const clean: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(ing)) {
+                if (v !== undefined) clean[k] = v;
+            }
+            return clean;
+        });
+
         const updateData = {
             name: input.name,
             category: input.category,
-            description: input.description || null,
+            description: input.description ?? null,
             yieldQuantity: input.yieldQuantity,
             yieldUnit: input.yieldUnit,
-            ingredients: ingredientsWithCost,
+            ingredients: sanitizedIngredients,
             calculatedCost: totalCost,
             costPerUnit,
             updatedAt: Timestamp.now()

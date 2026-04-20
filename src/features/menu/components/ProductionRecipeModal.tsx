@@ -52,6 +52,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
     const [yieldUnit, setYieldUnit] = useState('G');
     const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [showWastage, setShowWastage] = useState(false);
     // FIX: Replace alert() with inline error state
     const [validationError, setValidationError] = useState<string | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -69,6 +70,8 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             setYieldQuantity(recipe.yieldQuantity);
             setYieldUnit(recipe.yieldUnit);
             setIngredients(recipe.ingredients);
+            // Auto-enable wastage toggle if any ingredient already has wastage
+            setShowWastage(recipe.ingredients.some(ing => (ing.wastagePercent ?? 0) > 0));
         } else {
             setName('');
             setCategory('Other');
@@ -76,6 +79,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             setYieldQuantity(1);
             setYieldUnit('G');
             setIngredients([]);
+            setShowWastage(false);
         }
         // FIX: Reset errors when modal opens
         setValidationError(null);
@@ -304,7 +308,34 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                     {/* Ingredients */}
                     <div>
                         <div className="flex items-center justify-between mb-3">
-                            <label className="text-sm text-slate-700 dark:text-slate-400">Ingredients</label>
+                            <div className="flex items-center gap-4">
+                                <label className="text-sm text-slate-700 dark:text-slate-400">Ingredients</label>
+                                {/* Wastage Toggle */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const next = !showWastage;
+                                        setShowWastage(next);
+                                        if (!next) {
+                                            // Clear all wastage values when toggling off
+                                            setIngredients(prev => prev.map(ing => ({ ...ing, wastagePercent: undefined })));
+                                        }
+                                    }}
+                                    className="flex items-center gap-2 group"
+                                    title={showWastage ? 'Hide wastage tracking' : 'Enable wastage tracking'}
+                                >
+                                    <div className={`relative w-9 h-5 rounded-full transition-colors duration-200 ${
+                                        showWastage ? 'bg-orange-500' : 'bg-slate-300 dark:bg-slate-600'
+                                    }`}>
+                                        <div className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                                            showWastage ? 'translate-x-4' : 'translate-x-0'
+                                        }`} />
+                                    </div>
+                                    <span className={`text-xs font-medium transition-colors ${
+                                        showWastage ? 'text-orange-500 dark:text-orange-400' : 'text-slate-400 dark:text-slate-500'
+                                    }`}>Wastage</span>
+                                </button>
+                            </div>
                             <button
                                 onClick={() => setShowIngredientPicker(true)}
                                 className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium flex items-center gap-1 transition-colors"
@@ -370,8 +401,8 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                     <div className="flex-1 text-xs font-semibold text-slate-400 uppercase tracking-wide">Ingredient</div>
                                     <div className="w-20 text-xs font-semibold text-slate-400 uppercase tracking-wide text-center">Qty</div>
                                     <div className="w-24 text-xs font-semibold text-slate-400 uppercase tracking-wide text-center">Unit</div>
-                                    <div className="w-20 text-xs font-semibold text-orange-400 uppercase tracking-wide text-center">Wastage %</div>
-                                    <div className="w-24 text-xs font-semibold text-orange-400 uppercase tracking-wide text-right">Waste Cost</div>
+                                    {showWastage && <div className="w-20 text-xs font-semibold text-orange-400 uppercase tracking-wide text-center">Wastage %</div>}
+                                    {showWastage && <div className="w-24 text-xs font-semibold text-orange-400 uppercase tracking-wide text-right">Waste Cost</div>}
                                     <div className="w-24 text-xs font-semibold text-slate-400 uppercase tracking-wide text-right">Ing. Cost</div>
                                     <div className="w-6" />
                                 </div>
@@ -409,6 +440,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                             ))}
                                         </select>
                                         {/* Wastage % */}
+                                        {showWastage && (
                                         <div className="w-20 flex items-center gap-1">
                                             <input
                                                 type="number"
@@ -427,8 +459,9 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                             />
                                             <span className="text-xs text-orange-400 font-semibold">%</span>
                                         </div>
+                                        )}
                                         {/* Wastage cost */}
-                                        {(() => {
+                                        {showWastage && (() => {
                                             const wPct = ing.wastagePercent ?? 0;
                                             const wCost = wPct > 0 ? (wPct / 100) * ing.totalCost : 0;
                                             return (
@@ -460,7 +493,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
 
                     {/* Cost Summary */}
                     <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/10 border border-amber-200 dark:border-amber-500/30 rounded-xl p-4">
-                        <div className="grid grid-cols-3 gap-4 text-center">
+                        <div className={`grid ${showWastage ? 'grid-cols-3' : 'grid-cols-2'} gap-4 text-center`}>
                             <div>
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Ingredient Cost</p>
                                 <p className="text-xl font-bold text-slate-900 dark:text-white flex items-center justify-center gap-1">
@@ -468,6 +501,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                     {totalCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
+                            {showWastage && (
                             <div>
                                 <p className="text-sm text-orange-600 dark:text-orange-400 mb-1">Wastage Cost</p>
                                 <p className="text-xl font-bold text-orange-600 dark:text-orange-400 flex items-center justify-center gap-1">
@@ -475,6 +509,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                     {totalWastageCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </p>
                             </div>
+                            )}
                             <div className="border-l border-amber-200 dark:border-amber-500/30 pl-4">
                                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Cost per {yieldUnit}</p>
                                 <p className="text-xl font-bold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
@@ -483,7 +518,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                 </p>
                             </div>
                         </div>
-                        {totalWastageCost > 0 && (
+                        {showWastage && totalWastageCost > 0 && (
                             <div className="mt-3 pt-3 border-t border-amber-200 dark:border-amber-500/30 flex items-center justify-between">
                                 <span className="text-xs text-slate-500">Total true cost (incl. wastage)</span>
                                 <span className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1">
