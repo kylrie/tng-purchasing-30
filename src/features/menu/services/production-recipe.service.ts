@@ -227,8 +227,13 @@ export class ProductionRecipeService {
             for (const ing of recipe.ingredients) {
                 const item = itemMap.get(ing.inventoryItemId);
                 if (item) {
-                    // Use baseCost (per count-unit) when available, fall back to costPerUnit
-                    const costPerBaseUnit = item.baseCost ?? item.costPerUnit;
+                    // Use baseCost (per recipe-unit) when available.
+                    // If baseCost is missing (legacy items), derive it from buyCost/conversion.
+                    // NEVER use costPerUnit directly — it may be the buy-unit cost on legacy records.
+                    const costPerBaseUnit = item.baseCost
+                        ?? (item.buyCost != null && item.units?.conversion > 0
+                            ? item.buyCost / item.units.conversion
+                            : item.costPerUnit ?? 0);
                     totalCost += ing.baseQuantity * costPerBaseUnit;
                 } else {
                     totalCost += ing.totalCost; // Keep existing if item not found
@@ -379,7 +384,8 @@ export class ProductionRecipeService {
 
         // ── Step E: Explode & Deduct Raw Materials ──────────────────
         for (const ing of recipe.ingredients) {
-            const deductionAmount = ing.baseQuantity * yieldQuantity;
+            const batches = yieldQuantity / recipe.yieldQuantity;
+            const deductionAmount = ing.baseQuantity * batches;
             const rmItem = rawMaterialDocs.get(ing.inventoryItemId)!;
             const newRmTheoretical = rmItem.theoreticalStock - deductionAmount;
 

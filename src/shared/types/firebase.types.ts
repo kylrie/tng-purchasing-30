@@ -139,6 +139,8 @@ export const COLLECTIONS = {
   POS_SALES: 'pos_sales',
   POS_SALES_BATCHES: 'pos_sales_batches',
   STOCK_TRANSACTIONS: 'stock_transactions',
+  INVENTORY_ITEMS: 'inventory_items',
+  GOODS_RECEIVING_LOGS: 'goods_receiving_logs',
 } as const;
 
 // Query constraints type

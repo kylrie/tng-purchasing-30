@@ -1033,5 +1033,19 @@ service cloud.firestore {
       // No updates or deletes — immutable wastage audit trail
       allow update, delete: if false;
     }
+    
+    // =====================================================
+    // GOODS RECEIVING LOGS COLLECTION
+    // Immutable audit log of all goods receiving sessions
+    // Records who uploaded/scanned, what was received, and linked PRF
+    // =====================================================
+    match /goods_receiving_logs/{logId} {
+      // Read: Authenticated users can read (scoped by BU in queries)
+      allow read: if isSignedIn();
+      // Create: Any authenticated user can create receiving logs
+      allow create: if isSignedIn();
+      // No updates or deletes — immutable audit trail
+      allow update, delete: if false;
+    }
   }
 }

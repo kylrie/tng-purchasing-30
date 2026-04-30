@@ -9,7 +9,8 @@ import {
     Calendar,
     RefreshCw,
     Download,
-    Info
+    Info,
+    Flame
 } from 'lucide-react';
 import type { StockCountSession } from '../types/InventoryItem';
 import { InventoryReportsService, type VarianceReport, type VarianceReportItem } from '../services/inventory.reports.service';
@@ -118,12 +119,14 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
     const handleExportCSV = () => {
         if (!report) return;
 
-        const headers = ['Item Name', 'Unit', 'Starting', 'Purchased', 'Expected', 'Actual', 'Variance', 'Variance Cost'];
+        const headers = ['Item Name', 'Unit', 'Starting', 'Purchased', 'Wastage', 'Wastage Cost', 'Expected', 'Actual', 'Variance', 'Variance Cost'];
         const rows = report.items.map(item => [
             item.itemName,
             item.unit,
             item.starting.toFixed(2),
             item.purchased.toFixed(2),
+            item.wastage.toFixed(2),
+            item.wastageCost.toFixed(2),
             item.expected.toFixed(2),
             item.actual.toFixed(2),
             item.variance.toFixed(2),
@@ -258,10 +261,10 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                     <Info size={18} className="text-cyan-600 dark:text-cyan-400 mt-0.5 flex-shrink-0" />
                     <div>
                         <p className="text-sm text-slate-700 dark:text-slate-300">
-                            <strong>Formula:</strong> Expected Stock = Starting Stock + Purchases − Usage
+                            <strong>Formula:</strong> Expected Stock = Starting Stock + Purchases <span className="text-orange-500">− Wastage</span> − Usage
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
-                            Variance = Actual Count − Expected Stock | <span className="text-red-500 dark:text-red-400">Negative = Missing</span> | <span className="text-green-600 dark:text-green-400">Positive = Surplus</span>
+                            Variance = Actual Count − Expected Stock | <span className="text-red-500 dark:text-red-400">Negative = Missing</span> | <span className="text-green-600 dark:text-green-400">Positive = Surplus</span> | <span className="text-orange-500">Wastage is deducted from Expected Stock</span>
                         </p>
                     </div>
                 </div>
@@ -271,7 +274,7 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
             {report && (
                 <>
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                         <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
                             <p className="text-slate-500 dark:text-slate-400 text-sm">Total Items</p>
                             <p className="text-2xl font-bold text-slate-900 dark:text-white">{report.summary.totalItems}</p>
@@ -279,6 +282,13 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                         <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 shadow-sm dark:shadow-none">
                             <p className="text-slate-500 dark:text-slate-400 text-sm">Items with Variance</p>
                             <p className="text-2xl font-bold text-amber-500 dark:text-amber-400">{report.summary.itemsWithVariance}</p>
+                        </div>
+                        <div className="bg-orange-50 dark:bg-orange-500/10 border border-orange-200 dark:border-orange-500/30 rounded-xl p-4">
+                            <div className="flex items-center gap-2">
+                                <Flame size={16} className="text-orange-500 dark:text-orange-400" />
+                                <p className="text-orange-700 dark:text-orange-300 text-sm">Total Wastage</p>
+                            </div>
+                            <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatCurrency(report.summary.totalWastageCost)}</p>
                         </div>
                         <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-xl p-4">
                             <div className="flex items-center gap-2">
@@ -325,6 +335,8 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                                         <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Item Name</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Starting</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Purchased</th>
+                                        <th className="text-right p-4 text-orange-500 dark:text-orange-400 font-medium text-sm">Wastage</th>
+                                        <th className="text-right p-4 text-orange-500 dark:text-orange-400 font-medium text-sm">Wastage Cost</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Expected</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Actual</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Variance</th>
@@ -334,7 +346,7 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                                 <tbody>
                                     {report.items.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="text-center py-12 text-slate-500">
+                                            <td colSpan={9} className="text-center py-12 text-slate-500">
                                                 <Package size={48} className="mx-auto mb-4 opacity-50" />
                                                 <p>No items in this report</p>
                                             </td>
@@ -354,6 +366,12 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                                                 </td>
                                                 <td className="p-4 text-right text-cyan-600 dark:text-cyan-400">
                                                     +{item.purchased.toFixed(2)}
+                                                </td>
+                                                <td className="p-4 text-right text-orange-600 dark:text-orange-400 font-mono">
+                                                    {item.wastage > 0 ? `-${item.wastage.toFixed(2)}` : '—'}
+                                                </td>
+                                                <td className="p-4 text-right text-orange-600 dark:text-orange-400 font-mono">
+                                                    {item.wastageCost > 0 ? `-${formatCurrency(item.wastageCost)}` : '—'}
                                                 </td>
                                                 <td className="p-4 text-right text-slate-700 dark:text-slate-300">
                                                     {item.expected.toFixed(2)}

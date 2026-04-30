@@ -565,7 +565,7 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                                             <li key={idx} className="text-xs text-amber-800 dark:text-amber-300 flex justify-between">
                                                 <span>{ing.inventoryItemName}</span>
                                                 <span className="font-mono font-semibold">
-                                                    -{(ing.baseQuantity * Number(yieldQuantity)).toFixed(2)} {ing.unit}
+                                                    -{(ing.baseQuantity * (Number(yieldQuantity) / yieldModalRecipe.yieldQuantity)).toFixed(2)} {ing.unit}
                                                 </span>
                                             </li>
                                         ))}

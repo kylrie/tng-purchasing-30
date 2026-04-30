@@ -374,3 +374,38 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     isActive: true
   }
 ];
+
+// ============================================================
+// GOODS RECEIVING LOG - Upload History
+// ============================================================
+
+export interface GoodsReceivingLogItem {
+  inventoryItemId: string;
+  inventoryItemName: string;
+  qtyReceived: number;        // In buy-units
+  buyUnit: string;
+  unitPrice: number;          // Per buy-unit
+  totalPrice: number;
+}
+
+export interface GoodsReceivingLog {
+  id: string;
+  businessUnitId: string;
+  // PRF Link (optional)
+  prfId?: string;             // Requisition document ID
+  prfIdentifier?: string;     // Human-readable PRF # (e.g., "BURF-001-Batch01")
+  // Session data
+  referenceNumber: string;    // Invoice / reference #
+  documentType?: string;      // AI-detected doc type
+  supplierName?: string;      // AI-detected supplier
+  inputMethod: 'upload' | 'camera' | 'manual';
+  // Items received
+  items: GoodsReceivingLogItem[];
+  totalItems: number;
+  totalValue: number;
+  // Who & when
+  receivedBy: string;         // User ID
+  receivedByName: string;     // User display name
+  receivedAt: Timestamp;
+}
+

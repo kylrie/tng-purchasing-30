@@ -105,14 +105,22 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
 
     // Add ingredient
     const addIngredient = (item: InventoryItem) => {
+        // Use baseCost (per recipe-unit) when available.
+        // If baseCost is missing (legacy items), derive it from buyCost/conversion.
+        // NEVER use costPerUnit directly — it may be the buy-unit cost on legacy records.
+        const perBaseUnit = item.baseCost
+            ?? (item.buyCost != null && item.units?.conversion > 0
+                ? item.buyCost / item.units.conversion
+                : item.costPerUnit ?? 0);
+
         const newIngredient: RecipeIngredient = {
             inventoryItemId: item.id,
             inventoryItemName: item.name,
             quantity: 1,
             unit: item.units.recipeUnit,
             baseQuantity: 1,
-            costPerBaseUnit: item.costPerUnit,
-            totalCost: item.costPerUnit,
+            costPerBaseUnit: perBaseUnit,
+            totalCost: perBaseUnit,
             wastagePercent: undefined
         };
         setIngredients([...ingredients, newIngredient]);
@@ -374,7 +382,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                                 <span className="text-slate-900 dark:text-white text-sm">{item.name}</span>
                                                 <span className="text-slate-500 dark:text-slate-400 text-xs flex items-center gap-1">
                                                     <PesoSign size={10} />
-                                                    {item.costPerUnit.toFixed(2)}/{item.units.recipeUnit}
+                                                    {(item.baseCost ?? item.costPerUnit ?? 0).toFixed(2)}/{item.units.recipeUnit}
                                                 </span>
                                             </button>
                                         ))

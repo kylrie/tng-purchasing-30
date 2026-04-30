@@ -42,6 +42,16 @@ interface IngredientFormData {
     totalCost: number;
 }
 
+/**
+ * Resolves the recipe unit for an inventory item, handling legacy Firestore docs
+ * that may use 'countUnit' instead of 'recipeUnit'.
+ */
+function getItemRecipeUnit(item: InventoryItem): string {
+    return item.units?.recipeUnit
+        || (item.units as any)?.countUnit
+        || 'EA';
+}
+
 // ============================================================
 // INGREDIENT ROW COMPONENT
 // ============================================================
@@ -60,7 +70,7 @@ const IngredientRow: React.FC<{
             <div className="flex-1 min-w-0">
                 <p className="font-medium text-slate-900 dark:text-white truncate">{ingredient.inventoryItemName}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {selectedItem?.category} • ₱{ingredient.costPerUnit.toFixed(2)}/{selectedItem?.units.recipeUnit}
+                    {selectedItem?.category} • ₱{ingredient.costPerUnit.toFixed(2)}/{selectedItem ? getItemRecipeUnit(selectedItem) : ''}
                 </p>
             </div>
 
@@ -238,13 +248,14 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
             // Convert existing ingredients to form data
             const formIngredients: IngredientFormData[] = menuItem.ingredients.map((ing, idx) => {
                 const invItem = inventoryItems.find(i => i.id === ing.inventoryItemId);
+                const recipeUnit = invItem ? getItemRecipeUnit(invItem) : ing.unit;
                 return {
                     id: `existing-${idx}`,
                     inventoryItemId: ing.inventoryItemId,
                     inventoryItemName: ing.inventoryItemName,
                     quantity: ing.quantity,
                     unit: ing.unit,
-                    availableUnits: invItem ? getAvailableUnits(invItem.units.recipeUnit) : [ing.unit],
+                    availableUnits: getAvailableUnits(recipeUnit),
                     costPerUnit: ing.costPerBaseUnit,
                     totalCost: ing.totalCost
                 };
@@ -282,10 +293,17 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
             return;
         }
 
-        const availableUnits = getAvailableUnits(item.units.recipeUnit);
-        const defaultUnit = availableUnits.includes('g') ? 'g' :
-            availableUnits.includes('ml') ? 'ml' :
-                item.units.recipeUnit;
+        const recipeUnit = getItemRecipeUnit(item);
+        const availableUnits = getAvailableUnits(recipeUnit);
+        const defaultUnit = availableUnits.includes('G') ? 'G' :
+            availableUnits.includes('ML') ? 'ML' :
+                recipeUnit;
+
+        // Use baseCost (per recipe-unit) when available.
+        const perBaseUnit = item.baseCost
+            ?? (item.buyCost != null && item.units?.conversion > 0
+                ? item.buyCost / item.units.conversion
+                : item.costPerUnit ?? 0);
 
         const newIngredient: IngredientFormData = {
             id: `new-${Date.now()}`,
@@ -294,7 +312,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
             quantity: 0,
             unit: defaultUnit,
             availableUnits,
-            costPerUnit: item.costPerUnit,
+            costPerUnit: perBaseUnit,
             totalCost: 0
         };
 
@@ -367,7 +385,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                 await RecipesService.updateMenuItem(menuItem.id, {
                     name: name.trim(),
                     category,
-                    description: description.trim() || undefined,
+                    description: description.trim() || '',
                     sellingPrice,
                     ingredients: ingredientInputs
                 });
@@ -376,7 +394,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                     businessUnitId,
                     name: name.trim(),
                     category,
-                    description: description.trim() || undefined,
+                    description: description.trim() || '',
                     sellingPrice,
                     ingredients: ingredientInputs
                 });
@@ -548,7 +566,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                                                 <p className="text-xs text-slate-500 dark:text-slate-400">{item.category}</p>
                                                             </div>
                                                             <span className="text-xs text-slate-500 dark:text-slate-500">
-                                                                ₱{item.costPerUnit}/{item.units.recipeUnit}
+                                                                ₱{(item.baseCost ?? item.costPerUnit ?? 0).toFixed(2)}/{getItemRecipeUnit(item)}
                                                             </span>
                                                         </button>
                                                     ))

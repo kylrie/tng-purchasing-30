@@ -17,7 +17,9 @@ import type {
     StockCountStatus,
     ReceiveGoodsPayload,
     ProductionBatchInput,
-    ProductionBatchResult
+    ProductionBatchResult,
+    GoodsReceivingLog,
+    GoodsReceivingLogItem
 } from '../types/InventoryItem';
 import { MOCK_INVENTORY_ITEMS, MOCK_STORAGE_AREAS } from '../types/InventoryItem';
 
@@ -25,8 +27,18 @@ import { MOCK_INVENTORY_ITEMS, MOCK_STORAGE_AREAS } from '../types/InventoryItem
 const COLLECTIONS = {
     INVENTORY_ITEMS: 'inventory_items',
     STOCK_COUNTS: 'stock_counts',
-    STORAGE_AREAS: 'storage_areas'
+    STORAGE_AREAS: 'storage_areas',
+    GOODS_RECEIVING_LOGS: 'goods_receiving_logs'
 } as const;
+
+/** Optional metadata for receiving sessions (PRF link, input method, etc.) */
+export interface ReceivingMeta {
+    prfId?: string;
+    prfIdentifier?: string;
+    supplierName?: string;
+    documentType?: string;
+    inputMethod?: 'upload' | 'camera' | 'manual';
+}
 
 /**
  * Multi-Tenant Inventory Service
@@ -494,7 +506,8 @@ export class InventoryService {
         businessUnitId: string,
         receivedItems: ReceiveGoodsPayload[],
         performedBy: { id: string; name: string },
-        referenceId: string = ''
+        referenceId: string = '',
+        receivingMeta?: ReceivingMeta
     ): Promise<void> {
         if (!receivedItems.length) return;
 
@@ -567,6 +580,44 @@ export class InventoryService {
         }
 
         await batch.commit();
+
+        // Save receiving log for history tracking
+        try {
+            const logItems: GoodsReceivingLogItem[] = receivedItems
+                .filter(r => inventoryItemsMap.has(r.inventoryItemId))
+                .map(r => {
+                    const item = inventoryItemsMap.get(r.inventoryItemId)!;
+                    return {
+                        inventoryItemId: item.id,
+                        inventoryItemName: item.name,
+                        qtyReceived: r.qtyReceived,
+                        buyUnit: item.units.buyUnit || 'EA',
+                        unitPrice: r.unitPrice,
+                        totalPrice: r.qtyReceived * r.unitPrice
+                    };
+                });
+
+            const totalValue = logItems.reduce((sum, i) => sum + i.totalPrice, 0);
+
+            await this.saveReceivingLog({
+                businessUnitId,
+                prfId: receivingMeta?.prfId,
+                prfIdentifier: receivingMeta?.prfIdentifier,
+                referenceNumber: referenceId || '',
+                documentType: receivingMeta?.documentType,
+                supplierName: receivingMeta?.supplierName,
+                inputMethod: receivingMeta?.inputMethod || 'manual',
+                items: logItems,
+                totalItems: logItems.length,
+                totalValue,
+                receivedBy: performedBy.id,
+                receivedByName: performedBy.name,
+                receivedAt: now
+            });
+        } catch (logErr) {
+            // Non-critical — don't fail the whole batch if logging fails
+            console.error('[InventoryService] Failed to save receiving log:', logErr);
+        }
 
         // If cost changed for any item, trigger recalculation of all linked recipes
         if (shouldRecalculate) {
@@ -828,6 +879,55 @@ export class InventoryService {
             wastageRecorded,
             totalWastageCost
         };
+    }
+    // ============================================================
+    // GOODS RECEIVING LOGS
+    // ============================================================
+
+    /**
+     * Save a receiving session log to Firestore
+     */
+    static async saveReceivingLog(
+        logData: Omit<GoodsReceivingLog, 'id'>
+    ): Promise<string> {
+        const logId = doc(collection(db, COLLECTIONS.GOODS_RECEIVING_LOGS)).id;
+        const logRef = doc(db, COLLECTIONS.GOODS_RECEIVING_LOGS, logId);
+
+        const fullLog: GoodsReceivingLog = {
+            id: logId,
+            ...logData
+        };
+
+        const { writeBatch: wb } = await import('firebase/firestore');
+        const singleBatch = wb(db);
+        singleBatch.set(logRef, fullLog);
+        await singleBatch.commit();
+
+        console.log(`[InventoryService] Saved receiving log ${logId} (${logData.totalItems} items, ₱${logData.totalValue.toFixed(2)})`);
+        return logId;
+    }
+
+    /**
+     * Get receiving logs for a business unit, ordered by date descending
+     */
+    static async getReceivingLogs(
+        businessUnitId: string
+    ): Promise<GoodsReceivingLog[]> {
+        try {
+            const logs = await FirestoreService.getDocuments<GoodsReceivingLog>(
+                COLLECTIONS.GOODS_RECEIVING_LOGS,
+                [where('businessUnitId', '==', businessUnitId)]
+            );
+            // Sort by receivedAt descending (newest first)
+            return logs.sort((a, b) => {
+                const aTime = a.receivedAt?.toMillis?.() || 0;
+                const bTime = b.receivedAt?.toMillis?.() || 0;
+                return bTime - aTime;
+            });
+        } catch (error) {
+            console.error('[InventoryService] Error fetching receiving logs:', error);
+            return [];
+        }
     }
 }
 

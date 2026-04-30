@@ -95,17 +95,19 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
     // Populate form when editing
     useEffect(() => {
         if (item) {
+            const conversion = item.units?.conversion || 1;
             setFormData({
-                name: item.name,
-                type: item.type,
-                category: item.category,
+                name: item.name || '',
+                type: item.type || 'RAW_MATERIAL',
+                category: item.category || 'Other',
                 sku: item.sku || '',
                 storageAreas: item.storageAreas || [],
-                recipeUnit: item.units.recipeUnit,
-                buyUnit: item.units.buyUnit,
-                conversion: item.units.conversion,
-                parLevel: item.units.conversion > 0 ? item.parLevel / item.units.conversion : item.parLevel,
-                currentStock: item.currentStock,
+                // Guard against older records that may use 'countUnit' or have undefined units
+                recipeUnit: item.units?.recipeUnit || (item.units as any)?.countUnit || 'piece',
+                buyUnit: item.units?.buyUnit || 'piece',
+                conversion,
+                parLevel: conversion > 0 ? (item.parLevel || 0) / conversion : (item.parLevel || 0),
+                currentStock: item.currentStock || 0,
                 buyCost: item.buyCost ?? item.costPerUnit ?? 0,
                 supplier: item.supplier || '',
                 notes: item.notes || ''
@@ -120,19 +122,19 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {};
 
-        if (!formData.name.trim()) {
+        if (!(formData.name || '').trim()) {
             newErrors.name = 'Name is required';
         }
 
-        if (formData.conversion <= 0) {
+        if ((formData.conversion || 0) <= 0) {
             newErrors.conversion = 'Conversion must be greater than 0';
         }
 
-        if (formData.buyCost < 0) {
+        if ((formData.buyCost || 0) < 0) {
             newErrors.buyCost = 'Cost cannot be negative';
         }
 
-        if (formData.parLevel < 0) {
+        if ((formData.parLevel || 0) < 0) {
             newErrors.parLevel = 'Par level cannot be negative';
         }
 
@@ -149,27 +151,31 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
         setSaving(true);
         try {
             const units: UnitConversion = {
-                recipeUnit: formData.recipeUnit.trim() || 'piece',
-                buyUnit: formData.buyUnit.trim() || 'piece',
-                conversion: formData.conversion
+                recipeUnit: (formData.recipeUnit || '').trim() || 'piece',
+                buyUnit: (formData.buyUnit || '').trim() || 'piece',
+                conversion: formData.conversion || 1
             };
+
+            const skuTrimmed = (formData.sku || '').trim();
+            const supplierTrimmed = (formData.supplier || '').trim();
+            const notesTrimmed = (formData.notes || '').trim();
 
             const itemData: CreateInventoryItemInput = {
                 businessUnitId,
-                name: formData.name.trim(),
+                name: (formData.name || '').trim(),
                 type: formData.type,
                 category: formData.category,
                 storageAreas: formData.storageAreas,
                 units,
-                parLevel: Math.round(formData.parLevel * formData.conversion),
-                currentStock: formData.currentStock,
+                parLevel: Math.round((formData.parLevel || 0) * (formData.conversion || 1)),
+                currentStock: formData.currentStock || 0,
                 costPerUnit: baseCost, // Legacy fallback
-                buyCost: formData.buyCost,
+                buyCost: formData.buyCost || 0,
                 baseCost: baseCost,    // Crucial: baseCost is the primary value used by POS BOM explosion and Recipe builder
                 // Only include optional fields if they have values (avoid undefined)
-                ...(formData.sku.trim() && { sku: formData.sku.trim() }),
-                ...(formData.supplier.trim() && { supplier: formData.supplier.trim() }),
-                ...(formData.notes.trim() && { notes: formData.notes.trim() })
+                ...(skuTrimmed && { sku: skuTrimmed }),
+                ...(supplierTrimmed && { supplier: supplierTrimmed }),
+                ...(notesTrimmed && { notes: notesTrimmed })
             };
 
             await onSave(itemData);

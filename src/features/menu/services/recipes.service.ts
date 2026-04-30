@@ -82,21 +82,22 @@ export function convertUnits(
 
 
 /**
- * Get available recipe units for an inventory item's base unit
+ * Get available recipe units for an inventory item's base unit.
+ * Uses the canonical UOM_CONVERSIONS table (uppercase keys).
  */
 export function getAvailableUnits(baseUnit: string | undefined | null): string[] {
-    if (!baseUnit) return ['EACH'];
-    const baseLower = baseUnit.toLowerCase();
-    const available = new Set<string>([baseUnit]);
+    if (!baseUnit) return ['EA'];
+    const baseUpper = baseUnit.toUpperCase();
+    const available = new Set<string>([baseUpper]);
 
-    // Add all units this base can convert to
-    if (UNIT_CONVERSIONS[baseLower]) {
-        Object.keys(UNIT_CONVERSIONS[baseLower]).forEach(unit => available.add(unit));
+    // Add all units this base can convert TO (via UOM_CONVERSIONS)
+    if (UOM_CONVERSIONS[baseUpper]) {
+        Object.keys(UOM_CONVERSIONS[baseUpper]).forEach(unit => available.add(unit));
     }
 
-    // Add all units that can convert to this base
-    Object.entries(UNIT_CONVERSIONS).forEach(([unit, conversions]) => {
-        if (conversions[baseLower]) {
+    // Add all units that can convert TO this base
+    Object.entries(UOM_CONVERSIONS).forEach(([unit, conversions]) => {
+        if (conversions[baseUpper]) {
             available.add(unit);
         }
     });
@@ -119,10 +120,13 @@ export function calculateIngredientCost(
     // Convert recipe quantity to inventory base unit
     const baseQuantity = convertUnits(quantity, recipeUnit, inventoryItem.units.recipeUnit);
 
-    // Use baseCost (cost per base/count unit) if available.
-    // baseCost = buyCost / conversion (set by InventoryItemModal and receiveGoodsBatch).
-    // Fall back to costPerUnit for legacy items created before the baseCost/buyCost split.
-    const costPerBaseUnit = inventoryItem.baseCost ?? inventoryItem.costPerUnit;
+    // Use baseCost (cost per base/recipe unit) if available.
+    // If baseCost is missing (legacy items), derive it from buyCost/conversion.
+    // NEVER use costPerUnit directly — it may be the buy-unit cost on legacy records.
+    const costPerBaseUnit = inventoryItem.baseCost
+        ?? (inventoryItem.buyCost != null && inventoryItem.units?.conversion > 0
+            ? inventoryItem.buyCost / inventoryItem.units.conversion
+            : inventoryItem.costPerUnit ?? 0);
 
     // Calculate cost
     const totalCost = baseQuantity * costPerBaseUnit;
@@ -195,7 +199,8 @@ export async function calculateRecipeCost(
             unit: input.unit,
             baseQuantity,
             // Stamp the correct per-base-unit cost (not the buy-unit cost)
-            costPerBaseUnit: inventoryItem.baseCost ?? inventoryItem.costPerUnit,
+            // Fallback chain: baseCost → costPerUnit → 0 (never undefined)
+            costPerBaseUnit: inventoryItem.baseCost ?? inventoryItem.costPerUnit ?? 0,
             totalCost: ingredientCost
         });
 
@@ -221,6 +226,32 @@ export function calculateMargins(
         marginPercent: Math.round(marginPercent * 10) / 10,
         foodCostPercent: Math.round(foodCostPercent * 10) / 10
     };
+}
+
+// ============================================================
+// FIRESTORE SAFETY HELPER
+// ============================================================
+
+/**
+ * Recursively removes `undefined` values from an object before writing to Firestore.
+ * Firestore throws "Unsupported field value: undefined" if any field is undefined.
+ */
+function sanitizeDoc<T extends Record<string, unknown>>(obj: T): T {
+    const result: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(obj)) {
+        if (value === undefined) continue; // Drop undefined fields
+        if (Array.isArray(value)) {
+            result[key] = value.map(item =>
+                item !== null && typeof item === 'object' ? sanitizeDoc(item as Record<string, unknown>) : item
+            );
+        } else if (value !== null && typeof value === 'object' && !(value as any).toMillis) {
+            // Recurse into plain objects (skip Timestamps which have toMillis)
+            result[key] = sanitizeDoc(value as Record<string, unknown>);
+        } else {
+            result[key] = value;
+        }
+    }
+    return result as T;
 }
 
 // ============================================================
@@ -290,7 +321,7 @@ export async function createMenuItem(input: CreateMenuItemInput): Promise<string
     // 1. Create the menu item doc
     const menuDocRef = doc(collection(db, COLLECTION));
     const menuItemId = menuDocRef.id;
-    batch.set(menuDocRef, {
+    batch.set(menuDocRef, sanitizeDoc({
         businessUnitId: input.businessUnitId,
         name: input.name,
         category: input.category,
@@ -303,12 +334,12 @@ export async function createMenuItem(input: CreateMenuItemInput): Promise<string
         isActive: true,
         createdAt: now,
         updatedAt: now,
-    });
+    } as Record<string, unknown>));
 
     // 2. Create the linked FINISHED_GOOD inventory item doc
     const fgDocRef = doc(collection(db, INVENTORY_COLLECTION));
     const finishedGoodId = fgDocRef.id;
-    batch.set(fgDocRef, {
+    batch.set(fgDocRef, sanitizeDoc({
         businessUnitId: input.businessUnitId,
         name: input.name,
         type: 'FINISHED_GOOD',
@@ -325,7 +356,7 @@ export async function createMenuItem(input: CreateMenuItemInput): Promise<string
         isActive: true,
         createdAt: now,
         updatedAt: now,
-    });
+    } as Record<string, unknown>));
 
     // 3. Link the FG ID back to the menu item
     batch.update(menuDocRef, { linkedInventoryItemId: finishedGoodId });
@@ -546,7 +577,7 @@ export async function recalculateAllCosts(businessUnitId: string): Promise<numbe
                     quantity: ing.quantity,
                     unit: ing.unit,
                     baseQuantity,
-                    costPerBaseUnit: inventoryItem.baseCost ?? inventoryItem.costPerUnit,
+                    costPerBaseUnit: inventoryItem.baseCost ?? inventoryItem.costPerUnit ?? 0,
                     totalCost: ingredientCost,
                 });
 
