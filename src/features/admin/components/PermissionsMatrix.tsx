@@ -206,9 +206,10 @@ const DEFAULT_ROLES: string[] = [
 ];
 
 const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
-  const { permissions: contextPermissions, roles: contextRoles } = usePermissionsContext();
-  const [permissions, setPermissions] = useState(contextPermissions);
-  const [roles, setRoles] = useState(contextRoles);
+  const { permissions: contextPermissions, roles: contextRoles, loading } = usePermissionsContext();
+  // Start with empty state — wait for Firestore data before rendering
+  const [permissions, setPermissions] = useState<Record<string, Permission[]>>({});
+  const [roles, setRoles] = useState<string[]>([]);
   const [newRole, setNewRole] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
@@ -216,16 +217,19 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
   const [viewMode, setViewMode] = useState<'matrix' | 'role'>('role');
   const [selectedRoleForPivot, setSelectedRoleForPivot] = useState<string>('EMPLOYEE');
   const [isDirty, setIsDirty] = useState(false);
-  // Only sync from context on initial load
+  // Only sync from context once — after Firestore has finished loading
   const isInitialized = useRef(false);
 
   useEffect(() => {
-    if (!isInitialized.current && Object.keys(contextPermissions).length > 0) {
+    // Wait until Firestore is done loading before locking in the initial state.
+    // This prevents the hardcoded defaults (set before the snapshot arrives)
+    // from being treated as the "real" data on fresh page load.
+    if (!isInitialized.current && !loading && Object.keys(contextPermissions).length > 0) {
       setPermissions(contextPermissions);
       setRoles(contextRoles);
       isInitialized.current = true;
     }
-  }, [contextPermissions, contextRoles]);
+  }, [contextPermissions, contextRoles, loading]);
 
   // Browser-level warning for unsaved changes
   useEffect(() => {
@@ -411,6 +415,18 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     if (isHovered) return baseClass + "bg-slate-800/80";
     return baseClass;
   };
+
+  // Show a loading state while waiting for Firestore data
+  if (loading || !isInitialized.current) {
+    return (
+      <Card className="!p-0 border-0 overflow-hidden flex flex-col">
+        <div className="flex flex-col items-center justify-center py-24 gap-4 text-slate-400">
+          <div className="w-10 h-10 border-4 border-slate-600 border-t-purple-500 rounded-full animate-spin" />
+          <p className="text-sm font-medium">Loading permissions from Firestore...</p>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="!p-0 border-0 overflow-hidden flex flex-col max-h-[85vh]">
