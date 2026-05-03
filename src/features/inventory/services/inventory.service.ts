@@ -335,12 +335,13 @@ export class InventoryService {
                 throw new Error('Session not found');
             }
 
+            // Sanitize all fields — Firestore rejects undefined values
             const countItem: StockCountItem = {
                 itemId: input.itemId,
-                itemName: input.itemName,
-                count: input.count,
-                unit: input.unit,
-                partialCount: input.partialCount
+                itemName: input.itemName ?? '',
+                count: typeof input.count === 'number' && !isNaN(input.count) ? input.count : 0,
+                unit: input.unit ?? '',
+                partialCount: typeof input.partialCount === 'number' && !isNaN(input.partialCount) ? input.partialCount : 0,
             };
 
             const existingIndex = session.items.findIndex(i => i.itemId === input.itemId);

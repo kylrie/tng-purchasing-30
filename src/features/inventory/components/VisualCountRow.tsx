@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Wine,
     Beer,
@@ -77,6 +77,20 @@ const SimpleStepper: React.FC<{
     onChange: (value: number) => void;
     unit: string;
 }> = ({ value, onChange, unit }) => {
+    const [draft, setDraft] = useState<string>(value.toString());
+
+    // Keep draft in sync when parent value changes (e.g. from calculator)
+    React.useEffect(() => { setDraft(value.toString()); }, [value]);
+
+    const commit = () => {
+        const parsed = parseFloat(draft);
+        if (!isNaN(parsed) && parsed >= 0) {
+            onChange(parsed);
+        } else {
+            setDraft(value.toString()); // revert on invalid
+        }
+    };
+
     return (
         <div className="flex items-center justify-center gap-3">
             <button
@@ -87,7 +101,19 @@ const SimpleStepper: React.FC<{
             </button>
 
             <div className="text-center min-w-[80px]">
-                <span className="text-2xl font-bold text-white">{value}</span>
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={draft}
+                    onChange={e => {
+                        // Allow digits, one decimal point, and empty string
+                        if (/^\d*\.?\d*$/.test(e.target.value)) setDraft(e.target.value);
+                    }}
+                    onFocus={e => e.target.select()}
+                    onBlur={commit}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+                    className="w-full text-center text-2xl font-bold text-white bg-transparent outline-none border-b-2 border-transparent focus:border-purple-400 transition-colors cursor-text"
+                />
                 <p className="text-xs text-slate-400">{unit}s</p>
             </div>
 
@@ -119,6 +145,61 @@ const getCategoryIcon = (item: InventoryItem) => {
 };
 
 // ============================================================
+// INLINE EDITABLE COUNT INPUT - Full units box (Raw/Production)
+// ============================================================
+
+const FullUnitsInput: React.FC<{
+    count: number;
+    onCountChange: (count: number) => void;
+}> = ({ count, onCountChange }) => {
+    const [draft, setDraft] = useState<string>(count.toString());
+
+    // Sync when parent count changes (e.g. from the calculator popup)
+    React.useEffect(() => { setDraft(count.toString()); }, [count]);
+
+    const commit = () => {
+        const parsed = parseFloat(draft);
+        if (!isNaN(parsed) && parsed >= 0) {
+            onCountChange(Math.floor(parsed)); // full units = whole numbers only
+        } else {
+            setDraft(count.toString()); // revert on invalid input
+        }
+    };
+
+    return (
+        <div className="flex items-center gap-2">
+            <button
+                onClick={() => onCountChange(Math.max(0, count - 1))}
+                className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-red-500/30 text-slate-300 hover:text-red-400 flex items-center justify-center transition-colors flex-shrink-0"
+            >
+                <Minus size={16} />
+            </button>
+
+            <input
+                type="text"
+                inputMode="numeric"
+                value={draft}
+                onChange={e => {
+                    // Only allow whole numbers (full units)
+                    if (/^\d*$/.test(e.target.value)) setDraft(e.target.value);
+                }}
+                onFocus={e => e.target.select()}
+                onBlur={commit}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                className="flex-1 h-10 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold text-lg text-center outline-none ring-0 border-2 border-transparent focus:border-purple-400 transition-colors cursor-text"
+            />
+
+            <button
+                onClick={() => onCountChange(count + 1)}
+                className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-green-500/30 text-slate-300 hover:text-green-400 flex items-center justify-center transition-colors flex-shrink-0"
+            >
+                <Plus size={16} />
+            </button>
+        </div>
+    );
+};
+
+// ============================================================
 // MAIN COMPONENT
 // ============================================================
 
@@ -138,11 +219,6 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
     // Calculate stock equivalents
     const conversion = item.units.conversion > 0 ? item.units.conversion : 1;
     const currentStockBuyUnits = (item.currentStock / conversion).toFixed(2).replace(/\.00$/, '');
-
-    const handleCountAdjust = (delta: number) => {
-        const newCount = Math.max(0, count + delta);
-        onCountChange(newCount, partialCount);
-    };
 
     const handlePartialChange = (partial: number) => {
         onCountChange(count, partial);
@@ -211,25 +287,10 @@ const VisualCountRow: React.FC<VisualCountRowProps> = ({
                         <label className="text-xs text-slate-500 uppercase tracking-wide mb-2 block">
                             Full {item.units.buyUnit}s
                         </label>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => handleCountAdjust(-1)}
-                                className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-red-500/30 text-slate-300 hover:text-red-400 flex items-center justify-center transition-colors"
-                            >
-                                <Minus size={16} />
-                            </button>
-
-                            <div className="flex-1 h-10 rounded-lg bg-slate-700 text-white font-bold text-lg flex items-center justify-center">
-                                {count}
-                            </div>
-
-                            <button
-                                onClick={() => handleCountAdjust(1)}
-                                className="w-10 h-10 rounded-lg bg-slate-700 hover:bg-green-500/30 text-slate-300 hover:text-green-400 flex items-center justify-center transition-colors"
-                            >
-                                <Plus size={16} />
-                            </button>
-                        </div>
+                        <FullUnitsInput
+                            count={count}
+                            onCountChange={(newCount) => onCountChange(newCount, partialCount)}
+                        />
                     </div>
 
                     {/* Partial Unit - Slider */}

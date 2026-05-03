@@ -77,6 +77,39 @@ const CalculatorPopup: React.FC<{
         onClose();
     };
 
+    // ── Keyboard support ──────────────────────────────────────────────────────
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            // Prevent default for keys we handle so the browser doesn't scroll etc.
+            const handled = [
+                'Backspace', 'Delete', 'Enter', 'NumpadEnter', 'Escape',
+                'Decimal', 'Period',
+                '0','1','2','3','4','5','6','7','8','9',
+                'Numpad0','Numpad1','Numpad2','Numpad3','Numpad4',
+                'Numpad5','Numpad6','Numpad7','Numpad8','Numpad9',
+            ];
+            if (handled.includes(e.key) || handled.includes(e.code)) {
+                e.preventDefault();
+            }
+
+            if (e.key === 'Escape') { onClose(); return; }
+            if (e.key === 'Enter' || e.code === 'NumpadEnter') { handleSubmit(); return; }
+            if (e.key === 'Backspace') { handleKeyPress('⌫'); return; }
+            if (e.key === 'Delete') { handleKeyPress('C'); return; }
+            if (e.key === '.' || e.key === ',' || e.code === 'Decimal') { handleKeyPress('.'); return; }
+            // Digit row (0-9) and numpad (Numpad0-Numpad9)
+            if (/^[0-9]$/.test(e.key)) { handleKeyPress(e.key); return; }
+            if (/^Numpad[0-9]$/.test(e.code)) { handleKeyPress(e.code.replace('Numpad', '')); return; }
+        };
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, value]);
+    // ─────────────────────────────────────────────────────────────────────────
+
     if (!isOpen) return null;
 
     return (
