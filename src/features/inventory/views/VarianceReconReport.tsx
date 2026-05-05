@@ -5,7 +5,6 @@ import {
     Loader2,
     AlertTriangle,
     CheckCircle2,
-    Building2,
     Calendar,
     TrendingDown,
     TrendingUp,
@@ -22,6 +21,7 @@ import {
 import * as XLSX from 'xlsx';
 import { ReconService, type ReconRow, type ReconHistoryRecord } from '../services/recon.service';
 import type { Business } from '../../procurement/types';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // PROPS
@@ -113,9 +113,12 @@ function exportToPDF(periodLabel: string) {
 // ============================================================
 
 const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, currentUser }) => {
-    const [selectedBU, setSelectedBU] = useState<string>(
-        businesses.length > 0 ? businesses[0].id : ''
-    );
+    // Global BU context — fall back to first business when 'all' is selected
+    const { selectedBusinessUnit } = useBusinessUnit();
+    const selectedBU = selectedBusinessUnit === 'all'
+        ? (businesses.length > 0 ? businesses[0].id : '')
+        : selectedBusinessUnit;
+
     const [dateRange, setDateRange] = useState({
         start: new Date(new Date().setDate(1)).toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0],
@@ -271,20 +274,6 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* BU Selector */}
-                    <div className="flex items-center gap-2">
-                        <Building2 size={18} className="text-slate-400" />
-                        <select
-                            value={selectedBU}
-                            onChange={(e) => setSelectedBU(e.target.value)}
-                            className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
-                        >
-                            {businesses.map(bu => (
-                                <option key={bu.id} value={bu.id}>{bu.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
                     {/* Date Range */}
                     <div className="flex items-center gap-2">
                         <Calendar size={18} className="text-slate-400" />
