@@ -3,7 +3,6 @@ import {
     Trash2,
     AlertCircle,
     Loader2,
-    Building2,
     CheckCircle,
     Search,
     Package,
@@ -18,6 +17,7 @@ import type { InventoryItem, WastageRecord, WastageReason, RecordWastageInput } 
 import { InventoryService } from '../services/inventory.service';
 import { WastageService, WASTAGE_REASONS } from '../services/wastage.service';
 import type { Business, User } from '../../procurement/types';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // TYPES
@@ -35,9 +35,16 @@ type TabKey = 'record' | 'log';
 // ============================================================
 
 const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) => {
+    // ---- Global BU Context ----
+    const { selectedBusinessUnit } = useBusinessUnit();
+
+    // Resolve: if 'all' is selected, fall back to user's first BU
+    const selectedBU = selectedBusinessUnit === 'all'
+        ? (currentUser?.businessId || currentUser?.businessUnitIds?.[0] || '')
+        : selectedBusinessUnit;
+
     // ---- State ----
     const [activeTab, setActiveTab] = useState<TabKey>('record');
-    const [selectedBU, setSelectedBU] = useState<string>('');
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [loadingItems, setLoadingItems] = useState(false);
 
@@ -73,14 +80,6 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
         const matchesReason = logReasonFilter === 'ALL' || r.reason === logReasonFilter;
         return matchesSearch && matchesReason;
     });
-
-    // ---- BU Resolution ----
-    useEffect(() => {
-        if (!selectedBU && currentUser) {
-            const userBU = currentUser.businessId || (currentUser.businessUnitIds && currentUser.businessUnitIds[0]);
-            if (userBU) setSelectedBU(userBU);
-        }
-    }, [currentUser, selectedBU]);
 
     // ---- Load items when BU changes ----
     const loadItems = useCallback(async () => {
@@ -216,21 +215,6 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
                     </h1>
                     <p className="text-slate-400 mt-1">Record and track material wastage across inventory</p>
                 </div>
-
-                {/* BU Selector */}
-                <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-slate-400" />
-                    <select
-                        value={selectedBU}
-                        onChange={e => setSelectedBU(e.target.value)}
-                        className="bg-slate-800 border border-slate-700 text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500 focus:border-rose-500"
-                    >
-                        <option value="">Select Business Unit</option>
-                        {businesses.map(b => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                    </select>
-                </div>
             </div>
 
             {/* Tabs */}
@@ -261,8 +245,7 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
 
             {!selectedBU ? (
                 <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-12 text-center">
-                    <Building2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                    <p className="text-slate-400">Please select a Business Unit to continue.</p>
+                    <p className="text-slate-400">No Business Unit selected. Please select one from the top navigation.</p>
                 </div>
             ) : activeTab === 'record' ? (
                 /* ============ RECORD TAB ============ */
