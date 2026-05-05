@@ -250,7 +250,7 @@ const ActivityLogView: React.FC<ActivityLogViewProps> = ({ requisitions, allUser
                     All Modules
                     <span className="ml-1.5 opacity-70">{allEntries.length}</span>
                 </button>
-                {ALL_MODULES.filter(m => (moduleCounts[m] ?? 0) > 0).map(m => {
+                {ALL_MODULES.map(m => {
                     const meta = MODULE_META[m];
                     const Icon = meta?.icon ?? Activity;
                     return (
