@@ -1,4 +1,5 @@
 import { FirestoreService, Timestamp, where } from '../../../shared/services/firestore.service';
+import { ActivityLogService } from '../../../shared/services/activityLog.service';
 import { writeBatch, doc, collection } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
@@ -582,6 +583,16 @@ export class InventoryService {
 
         await batch.commit();
 
+        // Activity log — fire and forget
+        ActivityLogService.log(
+            'Goods Receiving',
+            'Goods Received',
+            `${receivedItems.length} item(s) received${referenceId ? ' (Ref: ' + referenceId + ')' : ''}`,
+            performedBy,
+            businessUnitId,
+            { entityId: referenceId || undefined, entityType: 'Goods Receiving', severity: 'success' }
+        );
+
         // Save receiving log for history tracking
         try {
             const logItems: GoodsReceivingLogItem[] = receivedItems
@@ -865,6 +876,16 @@ export class InventoryService {
 
         // 4. Commit everything atomically
         await batch.commit();
+
+        // Activity log — fire and forget
+        ActivityLogService.log(
+            'Inventory',
+            'Production Batch',
+            `${batchMultiplier}× batch of "${productionItem.name}" produced`,
+            performedBy,
+            businessUnitId,
+            { entityId: productionItemId, entityType: 'Inventory Item', severity: 'success' }
+        );
 
         console.log(
             `[InventoryService] Produced ${batchMultiplier}× batch of "${productionItem.name}". ` +

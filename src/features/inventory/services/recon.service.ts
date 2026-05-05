@@ -1,4 +1,5 @@
 import { db } from '../../../config/firebase';
+import { ActivityLogService } from '../../../shared/services/activityLog.service';
 import {
     collection,
     query,
@@ -309,7 +310,19 @@ export class ReconService {
             })),
         });
 
-        return { updatedItems, adjustmentsCreated, historyId: historyDoc.id };
+        const result = { updatedItems, adjustmentsCreated, historyId: historyDoc.id };
+
+        // Activity log — fire and forget
+        ActivityLogService.log(
+            'Reconciliation',
+            'Recon Saved',
+            `${updatedItems} item(s) reconciled, ${adjustmentsCreated} adjustment(s) created — ${periodLabel}`,
+            { id: userId, name: userName },
+            businessUnitId,
+            { entityId: historyDoc.id, entityType: 'Recon Session', severity: adjustmentsCreated > 0 ? 'warning' : 'success' }
+        );
+
+        return result;
     }
 
     /**

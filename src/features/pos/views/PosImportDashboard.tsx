@@ -3,6 +3,7 @@ import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2,
 import { PosImportService } from '../services/pos-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { ActivityLogService } from '../../../shared/services/activityLog.service';
 import type { PosImportRow, PosImportMappedRow, PosImportBatch, PosSaleRecord, SimulatedDeduction } from '../types/pos-import.types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -255,6 +256,15 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
             });
             setSuccessId(batchId);
             setViewState('SUCCESS');
+            // Activity log — fire and forget
+            ActivityLogService.log(
+                'POS',
+                'POS Sales Imported',
+                `${file?.name || 'file'} imported — ${mappedRows.length} row(s) for ${importDate}`,
+                { id: currentUser.id, name: currentUser.name },
+                selectedBU,
+                { entityId: batchId, entityType: 'POS Batch', severity: 'success' }
+            );
             PosImportService.getImportHistory(selectedBU).then(setImportHistory).catch(console.error);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Import failed');

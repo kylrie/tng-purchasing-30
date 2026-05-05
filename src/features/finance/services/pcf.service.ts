@@ -1,4 +1,5 @@
 import { FirestoreService, where } from '../../../shared/services/firestore.service';
+import { ActivityLogService } from '../../../shared/services/activityLog.service';
 import { NotificationsService, NOTIFICATION_TYPES } from '../../../shared/services/notifications.service';
 import { doc, runTransaction } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
@@ -268,6 +269,15 @@ export class PCFService {
             console.error('Failed to create PCF notification:', error);
         }
 
+        ActivityLogService.log(
+            'Finance',
+            'PCF Submitted',
+            `${userName} submitted PCF liquidation (₱${totalAmount.toLocaleString()})`,
+            { id: userId, name: userName },
+            businessId,
+            { entityId: docId, entityType: 'PCF Liquidation', severity: 'info' }
+        );
+
         return docId;
     }
 
@@ -418,6 +428,15 @@ export class PCFService {
         } catch (error) {
             console.error('Failed to create manager notification for PCF:', error);
         }
+
+        ActivityLogService.log(
+            'Finance',
+            'PCF Audit Cleared',
+            `${auditorName} cleared PCF #${liquidationId.slice(-6)} for approval`,
+            { id: auditorId, name: auditorName },
+            liquidation.businessId || '',
+            { entityId: liquidationId, entityType: 'PCF Liquidation', severity: 'success' }
+        );
     }
 
     /**
@@ -620,6 +639,15 @@ export class PCFService {
         } catch (error) {
             console.error('Failed to notify custodian of PCF rejection:', error);
         }
+
+        ActivityLogService.log(
+            'Finance',
+            'PCF Rejected',
+            `${rejectedByName} rejected PCF #${liquidationId.slice(-6)}: ${reason}`,
+            { id: rejectedById, name: rejectedByName },
+            liquidation?.businessId || '',
+            { entityId: liquidationId, entityType: 'PCF Liquidation', severity: 'warning' }
+        );
     }
 
     /**

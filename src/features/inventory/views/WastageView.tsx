@@ -18,6 +18,7 @@ import { InventoryService } from '../services/inventory.service';
 import { WastageService, WASTAGE_REASONS } from '../services/wastage.service';
 import type { Business, User } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { ActivityLogService } from '../../../shared/services/activityLog.service';
 
 // ============================================================
 // TYPES
@@ -152,6 +153,16 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
             };
 
             await WastageService.recordWastage(input);
+
+            // Activity log — fire and forget
+            ActivityLogService.log(
+                'Wastage',
+                'Wastage Recorded',
+                `${qty} ${selectedItem.units.recipeUnit}(s) of "${selectedItem.name}" — ${reason}`,
+                { id: currentUser.id, name: currentUser.name },
+                selectedBU,
+                { entityId: selectedItem.id, entityType: 'Inventory Item', severity: 'warning' }
+            );
 
             setSubmitResult({
                 type: 'success',

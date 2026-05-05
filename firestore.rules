@@ -1047,5 +1047,19 @@ service cloud.firestore {
       // No updates or deletes — immutable audit trail
       allow update, delete: if false;
     }
+
+    // =====================================================
+    // SYSTEM ACTIVITY LOGS COLLECTION
+    // Global audit log for all modules (Finance, Inventory,
+    // POS, Wastage, Reconciliation, Goods Receiving, etc.)
+    // =====================================================
+    match /system_activity_logs/{logId} {
+      // Read: SuperAdmin only (scoped filtering happens in app)
+      allow read: if isSignedIn() && isSuperAdmin();
+      // Create: Any authenticated user — all modules write here
+      allow create: if isSignedIn();
+      // No updates or deletes — immutable audit trail
+      allow update, delete: if false;
+    }
   }
 }
