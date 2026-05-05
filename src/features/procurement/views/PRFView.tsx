@@ -6,6 +6,7 @@ import { useTaxSettings } from '../../../shared/hooks/useTaxSettings';
 import type { User, Business } from '../../../shared/types';
 import { executeWorkflowAction } from '../services/workflowService';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import PreparePRFModal from '../components/PreparePRFModal';
 import PRFPrintModal from '../components/PRFPrintModal';
 import PCFPrintModal from '../../finance/components/PCFPrintModal';
@@ -104,6 +105,12 @@ const DirectPrfModal = ({ onCancel, currentUser, onCreateRequisition, onUpdate, 
         // If editing, use existing businessId
         if (initialData?.businessId && businesses.some(b => b.id === initialData.businessId)) {
             return initialData.businessId;
+        }
+        // If the global context has a specific BU selected (not 'all'), use it
+        // This seeds new PRFs from whatever is selected in the top nav
+        const globalBU = (window as unknown as Record<string, string>).__globalSelectedBU;
+        if (globalBU && globalBU !== 'all' && businesses.some(b => b.id === globalBU)) {
+            return globalBU;
         }
         // Fallback to user's primary businessId or first from additional BUs
         return currentUser.businessId || (currentUser.businessUnitIds && currentUser.businessUnitIds[0]) || '';
@@ -790,6 +797,12 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const [signingReq, setSigningReq] = useState<Requisition | null>(null);
     const [signatureLoading, setSignatureLoading] = useState(false);
     const { hasPermission } = usePermissions();
+    const { selectedBusinessUnit } = useBusinessUnit();
+
+    // Expose global BU for DirectPrfModal seed (avoids prop drilling)
+    useEffect(() => {
+        (window as unknown as Record<string, string>).__globalSelectedBU = selectedBusinessUnit || '';
+    }, [selectedBusinessUnit]);
 
     // PRF Modal is opened directly by setPreparePRFReq - no redirect needed
 
@@ -1520,6 +1533,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                 onReject={handleDrawerReject}
                 onCancel={handleDrawerCancel}
                 onSubmitLiquidation={handleDrawerSubmitLiquidation}
+                onPrint={() => selectedReq && handlePrint(selectedReq)}
                 canApprove={!!canApproveSelectedPrf}
                 canReject={!!canApproveSelectedPrf}
                 canCancel={!!selectedReq && isSuperAdmin(currentUser.role) && selectedReq.status !== RequisitionStatus.CANCELLED}

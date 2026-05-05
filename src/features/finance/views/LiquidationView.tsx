@@ -4,6 +4,7 @@ import type { Requisition, Supplier } from '../../procurement/types';
 import { RequisitionStatus, isSuperAdmin } from '../../procurement/types';
 import type { User, Business } from '../../../shared/types';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import Card from '../../../shared/components/Card';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import LiquidationPrintModal from '../components/LiquidationPrintModal';
@@ -51,9 +52,16 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
   const [auditHistoryFilter, setAuditHistoryFilter] = useState<'all' | 'rejected' | 'cleared'>('all');
   const { hasPermission } = usePermissions();
+  const { selectedBusinessUnit } = useBusinessUnit();
   const navigate = useNavigate();
 
   const canView = hasPermission('liquidation:view') || hasPermission('liquidation:file:own') || hasPermission('liquidation:audit');
+
+  // Scope all data to the globally selected Business Unit (must be before early return — Rules of Hooks)
+  const buFilteredRequisitions = React.useMemo(() => {
+    if (selectedBusinessUnit === 'all') return requisitions;
+    return requisitions.filter(req => req.businessId === selectedBusinessUnit);
+  }, [requisitions, selectedBusinessUnit]);
 
   if (!canView) {
     return (
@@ -127,13 +135,13 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   };
 
   // Base filter for requisitions with funds released or liquidation filed
-  const baseLiquidationReqs = React.useMemo(() => requisitions.filter(
+  const baseLiquidationReqs = React.useMemo(() => buFilteredRequisitions.filter(
     req => [
       RequisitionStatus.FUNDS_RELEASED,
       RequisitionStatus.AUDITED_CLEARED,
       RequisitionStatus.LIQUIDATION_REJECTED
     ].includes(req.status) || (req.status === RequisitionStatus.REJECTED && req.liquidationDetails)
-  ), [requisitions]);
+  ), [buFilteredRequisitions]);
 
   // My Liquidations: Strictly own liquidations (active for filing)
   const myLiquidationReqs = React.useMemo(() => baseLiquidationReqs.filter(req => req.requesterId === currentUser.id), [baseLiquidationReqs, currentUser.id]);
@@ -141,12 +149,12 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   // All Liquidations: All active liquidations (visible if has file:all)
   const allLiquidationReqs = baseLiquidationReqs;
 
-  const auditingReqs = React.useMemo(() => requisitions.filter(
+  const auditingReqs = React.useMemo(() => buFilteredRequisitions.filter(
     req => req.status === RequisitionStatus.LIQUIDATION_FILED
-  ), [requisitions]);
+  ), [buFilteredRequisitions]);
 
   // My History: All liquidations filed by current user (pending, approved, or rejected)
-  const myHistoryReqs = React.useMemo(() => requisitions.filter(
+  const myHistoryReqs = React.useMemo(() => buFilteredRequisitions.filter(
     req => {
       // Must be filed by current user OR user is the preparer (for BURF-converted PRFs)
       const isMyLiquidation =
@@ -167,10 +175,10 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     const dateA = a.liquidationDetails?.dateFiled || a.dateCreated;
     const dateB = b.liquidationDetails?.dateFiled || b.dateCreated;
     return new Date(dateB).getTime() - new Date(dateA).getTime();
-  }), [requisitions, currentUser.id]);
+  }), [buFilteredRequisitions, currentUser.id]);
 
   // Audit History: All audited liquidations (for auditors to review history)
-  const auditHistoryReqs = React.useMemo(() => requisitions.filter(req => {
+  const auditHistoryReqs = React.useMemo(() => buFilteredRequisitions.filter(req => {
     if (auditHistoryFilter === 'rejected') {
       return req.status === RequisitionStatus.LIQUIDATION_REJECTED;
     }
@@ -187,7 +195,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
     const dateA = a.liquidationDetails?.auditDate || a.dateCreated;
     const dateB = b.liquidationDetails?.auditDate || b.dateCreated;
     return new Date(dateB).getTime() - new Date(dateA).getTime();
-  }), [requisitions, auditHistoryFilter]);
+  }), [buFilteredRequisitions, auditHistoryFilter]);
 
   // Custom liquidation status badge function
   const getLiquidationStatusBadge = (req: Requisition) => {
@@ -304,7 +312,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                   }`}
                 onClick={() => setActiveTab('my_history')}
               >
-                My History ({myHistoryReqs.length})
+                My History ({activeTab === 'my_history' ? filteredReqs.length : myHistoryReqs.length})
               </button>
             </>
           )}
@@ -319,7 +327,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                   }`}
                 onClick={() => setActiveTab('for_audit')}
               >
-                For Audit ({auditingReqs.length})
+                For Audit ({activeTab === 'for_audit' ? filteredReqs.length : auditingReqs.length})
               </button>
               {/* Audit History tab - only visible to auditors */}
               {hasPermission('liquidation:audit') && (
@@ -330,7 +338,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                     }`}
                   onClick={() => setActiveTab('audit_history')}
                 >
-                  Audit History ({auditHistoryReqs.length})
+                  Audit History ({activeTab === 'audit_history' ? filteredReqs.length : auditHistoryReqs.length})
                 </button>
               )}
             </>

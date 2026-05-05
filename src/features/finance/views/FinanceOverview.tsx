@@ -8,7 +8,6 @@ import {
     Minus,
     Loader2,
     Receipt,
-    Building2,
     Clock,
     Coins
 } from 'lucide-react';
@@ -35,6 +34,7 @@ import {
 import type { Business } from '../../procurement/types';
 import { BudgetDashboardWidget } from '../components/BudgetDashboardWidget';
 import { useAuth } from '../../../contexts/useAuth';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // TYPES
@@ -197,9 +197,7 @@ const TransactionRow: React.FC<{ transaction: HighValueTransaction }> = ({ trans
 const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
     const { currentUser } = useAuth();
     // Business unit selection
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
-        businesses.length > 0 ? businesses[0].id : 'all'
-    );
+    const { selectedBusinessUnit } = useBusinessUnit();
 
     // Data states
     const [healthData, setHealthData] = useState<FinancialHealthData | null>(null);
@@ -270,19 +268,6 @@ const FinanceOverview: React.FC<FinanceOverviewProps> = ({ businesses }) => {
                     <p className="text-slate-400 mt-1">
                         Financial health dashboard for strategic decision making
                     </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Building2 size={18} className="text-slate-400" />
-                    <select
-                        value={selectedBusinessUnit}
-                        onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                        className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-700 dark:text-white focus:outline-none focus:border-purple-500 shadow-sm dark:shadow-none"
-                    >
-                        <option value="all">All Business Units</option>
-                        {businesses.map(bu => (
-                            <option key={bu.id} value={bu.id}>{bu.name}</option>
-                        ))}
-                    </select>
                 </div>
             </div>
 

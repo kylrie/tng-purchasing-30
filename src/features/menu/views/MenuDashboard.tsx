@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     ChefHat, Plus, Search, TrendingUp, Loader2,
-    Building2, Edit, Trash2, RefreshCw, Filter, ShieldAlert
+    Edit, Trash2, RefreshCw, Filter, ShieldAlert
 } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
 import type { MenuItem, MenuCategory } from '../types/menu.types';
@@ -15,6 +15,7 @@ import { RecipesService } from '../services/recipes.service';
 import RecipeEditor from '../components/RecipeEditor';
 import MenuItemDetailsDrawer from '../components/MenuItemDetailsDrawer';
 import type { Business, User } from '../../procurement/types';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // PROPS
@@ -120,9 +121,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
 }) => {
     // Data state
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
-        businesses.length > 0 ? businesses[0].id : ''
-    );
+    const { selectedBusinessUnit } = useBusinessUnit();
 
     // UI state
     const [isLoading, setIsLoading] = useState(true);
@@ -258,20 +257,6 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">
-                    {/* Business Unit Selector */}
-                    <div className="flex items-center gap-2">
-                        <Building2 size={18} className="text-slate-500 dark:text-slate-400" />
-                        <select
-                            value={selectedBusinessUnit}
-                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                        >
-                            {businesses.map(bu => (
-                                <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{bu.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
                     {/* Recalculate Button */}
                     <button
                         onClick={handleRecalculateAll}

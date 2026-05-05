@@ -49,6 +49,18 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
         loadAuditReviewLiquidations();
     }, []);
 
+    // Apply date filter to the loaded liquidations
+    const filteredLiquidations = React.useMemo(() => {
+        if (!dateRange.start || !dateRange.end) return liquidations;
+        const start = new Date(dateRange.start);
+        const end = new Date(dateRange.end);
+        end.setHours(23, 59, 59, 999);
+        return liquidations.filter(l => {
+            const date = new Date(l.dateSubmitted || l.dateCreated);
+            return date >= start && date <= end;
+        });
+    }, [liquidations, dateRange]);
+
     const getUserById = (userId: string) => allUsers.find(u => u.id === userId);
     const getBusinessName = (businessId: string) => businesses.find(b => b.id === businessId)?.name || 'Unknown';
 
@@ -123,12 +135,12 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
                     </div>
                     <div>
                         <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pending Audit Review</p>
-                        <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{liquidations.length}</p>
+                        <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">{filteredLiquidations.length}</p>
                     </div>
                     <div className="ml-auto text-right">
                         <p className="text-xs text-slate-500 dark:text-slate-400">Total Amount</p>
                         <p className="text-xl font-bold text-slate-900 dark:text-white">
-                            {formatCurrency(liquidations.reduce((sum, l) => sum + l.totalAmount, 0))}
+                            {formatCurrency(filteredLiquidations.reduce((sum, l) => sum + l.totalAmount, 0))}
                         </p>
                     </div>
                 </div>
@@ -151,19 +163,9 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
                 </div>
 
                 {(() => {
-                    let filteredLiquidations = liquidations;
-                    if (dateRange.start && dateRange.end) {
-                        const start = new Date(dateRange.start);
-                        const end = new Date(dateRange.end);
-                        end.setHours(23, 59, 59, 999);
+                    const filteredList = filteredLiquidations;
 
-                        filteredLiquidations = filteredLiquidations.filter(l => {
-                            const date = new Date(l.dateSubmitted || l.dateCreated);
-                            return date >= start && date <= end;
-                        });
-                    }
-
-                    if (filteredLiquidations.length === 0) {
+                    if (filteredList.length === 0) {
                         return (
                             <div className="text-center py-12">
                                 <CheckCircle size={48} className="mx-auto text-green-500 dark:text-green-600 mb-4" />
@@ -174,7 +176,7 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
 
                     return (
                         <div className="space-y-3">
-                            {filteredLiquidations.map((liq) => {
+                            {filteredList.map((liq) => {
                                 const user = getUserById(liq.userId);
                                 return (
                                     <div

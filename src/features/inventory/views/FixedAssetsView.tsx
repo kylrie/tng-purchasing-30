@@ -4,7 +4,6 @@ import {
     Plus,
     Search,
     Loader2,
-    Building2,
     Edit,
     Archive,
     AlertTriangle,
@@ -18,6 +17,7 @@ import type { InventoryItem, AssetStatus } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
 import FixedAssetModal from '../components/FixedAssetModal';
 import type { Business, User } from '../../procurement/types';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // PROPS
@@ -86,11 +86,9 @@ const StatusBadge: React.FC<{ status: AssetStatus }> = ({ status }) => {
 // MAIN COMPONENT
 // ============================================================
 
-const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers = [] }) => {
+const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ allUsers = [] }) => {
     // State
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
-        businesses.length > 0 ? businesses[0].id : ''
-    );
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [assets, setAssets] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -221,22 +219,6 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ businesses, allUsers 
                         <Plus size={18} />
                         Add Asset
                     </button>
-
-                    {/* Business Unit Selector */}
-                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
-                        <Building2 size={16} className="text-slate-500 dark:text-slate-400" />
-                        <select
-                            value={selectedBusinessUnit}
-                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="bg-transparent text-slate-900 dark:text-white focus:outline-none text-sm"
-                        >
-                            {businesses.map(bu => (
-                                <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                                    {bu.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
                 </div>
             </div>
 

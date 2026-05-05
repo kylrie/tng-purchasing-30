@@ -11,6 +11,7 @@ import RejectionModal from '../../../shared/components/RejectionModal';
 import { ExternalLink, Search, Wallet, CheckCircle, XCircle, FileText, Printer, Download } from 'lucide-react';
 import { exportToCSV, formatDateForExport, formatCurrencyForExport, type ExportColumn } from '../../../shared/utils/exportUtils';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { PCFService, PCFStatus, type PCFLiquidation } from '../services/pcf.service';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
@@ -51,7 +52,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
-    const [selectedBu, setSelectedBu] = useState<string>('all');
+    const { selectedBusinessUnit } = useBusinessUnit(); // Global BU context
     const { hasPermission } = usePermissions();
     const [approverAssignments, setApproverAssignments] = useState<ApproverAssignments>({});
     const [signingReq, setSigningReq] = useState<Requisition | null>(null);
@@ -66,9 +67,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const applyFilters = (reqs: Requisition[]) => {
         let filtered = reqs;
 
-        // Apply BU filter
-        if (selectedBu !== 'all') {
-            filtered = filtered.filter(req => req.businessId === selectedBu);
+        // Apply BU filter using global context
+        if (selectedBusinessUnit !== 'all') {
+            filtered = filtered.filter(req => req.businessId === selectedBusinessUnit);
         }
 
         // Apply search filter
@@ -246,12 +247,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     );
 
     // Apply filters to all requisition lists
-    const filteredBrPendingReqs = useMemo(() => applyFilters(brPendingReqs), [brPendingReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
-    const filteredCheckPrepReqs = useMemo(() => applyFilters(checkPrepReqs), [checkPrepReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
-    const filteredCheckAuthReqs = useMemo(() => applyFilters(checkAuthReqs), [checkAuthReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
+    const filteredBrPendingReqs = useMemo(() => applyFilters(brPendingReqs), [brPendingReqs, searchTerm, selectedBusinessUnit, businesses, allUsers, dateRange]);
+    const filteredCheckPrepReqs = useMemo(() => applyFilters(checkPrepReqs), [checkPrepReqs, searchTerm, selectedBusinessUnit, businesses, allUsers, dateRange]);
+    const filteredCheckAuthReqs = useMemo(() => applyFilters(checkAuthReqs), [checkAuthReqs, searchTerm, selectedBusinessUnit, businesses, allUsers, dateRange]);
     const filteredPcfPending = useMemo(() => {
         let filtered = pcfPending;
-        if (selectedBu !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBu);
+        if (selectedBusinessUnit !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBusinessUnit);
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(liq =>
@@ -270,10 +271,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
             });
         }
         return filtered;
-    }, [pcfPending, searchTerm, selectedBu, businesses, dateRange]);
+    }, [pcfPending, searchTerm, selectedBusinessUnit, businesses, dateRange]);
     const filteredPcfReleased = useMemo(() => {
         let filtered = pcfReleased;
-        if (selectedBu !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBu);
+        if (selectedBusinessUnit !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBusinessUnit);
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(liq =>
@@ -292,12 +293,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
             });
         }
         return filtered;
-    }, [pcfReleased, searchTerm, selectedBu, businesses, dateRange]);
+    }, [pcfReleased, searchTerm, selectedBusinessUnit, businesses, dateRange]);
 
     // Filter requisitions for PRF tabs (Fund Release)
     const filteredReqs = useMemo(() => {
         return applyFilters(displayedReqs);
-    }, [displayedReqs, searchTerm, selectedBu, businesses, allUsers, dateRange]);
+    }, [displayedReqs, searchTerm, selectedBusinessUnit, businesses, allUsers, dateRange]);
 
     // Export handler for current tab's filtered data
     const handleExport = () => {
@@ -368,22 +369,11 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Finance - Fund Release</h1>
                         <p className="text-slate-500 dark:text-slate-400 text-sm">Release funds for approved PRF requisitions.</p>
                     </div>
-                    {/* Filters: BU Dropdown + Search Bar */}
+                    {/* Filters: Search Bar + Date (BU handled by global header) */}
                     <div className="flex items-center gap-3">
                         <DateRangeFilter
                             onFilterChange={(start, end) => setDateRange({ start, end })}
                         />
-                        {/* BU Filter Dropdown */}
-                        <select
-                            value={selectedBu}
-                            onChange={(e) => setSelectedBu(e.target.value)}
-                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm py-2 px-3 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                        >
-                            <option value="all">All Business Units</option>
-                            {businesses.map(bu => (
-                                <option key={bu.id} value={bu.id}>{bu.name}</option>
-                            ))}
-                        </select>
                         {/* Search Bar */}
                         <div className="relative w-full md:w-72">
                             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -418,7 +408,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                 }`}
                             onClick={() => setActiveTab('br_pending')}
                         >
-                            Pending ({brPendingReqs.length})
+                            Pending ({filteredBrPendingReqs.length})
                         </button>
                     </div>
                     {/* 2. Check Preparation Section - Step 6 (Finance uploads check) */}
@@ -432,7 +422,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     }`}
                                 onClick={() => setActiveTab('check_prep')}
                             >
-                                Pending ({checkPrepReqs.length})
+                                Pending ({filteredCheckPrepReqs.length})
                             </button>
                         </div>
                     )}
@@ -446,7 +436,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                 }`}
                             onClick={() => setActiveTab('check_pending')}
                         >
-                            Pending ({checkAuthReqs.length})
+                            Pending ({filteredCheckAuthReqs.length})
                         </button>
                     </div>
                     {/* 3. PCF Section */}
@@ -460,7 +450,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     }`}
                                 onClick={() => setActiveTab('pcf_pending')}
                             >
-                                Pending ({pcfPending.length})
+                                Pending ({filteredPcfPending.length})
                             </button>
                             <button
                                 className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'pcf_released'
@@ -469,7 +459,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     }`}
                                 onClick={() => setActiveTab('pcf_released')}
                             >
-                                Released ({pcfReleased.length})
+                                Released ({filteredPcfReleased.length})
                             </button>
                         </div>
                     )}
@@ -483,7 +473,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                 }`}
                             onClick={() => setActiveTab('prf_pending')}
                         >
-                            Pending ({pendingReleaseReqs.length})
+                            Pending ({filteredReqs.length})
                         </button>
                         <button
                             className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'prf_released'
@@ -1108,7 +1098,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         handleRelease(drawerReq);
                     }
                 }}
-                canReleaseFund={activeTab === 'prf_pending' && hasPermission('finance:release_funds')}
+                canReleaseFund={
+                    hasPermission('finance:release_funds') &&
+                    (activeTab === 'prf_pending' || activeTab === 'pcf_pending')
+                }
                 onApprove={async () => {
                     if (drawerReq) {
                         // BOD users skip signature modal — approve directly

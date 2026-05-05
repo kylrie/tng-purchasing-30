@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, CheckCircle, XCircle, Printer, ChevronDown } from 'lucide-react';
+import { Search, CheckCircle, XCircle, Printer } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
 import { RequisitionStatus, isSuperAdmin } from '../types';
 import { RequisitionService } from '../services/requisitions.service';
@@ -15,6 +15,7 @@ import PRFPrintModal from '../components/PRFPrintModal';
 import SignatureModal from '../../../shared/components/SignatureModal';
 import { SignatureService } from '../../../shared/services/signature.service';
 import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 interface ProcurementApprovalsViewProps {
     currentUser: User;
@@ -39,7 +40,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const initialTab = (searchParams.get('tab') as PendingSubTab) || 'burf';
 
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const [rejectingReq, setRejectingReq] = useState<Requisition | null>(null);
     const [printingReq, setPrintingReq] = useState<Requisition | null>(null);
@@ -137,7 +138,11 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             if (hasGlobal) {
                 if (selectedBusinessUnit !== 'all' && req.businessId !== selectedBusinessUnit) return false;
             } else {
-                if (req.businessId !== currentUser.businessId) return false;
+                // Multi-BU support: check all BUs the user belongs to
+                const userBuIds = currentUser.businessUnitIds?.length
+                    ? currentUser.businessUnitIds
+                    : [currentUser.businessId];
+                if (!userBuIds.includes(req.businessId)) return false;
             }
 
             // Search Filter
@@ -401,23 +406,6 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
-                    {/* Business Unit Filter (Global Roles Only) */}
-                    {hasPermission('requisition:view:all') && (
-                        <div className="relative">
-                            <select
-                                value={selectedBusinessUnit}
-                                onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                                className="appearance-none pl-4 pr-10 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                            >
-                                <option value="all">All Business Units</option>
-                                {businesses.map(b => (
-                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                        </div>
-                    )}
-
                     {/* Secondary Tabs - Only show for Pending tab, filtered by permission */}
                     {activeTab === 'pending' && (
                         <div className="flex gap-2 flex-wrap">
@@ -605,7 +593,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                     </tr>
                                 );
                             })}
-                            {filteredRequisitions.length === 0 && (
+                            {displayRequisitions.length === 0 && (
                                 <tr>
                                     <td colSpan={9} className="px-6 py-12 text-center text-slate-500 dark:text-slate-400 italic">
                                         {activeTab === 'pending'

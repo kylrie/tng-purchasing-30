@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
     Package,
     Search,
-    Building2,
     Boxes,
     Factory,
     ShoppingBag,
@@ -25,6 +24,7 @@ import { calculateSellableQuantity } from '../utils/sellable-quantity';
 import InventoryItemModal from '../components/InventoryItemModal';
 import ProduceBatchModal from '../components/ProduceBatchModal';
 import type { Business } from '../../procurement/types';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // PROPS
@@ -117,9 +117,7 @@ interface BalanceImportResult {
 
 const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uomOptions }) => {
     // State
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
-        businesses.length > 0 ? businesses[0].id : ''
-    );
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [activeTypeTab, setActiveTypeTab] = useState<InventoryItemType | 'ALL'>('ALL');
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [storageAreas, setStorageAreas] = useState<string[]>([]);
@@ -584,22 +582,6 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                             className="hidden"
                         />
                     </label>
-
-                    {/* Business Unit Selector */}
-                    <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
-                        <Building2 size={16} className="text-slate-500 dark:text-slate-400" />
-                        <select
-                            value={selectedBusinessUnit}
-                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="bg-transparent text-slate-900 dark:text-white focus:outline-none text-sm"
-                        >
-                            {businesses.map(bu => (
-                                <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                                    {bu.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
                 </div>
             </div>
 

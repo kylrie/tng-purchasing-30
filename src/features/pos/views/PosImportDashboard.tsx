@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar } from 'lucide-react';
 import { PosImportService } from '../services/pos-import.service';
 import { useAuth } from '../../../contexts/useAuth';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import type { PosImportRow, PosImportMappedRow, PosImportBatch, PosSaleRecord, SimulatedDeduction } from '../types/pos-import.types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -18,10 +19,14 @@ type DatePeriod = 'today' | 'week' | 'month' | 'custom';
 
 const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
     const { currentUser } = useAuth();
+    const { selectedBusinessUnit } = useBusinessUnit();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // -- State --
-    const [selectedBU, setSelectedBU] = useState<string>(currentUser?.businessUnitIds?.[0] || '');
+    // Resolve the active BU id: if 'all' is selected in global context,
+    // fall back to the first BU the user has access to
+    const selectedBU = selectedBusinessUnit === 'all'
+        ? (currentUser?.businessUnitIds?.[0] || '')
+        : selectedBusinessUnit;
     const [activeTab, setActiveTab] = useState<Tab>('import');
     const [viewState, setViewState] = useState<ViewState>('UPLOAD');
     const [file, setFile] = useState<File | null>(null);
@@ -257,7 +262,7 @@ const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
         }
     };
 
-    const resetAll = () => {
+    const resetAll = useCallback(() => {
         setFile(null);
         setFileHash('');
         setParsedRows([]);
@@ -266,7 +271,14 @@ const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
         setError(null);
         setSuccessId(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
-    };
+    }, []);
+
+    // Reset local state when the global Business Unit changes
+    useEffect(() => {
+        resetAll();
+        setExpandedBatchId(null);
+    }, [selectedBU, resetAll]);
+
 
     // ================================================================
     // COMPUTED VALUES
@@ -309,18 +321,7 @@ const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-1">Upload POS sales data, view import history, and browse sales reports</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <select
-                        value={selectedBU}
-                        onChange={(e) => { setSelectedBU(e.target.value); resetAll(); setExpandedBatchId(null); }}
-                        className="bg-white dark:bg-slate-700/60 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm"
-                    >
-                        <option value="">Select Business Unit</option>
-                        {businesses.map(b => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                    </select>
-                </div>
+                {/* BU is controlled by the global header selector */}
             </div>
 
             {/* Tab Bar */}

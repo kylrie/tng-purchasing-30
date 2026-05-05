@@ -3,6 +3,7 @@ import { Search, Plus, Edit2, Trash2, X, Star, Check, Building2 } from 'lucide-r
 import type { Supplier, BankDetails, Business, User } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // Task 3: TIN Validation Helper
 const isValidTIN = (tin: string): boolean => {
@@ -390,8 +391,8 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
 
 const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSupplier, onUpdateSupplier, onDeleteSupplier, currentUser, businesses }) => {
     const { hasPermission } = usePermissions();
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingSupplier, setEditingSupplier] = useState<Supplier | undefined>(undefined);
 
@@ -481,17 +482,6 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    {/* Business Unit Filter - always visible */}
-                    <select
-                        value={selectedBusinessUnit}
-                        onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                        className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:outline-none shadow-sm dark:shadow-none"
-                    >
-                        <option value="all">All Business Units</option>
-                        {businesses.map(business => (
-                            <option key={business.id} value={business.id}>{business.name}</option>
-                        ))}
-                    </select>
                     {hasPermission('supplier:create') && (
                         <button
                             onClick={handleAdd}

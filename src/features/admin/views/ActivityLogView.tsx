@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, Clock, User, Filter, ChevronDown, Search, RefreshCw } from 'lucide-react';
+import { Activity, Clock, User, Filter, Search, RefreshCw } from 'lucide-react';
 import type { Requisition, RequisitionHistory, User as UserType, Business } from '../../procurement/types';
 import { RequisitionStatus } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 interface ActivityLogViewProps {
     requisitions: Requisition[];
@@ -67,7 +68,7 @@ const getActionColor = (action: string): string => {
 
 const ActivityLogView: React.FC<ActivityLogViewProps> = ({ requisitions, allUsers, businesses }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [actionFilter, setActionFilter] = useState<string>('all');
     const [dateRange, setDateRange] = useState<'all' | 'today' | 'week' | 'month'>('week');
 
@@ -188,21 +189,6 @@ const ActivityLogView: React.FC<ActivityLogViewProps> = ({ requisitions, allUser
                         <option value="all">All Time</option>
                     </select>
                     <Clock className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                </div>
-
-                {/* Business Unit Filter */}
-                <div className="relative">
-                    <select
-                        value={selectedBusinessUnit}
-                        onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                        className="appearance-none pl-4 pr-10 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                    >
-                        <option value="all">All Business Units</option>
-                        {businesses.map(b => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                        ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
                 </div>
 
                 {/* Action Filter */}

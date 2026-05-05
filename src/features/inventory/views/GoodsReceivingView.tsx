@@ -11,7 +11,6 @@ import {
     X,
     RefreshCw,
     Package,
-    Building2,
     ChevronRight,
     Eye,
     Plus,
@@ -36,6 +35,7 @@ import { InventoryService, type ReceivingMeta } from '../services/inventory.serv
 import { GeminiVisionService, type ExtractedItem, type ExtractionResult } from '../../../shared/services/gemini-vision.service';
 import type { Business, User, Requisition } from '../../procurement/types';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // TYPES
@@ -526,7 +526,7 @@ const PrfSelector: React.FC<{
 // ============================================================
 
 const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, currentUser }) => {
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState(businesses[0]?.id || '');
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [activeTab, setActiveTab] = useState<ViewTab>('receive');
     const [step, setStep] = useState(0);
@@ -562,6 +562,24 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
     useEffect(() => {
         if (!selectedBusinessUnit) return;
         InventoryService.getInventory(selectedBusinessUnit).then(setItems);
+        // Reset state when BU changes
+        stopCamera();
+        setStep(0);
+        setInputMode('upload');
+        setFile(null);
+        setFilePreview(null);
+        setExtraction(null);
+        setRows([]);
+        setReferenceNumber('');
+        setAnalyzeError(null);
+        setApplySuccess(false);
+        setApplyError(null);
+        setIsCaptured(false);
+        setSelectedPrfId('');
+        setSelectedPrfIdentifier('');
+        setSelectedPrfSupplier('');
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedBusinessUnit]);
 
     // Stop camera stream on unmount or mode change
@@ -826,18 +844,6 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
                         Upload or photograph a delivery receipt to auto-update inventory
                     </p>
-                </div>
-                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 self-start sm:self-auto">
-                    <Building2 size={16} className="text-slate-500 dark:text-slate-400" />
-                    <select
-                        value={selectedBusinessUnit}
-                        onChange={e => { setSelectedBusinessUnit(e.target.value); handleReset(); }}
-                        className="bg-transparent text-slate-900 dark:text-white focus:outline-none text-sm"
-                    >
-                        {businesses.map(bu => (
-                            <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800">{bu.name}</option>
-                        ))}
-                    </select>
                 </div>
             </div>
 

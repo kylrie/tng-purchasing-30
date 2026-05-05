@@ -5,7 +5,6 @@ import {
     TrendingDown,
     TrendingUp,
     Package,
-    Building2,
     Calendar,
     RefreshCw,
     Download,
@@ -15,6 +14,7 @@ import {
 import type { StockCountSession } from '../types/InventoryItem';
 import { InventoryReportsService, type VarianceReport, type VarianceReportItem } from '../services/inventory.reports.service';
 import type { Business } from '../../procurement/types';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // PROPS
@@ -30,9 +30,7 @@ interface VarianceReportViewProps {
 
 const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) => {
     // State
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
-        businesses.length > 0 ? businesses[0].id : ''
-    );
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [sessions, setSessions] = useState<StockCountSession[]>([]);
     const [startSessionId, setStartSessionId] = useState<string>('');
     const [endSessionId, setEndSessionId] = useState<string>('');
@@ -157,22 +155,6 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                     <p className="text-slate-500 dark:text-slate-400 mt-1">
                         Compare stock counts to identify shrinkage and discrepancies
                     </p>
-                </div>
-
-                {/* Business Unit Selector */}
-                <div className="flex items-center gap-3">
-                    <Building2 size={20} className="text-slate-500 dark:text-slate-400" />
-                    <select
-                        value={selectedBusinessUnit}
-                        onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                        className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                    >
-                        {businesses.map(bu => (
-                            <option key={bu.id} value={bu.id} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                                {bu.name}
-                            </option>
-                        ))}
-                    </select>
                 </div>
             </div>
 

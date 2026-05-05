@@ -9,7 +9,6 @@ import {
     Boxes,
     Factory,
     Wrench,
-    Building2,
     MapPin,
     Plus,
     Upload,
@@ -23,6 +22,7 @@ import VisualCountRow from '../components/VisualCountRow';
 import InventoryItemModal from '../components/InventoryItemModal';
 import type { User, Business } from '../../procurement/types';
 import { UI_CONSTANTS } from '../../../config/constants';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 // ============================================================
 // PROPS
@@ -255,9 +255,7 @@ const ReviewPanel: React.FC<{
 
 const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, uomOptions }) => {
     // Business unit selection
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(
-        businesses.length > 0 ? businesses[0].id : ''
-    );
+    const { selectedBusinessUnit } = useBusinessUnit();
 
     // Type filter tab
     const [activeTypeTab, setActiveTypeTab] = useState<InventoryItemType | 'ALL'>('ALL');
@@ -510,21 +508,8 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                     </p>
                 </div>
 
-                {/* Business Unit Selector */}
+                {/* Action Buttons */}
                 <div className="flex items-center gap-3">
-                    <Building2 size={20} className="text-slate-500 dark:text-slate-400" />
-                    <select
-                        value={selectedBusinessUnit}
-                        onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                        className="px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                    >
-                        {businesses.map(bu => (
-                            <option key={bu.id} value={bu.id}>
-                                {bu.name}
-                            </option>
-                        ))}
-                    </select>
-
                     {!session ? (
                         <button
                             onClick={startSession}

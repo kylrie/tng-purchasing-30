@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, ChevronDown } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import type { Requisition, Business, User } from '../../../shared/types';
 import { RequisitionStatus } from '../types';
 import { usePermissions } from '../../../hooks/usePermissions';
 import Card from '../../../shared/components/Card';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 interface ApprovedViewProps {
     currentUser: User;
@@ -22,7 +23,7 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
 }) => {
     const { hasPermission } = usePermissions();
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [typeFilter, setTypeFilter] = useState<string>('all'); // all, burf, prf
 
     // Approved statuses to show
@@ -80,30 +81,6 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
                 </div>
 
                 <div className="flex flex-wrap gap-3 items-center">
-                    {/* Business Unit Filter (Global Access or Multi-BU Users) */}
-                    {(hasGlobalAccess || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
-                        <div className="relative">
-                            <select
-                                value={selectedBusinessUnit}
-                                onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                                className="appearance-none pl-4 pr-10 py-2 bg-slate-800 border border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                            >
-                                <option value="all">{hasGlobalAccess ? 'All Business Units' : 'All My Business Units'}</option>
-                                {hasGlobalAccess ? (
-                                    businesses.map(b => (
-                                        <option key={b.id} value={b.id}>{b.name}</option>
-                                    ))
-                                ) : (
-                                    currentUser.businessUnitIds?.map(buId => {
-                                        const bu = businesses.find(b => b.id === buId);
-                                        return bu ? <option key={bu.id} value={bu.id}>{bu.name}</option> : null;
-                                    })
-                                )}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                        </div>
-                    )}
-
                     {/* Type Filter */}
                     <div className="relative">
                         <select

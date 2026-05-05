@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Search, RefreshCw, AlertTriangle, Building2 } from 'lucide-react';
+import { Search, RefreshCw, AlertTriangle } from 'lucide-react';
 import type { Requisition, User, Business } from '../types';
 import { RequisitionStatus } from '../types';
 import RequisitionDrawer from '../../../shared/components/RequisitionDrawer';
 import PRFPrintModal from '../components/PRFPrintModal';
 import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 interface PRFTrackerViewProps {
     currentUser: User;
@@ -42,9 +43,9 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
     allUsers,
 }) => {
     const { hasPermission } = usePermissions();
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [searchTerm, setSearchTerm] = useState('');
     const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
-    const [businessFilter, setBusinessFilter] = useState<string>('all');
     const [drawerReq, setDrawerReq] = useState<Requisition | null>(null);
     const [viewMode, setViewMode] = useState<'mine' | 'all'>('mine');
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
@@ -88,9 +89,9 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
     const filteredReqs = useMemo(() => {
         let result = myRequisitions;
 
-        // Apply business filter
-        if (businessFilter !== 'all') {
-            result = result.filter(req => req.businessId === businessFilter);
+        // Apply business filter using global context
+        if (selectedBusinessUnit && selectedBusinessUnit !== 'all') {
+            result = result.filter(req => req.businessId === selectedBusinessUnit);
         }
 
         // Apply search filter
@@ -116,13 +117,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
         }
 
         return result;
-    }, [myRequisitions, searchTerm, businessFilter, businesses, dateRange]);
-
-    // Get businesses that have requisitions (for filter dropdown)
-    const availableBusinesses = useMemo(() => {
-        const businessIds = new Set(myRequisitions.map(r => r.businessId));
-        return businesses.filter(b => businessIds.has(b.id));
-    }, [myRequisitions, businesses]);
+    }, [myRequisitions, searchTerm, selectedBusinessUnit, businesses, dateRange]);
 
     // Group by column
     const columnData = useMemo(() => {
@@ -136,10 +131,13 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
         const styles: Record<string, string> = {
             orange: 'bg-orange-50 dark:bg-orange-900/20',
             amber: 'bg-amber-50 dark:bg-amber-900/20',
+            yellow: 'bg-yellow-50 dark:bg-yellow-900/20',
             indigo: 'bg-indigo-50 dark:bg-indigo-900/20',
             violet: 'bg-violet-50 dark:bg-violet-900/20',
+            fuchsia: 'bg-fuchsia-50 dark:bg-fuchsia-900/20',
             rose: 'bg-rose-50 dark:bg-rose-900/20',
             cyan: 'bg-cyan-50 dark:bg-cyan-900/20',
+            teal: 'bg-teal-50 dark:bg-teal-900/20',
             emerald: 'bg-emerald-50 dark:bg-emerald-900/20',
             purple: 'bg-purple-50 dark:bg-purple-900/20',
             blue: 'bg-blue-50 dark:bg-blue-900/20',
@@ -151,10 +149,13 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
         const styles: Record<string, string> = {
             orange: 'text-orange-700 dark:text-orange-400',
             amber: 'text-amber-700 dark:text-amber-400',
+            yellow: 'text-yellow-700 dark:text-yellow-400',
             indigo: 'text-indigo-700 dark:text-indigo-400',
             violet: 'text-violet-700 dark:text-violet-400',
+            fuchsia: 'text-fuchsia-700 dark:text-fuchsia-400',
             rose: 'text-rose-700 dark:text-rose-400',
             cyan: 'text-cyan-700 dark:text-cyan-400',
+            teal: 'text-teal-700 dark:text-teal-400',
             emerald: 'text-emerald-700 dark:text-emerald-400',
             purple: 'text-purple-700 dark:text-purple-400',
             blue: 'text-blue-700 dark:text-blue-400',
@@ -166,10 +167,13 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
         const styles: Record<string, string> = {
             orange: 'bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-300',
             amber: 'bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300',
+            yellow: 'bg-yellow-100 dark:bg-yellow-500/20 text-yellow-700 dark:text-yellow-300',
             indigo: 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300',
             violet: 'bg-violet-100 dark:bg-violet-500/20 text-violet-700 dark:text-violet-300',
+            fuchsia: 'bg-fuchsia-100 dark:bg-fuchsia-500/20 text-fuchsia-700 dark:text-fuchsia-300',
             rose: 'bg-rose-100 dark:bg-rose-500/20 text-rose-700 dark:text-rose-300',
             cyan: 'bg-cyan-100 dark:bg-cyan-500/20 text-cyan-700 dark:text-cyan-300',
+            teal: 'bg-teal-100 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300',
             emerald: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300',
             purple: 'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-300',
             blue: 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-300',
@@ -189,20 +193,6 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                         </p>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
-                        {/* Business Unit Filter */}
-                        <div className="relative">
-                            <Building2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                            <select
-                                value={businessFilter}
-                                onChange={(e) => setBusinessFilter(e.target.value)}
-                                className="pl-9 pr-8 py-2 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-white text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none cursor-pointer min-w-[160px]"
-                            >
-                                <option value="all">All Business Units</option>
-                                {availableBusinesses.map(b => (
-                                    <option key={b.id} value={b.id}>{b.name}</option>
-                                ))}
-                            </select>
-                        </div>
                         {/* Date Filter */}
                         <DateRangeFilter
                             onFilterChange={(start: string | null, end: string | null) => setDateRange({ start, end })}

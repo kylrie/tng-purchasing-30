@@ -16,6 +16,7 @@ import { sanitizeText, sanitizeItems } from '../../../shared/utils/sanitize';
 // FIX: Import URL validation utility
 import { isValidUrl } from '../../../shared/utils/validation';
 import { UI_CONSTANTS } from '../../../config/constants';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 
 interface BurfViewProps {
     currentUser: User;
@@ -47,7 +48,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
     const [printReq, setPrintReq] = useState<Requisition | null>(null);
 
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>('all');
+    const { selectedBusinessUnit } = useBusinessUnit();
     const [dateRange, setDateRange] = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
     const { hasPermission } = usePermissions();
 
@@ -123,7 +124,11 @@ export const BurfView: React.FC<BurfViewProps> = ({
                         return false;
                     }
                 } else {
-                    if (req.businessId !== currentUser.businessId) {
+                    // Multi-BU support: check all BUs the user belongs to
+                    const userBuIds = currentUser.businessUnitIds?.length
+                        ? currentUser.businessUnitIds
+                        : [currentUser.businessId];
+                    if (!userBuIds.includes(req.businessId)) {
                         return false;
                     }
                 }
@@ -463,25 +468,6 @@ export const BurfView: React.FC<BurfViewProps> = ({
                             onFilterChange={(start, end) => setDateRange({ start, end })}
                         />
                     </div>
-                    {(hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
-                        <select
-                            value={selectedBusinessUnit}
-                            onChange={(e) => setSelectedBusinessUnit(e.target.value)}
-                            className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 flex-grow md:flex-grow-0 shadow-sm dark:shadow-none"
-                        >
-                            <option value="all">{hasPermission('requisition:view:all') ? 'All Business Units' : 'All My Business Units'}</option>
-                            {hasPermission('requisition:view:all') ? (
-                                businesses.map(business => (
-                                    <option key={business.id} value={business.id}>{business.name}</option>
-                                ))
-                            ) : (
-                                currentUser.businessUnitIds?.map(buId => {
-                                    const bu = businesses.find(b => b.id === buId);
-                                    return bu ? <option key={bu.id} value={bu.id}>{bu.name}</option> : null;
-                                })
-                            )}
-                        </select>
-                    )}
                     <button onClick={() => navigate('/burf/new')} className="bg-purple-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-purple-700 font-medium flex items-center justify-center gap-2 flex-grow md:flex-grow-0 w-full md:w-auto mt-2 md:mt-0">
                         <Plus size={18} /> <span className="md:hidden">Create </span>New Request
                     </button>

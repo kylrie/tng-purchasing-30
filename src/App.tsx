@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthProvider';
 import { useAuth } from './contexts/useAuth';
 import { PermissionsProvider } from './contexts/PermissionsContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { BusinessUnitProvider } from './contexts/BusinessUnitContext';
 import { DataProvider } from './shared/context/DataContext';
 import Layout from './shared/components/Layout';
 import ProtectedRoute from './shared/components/ProtectedRoute';
@@ -216,7 +217,8 @@ function ProtectedApp() {
     notifications: userNotifications,
     onNotificationClick: () => { },
     onLogout: logout,
-    pendingApprovalsCount: pendingUsers.length
+    pendingApprovalsCount: pendingUsers.length,
+    businesses: accessibleBusinesses
   };
 
   return (
@@ -630,16 +632,18 @@ VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
         <ThemeProvider>
           <AuthProvider>
             <PermissionsProvider>
-              <DataProvider>
-                <Routes>
-                  <Route path="/login" element={
-                    <Suspense fallback={<PageLoader />}>
-                      <LoginView />
-                    </Suspense>
-                  } />
-                  <Route path="/*" element={<ProtectedApp />} />
-                </Routes>
-              </DataProvider>
+              <BusinessUnitProvider>
+                <DataProvider>
+                  <Routes>
+                    <Route path="/login" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <LoginView />
+                      </Suspense>
+                    } />
+                    <Route path="/*" element={<ProtectedApp />} />
+                  </Routes>
+                </DataProvider>
+              </BusinessUnitProvider>
             </PermissionsProvider>
           </AuthProvider>
         </ThemeProvider>

@@ -41,17 +41,19 @@ import {
     Store,
     Trash2
 } from 'lucide-react';
-import type { User } from '../../features/procurement/types';
+import type { User, Business } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
 import { UserRole } from '../../shared/types/firebase.types';
 import { ThemeToggle } from './ThemeToggle';
 import NotificationBell from './NotificationBell';
+import { useBusinessUnit } from '../../contexts/BusinessUnitContext';
 
 interface LayoutProps {
     children: React.ReactNode;
     currentUser: User;
     onLogout?: () => void;
     pendingApprovalsCount?: number;
+    businesses?: Business[];
 }
 
 // ============================================================
@@ -215,11 +217,13 @@ const SidebarItem: React.FC<SidebarItemProps> = ({
 const Layout: React.FC<LayoutProps> = ({
     children,
     currentUser,
-    onLogout
+    onLogout,
+    businesses
 }) => {
     const navigate = useNavigate();
     const location = useLocation();
     const { hasPermission } = usePermissions();
+    const { selectedBusinessUnit, setSelectedBusinessUnit } = useBusinessUnit();
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
@@ -584,7 +588,35 @@ const Layout: React.FC<LayoutProps> = ({
                             <Menu size={24} />
                         </button>
                     </div>
-                    <div className="flex-1" />
+                    
+                    {/* Centered Business Unit Selector */}
+                    <div className="flex-1 flex justify-center items-center">
+                        {businesses && businesses.length > 0 && (hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
+                            <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-1.5 rounded-lg border border-slate-200 dark:border-slate-700/50 shadow-sm">
+                                <span className="text-xs font-medium text-slate-500 dark:text-slate-400 hidden sm:block px-2">Business Unit:</span>
+                                <select
+                                    value={selectedBusinessUnit}
+                                    onChange={(e) => setSelectedBusinessUnit(e.target.value)}
+                                    className="bg-transparent text-sm font-semibold text-slate-800 dark:text-white border-none focus:ring-0 cursor-pointer pr-8 py-1 outline-none"
+                                >
+                                    <option value="all" className="text-slate-800 dark:text-white bg-white dark:bg-slate-800">
+                                        {hasPermission('requisition:view:all') ? 'All Business Units' : 'All My Business Units'}
+                                    </option>
+                                    {hasPermission('requisition:view:all') ? (
+                                        businesses.map(business => (
+                                            <option key={business.id} value={business.id} className="text-slate-800 dark:text-white bg-white dark:bg-slate-800">{business.name}</option>
+                                        ))
+                                    ) : (
+                                        currentUser.businessUnitIds?.map(buId => {
+                                            const bu = businesses.find(b => b.id === buId);
+                                            return bu ? <option key={bu.id} value={bu.id} className="text-slate-800 dark:text-white bg-white dark:bg-slate-800">{bu.name}</option> : null;
+                                        })
+                                    )}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
                     <div className="flex items-center gap-4">
                         <ThemeToggle />
                         <NotificationBell />
