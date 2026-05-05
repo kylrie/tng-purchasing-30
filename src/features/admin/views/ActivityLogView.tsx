@@ -3,10 +3,8 @@ import {
     Activity, Clock, User, Filter, Search, RefreshCw,
     ShoppingCart, Package, DollarSign, FileText,
     Utensils, Truck, Trash2, BarChart3, Settings, Shield,
-    ChevronDown
 } from 'lucide-react';
 import type { Requisition, RequisitionHistory, User as UserType, Business } from '../../procurement/types';
-import { RequisitionStatus } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { ActivityLogService, type ActivityLogEntry, type ActivityModule } from '../../../shared/services/activityLog.service';
