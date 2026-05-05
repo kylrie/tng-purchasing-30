@@ -17,7 +17,7 @@ type ViewState = 'UPLOAD' | 'PREVIEW' | 'COMMITTING' | 'SUCCESS';
 type Tab = 'import' | 'history' | 'report';
 type DatePeriod = 'today' | 'week' | 'month' | 'custom';
 
-const PosImportDashboard: React.FC<Props> = ({ businesses }) => {
+const PosImportDashboard: React.FC<Props> = (_props) => {
     const { currentUser } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
     const fileInputRef = useRef<HTMLInputElement>(null);
