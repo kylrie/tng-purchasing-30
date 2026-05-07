@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     ChefHat, Plus, Search, TrendingUp, Loader2,
-    Edit, Trash2, RefreshCw, Filter, ShieldAlert
+    Edit, Trash2, RefreshCw, Filter, ShieldAlert,
+    LayoutGrid, List
 } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
 import type { MenuItem, MenuCategory } from '../types/menu.types';
@@ -113,6 +114,100 @@ const MenuItemCard: React.FC<{
 };
 
 // ============================================================
+// MENU ITEM LIST COMPONENT
+// ============================================================
+
+const MenuItemList: React.FC<{
+    items: MenuItem[];
+    onEdit: (item: MenuItem) => void;
+    onDelete: (item: MenuItem) => void;
+    onClick: (item: MenuItem) => void;
+}> = ({ items, onEdit, onDelete, onClick }) => {
+    return (
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm dark:shadow-none">
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            <th className="p-4">Item Name</th>
+                            <th className="p-4">Category</th>
+                            <th className="p-4 text-right">Selling Price</th>
+                            <th className="p-4 text-right">Recipe Cost</th>
+                            <th className="p-4 text-right">Gross Margin</th>
+                            <th className="p-4 text-right">Food Cost</th>
+                            <th className="p-4 text-center">Ingredients</th>
+                            <th className="p-4 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {items.map((item) => {
+                            const status = getFoodCostStatus(item.foodCostPercent);
+                            const textColor = getFoodCostColor(status);
+                            const bgColor = getFoodCostBgColor(status);
+
+                            return (
+                                <tr 
+                                    key={item.id} 
+                                    className="hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors cursor-pointer group"
+                                    onClick={() => onClick(item)}
+                                >
+                                    <td className="p-4">
+                                        <div className="font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                            {item.name}
+                                        </div>
+                                        {item.description && (
+                                            <div className="text-xs text-slate-500 truncate max-w-xs">{item.description}</div>
+                                        )}
+                                    </td>
+                                    <td className="p-4 text-sm text-slate-500 dark:text-slate-400">
+                                        {item.category}
+                                    </td>
+                                    <td className="p-4 text-sm text-right text-slate-900 dark:text-white font-medium">
+                                        ₱{item.sellingPrice.toFixed(2)}
+                                    </td>
+                                    <td className="p-4 text-sm text-right text-slate-700 dark:text-slate-300">
+                                        ₱{item.calculatedCost.toFixed(2)}
+                                    </td>
+                                    <td className="p-4 text-sm text-right font-medium text-green-600 dark:text-green-400">
+                                        ₱{item.grossMargin.toFixed(2)}
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${bgColor} ${textColor}`}>
+                                            {item.foodCostPercent.toFixed(1)}%
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-sm text-center text-slate-500">
+                                        {item.ingredients.length}
+                                    </td>
+                                    <td className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onEdit(item); }}
+                                                className="p-1.5 text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-500/10 rounded transition-colors"
+                                                title="Edit recipe"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onDelete(item); }}
+                                                className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded transition-colors"
+                                                title="Delete recipe"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+// ============================================================
 // MAIN MENU DASHBOARD COMPONENT
 // ============================================================
 
@@ -127,6 +222,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState<MenuCategory | 'ALL'>('ALL');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showEditor, setShowEditor] = useState(false);
     const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
     const [viewingItem, setViewingItem] = useState<MenuItem | null>(null);
@@ -312,37 +408,65 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                {/* Search */}
-                <div className="relative flex-1">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Search menu items..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                    />
+            {/* Filters and View Toggle */}
+            <div className="flex flex-col md:flex-row gap-4 justify-between">
+                <div className="flex flex-col sm:flex-row gap-4 flex-1">
+                    {/* Search */}
+                    <div className="relative flex-1 max-w-md">
+                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search menu items..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                        />
+                    </div>
+
+                    {/* Category Filter */}
+                    <div className="flex items-center gap-2">
+                        <Filter size={18} className="text-slate-500 dark:text-slate-400 hidden sm:block" />
+                        <select
+                            value={categoryFilter}
+                            onChange={(e) => setCategoryFilter(e.target.value as MenuCategory | 'ALL')}
+                            className="px-4 py-3 w-full sm:w-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                        >
+                            <option value="ALL">All Categories</option>
+                            {MENU_CATEGORIES.map(cat => (
+                                <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
-                {/* Category Filter */}
-                <div className="flex items-center gap-2">
-                    <Filter size={18} className="text-slate-500 dark:text-slate-400" />
-                    <select
-                        value={categoryFilter}
-                        onChange={(e) => setCategoryFilter(e.target.value as MenuCategory | 'ALL')}
-                        className="px-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                {/* View Toggle */}
+                <div className="flex bg-slate-100 dark:bg-slate-800/60 rounded-xl p-1 w-fit h-fit items-center self-end sm:self-auto">
+                    <button
+                        onClick={() => setViewMode('grid')}
+                        className={`p-2 rounded-lg transition-all ${
+                            viewMode === 'grid'
+                                ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white'
+                        }`}
+                        title="Grid View"
                     >
-                        <option value="ALL">All Categories</option>
-                        {MENU_CATEGORIES.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                    </select>
+                        <LayoutGrid size={18} />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={`p-2 rounded-lg transition-all ${
+                            viewMode === 'list'
+                                ? 'bg-white dark:bg-slate-700 text-purple-600 dark:text-purple-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white'
+                        }`}
+                        title="List View"
+                    >
+                        <List size={18} />
+                    </button>
                 </div>
             </div>
 
-            {/* Menu Items Grid */}
+            {/* Menu Items Grid/List */}
             {isLoading ? (
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
@@ -371,7 +495,7 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
                         </button>
                     )}
                 </div>
-            ) : (
+            ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredItems.map(item => (
                         <MenuItemCard
@@ -383,6 +507,13 @@ const MenuDashboard: React.FC<MenuDashboardProps> = ({
                         />
                     ))}
                 </div>
+            ) : (
+                <MenuItemList
+                    items={filteredItems}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onClick={setViewingItem}
+                />
             )}
 
             {/* Recipe Editor Modal */}

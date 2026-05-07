@@ -419,6 +419,9 @@ export interface Requisition {
   reservedBudgetId?: string; // Reference to budget reservation record
   coaCode?: string; // Chart of Account code for PRF-level budget tracking
 
+  // Track where the requisition was rejected to resume from that stage
+  rejectedAtStage?: RequisitionStatus;
+
   // New Enhancements
   history?: RequisitionHistory[];
 }

@@ -707,6 +707,52 @@ export class PCFService {
         // Append to existing history or create new array
         const existingHistory = liquidation?.auditNotesHistory || [];
 
+        // Check if this was previously in the BR flow (has replenishmentPrfId)
+        if (liquidation?.replenishmentPrfId) {
+            // It was rejected in BR flow. We should refile the PRF directly!
+            // First, update PCF Liquidation back to APPROVED_WAITING_RELEASE
+            await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
+                expenses,
+                totalAmount,
+                totalVat,
+                totalEwt,
+                netAmount,
+                receiptsLink: receiptsLink || '',
+                remarks: remarks || '',
+                status: PCFStatus.APPROVED_WAITING_RELEASE,
+                dateSubmitted: new Date().toISOString(),
+                // Clear rejection data
+                rejectedBy: null,
+                rejectedByName: null,
+                rejectionReason: null,
+                auditNotesHistory: [...existingHistory, auditNoteEntry]
+            });
+
+            // Now refile the PRF and update its total amount
+            // Import RequisitionService dynamically to avoid circular dependencies
+            const { RequisitionService } = await import('../../procurement/services/requisitions.service');
+            const prfItems = expenses.map((expense, index) => ({
+                itemId: `pcf-${liquidationId}-${index}`,
+                name: `${expense.coaName || expense.classification || 'Expense'}: ${expense.itemDescription}`,
+                quantity: 1,
+                uom: 'lot',
+                price: expense.amount,
+                stockOnHand: 0,
+            }));
+
+            await RequisitionService.reFileRequisition(
+                liquidation.replenishmentPrfId,
+                liquidation.userId,
+                liquidation.userName,
+                {
+                    totalAmount,
+                    items: prfItems as any,
+                }
+            );
+
+            return;
+        }
+
         await FirestoreService.updateDocument(PCF_COLLECTION, liquidationId, {
             expenses,
             totalAmount,

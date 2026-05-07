@@ -1076,6 +1076,7 @@ export class RequisitionService {
       // Atomic update within transaction - status + history together
       const updateData: Record<string, unknown> = {
         status: RequisitionStatus.REJECTED,
+        rejectedAtStage: requisition.status,
         history: updatedHistory,
         updatedAt: serverTimestamp(),
       };
@@ -1115,6 +1116,18 @@ export class RequisitionService {
       console.error('Failed to create rejection notification:', notificationError);
       // Don't throw - rejection succeeded, notification failed is non-critical
     }
+
+    // PCF LIQUIDATION INTEGRATION: If PRF is rejected, reject its associated PCF Liquidation
+    try {
+      const requisition = await this.getRequisitionById(requisitionId);
+      if (requisition?.linkedPcfId) {
+         // Dynamically import to avoid circular dependency
+         const { PCFService } = await import('../../finance/services/pcf.service');
+         await PCFService.rejectLiquidation(requisition.linkedPcfId, userId, userName, `Rejected in BR Flow: ${comments}`);
+      }
+    } catch (err) {
+      console.error('⚠️ Failed to reject linked PCF Liquidation:', err);
+    }
   }
 
 
@@ -1137,11 +1150,11 @@ export class RequisitionService {
 
       const requisition = { id: snap.id, ...snap.data() } as Requisition;
 
-      // If the requisition has prfDetails, it's a PRF and should return to PRF_PENDING_MANAGER
-      // Otherwise, it's a BURF and should return to BURF_PENDING_MANAGER
-      const nextStatus = requisition.prfDetails || updates.prfDetails
+      // If it was rejected from a specific stage, return it directly to that stage
+      // Otherwise, PRF returns to PRF_PENDING_MANAGER, BURF returns to BURF_PENDING_MANAGER
+      const nextStatus = requisition.rejectedAtStage || (requisition.prfDetails || updates.prfDetails
         ? RequisitionStatus.PRF_PENDING_MANAGER
-        : RequisitionStatus.BURF_PENDING_MANAGER;
+        : RequisitionStatus.BURF_PENDING_MANAGER);
 
       // Create history entry inline (can't call async methods in transaction)
       const refileNowISO = new Date().toISOString();
@@ -1161,6 +1174,7 @@ export class RequisitionService {
       transaction.update(docRef, {
         ...removeUndefinedFields(updates),
         status: nextStatus,
+        rejectedAtStage: null, // Clear this out since it's been refiled
         history: updatedHistory,
         updatedAt: serverTimestamp(),
       });

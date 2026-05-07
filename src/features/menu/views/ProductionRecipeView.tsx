@@ -10,7 +10,9 @@ import {
     Play,
     X,
     Layers,
-    ClipboardList
+    ClipboardList,
+    LayoutGrid,
+    List
 } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
 import type { ProductionRecipe } from '../types/menu.types';
@@ -149,6 +151,115 @@ const RecipeCard: React.FC<{
 };
 
 // ============================================================
+// RECIPE LIST COMPONENT
+// ============================================================
+
+const RecipeList: React.FC<{
+    recipes: ProductionRecipe[];
+    productionStockMap: Map<string, number>;
+    onEdit: (recipe: ProductionRecipe) => void;
+    onDelete: (recipe: ProductionRecipe) => void;
+    onRecordYield: (recipe: ProductionRecipe) => void;
+}> = ({ recipes, productionStockMap, onEdit, onDelete, onRecordYield }) => {
+    return (
+        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm dark:shadow-none">
+            <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                    <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            <th className="p-4">Recipe Name</th>
+                            <th className="p-4">Category</th>
+                            <th className="p-4 text-center">Batch Yield</th>
+                            <th className="p-4 text-center">Servings Remaining</th>
+                            <th className="p-4 text-right">Cost/Unit</th>
+                            <th className="p-4 text-right">Total Cost</th>
+                            <th className="p-4 text-center">Ingredients</th>
+                            <th className="p-4 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                        {recipes.map((recipe) => {
+                            const productionStock = recipe.linkedInventoryItemId 
+                                ? (productionStockMap.get(recipe.linkedInventoryItemId) ?? null) 
+                                : null;
+
+                            return (
+                                <tr 
+                                    key={recipe.id} 
+                                    className="hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors"
+                                >
+                                    <td className="p-4">
+                                        <div className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                            <Factory size={14} className="text-amber-500" />
+                                            {recipe.name}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-sm">
+                                        <span className="text-xs text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded-full font-medium">
+                                            {recipe.category}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-sm text-center font-medium text-slate-900 dark:text-white">
+                                        {recipe.yieldQuantity} {recipe.yieldUnit}
+                                    </td>
+                                    <td className="p-4 text-sm text-center">
+                                        {productionStock === null ? (
+                                            <span className="text-slate-400">—</span>
+                                        ) : (
+                                            <span className={`font-bold ${
+                                                productionStock <= 0
+                                                    ? 'text-red-600 dark:text-red-400'
+                                                    : 'text-green-600 dark:text-green-400'
+                                            }`}>
+                                                {productionStock.toLocaleString()} {recipe.yieldUnit}
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td className="p-4 text-sm text-right font-medium text-amber-500 dark:text-amber-400">
+                                        ₱{recipe.costPerUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                    </td>
+                                    <td className="p-4 text-sm text-right text-slate-700 dark:text-slate-300">
+                                        ₱{recipe.calculatedCost.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                    </td>
+                                    <td className="p-4 text-sm text-center text-slate-500">
+                                        {recipe.ingredients.length}
+                                    </td>
+                                    <td className="p-4 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <button
+                                                onClick={() => onRecordYield(recipe)}
+                                                className="p-1.5 text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-100 dark:hover:bg-green-500/20 rounded transition-colors"
+                                                title="Record Production Yield"
+                                            >
+                                                <Play size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => onEdit(recipe)}
+                                                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-600 rounded transition-colors"
+                                                title="Edit recipe"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => onDelete(recipe)}
+                                                className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded transition-colors"
+                                                title="Delete recipe"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+};
+
+// ============================================================
 // MAIN COMPONENT
 // ============================================================
 
@@ -161,6 +272,7 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
     const [productionItems, setProductionItems] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showModal, setShowModal] = useState(false);
     const [editingRecipe, setEditingRecipe] = useState<ProductionRecipe | null>(null);
 
@@ -387,16 +499,44 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
             {/* ── RECIPES TAB ──────────────────────────────────────── */}
             {activeTab === 'recipes' && (<>
 
-            {/* Search */}
-            <div className="relative max-w-md">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-                <input
-                    type="text"
-                    placeholder="Search recipes..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
-                />
+            {/* Search and View Toggle */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-between">
+                <div className="relative max-w-md flex-1">
+                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="Search recipes..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                    />
+                </div>
+
+                {/* View Toggle */}
+                <div className="flex bg-slate-100 dark:bg-slate-800/60 rounded-xl p-1 w-fit h-fit items-center self-end sm:self-auto">
+                    <button
+                        onClick={() => setViewMode('grid')}
+                        className={`p-2 rounded-lg transition-all ${
+                            viewMode === 'grid'
+                                ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white'
+                        }`}
+                        title="Grid View"
+                    >
+                        <LayoutGrid size={18} />
+                    </button>
+                    <button
+                        onClick={() => setViewMode('list')}
+                        className={`p-2 rounded-lg transition-all ${
+                            viewMode === 'list'
+                                ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white'
+                        }`}
+                        title="List View"
+                    >
+                        <List size={18} />
+                    </button>
+                </div>
             </div>
 
             {/* Stats */}
@@ -443,7 +583,7 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                         </button>
                     )}
                 </div>
-            ) : (
+            ) : viewMode === 'grid' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {filteredRecipes.map(recipe => (
                         <RecipeCard
@@ -460,6 +600,14 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                         />
                     ))}
                 </div>
+            ) : (
+                <RecipeList
+                    recipes={filteredRecipes}
+                    productionStockMap={productionStockMap}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onRecordYield={handleOpenYieldModal}
+                />
             )}
 
             </>)}{/* end recipes tab */}
