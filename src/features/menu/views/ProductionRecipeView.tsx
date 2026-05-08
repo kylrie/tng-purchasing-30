@@ -19,7 +19,8 @@ import type { ProductionRecipe } from '../types/menu.types';
 import { ProductionRecipeService } from '../services/production-recipe.service';
 import ProductionRecipeModal from '../components/ProductionRecipeModal';
 import type { Business, User } from '../../procurement/types';
-import type { InventoryItem } from '../../inventory/types/InventoryItem';
+import type { InventoryItem, ServiceType } from '../../inventory/types/InventoryItem';
+import { SERVICE_TYPES } from '../../inventory/types/InventoryItem';
 import { InventoryService } from '../../inventory/services/inventory.service';
 import ProductionLogsView from './ProductionLogsView';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
@@ -57,6 +58,17 @@ const RecipeCard: React.FC<{
                         <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
                             {recipe.category}
                         </span>
+                        {(recipe as any).serviceType && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ml-1 ${
+                                (recipe as any).serviceType === 'Alacarte'
+                                    ? 'bg-indigo-500/10 text-indigo-400'
+                                    : (recipe as any).serviceType === 'Event'
+                                        ? 'bg-teal-500/10 text-teal-400'
+                                        : 'bg-orange-500/10 text-orange-400'
+                            }`}>
+                                {(recipe as any).serviceType}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
@@ -195,9 +207,22 @@ const RecipeList: React.FC<{
                                         </div>
                                     </td>
                                     <td className="p-4 text-sm">
-                                        <span className="text-xs text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded-full font-medium">
-                                            {recipe.category}
-                                        </span>
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                            <span className="text-xs text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded-full font-medium">
+                                                {recipe.category}
+                                            </span>
+                                            {(recipe as any).serviceType && (
+                                                <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                                                    (recipe as any).serviceType === 'Alacarte'
+                                                        ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 dark:text-indigo-400'
+                                                        : (recipe as any).serviceType === 'Event'
+                                                            ? 'bg-teal-50 dark:bg-teal-500/10 text-teal-500 dark:text-teal-400'
+                                                            : 'bg-orange-50 dark:bg-orange-500/10 text-orange-500 dark:text-orange-400'
+                                                }`}>
+                                                    {(recipe as any).serviceType}
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
                                     <td className="p-4 text-sm text-center font-medium text-slate-900 dark:text-white">
                                         {recipe.yieldQuantity} {recipe.yieldUnit}
@@ -272,6 +297,7 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
     const [productionItems, setProductionItems] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceType | 'ALL'>('ALL');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showModal, setShowModal] = useState(false);
     const [editingRecipe, setEditingRecipe] = useState<ProductionRecipe | null>(null);
@@ -346,11 +372,14 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
     }, [selectedBusinessUnit]);
 
     // Filter recipes
-    const filteredRecipes = recipes.filter(recipe =>
-        searchQuery === '' ||
-        recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        recipe.category.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredRecipes = recipes.filter(recipe => {
+        const matchesSearch = searchQuery === '' ||
+            recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            recipe.category.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesServiceType = serviceTypeFilter === 'ALL' ||
+            (recipe as any).serviceType === serviceTypeFilter;
+        return matchesSearch && matchesServiceType;
+    });
 
     // Handlers
     const handleAddNew = () => {
@@ -512,7 +541,37 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                     />
                 </div>
 
-                {/* View Toggle */}
+                <div className="flex items-center gap-3">
+                    {/* Service Type Filter */}
+                    <div className="flex bg-slate-100 dark:bg-slate-800/60 rounded-xl p-1 items-center">
+                        <button
+                            onClick={() => setServiceTypeFilter('ALL')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${serviceTypeFilter === 'ALL'
+                                ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white'
+                            }`}
+                        >
+                            All
+                        </button>
+                        {SERVICE_TYPES.map(st => (
+                            <button
+                                key={st}
+                                onClick={() => setServiceTypeFilter(st)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${serviceTypeFilter === st
+                                    ? st === 'Alacarte'
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : st === 'Event'
+                                            ? 'bg-teal-600 text-white shadow-sm'
+                                            : 'bg-orange-600 text-white shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white'
+                                }`}
+                            >
+                                {st}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* View Toggle */}
                 <div className="flex bg-slate-100 dark:bg-slate-800/60 rounded-xl p-1 w-fit h-fit items-center self-end sm:self-auto">
                     <button
                         onClick={() => setViewMode('grid')}
@@ -536,6 +595,7 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                     >
                         <List size={18} />
                     </button>
+                </div>
                 </div>
             </div>
 

@@ -18,7 +18,8 @@ import {
     CheckSquare,
     Layers
 } from 'lucide-react';
-import type { InventoryItem, InventoryItemType, CreateInventoryItemInput } from '../types/InventoryItem';
+import type { InventoryItem, InventoryItemType, CreateInventoryItemInput, ServiceType } from '../types/InventoryItem';
+import { SERVICE_TYPES } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
 import { calculateSellableQuantity } from '../utils/sellable-quantity';
 import InventoryItemModal from '../components/InventoryItemModal';
@@ -122,6 +123,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [storageAreas, setStorageAreas] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [serviceTypeFilter, setServiceTypeFilter] = useState<ServiceType | 'ALL'>('ALL');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -197,12 +199,15 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     }, [editingStockId]);
 
     // Filter items by search
-    const filteredItems = items.filter(item =>
-        searchQuery === '' ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredItems = items.filter(item => {
+        const matchesSearch = searchQuery === '' ||
+            item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            item.category.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesServiceType = serviceTypeFilter === 'ALL' ||
+            (item as any).serviceType === serviceTypeFilter;
+        return matchesSearch && matchesServiceType;
+    });
 
     // Toggle item selection
     const toggleSelect = (itemId: string) => {
@@ -628,6 +633,37 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                 })}
             </div>
 
+            {/* Service Type Sub-filter (only for FINISHED_GOOD, PRODUCTION, or ALL) */}
+            {(activeTypeTab === 'FINISHED_GOOD' || activeTypeTab === 'PRODUCTION' || activeTypeTab === 'ALL') && (
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setServiceTypeFilter('ALL')}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${serviceTypeFilter === 'ALL'
+                            ? 'bg-cyan-600 text-white'
+                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                        }`}
+                    >
+                        All Service Types
+                    </button>
+                    {SERVICE_TYPES.map(st => (
+                        <button
+                            key={st}
+                            onClick={() => setServiceTypeFilter(st)}
+                            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${serviceTypeFilter === st
+                                ? st === 'Alacarte'
+                                    ? 'bg-indigo-600 text-white'
+                                    : st === 'Event'
+                                        ? 'bg-teal-600 text-white'
+                                        : 'bg-orange-600 text-white'
+                                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                            }`}
+                        >
+                            {st}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             {/* Search */}
             <div className="relative max-w-md">
                 <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
@@ -730,7 +766,22 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                             </div>
                                         </td>
                                         <td className="p-4">{getTypeBadge(item.type)}</td>
-                                        <td className="p-4 text-slate-600 dark:text-slate-300">{item.category}</td>
+                                        <td className="p-4 text-slate-600 dark:text-slate-300">
+                                            <div className="flex items-center gap-2">
+                                                {item.category}
+                                                {(item as any).serviceType && (
+                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                                        (item as any).serviceType === 'Alacarte'
+                                                            ? 'bg-indigo-500/20 text-indigo-400'
+                                                            : (item as any).serviceType === 'Event'
+                                                                ? 'bg-teal-500/20 text-teal-400'
+                                                                : 'bg-orange-500/20 text-orange-400'
+                                                    }`}>
+                                                        {(item as any).serviceType}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
                                         <td className="p-4 text-right">
                                             {item.type === 'FINISHED_GOOD' ? (
                                                 (() => {

@@ -10,6 +10,11 @@ export type InventoryItemType =
   | 'PRODUCTION'      // Pre-batched Mixes - Made in-house
   | 'ASSET';          // Blender, Chair - Fixed assets
 
+// Service type divider — classifies FINISHED_GOOD and PRODUCTION items
+export type ServiceType = 'Alacarte' | 'Event' | 'Retail';
+
+export const SERVICE_TYPES: ServiceType[] = ['Alacarte', 'Event', 'Retail'];
+
 export type InventoryCategory =
   | 'Spirits'
   | 'Wine'
@@ -77,6 +82,7 @@ export interface InventoryItem {
   businessUnitId: string;            // CRUCIAL - Multi-tenant filter
   name: string;
   type: InventoryItemType;           // RAW_MATERIAL, FINISHED_GOOD, PRODUCTION, ASSET
+  serviceType?: ServiceType;           // Alacarte or Event — applies to FINISHED_GOOD & PRODUCTION
   category: InventoryCategory;
   sku?: string;
   imageUrl?: string;
@@ -159,6 +165,7 @@ export interface CreateInventoryItemInput {
   businessUnitId: string;
   name: string;
   type: InventoryItemType;
+  serviceType?: ServiceType;           // Alacarte or Event — applies to FINISHED_GOOD & PRODUCTION
   category: InventoryCategory;
   sku?: string;
   imageUrl?: string;

@@ -5,8 +5,10 @@ import type {
     InventoryItemType,
     InventoryCategory,
     CreateInventoryItemInput,
-    UnitConversion
+    UnitConversion,
+    ServiceType
 } from '../types/InventoryItem';
+import { SERVICE_TYPES } from '../types/InventoryItem';
 
 // ============================================================
 // TYPES
@@ -25,6 +27,7 @@ interface InventoryItemModalProps {
 interface FormData {
     name: string;
     type: InventoryItemType;
+    serviceType: ServiceType | '';
     category: InventoryCategory;
     sku: string;
     storageAreas: string[];
@@ -57,6 +60,7 @@ const CATEGORIES: InventoryCategory[] = [
 const INITIAL_FORM_DATA: FormData = {
     name: '',
     type: 'RAW_MATERIAL',
+    serviceType: '',
     category: 'Other',
     sku: '',
     storageAreas: [],
@@ -99,6 +103,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
             setFormData({
                 name: item.name || '',
                 type: item.type || 'RAW_MATERIAL',
+                serviceType: (item as any).serviceType || '',
                 category: item.category || 'Other',
                 sku: item.sku || '',
                 storageAreas: item.storageAreas || [],
@@ -164,6 +169,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 businessUnitId,
                 name: (formData.name || '').trim(),
                 type: formData.type,
+                ...(formData.serviceType && { serviceType: formData.serviceType as ServiceType }),
                 category: formData.category,
                 storageAreas: formData.storageAreas,
                 units,
@@ -282,6 +288,24 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                         ))}
                                     </select>
                                 </div>
+
+                                {/* Service Type (only for FINISHED_GOOD & PRODUCTION) */}
+                                {(formData.type === 'FINISHED_GOOD' || formData.type === 'PRODUCTION') && (
+                                    <div>
+                                        <label className={labelClass}>Service Type</label>
+                                        <select
+                                            value={formData.serviceType}
+                                            onChange={(e) => setFormData({ ...formData, serviceType: e.target.value as ServiceType | '' })}
+                                            className={inputClass}
+                                        >
+                                            <option value="">— Select —</option>
+                                            {SERVICE_TYPES.map(st => (
+                                                <option key={st} value={st}>{st}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-slate-500 mt-1">Alacarte or Event classification</p>
+                                    </div>
+                                )}
 
                                 {/* SKU */}
                                 <div>

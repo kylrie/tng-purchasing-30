@@ -17,7 +17,8 @@ import { PRODUCTION_CATEGORIES } from '../types/menu.types';
 import { convertUnits } from '../services/recipes.service';
 import { UOM_CODES } from '../../../shared/constants/uom.constants';
 import { ProductionRecipeService } from '../services/production-recipe.service';
-import type { InventoryItem } from '../../inventory/types/InventoryItem';
+import type { InventoryItem, ServiceType } from '../../inventory/types/InventoryItem';
+import { SERVICE_TYPES } from '../../inventory/types/InventoryItem';
 
 // ============================================================
 // PROPS
@@ -47,6 +48,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
     // Form state
     const [name, setName] = useState('');
     const [category, setCategory] = useState<ProductionCategory>('Other');
+    const [serviceType, setServiceType] = useState<ServiceType | ''>('');
     const [description, setDescription] = useState('');
     const [yieldQuantity, setYieldQuantity] = useState<number>(1);
     const [yieldUnit, setYieldUnit] = useState('G');
@@ -66,6 +68,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
         if (recipe) {
             setName(recipe.name);
             setCategory(recipe.category);
+            setServiceType((recipe as any).serviceType || '');
             setDescription(recipe.description || '');
             setYieldQuantity(recipe.yieldQuantity);
             setYieldUnit(recipe.yieldUnit);
@@ -75,6 +78,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
         } else {
             setName('');
             setCategory('Other');
+            setServiceType('');
             setDescription('');
             setYieldQuantity(1);
             setYieldUnit('G');
@@ -176,6 +180,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                 businessUnitId,
                 name,
                 category,
+                ...(serviceType && { serviceType: serviceType as ServiceType }),
                 description: description || undefined,
                 yieldQuantity,
                 yieldUnit,
@@ -250,7 +255,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                         </div>
                     )}
                     {/* Basic Info */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label className="block text-sm text-slate-700 dark:text-slate-400 mb-2">Recipe Name *</label>
                             <input
@@ -272,6 +277,20 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
                             </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm text-slate-700 dark:text-slate-400 mb-2">Service Type</label>
+                            <select
+                                value={serviceType}
+                                onChange={(e) => setServiceType(e.target.value as ServiceType | '')}
+                                className="w-full px-4 py-3 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-amber-500"
+                            >
+                                <option value="">— Select —</option>
+                                {SERVICE_TYPES.map(st => (
+                                    <option key={st} value={st}>{st}</option>
+                                ))}
+                            </select>
+                            <p className="text-xs text-slate-500 mt-1">Alacarte or Event</p>
                         </div>
                     </div>
 

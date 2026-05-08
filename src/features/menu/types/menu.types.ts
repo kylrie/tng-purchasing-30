@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import type { ServiceType } from '../../inventory/types/InventoryItem';
 
 // ============================================================
 // MENU ITEM CATEGORIES
@@ -92,6 +93,7 @@ export interface MenuItem {
     businessUnitId: string;
     name: string;
     category: MenuCategory;
+    serviceType?: ServiceType;          // Alacarte or Event divider
     description?: string;
     sellingPrice: number;
     ingredients: RecipeIngredient[];
@@ -132,6 +134,7 @@ export interface ProductionRecipe {
     businessUnitId: string;
     name: string;
     category: ProductionCategory;
+    serviceType?: ServiceType;          // Alacarte or Event divider
     description?: string;
     yieldQuantity: number;          // How much this recipe produces
     yieldUnit: string;              // Unit of production (ml, kg, servings, etc.)
@@ -148,6 +151,7 @@ export interface CreateProductionRecipeInput {
     businessUnitId: string;
     name: string;
     category: ProductionCategory;
+    serviceType?: ServiceType;          // Alacarte or Event divider
     description?: string;
     yieldQuantity: number;
     yieldUnit: string;
@@ -172,6 +176,7 @@ export interface CreateMenuItemInput {
     businessUnitId: string;
     name: string;
     category: MenuCategory;
+    serviceType?: ServiceType;          // Alacarte or Event divider
     description?: string;
     sellingPrice: number;
     ingredients: Omit<RecipeIngredient, 'totalCost'>[];

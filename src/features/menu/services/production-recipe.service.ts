@@ -86,6 +86,7 @@ export class ProductionRecipeService {
             businessUnitId: input.businessUnitId,
             name: input.name,
             category: input.category,
+            ...(input.serviceType && { serviceType: input.serviceType }),
             description: input.description ?? null,
             yieldQuantity: input.yieldQuantity,
             yieldUnit: input.yieldUnit,
@@ -107,6 +108,7 @@ export class ProductionRecipeService {
                 name: input.name,
                 type: 'PRODUCTION',
                 category: 'Mixers',
+                ...(input.serviceType && { serviceType: input.serviceType }),
                 sku: `PROD-${docRef.id.slice(0, 6).toUpperCase()}`,
                 storageAreas: [],
                 units: {
@@ -164,6 +166,7 @@ export class ProductionRecipeService {
         const updateData = {
             name: input.name,
             category: input.category,
+            ...(input.serviceType ? { serviceType: input.serviceType } : {}),
             description: input.description ?? null,
             yieldQuantity: input.yieldQuantity,
             yieldUnit: input.yieldUnit,
@@ -181,7 +184,8 @@ export class ProductionRecipeService {
             try {
                 await InventoryService.updateInventoryItem(recipe.linkedInventoryItemId, {
                     name: input.name,
-                    costPerUnit
+                    costPerUnit,
+                    ...(input.serviceType ? { serviceType: input.serviceType } : {})
                 }, { skipRecipeRecalculation: true });
             } catch (err) {
                 console.error('Error updating linked inventory item:', err);

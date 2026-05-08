@@ -325,6 +325,7 @@ export async function createMenuItem(input: CreateMenuItemInput): Promise<string
         businessUnitId: input.businessUnitId,
         name: input.name,
         category: input.category,
+        ...(input.serviceType && { serviceType: input.serviceType }),
         description: input.description || '',
         sellingPrice: input.sellingPrice,
         ingredients,
@@ -423,6 +424,7 @@ export async function updateMenuItem(
     // Copy other fields
     if (input.name) updateData.name = input.name;
     if (input.category) updateData.category = input.category;
+    if (input.serviceType !== undefined) (updateData as any).serviceType = input.serviceType;
     if (input.description !== undefined) updateData.description = input.description;
     if (input.imageUrl !== undefined) updateData.imageUrl = input.imageUrl;
 

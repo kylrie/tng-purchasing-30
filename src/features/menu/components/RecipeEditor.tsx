@@ -7,6 +7,8 @@ import PesoSign from '../../../shared/components/PesoSign';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 import { InventoryService } from '../../inventory/services/inventory.service';
 import type { MenuItem, MenuCategory } from '../types/menu.types';
+import type { ServiceType } from '../../inventory/types/InventoryItem';
+import { SERVICE_TYPES } from '../../inventory/types/InventoryItem';
 import {
     MENU_CATEGORIES,
     getFoodCostStatus,
@@ -196,6 +198,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
     // Form state
     const [name, setName] = useState('');
     const [category, setCategory] = useState<MenuCategory>('Mains');
+    const [serviceType, setServiceType] = useState<ServiceType | ''>('');
     const [description, setDescription] = useState('');
     const [sellingPrice, setSellingPrice] = useState(0);
     const [ingredients, setIngredients] = useState<IngredientFormData[]>([]);
@@ -242,6 +245,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
         if (menuItem) {
             setName(menuItem.name);
             setCategory(menuItem.category);
+            setServiceType((menuItem as any).serviceType || '');
             setDescription(menuItem.description || '');
             setSellingPrice(menuItem.sellingPrice);
 
@@ -265,6 +269,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
             // Reset for new item
             setName('');
             setCategory('Mains');
+            setServiceType('');
             setDescription('');
             setSellingPrice(0);
             setIngredients([]);
@@ -277,14 +282,29 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
     }, [ingredients]);
 
     // Filtered inventory for search
+    // Rule: items must match the menu item's service type.
+    // Exception: Retail items are universal — always available regardless of service type.
     const filteredInventory = useMemo(() => {
-        if (!searchQuery) return inventoryItems;
+        let items = inventoryItems;
+
+        // Apply service type filter (if a service type is selected and it's not Retail)
+        if (serviceType && serviceType !== 'Retail') {
+            items = items.filter(item =>
+                // Include items with matching service type OR Retail items (universal)
+                (item as any).serviceType === serviceType ||
+                (item as any).serviceType === 'Retail' ||
+                !(item as any).serviceType  // Include unclassified items too
+            );
+        }
+
+        // Apply search query
+        if (!searchQuery) return items;
         const query = searchQuery.toLowerCase();
-        return inventoryItems.filter(item =>
+        return items.filter(item =>
             item.name.toLowerCase().includes(query) ||
             item.category.toLowerCase().includes(query)
         );
-    }, [inventoryItems, searchQuery]);
+    }, [inventoryItems, searchQuery, serviceType]);
 
     // Add ingredient
     const handleAddIngredient = (item: InventoryItem) => {
@@ -385,6 +405,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                 await RecipesService.updateMenuItem(menuItem.id, {
                     name: name.trim(),
                     category,
+                    ...(serviceType && { serviceType: serviceType as ServiceType }),
                     description: description.trim() || '',
                     sellingPrice,
                     ingredients: ingredientInputs
@@ -394,6 +415,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                     businessUnitId,
                     name: name.trim(),
                     category,
+                    ...(serviceType && { serviceType: serviceType as ServiceType }),
                     description: description.trim() || '',
                     sellingPrice,
                     ingredients: ingredientInputs
@@ -485,6 +507,22 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                         </select>
                                     </div>
 
+                                    {/* Service Type */}
+                                    <div>
+                                        <label className={labelClass}>Service Type</label>
+                                        <select
+                                            value={serviceType}
+                                            onChange={(e) => setServiceType(e.target.value as ServiceType | '')}
+                                            className={inputClass}
+                                        >
+                                            <option value="">— Select —</option>
+                                            {SERVICE_TYPES.map(st => (
+                                                <option key={st} value={st} className="bg-white dark:bg-slate-800">{st}</option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Alacarte or Event classification</p>
+                                    </div>
+
                                     {/* Description */}
                                     <div>
                                         <label className={labelClass}>Description</label>
@@ -547,6 +585,20 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                                     autoFocus
                                                 />
                                             </div>
+
+                                            {/* Service type filter notice */}
+                                            {serviceType && serviceType !== 'Retail' && (
+                                                <div className="flex items-center gap-2 px-2 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
+                                                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                                                        serviceType === 'Alacarte'
+                                                            ? 'bg-indigo-500/20 text-indigo-400'
+                                                            : 'bg-teal-500/20 text-teal-400'
+                                                    }`}>{serviceType}</span>
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                        Showing <span className="font-medium text-slate-700 dark:text-slate-300">{serviceType}</span> &amp; Retail items only
+                                                    </p>
+                                                </div>
+                                            )}
 
                                             <div className="max-h-48 overflow-y-auto space-y-1">
                                                 {filteredInventory.length === 0 ? (
