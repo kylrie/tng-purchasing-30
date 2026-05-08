@@ -717,222 +717,148 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                     </button>
                 </div>
 
-                {/* Session Status / Start Button (only in Count tab) */}
+                {/* Session Status (Count tab only) */}
                 {mainTab === 'count' && (
-                <div className="flex items-center gap-3">
-                    {!session ? (
-                        <button
-                            onClick={startSession}
-                            className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
-                        >
-                            <Play size={18} />
-                            Start Session
-                        </button>
-                    ) : (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/50 rounded-xl">
-                            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                            <span className="text-green-400 font-medium">Active</span>
-                        </div>
-                    )}
-                </div>
+                    <div className="flex items-center gap-3">
+                        {!session ? (
+                            <button
+                                onClick={startSession}
+                                className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
+                            >
+                                <Play size={18} />
+                                Start Session
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/50 rounded-xl">
+                                <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                                <span className="text-green-400 font-medium">Active</span>
+                            </div>
+                        )}
+                    </div>
                 )}
-            </div>
 
-                {/* Action Buttons Row */}
+                {/* Action Buttons */}
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={handleAddItem}
-                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
-                    >
-                        <Plus size={16} />
-                        Add Item
+                    <button onClick={handleAddItem} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors">
+                        <Plus size={16} />Add Item
                     </button>
-                    <button
-                        onClick={handleExport}
-                        disabled={items.length === 0}
-                        className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
-                    >
-                        <Download size={16} />
-                        Export
+                    <button onClick={handleExport} disabled={items.length === 0} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50">
+                        <Download size={16} />Export
                     </button>
                     <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer">
                         <Upload size={16} />
                         {isImporting ? 'Importing...' : 'Import Items'}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".csv"
-                            onChange={handleFileSelect}
-                            disabled={isImporting}
-                            className="hidden"
-                        />
+                        <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} disabled={isImporting} className="hidden" />
                     </label>
-                    <button
-                        onClick={downloadSampleCSV}
-                        className="px-3 py-2 bg-purple-800 hover:bg-purple-700 text-purple-200 rounded-lg text-sm transition-colors flex items-center gap-1"
-                        title="Download Inventory Items Template"
-                    >
-                        <Download size={14} />
-                        <span className="text-xs">Items</span>
+                    <button onClick={downloadSampleCSV} className="px-3 py-2 bg-purple-800 hover:bg-purple-700 text-purple-200 rounded-lg text-sm transition-colors flex items-center gap-1" title="Download Inventory Items Template">
+                        <Download size={14} /><span className="text-xs">Items</span>
                     </button>
                 </div>
             </div>
 
-            {/* Logs Tab Content */}
+            {/* LOGS TAB */}
             {mainTab === 'logs' && (
                 <StocktakeLogsPanel logs={auditLogs} isLoading={isLoadingLogs} />
             )}
 
-            {/* Count Tab: Type Tabs */}
-            {mainTab === 'count' && <div className="flex gap-2 overflow-x-auto pb-2">
-                {TYPE_TABS.map(tab => {
-                    const TabIcon = tab.icon;
-                    return (
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveTypeTab(tab.key)}
-                            className={`px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTypeTab === tab.key
-                                ? 'bg-purple-600 dark:bg-purple-500 text-white'
-                                : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
-                                }`}
-                        >
-                            <TabIcon size={16} />
-                            {tab.label}
-                        </button>
-                    );
-                })}
-            </div>}
+            {/* COUNT TAB */}
+            {mainTab === 'count' && (
+                <>
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                        {TYPE_TABS.map(tab => {
+                            const TabIcon = tab.icon;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveTypeTab(tab.key)}
+                                    className={`px-4 py-2 rounded-xl font-medium whitespace-nowrap transition-all flex items-center gap-2 ${activeTypeTab === tab.key ? 'bg-purple-600 dark:bg-purple-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'}`}
+                                >
+                                    <TabIcon size={16} />{tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
 
-            {mainTab === 'count' && <div className="contents">{/* Import Result Alert */}
-            {importResult && (
-                <div className={`p-4 rounded-lg border flex items-start gap-3 ${importResult.success ? 'bg-green-900/30 border-green-700/50' : 'bg-amber-900/30 border-amber-700/50'}`}>
-                    {importResult.success ? (
-                        <Check size={20} className="text-green-400 mt-0.5 flex-shrink-0" />
-                    ) : (
-                        <AlertTriangle size={20} className="text-amber-400 mt-0.5 flex-shrink-0" />
-                    )}
-                    <div className="flex-1">
-                        <p className={importResult.success ? 'text-green-300' : 'text-amber-300'}>
-                            Imported: {importResult.imported} | Skipped: {importResult.skipped} | Failed: {importResult.failed}
-                        </p>
-                        {importResult.errors.length > 0 && (
-                            <ul className="text-xs text-slate-400 mt-2 max-h-24 overflow-auto">
-                                {importResult.errors.slice(0, 5).map((err, i) => (
-                                    <li key={i}>• {err}</li>
-                                ))}
-                                {importResult.errors.length > 5 && (
-                                    <li className="text-slate-500">...and {importResult.errors.length - 5} more</li>
+                    {importResult && (
+                        <div className={`p-4 rounded-lg border flex items-start gap-3 ${importResult.success ? 'bg-green-900/30 border-green-700/50' : 'bg-amber-900/30 border-amber-700/50'}`}>
+                            {importResult.success ? <Check size={20} className="text-green-400 mt-0.5 flex-shrink-0" /> : <AlertTriangle size={20} className="text-amber-400 mt-0.5 flex-shrink-0" />}
+                            <div className="flex-1">
+                                <p className={importResult.success ? 'text-green-300' : 'text-amber-300'}>
+                                    Imported: {importResult.imported} | Skipped: {importResult.skipped} | Failed: {importResult.failed}
+                                </p>
+                                {importResult.errors.length > 0 && (
+                                    <ul className="text-xs text-slate-400 mt-2 max-h-24 overflow-auto">
+                                        {importResult.errors.slice(0, 5).map((err, i) => <li key={i}>• {err}</li>)}
+                                        {importResult.errors.length > 5 && <li className="text-slate-500">...and {importResult.errors.length - 5} more</li>}
+                                    </ul>
                                 )}
-                            </ul>
-                        )}
-                    </div>
-                    <button onClick={() => setImportResult(null)} className="text-slate-400 hover:text-white">×</button>
-                </div>
-            )}
-
-            {/* Storage Area Tabs */}
-            {storageAreas.length > 0 && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-2">
-                    <MapPin size={16} className="text-slate-400 flex-shrink-0" />
-                    <button
-                        onClick={() => setActiveStorageArea('ALL')}
-                        className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeStorageArea === 'ALL'
-                            ? 'bg-cyan-500 text-white'
-                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
-                            }`}
-                    >
-                        All Areas
-                    </button>
-                    {storageAreas.map(area => (
-                        <button
-                            key={area}
-                            onClick={() => setActiveStorageArea(area)}
-                            className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeStorageArea === area
-                                ? 'bg-cyan-500 text-white'
-                                : 'bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'
-                                }`}
-                        >
-                            {area}
-                        </button>
-                    ))}
-                </div>
-            )}
-
-            {session ? (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-4">
-                        {/* Search */}
-                        <div className="relative">
-                            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-                            <input
-                                type="text"
-                                placeholder="Search items..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                            />
+                            </div>
+                            <button onClick={() => setImportResult(null)} className="text-slate-400 hover:text-white">×</button>
                         </div>
+                    )}
 
-                        {/* Items */}
-                        <div className="space-y-4">
-                            {filteredItems.length === 0 ? (
-                                <div className="text-center py-12">
-                                    <Package size={48} className="text-slate-400 dark:text-slate-600 mx-auto mb-4" />
-                                    <p className="text-slate-500 dark:text-slate-400">No items found for {currentBusiness?.name || 'this business'}</p>
+                    {storageAreas.length > 0 && (
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                            <MapPin size={16} className="text-slate-400 flex-shrink-0" />
+                            <button onClick={() => setActiveStorageArea('ALL')} className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeStorageArea === 'ALL' ? 'bg-cyan-500 text-white' : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'}`}>All Areas</button>
+                            {storageAreas.map(area => (
+                                <button key={area} onClick={() => setActiveStorageArea(area)} className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeStorageArea === area ? 'bg-cyan-500 text-white' : 'bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'}`}>{area}</button>
+                            ))}
+                        </div>
+                    )}
+
+                    {session ? (
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            <div className="lg:col-span-2 space-y-4">
+                                <div className="relative">
+                                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+                                    <input type="text" placeholder="Search items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-purple-500" />
                                 </div>
-                            ) : (
-                                filteredItems.map(item => {
-                                    const state = countStates.get(item.id);
-                                    return (
-                                        <VisualCountRow
-                                            key={item.id}
-                                            item={item}
-                                            count={state?.count ?? 0}
-                                            partialCount={state?.partialCount ?? 0}
-                                            onCountChange={(count, partial) =>
-                                                handleCountChange(item.id, count, partial, item.units.buyUnit)
-                                            }
-                                            onCalculatorOpen={() => openCalculator(item)}
-                                        />
-                                    );
-                                })
-                            )}
+                                <div className="space-y-4">
+                                    {filteredItems.length === 0 ? (
+                                        <div className="text-center py-12">
+                                            <Package size={48} className="text-slate-400 dark:text-slate-600 mx-auto mb-4" />
+                                            <p className="text-slate-500 dark:text-slate-400">No items found for {currentBusiness?.name || 'this business'}</p>
+                                        </div>
+                                    ) : (
+                                        filteredItems.map(item => {
+                                            const state = countStates.get(item.id);
+                                            return (
+                                                <VisualCountRow
+                                                    key={item.id}
+                                                    item={item}
+                                                    count={state?.count ?? 0}
+                                                    partialCount={state?.partialCount ?? 0}
+                                                    onCountChange={(count, partial) => handleCountChange(item.id, count, partial, item.units.buyUnit)}
+                                                    onCalculatorOpen={() => openCalculator(item)}
+                                                />
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                            <div className="lg:col-span-1">
+                                <ReviewPanel session={session} countStates={countStates} items={items} onSubmit={submitSession} onCancel={cancelSession} isSubmitting={isSubmitting} />
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-8 text-center shadow-sm dark:shadow-none">
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mx-auto mb-6">
+                                <Package size={36} className="text-purple-600 dark:text-purple-400" />
+                            </div>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Ready to Count?</h2>
+                            <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
+                                Start a counting session for <strong>{currentBusiness?.name || 'selected business'}</strong>.
+                                Items are filtered by type tabs above.
+                            </p>
+                            <button onClick={startSession} className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-purple-500/20">
+                                <Play size={20} />Start Counting Session
+                            </button>
+                        </div>
+                    )}
+                </>
+            )}
 
-                    {/* Review Panel */}
-                    <div className="lg:col-span-1">
-                        <ReviewPanel
-                            session={session}
-                            countStates={countStates}
-                            items={items}
-                            onSubmit={submitSession}
-                            onCancel={cancelSession}
-                            isSubmitting={isSubmitting}
-                        />
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-8 text-center shadow-sm dark:shadow-none">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mx-auto mb-6">
-                        <Package size={36} className="text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Ready to Count?</h2>
-                    <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
-                        Start a counting session for <strong>{currentBusiness?.name || 'selected business'}</strong>.
-                        Items are filtered by type tabs above.
-                    </p>
-                    <button
-                        onClick={startSession}
-                        className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-purple-500/20"
-                    >
-                        <Play size={20} />
-                        Start Counting Session
-                    </button>
-                </div>
-            )}</div>}
-
-            {/* Calculator Modal */}
             {calculatorItem && (
                 <CalculatorPopup
                     key={calculatorItem.id}
@@ -945,7 +871,6 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                 />
             )}
 
-            {/* Add/Edit Item Modal */}
             <InventoryItemModal
                 isOpen={showItemModal}
                 onClose={() => setShowItemModal(false)}
