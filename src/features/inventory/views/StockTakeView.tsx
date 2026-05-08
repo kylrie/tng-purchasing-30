@@ -177,7 +177,28 @@ const StocktakeLogsPanel: React.FC<{
     const [search, setSearch] = useState('');
     const [sessionFilter, setSessionFilter] = useState('ALL');
 
-    const sessions = Array.from(new Set(logs.map(l => l.sessionId)));
+    // Build session → date map (use earliest submittedAt per session)
+    const sessionDateMap = new Map<string, Date>();
+    logs.forEach(log => {
+        const ts = log.submittedAt?.toDate?.();
+        if (ts && (!sessionDateMap.has(log.sessionId) || ts < sessionDateMap.get(log.sessionId)!)) {
+            sessionDateMap.set(log.sessionId, ts);
+        }
+    });
+
+    // Sort sessions by date descending (newest first)
+    const sessions = Array.from(sessionDateMap.entries())
+        .sort((a, b) => b[1].getTime() - a[1].getTime())
+        .map(([id]) => id);
+
+    const formatSessionDate = (sessionId: string) => {
+        const date = sessionDateMap.get(sessionId);
+        if (!date) return sessionId.slice(0, 8);
+        return date.toLocaleDateString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric',
+            hour: 'numeric', minute: '2-digit', hour12: true
+        });
+    };
 
     const filtered = logs.filter(log => {
         const matchSearch = search === '' ||
@@ -213,7 +234,7 @@ const StocktakeLogsPanel: React.FC<{
                 >
                     <option value="ALL">All Sessions</option>
                     {sessions.map(s => (
-                        <option key={s} value={s}>Session: {s.slice(0, 8)}...</option>
+                        <option key={s} value={s}>{formatSessionDate(s)}</option>
                     ))}
                 </select>
             </div>
