@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Routine Inventory Counting Guide — TES</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #1a1a2e;
+    background: #fff;
+    line-height: 1.6;
+    font-size: 11pt;
+    padding: 40px 50px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  @media print {
+    body { padding: 20px 30px; font-size: 10pt; }
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    h2 { page-break-after: avoid; }
+    table { page-break-inside: avoid; }
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 3px solid #0f3460;
+    padding-bottom: 16px;
+    margin-bottom: 30px;
+  }
+  .header-left h1 {
+    font-size: 22pt;
+    font-weight: 800;
+    color: #0f3460;
+    letter-spacing: -0.5px;
+  }
+  .header-left p {
+    font-size: 10pt;
+    color: #555;
+    margin-top: 2px;
+  }
+  .header-right {
+    text-align: right;
+    font-size: 9pt;
+    color: #777;
+  }
+  .header-right .brand {
+    font-weight: 700;
+    font-size: 11pt;
+    color: #0f3460;
+  }
+
+  /* Section titles */
+  h2 {
+    font-size: 14pt;
+    font-weight: 700;
+    color: #0f3460;
+    margin-top: 28px;
+    margin-bottom: 12px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #e0e7ef;
+  }
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #16213e;
+    margin-top: 18px;
+    margin-bottom: 8px;
+  }
+  h4 {
+    font-size: 10.5pt;
+    font-weight: 600;
+    color: #333;
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 16px;
+    font-size: 10pt;
+  }
+  th {
+    background: #0f3460;
+    color: #fff;
+    font-weight: 600;
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 9.5pt;
+  }
+  td {
+    padding: 7px 10px;
+    border-bottom: 1px solid #e0e7ef;
+    vertical-align: top;
+  }
+  tr:nth-child(even) { background: #f7f9fc; }
+  tr:hover { background: #edf2f7; }
+
+  /* Alert boxes */
+  .alert {
+    border-left: 4px solid;
+    padding: 10px 14px;
+    margin: 12px 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 10pt;
+  }
+  .alert-tip { border-color: #10b981; background: #ecfdf5; }
+  .alert-tip .alert-title { color: #059669; }
+  .alert-important { border-color: #3b82f6; background: #eff6ff; }
+  .alert-important .alert-title { color: #2563eb; }
+  .alert-warning { border-color: #f59e0b; background: #fffbeb; }
+  .alert-warning .alert-title { color: #d97706; }
+  .alert-title { font-weight: 700; font-size: 9.5pt; text-transform: uppercase; margin-bottom: 4px; }
+
+  /* Code blocks */
+  .code-block {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 9.5pt;
+    margin: 8px 0 14px;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    color: #334155;
+  }
+
+  /* Lists */
+  ul, ol { margin: 6px 0 10px 20px; }
+  li { margin-bottom: 4px; }
+
+  /* Summary box */
+  .summary-box {
+    background: #0f3460;
+    color: #fff;
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 20px 0;
+  }
+  .summary-box h3 { color: #7dd3fc; margin-top: 0; }
+  .summary-box .rhythm-section {
+    display: flex;
+    gap: 20px;
+    margin-top: 12px;
+  }
+  .summary-box .rhythm-card {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 12px 14px;
+  }
+  .summary-box .rhythm-label {
+    font-weight: 700;
+    font-size: 10pt;
+    color: #7dd3fc;
+    margin-bottom: 6px;
+  }
+  .summary-box ul { margin-left: 16px; }
+  .summary-box li { font-size: 9.5pt; margin-bottom: 3px; }
+
+  /* Footer */
+  .footer {
+    margin-top: 30px;
+    padding-top: 12px;
+    border-top: 2px solid #e0e7ef;
+    font-size: 8.5pt;
+    color: #999;
+    text-align: center;
+  }
+
+  /* Print button */
+  .print-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: #0f3460;
+    color: #fff;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 8px;
+    font-size: 12pt;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 999;
+  }
+  .print-btn:hover { background: #16213e; }
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">📄 Save as PDF</button>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Routine Inventory Counting Guide</h1>
+    <p>Standard Operating Procedure — Ongoing Weekly &amp; Daily Counts</p>
+  </div>
+  <div class="header-right">
+    <div class="brand">TES — TheNextPerience ERP System</div>
+    <div>Inventory Management Module</div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>1. When to Count</h2>
+
+<table>
+  <tr><th>Count Type</th><th>Frequency</th><th>What to Count</th><th>Best Time</th></tr>
+  <tr><td><strong>Full Count</strong></td><td>Weekly (recommended) or Bi-weekly</td><td>All items across all storage areas</td><td>Sunday night or Monday before opening</td></tr>
+  <tr><td><strong>Spot Count</strong></td><td>Daily</td><td>High-value or fast-moving items (spirits, proteins)</td><td>End of shift / before opening</td></tr>
+  <tr><td><strong>Cycle Count</strong></td><td>Rotating daily</td><td>One category per day</td><td>End of day</td></tr>
+</table>
+
+<div class="alert alert-tip">
+  <div class="alert-title">💡 Tip</div>
+  <strong>Start with Weekly Full Counts</strong> for the first month. Once your data stabilizes and variances shrink, you can shift to a cycle count approach.
+</div>
+
+<!-- ============================================================ -->
+<h2>2. Step-by-Step: Routine Count Process</h2>
+
+<h3>Step 1 — Preparation (Before Counting)</h3>
+<ul>
+  <li><strong>Stop all movement</strong> — No receiving, transfers, wastage, or production during the count</li>
+  <li><strong>Organize storage</strong> — Everything should be in its assigned storage area</li>
+  <li><strong>Assign counters</strong> — Ideally, have someone count who is NOT the person responsible for the stock (separation of duties)</li>
+  <li><strong>Print/open count sheets</strong> — Use the system's Stock Count session</li>
+</ul>
+
+<h3>Step 2 — Start a Count Session (In the System)</h3>
+<ol>
+  <li>Go to <strong>Inventory → Stock Management → Stock Count</strong></li>
+  <li>Click <strong>Start New Count</strong></li>
+  <li>Select the <strong>Business Unit</strong></li>
+  <li>The system loads all active items with their <strong>theoretical stock</strong> (what the system thinks you have)</li>
+</ol>
+
+<h3>Step 3 — Physical Counting Rules</h3>
+
+<div class="alert alert-important">
+  <div class="alert-title">📋 Golden Rules of Counting</div>
+</div>
+
+<table>
+  <tr><th>Rule</th><th>Why</th></tr>
+  <tr><td>Count everything in <strong>recipe units</strong> (the base unit in the system)</td><td>Ensures consistency — the system stores stock in recipe units</td></tr>
+  <tr><td><strong>Convert as you go</strong> — e.g., 2 cases of beer (12 bottles each) = 24 bottles</td><td>If recipe unit is "bottle", enter 24, not 2</td></tr>
+  <tr><td>Count <strong>full units first, then partials</strong></td><td>For liquids: full bottles + estimate partial bottles (e.g., 0.5 for half full)</td></tr>
+  <tr><td><strong>Never round</strong> — be precise</td><td>A variance of 0.5 bottles matters over time</td></tr>
+  <tr><td><strong>Count twice if unsure</strong></td><td>Better slow and accurate than fast and wrong</td></tr>
+  <tr><td>Count <strong>ALL locations</strong> for the same item</td><td>Check bar, kitchen, storage room — combine totals</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 class="page-break">3. How to Count Each Item Type</h2>
+
+<h4>🧴 Raw Materials (Ingredients)</h4>
+<div class="code-block">Example: "Tanqueray Gin"
+  Recipe Unit: ml  |  Buy Unit: bottle (750ml)  |  Conversion: 750
+
+  Physical count: 3 full bottles + 1 bottle ~60% full
+  Calculation: (3 × 750) + (0.6 × 750) = 2,250 + 450 = 2,700 ml
+  Enter: 2700</div>
+
+<h4>🍳 Production Items (Pre-batched mixes, sauces)</h4>
+<div class="code-block">Example: "House BBQ Sauce"
+  Recipe Unit: ml  |  Yield per batch: 2000ml
+
+  Physical count: 1 full container (2000ml) + 1 container ~30% full
+  Calculation: 2000 + (0.3 × 2000) = 2,600 ml
+  Enter: 2600</div>
+
+<h4>🏷️ Finished Goods (Items you sell)</h4>
+<div class="code-block">Example: "Bottled Hot Sauce (250ml)"
+  Recipe Unit: EA (each)
+
+  Physical count: 14 bottles on shelf + 1 case (12) in storage
+  Enter: 26</div>
+
+<h4>📦 Dry Goods / Supplies</h4>
+<div class="code-block">Example: "Paper Cups"
+  Recipe Unit: EA
+
+  Physical count: ~45 cups in open sleeve + 2 full packs (50 each)
+  Enter: 145</div>
+
+<!-- ============================================================ -->
+<h2>4. Entering Counts &amp; Reviewing Variances</h2>
+
+<p>After entering all counts, focus on variance analysis:</p>
+
+<table>
+  <tr><th>Variance</th><th>Meaning</th><th>Action</th></tr>
+  <tr><td><strong>0 or very small</strong> (±1-2%)</td><td>Normal</td><td>✅ Accept</td></tr>
+  <tr><td><strong>Negative</strong> (missing stock)</td><td>Possible theft, unrecorded wastage, or missed receiving</td><td>⚠️ Investigate</td></tr>
+  <tr><td><strong>Positive</strong> (extra stock)</td><td>Possible receiving not entered, or miscount last time</td><td>⚠️ Investigate</td></tr>
+  <tr><td><strong>Large % on high-value items</strong></td><td>Significant financial impact</td><td>🚨 Immediate investigation</td></tr>
+</table>
+
+<div class="alert alert-warning">
+  <div class="alert-title">⚠️ Red Flags to Watch</div>
+  <ul style="margin-top: 6px;">
+    <li>Same item consistently short every count → possible theft pattern</li>
+    <li>Spirits short by exactly 1 bottle increments → likely pilferage</li>
+    <li>Raw materials short but no corresponding production recorded → unrecorded wastage or recipes not being followed</li>
+  </ul>
+</div>
+
+<h3>Finalize the Count</h3>
+<ol>
+  <li>Review all variances</li>
+  <li>Add <strong>notes</strong> for large discrepancies (e.g., "Found 2 bottles broken in storage, not logged as wastage")</li>
+  <li><strong>Submit/Finalize</strong> the count session</li>
+  <li>The system updates <code>currentStock</code> to match your physical count</li>
+  <li><code>theoreticalStock</code> resets to equal <code>currentStock</code> (clean baseline for next period)</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 class="page-break">5. Weekly Count Schedule Template</h2>
+
+<table>
+  <tr><th>Day</th><th>Task</th><th>Items</th></tr>
+  <tr><td><strong>Monday</strong></td><td>Spot Count</td><td>Top 10 highest-value spirits + proteins</td></tr>
+  <tr><td><strong>Tuesday</strong></td><td>—</td><td>Normal operations</td></tr>
+  <tr><td><strong>Wednesday</strong></td><td>Spot Count</td><td>Fast-moving bar items (beer, mixers)</td></tr>
+  <tr><td><strong>Thursday</strong></td><td>—</td><td>Normal operations</td></tr>
+  <tr><td><strong>Friday</strong></td><td>—</td><td>Normal operations (busy night)</td></tr>
+  <tr><td><strong>Saturday</strong></td><td>—</td><td>Normal operations (busy night)</td></tr>
+  <tr><td><strong>Sunday</strong></td><td><strong>Full Count</strong></td><td>ALL items — after close, before Monday receiving</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>6. Anti-Theft Best Practices</h2>
+
+<table>
+  <tr><th>Practice</th><th>Implementation</th></tr>
+  <tr><td><strong>Separation of duties</strong></td><td>Person counting ≠ person managing that stock</td></tr>
+  <tr><td><strong>Blind counts</strong></td><td>Counter should NOT see the theoretical stock before counting</td></tr>
+  <tr><td><strong>Rotate counters</strong></td><td>Don't let the same person count the same area every time</td></tr>
+  <tr><td><strong>Log ALL wastage</strong></td><td>Every broken bottle, spoiled ingredient, or spill → Wastage module</td></tr>
+  <tr><td><strong>Record ALL receiving</strong></td><td>Every delivery → Goods Receiving module, link to PRF</td></tr>
+  <tr><td><strong>Review variance reports</strong></td><td>Management reviews weekly, signs off</td></tr>
+  <tr><td><strong>Camera coverage</strong></td><td>Storage areas should have camera coverage</td></tr>
+  <tr><td><strong>Lock high-value stock</strong></td><td>Spirits + expensive ingredients in locked storage, key held by manager</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>7. Common Mistakes to Avoid</h2>
+
+<table>
+  <tr><th>❌ Mistake</th><th>✅ Correct Approach</th></tr>
+  <tr><td>Counting in buy units (cases) and entering as-is</td><td>Convert to recipe units before entering</td></tr>
+  <tr><td>Counting during active service</td><td>Count when operations are stopped</td></tr>
+  <tr><td>Skipping partial bottles/containers</td><td>Estimate partials — every bit counts</td></tr>
+  <tr><td>Forgetting items in secondary locations</td><td>Check ALL storage areas for every item</td></tr>
+  <tr><td>Not recording wastage between counts</td><td>Log wastage immediately when it happens</td></tr>
+  <tr><td>Counting production items but not deducting ingredients</td><td>Production module handles ingredient deduction — just count what's physically there</td></tr>
+  <tr><td>Adjusting theoretical stock manually to hide variances</td><td>Never — the variance IS the data you need</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<div class="summary-box">
+  <h3>📌 The Counting Rhythm — Summary</h3>
+  <div class="rhythm-section">
+    <div class="rhythm-card">
+      <div class="rhythm-label">📅 DAILY</div>
+      <ul>
+        <li>Record all wastage immediately</li>
+        <li>Record all receiving via Goods Receiving</li>
+        <li>Spot count high-value items (optional)</li>
+      </ul>
+    </div>
+    <div class="rhythm-card">
+      <div class="rhythm-label">📅 WEEKLY (Sunday)</div>
+      <ul>
+        <li>Full physical count of all items</li>
+        <li>Enter counts in Stock Count session</li>
+        <li>Review variances, investigate anomalies</li>
+        <li>Finalize → system resets baseline</li>
+      </ul>
+    </div>
+    <div class="rhythm-card">
+      <div class="rhythm-label">📅 MONTHLY</div>
+      <ul>
+        <li>Review variance trend reports</li>
+        <li>Identify repeat problem items</li>
+        <li>Adjust par levels if needed</li>
+        <li>Management sign-off</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<p style="text-align:center; margin-top: 20px; font-weight: 600; color: #0f3460; font-size: 11pt;">
+  Count what's real, let the system show you the gaps.<br>
+  <span style="font-weight: 400; font-size: 9.5pt; color: #666;">The variance between theoretical and actual is where all your operational insights live — don't hide it, investigate it.</span>
+</p>
+
+<div class="footer">
+  TES — TheNextPerience ERP System &nbsp;|&nbsp; Routine Inventory Counting Guide &nbsp;|&nbsp; Confidential — Internal Use Only
+</div>
+
+</body>
+</html>

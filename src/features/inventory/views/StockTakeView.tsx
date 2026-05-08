@@ -404,12 +404,20 @@ const ReviewPanel: React.FC<{
 };
 
 // ============================================================
+// ROLE-BASED ACCESS: Only these roles can view Stocktake Logs
+// ============================================================
+const LOGS_ALLOWED_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BOARD_OF_DIRECTOR'];
+
+// ============================================================
 // MAIN COMPONENT
 // ============================================================
 
 const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, uomOptions }) => {
     // Business unit selection
     const { selectedBusinessUnit } = useBusinessUnit();
+
+    // Role-based access for Logs tab
+    const canViewLogs = LOGS_ALLOWED_ROLES.includes(currentUser.role);
 
     // Main view tab: 'count' | 'logs'
     const [mainTab, setMainTab] = useState<'count' | 'logs'>('count');
@@ -493,7 +501,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
 
     // Load audit logs when Logs tab is opened or BU changes
     useEffect(() => {
-        if (mainTab !== 'logs' || !selectedBusinessUnit) return;
+        if (mainTab !== 'logs' || !selectedBusinessUnit || !canViewLogs) return;
         const loadLogs = async () => {
             setIsLoadingLogs(true);
             try {
@@ -704,6 +712,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                         <Package size={16} />
                         Count
                     </button>
+                    {canViewLogs && (
                     <button
                         onClick={() => setMainTab('logs')}
                         className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -715,6 +724,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                         <ClipboardList size={16} />
                         Logs
                     </button>
+                    )}
                 </div>
 
                 {/* Session Status (Count tab only) */}
@@ -756,8 +766,8 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                 </div>
             </div>
 
-            {/* LOGS TAB */}
-            {mainTab === 'logs' && (
+            {/* LOGS TAB (role-gated) */}
+            {mainTab === 'logs' && canViewLogs && (
                 <StocktakeLogsPanel logs={auditLogs} isLoading={isLoadingLogs} />
             )}
 

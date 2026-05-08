@@ -1,0 +1,49 @@
+graph TD
+    %% Node Styling
+    classDef burf fill:#0ea5e9,stroke:#0369a1,stroke-width:2px,color:#fff
+    classDef prf fill:#8b5cf6,stroke:#4c1d95,stroke-width:2px,color:#fff
+    classDef liq fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff
+    classDef decision fill:#f59e0b,stroke:#b45309,stroke-width:2px,color:#fff
+    classDef endpoint fill:#64748b,stroke:#334155,stroke-width:2px,color:#fff
+    classDef reject fill:#ef4444,stroke:#991b1b,stroke-width:2px,color:#fff
+
+    subgraph Phase 1: BURF
+        B1([Draft BURF]):::burf --> B2[BURF_PENDING_MANAGER]:::burf
+        B2 -->|Approve| B3[BURF_PENDING_CIC]:::burf
+        B3 -->|Approve| B4[READY_FOR_PRF]:::burf
+        B4 -.->|Once all items are converted| B5([BURF_COMPLETED]):::endpoint
+    end
+
+    subgraph Phase 2: PRF Generation & 8-Stage BR Flow
+        B4 -->|Generate PRF| P1[Step 1: PRF_PENDING_MANAGER]:::prf
+        P1 -->|Approve| P2{Amount >= 50k?}:::decision
+        
+        P2 -->|Yes| P3[Step 2: PENDING_GM_PRF_APPROVAL]:::prf
+        P2 -->|No| P4[Step 3: PENDING_FINANCE_HEAD_BR]:::prf
+        P3 -->|Approve| P4
+        
+        P4 -->|Approve| P5[Step 4: PENDING_GM_BR_APPROVAL]:::prf
+        P5 -->|Approve| P6[Step 5: PENDING_BOD_APPROVAL]:::prf
+        P6 -->|Approve| P7[Step 6: FOR_CHECK_PREPARATION]:::prf
+        P7 -->|Upload Check| P8[Step 7: PENDING_CHECK_AUTH_BOD]:::prf
+        P8 -->|Authorize Check| P9[Step 8: FOR_FUND_RELEASE]:::prf
+    end
+
+    subgraph Phase 3: Fund Release & Liquidation
+        P9 -->|Finance Releases Cash/Check| L1[FUNDS_RELEASED]:::liq
+        L1 -->|Employee Purchases & Files Receipts| L2[LIQUIDATION_FILED]:::liq
+        
+        L2 --> L3{Audit Liquidation}:::decision
+        L3 -->|Reject due to errors| L4[LIQUIDATION_REJECTED]:::reject
+        L4 -->|Employee Corrects & Refiles| L2
+        
+        L3 -->|Approve / Clear| L5([AUDITED_CLEARED]):::endpoint
+    end
+
+    R([Global Rejection State]) -.- Note>If an approver rejects a PRF or BURF at any stage,<br>it goes to REJECTED and captures its exact 'rejectedAtStage'.]:::reject
+    
+    P1 -.-> R
+    P3 -.-> R
+    P4 -.-> R
+    P5 -.-> R
+    P6 -.-> R
