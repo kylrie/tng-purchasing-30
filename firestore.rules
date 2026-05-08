@@ -837,8 +837,8 @@ service cloud.firestore {
     // Immutable per-item before/after log written on session submit
     // =====================================================
     match /stocktake_audit_logs/{logId} {
-      // Users can read logs belonging to their BU
-      allow read: if isSignedIn() && belongsToSameBU(resource);
+      // Any authenticated user can read (BU scoping enforced by service-level where clause)
+      allow read: if isSignedIn();
 
       // Any authenticated user can create (written by submitSession)
       allow create: if isSignedIn();
