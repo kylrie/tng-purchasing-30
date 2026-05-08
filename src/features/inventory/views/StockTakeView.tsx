@@ -176,6 +176,7 @@ const StocktakeLogsPanel: React.FC<{
 }> = ({ logs, isLoading }) => {
     const [search, setSearch] = useState('');
     const [sessionFilter, setSessionFilter] = useState('ALL');
+    const [typeFilter, setTypeFilter] = useState('ALL');
 
     // Build session → date map (use earliest submittedAt per session)
     const sessionDateMap = new Map<string, Date>();
@@ -204,7 +205,8 @@ const StocktakeLogsPanel: React.FC<{
         const matchSearch = search === '' ||
             log.itemName.toLowerCase().includes(search.toLowerCase());
         const matchSession = sessionFilter === 'ALL' || log.sessionId === sessionFilter;
-        return matchSearch && matchSession;
+        const matchType = typeFilter === 'ALL' || log.itemType === typeFilter;
+        return matchSearch && matchSession && matchType;
     });
 
     if (isLoading) return (
@@ -236,6 +238,17 @@ const StocktakeLogsPanel: React.FC<{
                     {sessions.map(s => (
                         <option key={s} value={s}>{formatSessionDate(s)}</option>
                     ))}
+                </select>
+                <select
+                    value={typeFilter}
+                    onChange={e => setTypeFilter(e.target.value)}
+                    className="px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-purple-500"
+                >
+                    <option value="ALL">All Types</option>
+                    <option value="RAW_MATERIAL">Raw Material</option>
+                    <option value="PRODUCTION">Production</option>
+                    <option value="FINISHED_GOOD">Finished Good</option>
+                    <option value="ASSET">Asset</option>
                 </select>
             </div>
 
