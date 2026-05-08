@@ -803,7 +803,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                 })}
             </div>}
 
-            {mainTab === 'count' && <>{/* Import Result Alert */}
+            {mainTab === 'count' && <div className="contents">{/* Import Result Alert */}
             {importResult && (
                 <div className={`p-4 rounded-lg border flex items-start gap-3 ${importResult.success ? 'bg-green-900/30 border-green-700/50' : 'bg-amber-900/30 border-amber-700/50'}`}>
                     {importResult.success ? (
@@ -930,7 +930,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                         Start Counting Session
                     </button>
                 </div>
-            )}</> }
+            )}</div>}
 
             {/* Calculator Modal */}
             {calculatorItem && (
