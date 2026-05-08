@@ -218,7 +218,9 @@ service cloud.firestore {
         'rejectedBy',
         'cancelledAt',
         'cancelledBy',
-        'currentApproverId'  // FIX: Allow approval routing field
+        'currentApproverId',
+        'rejectedAtStage',
+        'budgetStatus'
       ].toSet();
       
       return affectedKeys.hasOnly(allowedFields);
@@ -827,6 +829,21 @@ service cloud.firestore {
       allow create: if isSignedIn();
       
       // Prevent update/delete - immutable audit logs
+      allow update, delete: if false;
+    }
+
+    // =====================================================
+    // STOCKTAKE AUDIT LOGS COLLECTION
+    // Immutable per-item before/after log written on session submit
+    // =====================================================
+    match /stocktake_audit_logs/{logId} {
+      // Users can read logs belonging to their BU
+      allow read: if isSignedIn() && belongsToSameBU(resource);
+
+      // Any authenticated user can create (written by submitSession)
+      allow create: if isSignedIn();
+
+      // Immutable - no edits or deletes allowed
       allow update, delete: if false;
     }
 

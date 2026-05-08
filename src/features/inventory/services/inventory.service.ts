@@ -20,7 +20,8 @@ import type {
     ProductionBatchInput,
     ProductionBatchResult,
     GoodsReceivingLog,
-    GoodsReceivingLogItem
+    GoodsReceivingLogItem,
+    StocktakeAuditLog
 } from '../types/InventoryItem';
 import { MOCK_INVENTORY_ITEMS, MOCK_STORAGE_AREAS } from '../types/InventoryItem';
 
@@ -29,7 +30,8 @@ const COLLECTIONS = {
     INVENTORY_ITEMS: 'inventory_items',
     STOCK_COUNTS: 'stock_counts',
     STORAGE_AREAS: 'storage_areas',
-    GOODS_RECEIVING_LOGS: 'goods_receiving_logs'
+    GOODS_RECEIVING_LOGS: 'goods_receiving_logs',
+    STOCKTAKE_AUDIT_LOGS: 'stocktake_audit_logs'
 } as const;
 
 /** Optional metadata for receiving sessions (PRF link, input method, etc.) */
@@ -365,7 +367,7 @@ export class InventoryService {
     }
 
     /**
-     * Submit session - Update stock levels
+     * Submit session - Update stock levels and write per-item audit logs
      */
     static async submitSession(sessionId: string): Promise<void> {
         try {
@@ -378,29 +380,88 @@ export class InventoryService {
                 throw new Error('Session not found');
             }
 
-            // Update inventory stock levels
+            const now = Timestamp.now();
+            const auditLogs: Omit<StocktakeAuditLog, 'id'>[] = [];
+
+            // Update inventory stock levels and collect audit data
             for (const countItem of session.items) {
                 const itemDoc = await FirestoreService.getDocument<InventoryItem>(
                     COLLECTIONS.INVENTORY_ITEMS,
                     countItem.itemId
                 );
-                const conversion = itemDoc && itemDoc.units.conversion > 0 ? itemDoc.units.conversion : 1;
+
+                if (!itemDoc) continue;
+
+                const conversion = itemDoc.units.conversion > 0 ? itemDoc.units.conversion : 1;
+                const stockBefore = itemDoc.currentStock ?? 0;
                 const newStock = (countItem.count + countItem.partialCount) * conversion;
+
                 await FirestoreService.updateDocument(
                     COLLECTIONS.INVENTORY_ITEMS,
                     countItem.itemId,
                     { currentStock: newStock }
                 );
+
+                // Build audit log entry for this item
+                auditLogs.push({
+                    sessionId,
+                    businessUnitId: session.businessUnitId,
+                    itemId: itemDoc.id,
+                    itemName: itemDoc.name,
+                    itemType: itemDoc.type,
+                    stockBefore,
+                    stockAfter: newStock,
+                    variance: newStock - stockBefore,
+                    unit: itemDoc.units.recipeUnit,
+                    countedBy: session.performedBy,
+                    countedByName: session.performedByName ?? 'Unknown',
+                    submittedAt: now
+                });
+            }
+
+            // Write all audit logs in parallel (fire-and-forget safe)
+            try {
+                await Promise.all(
+                    auditLogs.map(log =>
+                        FirestoreService.createDocument(COLLECTIONS.STOCKTAKE_AUDIT_LOGS, log)
+                    )
+                );
+            } catch (logErr) {
+                console.error('[InventoryService] Failed to write stocktake audit logs:', logErr);
+                // Non-critical — don't fail the submit if logging fails
             }
 
             // Mark session as completed
             await FirestoreService.updateDocument(COLLECTIONS.STOCK_COUNTS, sessionId, {
                 status: 'COMPLETED' as StockCountStatus,
-                completedAt: Timestamp.now()
+                completedAt: now
             });
         } catch (error) {
             console.error('Error submitting session:', error);
             throw error;
+        }
+    }
+
+    /**
+     * Fetch stocktake audit logs for a business unit, sorted newest first
+     */
+    static async getStocktakeAuditLogs(
+        businessUnitId: string
+    ): Promise<StocktakeAuditLog[]> {
+        try {
+            const logs = await FirestoreService.getDocuments<StocktakeAuditLog>(
+                COLLECTIONS.STOCKTAKE_AUDIT_LOGS,
+                businessUnitId === 'ALL'
+                    ? []
+                    : [where('businessUnitId', '==', businessUnitId)]
+            );
+            // Sort client-side: newest first
+            return logs.sort((a, b) =>
+                (b.submittedAt?.toMillis?.() ?? 0) - (a.submittedAt?.toMillis?.() ?? 0)
+            );
+        } catch (error) {
+            console.error('[InventoryService] Error fetching stocktake audit logs:', error);
+            return [];
         }
     }
 

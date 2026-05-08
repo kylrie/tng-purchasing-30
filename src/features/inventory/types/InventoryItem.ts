@@ -409,3 +409,22 @@ export interface GoodsReceivingLog {
   receivedAt: Timestamp;
 }
 
+// ============================================================
+// STOCKTAKE AUDIT LOG - Per-item edit trail
+// ============================================================
+
+export interface StocktakeAuditLog {
+  id: string;
+  sessionId: string;             // Parent stock_counts doc ID
+  businessUnitId: string;
+  itemId: string;
+  itemName: string;
+  itemType: InventoryItemType;
+  stockBefore: number;           // currentStock before session submitted (in recipeUnits)
+  stockAfter: number;            // New stock from count (in recipeUnits)
+  variance: number;              // stockAfter - stockBefore
+  unit: string;                  // recipeUnit label
+  countedBy: string;             // User ID who ran the session
+  countedByName: string;         // User display name
+  submittedAt: Timestamp;        // When the session was finalized
+}
