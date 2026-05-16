@@ -61,10 +61,16 @@ export class PosImportService {
             if (normalized === 'category') headerMap[key] = 'category';
             else if (normalized === 'item name' || normalized === 'itemname' || normalized === 'item') headerMap[key] = 'itemName';
             else if (normalized === 'qty sold' || normalized === 'qtysold' || normalized === 'qty' || normalized === 'quantity') headerMap[key] = 'qtySold';
-            else if (normalized === 'amount' || normalized === 'total' || normalized === 'sales') headerMap[key] = 'amount';
+            else if (['amount', 'total', 'sales', 'gross sales', 'net sales', 'revenue',
+                       'price', 'total sales', 'total amount', 'net amount', 'gross amount',
+                       'selling price', 'sell price'].includes(normalized)) headerMap[key] = 'amount';
             else if (normalized === 'costs' || normalized === 'cost') headerMap[key] = 'costs';
             else if (normalized === 'profit' || normalized === 'net') headerMap[key] = 'profit';
         }
+
+        // Debug: log header mapping for troubleshooting
+        console.log('[POS Import] File columns:', Object.keys(firstRow));
+        console.log('[POS Import] Mapped headers:', JSON.stringify(headerMap));
 
         // Validate that we found the minimum required columns
         const mapped = Object.values(headerMap);
@@ -81,18 +87,38 @@ export class PosImportService {
             );
         }
 
+        // Helper: safely parse numbers that may contain currency symbols, commas, or whitespace
+        const parseNumber = (val: unknown): number => {
+            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            if (!val) return 0;
+            // Strip currency symbols (₱, $, €, etc.), commas, spaces
+            const cleaned = String(val).replace(/[₱$€¥£,\s]/g, '').trim();
+            const num = Number(cleaned);
+            return isNaN(num) ? 0 : num;
+        };
+
         // Map rows to typed objects
-        return rawRows.map((raw) => {
+        const parsed = rawRows.map((raw) => {
+            const getVal = (field: keyof PosImportRow) =>
+                raw[Object.keys(headerMap).find(k => headerMap[k] === field) || ''];
+
             const row: PosImportRow = {
-                category: String(raw[Object.keys(headerMap).find(k => headerMap[k] === 'category') || ''] || '').trim(),
-                itemName: String(raw[Object.keys(headerMap).find(k => headerMap[k] === 'itemName') || ''] || '').trim(),
-                qtySold: Number(raw[Object.keys(headerMap).find(k => headerMap[k] === 'qtySold') || ''] || 0),
-                amount: Number(raw[Object.keys(headerMap).find(k => headerMap[k] === 'amount') || ''] || 0),
-                costs: Number(raw[Object.keys(headerMap).find(k => headerMap[k] === 'costs') || ''] || 0),
-                profit: Number(raw[Object.keys(headerMap).find(k => headerMap[k] === 'profit') || ''] || 0),
+                category: String(getVal('category') || '').trim(),
+                itemName: String(getVal('itemName') || '').trim(),
+                qtySold: parseNumber(getVal('qtySold')),
+                amount: parseNumber(getVal('amount')),
+                costs: parseNumber(getVal('costs')),
+                profit: parseNumber(getVal('profit')),
             };
             return row;
         }).filter(row => row.itemName && row.qtySold > 0); // Skip empty/zero rows
+
+        // Debug: log first 3 parsed rows to verify parsing
+        if (parsed.length > 0) {
+            console.log('[POS Import] Sample parsed rows:', parsed.slice(0, 3));
+        }
+
+        return parsed;
     }
 
     // ================================================================
