@@ -538,7 +538,7 @@ export class PosImportService {
         // These items are countable products (bottled goods, retail, etc.)
         // whose stock is tracked directly on the FINISHED_GOOD document.
         // ================================================================
-        for (const [fgId, { totalQty, fgName }] of fgDirectDeductionMap) {
+        for (const [fgId, { totalQty }] of fgDirectDeductionMap) {
             const fgItem = allItemsMap.get(fgId);
             if (!fgItem) continue;
 
