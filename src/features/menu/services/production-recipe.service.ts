@@ -70,7 +70,11 @@ export class ProductionRecipeService {
             totalCost: ing.baseQuantity * ing.costPerBaseUnit
         }));
 
-        const totalCost = ingredientsWithCost.reduce((sum, ing) => sum + ing.totalCost, 0);
+        const totalCost = ingredientsWithCost.reduce((sum, ing) => {
+            const wPct = ing.wastagePercent ?? 0;
+            const wCost = wPct > 0 ? (wPct / 100) * ing.totalCost : 0;
+            return sum + ing.totalCost + wCost;
+        }, 0);
         const costPerUnit = input.yieldQuantity > 0 ? totalCost / input.yieldQuantity : 0;
 
         // Sanitize ingredients: remove keys with undefined values (Firestore rejects undefined)
@@ -151,7 +155,11 @@ export class ProductionRecipeService {
             totalCost: ing.baseQuantity * ing.costPerBaseUnit
         }));
 
-        const totalCost = ingredientsWithCost.reduce((sum, ing) => sum + ing.totalCost, 0);
+        const totalCost = ingredientsWithCost.reduce((sum, ing) => {
+            const wPct = ing.wastagePercent ?? 0;
+            const wCost = wPct > 0 ? (wPct / 100) * ing.totalCost : 0;
+            return sum + ing.totalCost + wCost;
+        }, 0);
         const costPerUnit = input.yieldQuantity > 0 ? totalCost / input.yieldQuantity : 0;
 
         // Sanitize ingredients: remove keys with undefined values (Firestore rejects undefined)
@@ -223,25 +231,48 @@ export class ProductionRecipeService {
             recipeId: string;
             totalCost: number;
             costPerUnit: number;
+            updatedIngredients: Record<string, unknown>[];
             linkedInventoryItemId?: string | null;
         }> = [];
 
         for (const recipe of recipes) {
             let totalCost = 0;
+            const updatedIngredients: Record<string, unknown>[] = [];
+
             for (const ing of recipe.ingredients) {
                 const item = itemMap.get(ing.inventoryItemId);
+                let costPerBaseUnit = ing.costPerBaseUnit;
+                let baseIngCost = ing.totalCost;
+
                 if (item) {
                     // Use baseCost (per recipe-unit) when available.
                     // If baseCost is missing (legacy items), derive it from buyCost/conversion.
                     // NEVER use costPerUnit directly — it may be the buy-unit cost on legacy records.
-                    const costPerBaseUnit = item.baseCost
+                    costPerBaseUnit = item.baseCost
                         ?? (item.buyCost != null && item.units?.conversion > 0
                             ? item.buyCost / item.units.conversion
                             : item.costPerUnit ?? 0);
-                    totalCost += ing.baseQuantity * costPerBaseUnit;
-                } else {
-                    totalCost += ing.totalCost; // Keep existing if item not found
+                    baseIngCost = ing.baseQuantity * costPerBaseUnit;
                 }
+
+                const wPct = ing.wastagePercent ?? 0;
+                const wCost = wPct > 0 ? (wPct / 100) * baseIngCost : 0;
+                totalCost += baseIngCost + wCost;
+
+                // Build updated ingredient — strip undefined values for Firestore
+                const updatedIng: Record<string, unknown> = {
+                    inventoryItemId: ing.inventoryItemId,
+                    inventoryItemName: ing.inventoryItemName,
+                    quantity: ing.quantity,
+                    unit: ing.unit,
+                    baseQuantity: ing.baseQuantity,
+                    costPerBaseUnit,
+                    totalCost: baseIngCost,
+                };
+                if (ing.wastagePercent !== undefined) {
+                    updatedIng.wastagePercent = ing.wastagePercent;
+                }
+                updatedIngredients.push(updatedIng);
             }
 
             const costPerUnit = recipe.yieldQuantity > 0 ? totalCost / recipe.yieldQuantity : 0;
@@ -249,6 +280,7 @@ export class ProductionRecipeService {
                 recipeId: recipe.id,
                 totalCost,
                 costPerUnit,
+                updatedIngredients,
                 linkedInventoryItemId: recipe.linkedInventoryItemId,
             });
         }
@@ -263,10 +295,11 @@ export class ProductionRecipeService {
             const batch = writeBatch(db);
 
             for (const u of chunk) {
-                // Update the recipe doc
+                // Update the recipe doc — including refreshed ingredient costs
                 batch.update(doc(db, COLLECTION, u.recipeId), {
                     calculatedCost: u.totalCost,
                     costPerUnit: u.costPerUnit,
+                    ingredients: u.updatedIngredients,
                     updatedAt: now,
                 });
 

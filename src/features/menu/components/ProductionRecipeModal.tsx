@@ -68,11 +68,27 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
         if (recipe) {
             setName(recipe.name);
             setCategory(recipe.category);
-            setServiceType((recipe as any).serviceType || '');
+            setServiceType(recipe.serviceType || '');
             setDescription(recipe.description || '');
             setYieldQuantity(recipe.yieldQuantity);
             setYieldUnit(recipe.yieldUnit);
-            setIngredients(recipe.ingredients);
+
+            // Refresh ingredient costs from current inventory data
+            // so the modal matches the card's recalculated values
+            const refreshedIngredients = recipe.ingredients.map(ing => {
+                const item = inventoryItems.find(it => it.id === ing.inventoryItemId);
+                if (item) {
+                    const costPerBaseUnit = item.baseCost
+                        ?? (item.buyCost != null && item.units?.conversion > 0
+                            ? item.buyCost / item.units.conversion
+                            : item.costPerUnit ?? 0);
+                    const totalCost = ing.baseQuantity * costPerBaseUnit;
+                    return { ...ing, costPerBaseUnit, totalCost };
+                }
+                return ing; // Keep stored values if item not found
+            });
+
+            setIngredients(refreshedIngredients);
             // Auto-enable wastage toggle if any ingredient already has wastage
             setShowWastage(recipe.ingredients.some(ing => (ing.wastagePercent ?? 0) > 0));
         } else {
@@ -88,17 +104,18 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
         // FIX: Reset errors when modal opens
         setValidationError(null);
         setSaveError(null);
-    }, [recipe, isOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inventoryItems is stable per parent render
+    }, [recipe, isOpen, inventoryItems]);
 
     // Calculate total ingredient cost
     const totalCost = ingredients.reduce((sum, ing) => sum + ing.totalCost, 0);
-    const costPerUnit = yieldQuantity > 0 ? totalCost / yieldQuantity : 0;
     // Calculate total wastage cost (percentage of ingredient cost)
     const totalWastageCost = ingredients.reduce((sum, ing) => {
         const wPct = ing.wastagePercent ?? 0;
         return sum + (wPct > 0 ? (wPct / 100) * ing.totalCost : 0);
     }, 0);
     const totalTrueCost = totalCost + totalWastageCost;
+    const costPerUnit = yieldQuantity > 0 ? totalTrueCost / yieldQuantity : 0;
 
     // Filter available inventory items
     const availableItems = inventoryItems.filter(item =>
