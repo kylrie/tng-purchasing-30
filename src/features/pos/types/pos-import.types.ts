@@ -103,7 +103,7 @@ export interface PosImportBatch {
 export interface SimulatedDeduction {
   itemId: string;
   itemName: string;
-  type: 'FG' | 'RM' | 'PRODUCTION';
+  type: 'FG' | 'FG_DIRECT' | 'RM' | 'PRODUCTION';
   currentTheoreticalStock: number;
   deductionAmount: number;
   newTheoreticalStock: number;

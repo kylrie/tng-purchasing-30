@@ -168,8 +168,9 @@ export class PosImportService {
 
             const newStock = match ? (match.theoreticalStock ?? match.currentStock) - row.qtySold : null;
 
-            // Override costs with recipe-derived costPerUnit when matched
-            const recipeCost = match ? (match.costPerUnit ?? 0) * row.qtySold : row.costs;
+            // Override costs with recipe-derived baseCost (preferred) or costPerUnit (legacy fallback)
+            const unitCost = match ? (match.baseCost ?? match.costPerUnit ?? 0) : 0;
+            const recipeCost = match ? unitCost * row.qtySold : row.costs;
             const recipeProfit = match ? row.amount - recipeCost : row.profit;
 
             return {
@@ -211,18 +212,38 @@ export class PosImportService {
             const fgItem = allItemsMap.get(row.matchedItemId!);
             if (!fgItem) continue;
 
-            // FINISHED_GOOD is a pure routing mechanism — do NOT add it to the
-            // deduction map and do NOT touch its theoreticalStock.
-            // Only explode its recipe into underlying ingredients.
-            this.simulateRecursiveBOM(
-                fgItem,
-                row.qtySold,
-                row.matchedItemId!,
-                row.matchedItemName || row.itemName, // pass FG name for context
-                allItemsMap,
-                runningStock,
-                simulatedDeductions
-            );
+            if (fgItem.recipe && fgItem.recipe.length > 0) {
+                // FG has a recipe — explode into underlying ingredient deductions
+                this.simulateRecursiveBOM(
+                    fgItem,
+                    row.qtySold,
+                    row.matchedItemId!,
+                    row.matchedItemName || row.itemName,
+                    allItemsMap,
+                    runningStock,
+                    simulatedDeductions
+                );
+            } else {
+                // No recipe — deduct the FINISHED_GOOD's own stock directly
+                // (e.g., bottled retail items, simple countable products)
+                const safeStock = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
+                const currentStock = runningStock.has(fgItem.id)
+                    ? runningStock.get(fgItem.id)!
+                    : safeStock(fgItem.theoreticalStock) || safeStock(fgItem.currentStock);
+                const newStock = currentStock - row.qtySold;
+                runningStock.set(fgItem.id, newStock);
+
+                simulatedDeductions.push({
+                    itemId: fgItem.id,
+                    itemName: fgItem.name,
+                    type: 'FG_DIRECT',
+                    currentTheoreticalStock: currentStock,
+                    deductionAmount: row.qtySold,
+                    newTheoreticalStock: newStock,
+                    parentItemId: row.matchedItemId!,
+                    parentItemName: row.matchedItemName || row.itemName,
+                });
+            }
         }
 
         return simulatedDeductions;
@@ -363,6 +384,8 @@ export class PosImportService {
         //   - ONLY deduct the underlying RAW_MATERIAL (and recursed PRODUCTION) ingredients.
         // ================================================================
         const rmDeductionMap = new Map<string, { totalQty: number; fgName: string }>();
+        // Track recipe-less FGs that need direct stock deduction
+        const fgDirectDeductionMap = new Map<string, { totalQty: number; fgName: string }>();
 
         const recursiveExplosion = (
             itemArg: InventoryItem & { id: string },
@@ -393,7 +416,18 @@ export class PosImportService {
             const fgItem = allItemsMap.get(row.matchedItemId!);
             if (!fgItem) continue;
             const fgName = row.matchedItemName || row.itemName;
-            recursiveExplosion(fgItem, row.qtySold, fgName);
+
+            if (fgItem.recipe && fgItem.recipe.length > 0) {
+                // Has recipe — explode into raw material deductions
+                recursiveExplosion(fgItem, row.qtySold, fgName);
+            } else {
+                // No recipe — track for direct FG stock deduction
+                const prev = fgDirectDeductionMap.get(row.matchedItemId!);
+                fgDirectDeductionMap.set(row.matchedItemId!, {
+                    totalQty: (prev?.totalQty ?? 0) + row.qtySold,
+                    fgName: prev?.fgName ?? fgName,
+                });
+            }
         }
 
         // Pre-load raw material theoretical stock for balanceAfter calculation
@@ -493,6 +527,48 @@ export class PosImportService {
             // Update raw material theoreticalStock
             ensureBatch();
             currentBatch.update(doc(db, COL.INVENTORY_ITEMS, rmId), {
+                theoreticalStock: newTheoStock,
+                updatedAt: importDateTs,
+            });
+            opCount++;
+        }
+
+        // ================================================================
+        // STEP E: Direct FG deductions (no-recipe items)
+        // These items are countable products (bottled goods, retail, etc.)
+        // whose stock is tracked directly on the FINISHED_GOOD document.
+        // ================================================================
+        for (const [fgId, { totalQty, fgName }] of fgDirectDeductionMap) {
+            const fgItem = allItemsMap.get(fgId);
+            if (!fgItem) continue;
+
+            const theoStock = safeNum(fgItem.theoreticalStock) || safeNum(fgItem.currentStock);
+            const newTheoStock = theoStock - totalQty;
+
+            // Write POS_SALE stock transaction for the FG itself
+            const fgTxRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
+            ensureBatch();
+            currentBatch.set(fgTxRef, {
+                itemId: fgId,
+                itemName: fgItem.name,
+                businessUnitId,
+                type: 'POS_SALE',
+                quantity: totalQty,
+                unitCost: fgItem.baseCost ?? fgItem.costPerUnit ?? 0,
+                totalValue: totalQty * (fgItem.baseCost ?? fgItem.costPerUnit ?? 0),
+                balanceAfter: newTheoStock,
+                referenceId: batchImportId,
+                notes: `Deducted ${totalQty} ${fgItem.units?.recipeUnit ?? ''} ${fgItem.name} — direct POS sale (no recipe) (${fileName})`,
+                performedBy: userId,
+                performedByName: userName,
+                timestamp: importDateTs,
+                createdAt: importDateTs,
+            });
+            opCount++;
+
+            // Update FG theoreticalStock
+            ensureBatch();
+            currentBatch.update(doc(db, COL.INVENTORY_ITEMS, fgId), {
                 theoreticalStock: newTheoStock,
                 updatedAt: importDateTs,
             });

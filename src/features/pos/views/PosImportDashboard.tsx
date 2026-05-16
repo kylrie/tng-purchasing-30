@@ -198,8 +198,9 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
             }
             const theoStock = item.theoreticalStock ?? item.currentStock;
             const newStock = theoStock - row.qtySold;
-            // Override costs with recipe-derived costPerUnit
-            const recipeCost = (item.costPerUnit ?? 0) * row.qtySold;
+            // Override costs with recipe-derived baseCost (preferred) or costPerUnit (legacy fallback)
+            const unitCost = item.baseCost ?? item.costPerUnit ?? 0;
+            const recipeCost = unitCost * row.qtySold;
             const recipeProfit = row.amount - recipeCost;
             return {
                 ...row,

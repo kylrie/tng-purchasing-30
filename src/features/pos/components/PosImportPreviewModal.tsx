@@ -20,7 +20,7 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
     if (!isOpen) return null;
 
     // Count how many FGs vs RMs are affected
-    const fgCount = simulatedDeductions.filter(d => d.type === 'FG').length;
+    const fgCount = simulatedDeductions.filter(d => d.type === 'FG' || d.type === 'FG_DIRECT').length;
     const rmCount = simulatedDeductions.filter(d => d.type === 'RM').length;
 
     return (
@@ -58,20 +58,21 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
                                                         deduction.type === 'RM' ? 'pl-8' : 
                                                         deduction.type === 'PRODUCTION' ? 'pl-4' : ''
                                                     }`}>
-                                                        {deduction.type !== 'FG' && (
+                                                        {deduction.type !== 'FG' && deduction.type !== 'FG_DIRECT' && (
                                                             <CornerDownRight className="w-4 h-4 text-gray-400 mr-2 shrink-0" />
                                                         )}
                                                         <span className={`font-medium ${
-                                                            deduction.type === 'FG' ? 'text-gray-900' : 'text-gray-600'
+                                                            deduction.type === 'FG' || deduction.type === 'FG_DIRECT' ? 'text-gray-900' : 'text-gray-600'
                                                         }`}>
                                                             {deduction.itemName}
                                                         </span>
                                                         <span className={`ml-2 px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded border ${
                                                             deduction.type === 'FG' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                                                            deduction.type === 'FG_DIRECT' ? 'bg-green-50 text-green-600 border-green-200' :
                                                             deduction.type === 'PRODUCTION' ? 'bg-purple-50 text-purple-600 border-purple-200' :
                                                             'bg-orange-50 text-orange-600 border-orange-200'
                                                         }`}>
-                                                            {deduction.type}
+                                                            {deduction.type === 'FG_DIRECT' ? 'FG (DIRECT)' : deduction.type}
                                                         </span>
                                                     </div>
                                                 </td>
