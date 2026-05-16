@@ -131,3 +131,13 @@ export const UOM_CONVERSIONS: Record<string, Record<string, number>> = {
         EA: 1,        // Sets are 1-for-1 with each (contextual)
     },
 };
+
+// ============================================================
+// QUICK CODE → CATEGORY LOOKUP
+// Used by convertUnits to distinguish same-category gaps from
+// expected cross-category mismatches (e.g. EA → L).
+// ============================================================
+
+export const UOM_CATEGORY_MAP: Record<string, string> = Object.fromEntries(
+    HARDCODED_UOMS.map(u => [u.code, u.category])
+);

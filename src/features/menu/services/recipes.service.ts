@@ -8,7 +8,7 @@ import type {
     RecipeIngredientInput
 } from '../types/menu.types';
 import { UNIT_CONVERSIONS } from '../types/menu.types';
-import { UOM_CONVERSIONS } from '../../../shared/constants/uom.constants';
+import { UOM_CONVERSIONS, UOM_CATEGORY_MAP } from '../../../shared/constants/uom.constants';
 import {
     collection, doc, writeBatch, getDocs
 } from 'firebase/firestore';
@@ -75,8 +75,13 @@ export function convertUnits(
         return inG * UNIT_CONVERSIONS['g'][toLower];
     }
 
-    // No conversion found - return original quantity (1:1 assumption)
-    console.warn(`No conversion found from ${fromUnit} to ${toUnit}`);
+    // No conversion found — only warn for same-category misses (real gaps).
+    // Cross-category conversions (e.g. EA→L, G→L) are expected and 1:1 is by design.
+    const fromCat = UOM_CATEGORY_MAP[fromUpper];
+    const toCat   = UOM_CATEGORY_MAP[toUpper];
+    if (fromCat && toCat && fromCat === toCat) {
+        console.warn(`No conversion found from ${fromUnit} to ${toUnit} (both are ${fromCat})`);
+    }
     return quantity;
 }
 
