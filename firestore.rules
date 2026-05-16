@@ -1003,8 +1003,9 @@ service cloud.firestore {
     match /pos_sales/{saleId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      // No updates or deletes — immutable audit trail
-      allow update, delete: if false;
+      // Only admins can delete for rollback
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      allow update: if false;
     }
     
     // =====================================================
@@ -1014,8 +1015,9 @@ service cloud.firestore {
     match /pos_sales_batches/{batchId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      // No updates or deletes — immutable record
-      allow update, delete: if false;
+      // Only admins can delete for rollback
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      allow update: if false;
     }
     
     // =====================================================

@@ -62,6 +62,28 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
     const [simulatedDeductions, setSimulatedDeductions] = useState<SimulatedDeduction[]>([]);
     const [isSimulating, setIsSimulating] = useState(false);
 
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+    const handleDeleteBatch = async (batchId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm('Are you sure you want to delete this import batch and reverse its inventory deductions? This cannot be undone.')) return;
+        
+        setIsDeleting(batchId);
+        try {
+            await PosImportService.deleteImportBatch(batchId, currentUser?.id || '', currentUser?.name || 'Unknown User');
+            setImportHistory(prev => prev.filter(b => b.id !== batchId));
+            if (expandedBatchId === batchId) {
+                setExpandedBatchId(null);
+                setBatchSales([]);
+            }
+        } catch (err) {
+            console.error('Failed to delete batch:', err);
+            alert('Failed to delete import batch. Please try again.');
+        } finally {
+            setIsDeleting(null);
+        }
+    };
+
     // -- Date range helper --
     const getDateBounds = useCallback((): { start: Date; end: Date } | null => {
         const now = new Date();
@@ -658,6 +680,16 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
                                                 <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">₱{batch.totalAmount.toLocaleString()}</p>
                                                 <p className="text-xs text-blue-500 dark:text-blue-400">Profit: ₱{batch.totalProfit.toLocaleString()}</p>
                                             </div>
+                                            {currentUser?.role === 'SUPER_ADMIN' && (
+                                                <button
+                                                    onClick={(e) => handleDeleteBatch(batch.id, e)}
+                                                    disabled={isDeleting === batch.id}
+                                                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Delete Import & Reverse Deductions"
+                                                >
+                                                    {isDeleting === batch.id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                                                </button>
+                                            )}
                                             <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                         </div>
                                     </button>
