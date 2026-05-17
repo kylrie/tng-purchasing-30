@@ -96,9 +96,10 @@ export class ReconService {
             ...d.data()
         })) as (InventoryItem & { id: string })[];
 
-        // 2. Aggregate purchases (stock_transactions type = PURCHASE/RECEIVING)
+        // 2. Aggregate purchases (goods receiving writes type = 'RECEIVE')
+        //    Also include PRODUCTION_OUTPUT (production batches that yield new stock)
         const purchasesMap = await this.aggregateTransactions(
-            businessUnitId, startDate, endDate, ['PURCHASE', 'RECEIVING', 'GRN_RECEIPT']
+            businessUnitId, startDate, endDate, ['RECEIVE', 'PRODUCTION_OUTPUT']
         );
 
         // 3. Aggregate returns/outgoing
@@ -106,12 +107,15 @@ export class ReconService {
             businessUnitId, startDate, endDate, ['RETURN', 'TRANSFER_OUT']
         );
 
-        // 4. Aggregate POS sales from pos_sales collection
+        // 4. Aggregate POS sales from stock_transactions (THEORETICAL_USAGE / POS_SALE)
         const posSalesMap = await this.aggregatePosSales(businessUnitId, startDate, endDate);
 
-        // 5. Aggregate event/production sales from stock_transactions
+        // 5. Aggregate production consumption + wastage from stock_transactions
+        //    PRODUCTION_CONSUMPTION = inventory.service.ts batch production
+        //    PRODUCTION_CONSUME     = production-recipe.service.ts recipe runs
+        //    WASTAGE                = wastage.service.ts manual wastage entries
         const eventSalesMap = await this.aggregateTransactions(
-            businessUnitId, startDate, endDate, ['EVENT_SALE', 'PRODUCTION_USE', 'MANUAL_DEDUCT']
+            businessUnitId, startDate, endDate, ['PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE']
         );
 
         // 6. Build rows
@@ -198,37 +202,19 @@ export class ReconService {
     }
 
     /**
-     * Aggregate POS sales from pos_sales collection
-     * Returns Map<inventoryItemId, totalQtySold>
+     * Aggregate POS sales deductions from stock_transactions.
+     * BOM-exploded deductions are stored as THEORETICAL_USAGE (raw materials)
+     * and direct FG deductions as POS_SALE — both are the real inventory movements.
+     * Returns Map<itemId, totalQuantity>
      */
     private static async aggregatePosSales(
         businessUnitId: string,
         startDate: Date,
         endDate: Date
     ): Promise<Map<string, number>> {
-        const result = new Map<string, number>();
-
-        try {
-            const q = query(
-                collection(db, COL.POS_SALES),
-                where('businessUnitId', '==', businessUnitId)
-            );
-            const snap = await getDocs(q);
-
-            for (const docSnap of snap.docs) {
-                const data = docSnap.data();
-                const createdAt = data.createdAt?.toDate?.() || new Date(data.createdAt);
-                if (createdAt < startDate || createdAt > endDate) continue;
-
-                const itemId = data.inventoryItemId as string;
-                const qty = data.qtySold as number || 0;
-                result.set(itemId, (result.get(itemId) || 0) + qty);
-            }
-        } catch (error) {
-            console.error('Error aggregating POS sales:', error);
-        }
-
-        return result;
+        return this.aggregateTransactions(
+            businessUnitId, startDate, endDate, ['THEORETICAL_USAGE', 'POS_SALE']
+        );
     }
 
     /**

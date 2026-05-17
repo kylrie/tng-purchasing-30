@@ -618,9 +618,13 @@ export class PosImportService {
             });
             opCount++;
 
-            // Update raw material theoreticalStock
+            // Update raw material stock — both currentStock and theoreticalStock
+            // so POS deductions are immediately visible in the Inventory Items view.
             ensureBatch();
+            const rmCurrentStock = safeNum(rmItem.currentStock);
+            const newRmCurrentStock = rmCurrentStock - totalQty;
             currentBatch.update(doc(db, COL.INVENTORY_ITEMS, rmId), {
+                currentStock: newRmCurrentStock,
                 theoreticalStock: newTheoStock,
                 updatedAt: importDateTs,
             });
@@ -660,9 +664,16 @@ export class PosImportService {
             });
             opCount++;
 
-            // Update FG theoreticalStock
+            // Update FG stock — both currentStock and theoreticalStock.
+            // Unlike BOM-exploded raw materials (which only adjust theoreticalStock
+            // until a physical count reconciles them), no-recipe FG items are discrete
+            // countable goods (bottles, retail packs) whose on-hand stock should
+            // reflect POS deductions immediately.
             ensureBatch();
+            const fgCurrentStock = safeNum(fgItem.currentStock);
+            const newCurrentStock = fgCurrentStock - totalQty;
             currentBatch.update(doc(db, COL.INVENTORY_ITEMS, fgId), {
+                currentStock: newCurrentStock,
                 theoreticalStock: newTheoStock,
                 updatedAt: importDateTs,
             });
@@ -911,10 +922,14 @@ export class PosImportService {
             });
             opCount++;
 
-            // Update item stock
+            // Update item stock — restore both currentStock and theoreticalStock
             const itemRef = doc(db, COL.INVENTORY_ITEMS, itemId);
+            const curCurrentStock = (typeof itemData.currentStock === 'number' && Number.isFinite(itemData.currentStock))
+                ? itemData.currentStock : 0;
+            const newCurrentStock = curCurrentStock + info.qty;
             ensureBatch();
             currentBatch.update(itemRef, {
+                currentStock: newCurrentStock,
                 theoreticalStock: newStock,
                 updatedAt: now,
             });

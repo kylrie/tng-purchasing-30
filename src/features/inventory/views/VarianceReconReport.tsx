@@ -46,7 +46,7 @@ function buildExportData(rows: ReconRow[], periodLabel: string) {
         'Purchases (IN)': r.purchasesIn,
         'Stock On Hand': r.stockOnHand,
         'POS Sales': r.posSales,
-        'Event Sales': r.eventSales,
+        'Prod/Waste': r.eventSales,
         'Ending (System)': r.endingSystem,
         'Ending (Actual)': r.endingActual ?? '',
         'Variance': r.variance ?? '',
@@ -189,9 +189,9 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
     // ================================================================
     // HANDLE ACTUAL COUNT INPUT
     // ================================================================
-    const handleActualCountChange = (index: number, value: string) => {
-        setRows(prev => prev.map((row, i) => {
-            if (i !== index) return row;
+    const handleActualCountChange = (itemId: string, value: string) => {
+        setRows(prev => prev.map((row) => {
+            if (row.itemId !== itemId) return row;
             const actualCount = value === '' ? null : parseFloat(value);
             const variance = actualCount !== null ? actualCount - row.endingSystem : null;
             return { ...row, endingActual: actualCount, variance };
@@ -518,7 +518,7 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                                     <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Purchases (IN)</th>
                                     <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 whitespace-nowrap bg-blue-50/50 dark:bg-blue-900/10">Stock On Hand</th>
                                     <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 whitespace-nowrap">POS Sales</th>
-                                    <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 whitespace-nowrap">Event Sales</th>
+                                    <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 whitespace-nowrap">Prod/Waste</th>
                                     <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 whitespace-nowrap bg-cyan-50/50 dark:bg-cyan-900/10">Ending (System)</th>
                                     <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 whitespace-nowrap bg-amber-50/50 dark:bg-amber-900/10">Ending (Actual)</th>
                                     <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 whitespace-nowrap">Variance</th>
@@ -573,7 +573,7 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                                                         min="0"
                                                         placeholder="—"
                                                         value={row.endingActual ?? ''}
-                                                        onChange={(e) => handleActualCountChange(index, e.target.value)}
+                                                        onChange={(e) => handleActualCountChange(row.itemId, e.target.value)}
                                                         className="w-24 mx-auto block px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700 rounded-lg text-center text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 placeholder:text-slate-300 dark:placeholder:text-slate-600"
                                                     />
                                                 )}
