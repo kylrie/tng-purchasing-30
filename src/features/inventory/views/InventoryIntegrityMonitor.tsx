@@ -495,22 +495,22 @@ const InventoryIntegrityMonitor: React.FC = () => {
   }));
 
   // Convert raw SuspiciousItem[] into UI SuspiciousRow[]
-  // All quantities are converted to Base/Count Units (× conversionRate)
-  // VAR ₱ is computed from base-unit variance: varQtyBase × costPerBaseUnit
+  // Service data is already in recipe/base units — do NOT multiply by conversionRate
+  // (that was double-counting and inflating numbers by 700x for liquor, etc.)
+  // VAR ₱ uses the pre-computed varianceValue from the service
   const suspiciousItemsRows: SuspiciousRow[] = dashboardKPIs?.suspiciousItems.map((item: SuspiciousItem, index) => {
-    const c = item.conversionRate || 1;
-    const varQtyBase = (item.actualClosing - item.expectedClosing) * c;
+    const varQty = item.actualClosing - item.expectedClosing;
     return {
       id: `suspicious-${index}`,
       item: item.itemName,
       category: `${item.category || 'Inventory'}${item.recipeUnit ? ' • ' + item.recipeUnit : ''}`,
-      open: Math.round(((item.openQty || 0) * c) * 100) / 100,
-      recv: Math.round(((item.recvQty || 0) * c) * 100) / 100,
-      sold: Math.round(((item.soldQty || 0) * c) * 100) / 100,
-      expClose: Math.round((item.expectedClosing * c) * 100) / 100,
-      actClose: Math.round((item.actualClosing * c) * 100) / 100,
-      varQty: Math.round(varQtyBase * 100) / 100,
-      varPeso: Math.round(varQtyBase * item.costPerUnit * 100) / 100,
+      open: Math.round((item.openQty || 0) * 100) / 100,
+      recv: Math.round((item.recvQty || 0) * 100) / 100,
+      sold: Math.round((item.soldQty || 0) * 100) / 100,
+      expClose: Math.round(item.expectedClosing * 100) / 100,
+      actClose: Math.round(item.actualClosing * 100) / 100,
+      varQty: Math.round(varQty * 100) / 100,
+      varPeso: Math.round((item.varianceValue || (varQty * item.costPerUnit)) * 100) / 100,
       status: item.status,
     };
   }) || [];
