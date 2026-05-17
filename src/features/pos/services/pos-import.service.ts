@@ -293,6 +293,20 @@ export class PosImportService {
             if (!fgItem) continue;
 
             if (fgItem.recipe && fgItem.recipe.length > 0) {
+                // Push the FG header so the preview modal can group children under it
+                const safeStockFG = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
+                const fgCurrent = safeStockFG(fgItem.theoreticalStock) || safeStockFG(fgItem.currentStock);
+                simulatedDeductions.push({
+                    itemId: fgItem.id,
+                    itemName: fgItem.name,
+                    type: 'FG',
+                    currentTheoreticalStock: fgCurrent,
+                    deductionAmount: 0, // FG stock is not deducted — only ingredients
+                    newTheoreticalStock: fgCurrent, // unchanged
+                    parentItemId: row.matchedItemId!,
+                    parentItemName: row.matchedItemName || row.itemName,
+                });
+
                 // FG has a recipe — explode into underlying ingredient deductions
                 this.simulateRecursiveBOM(
                     fgItem,
