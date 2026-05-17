@@ -18,6 +18,111 @@ type ViewState = 'UPLOAD' | 'PREVIEW' | 'COMMITTING' | 'SUCCESS';
 type Tab = 'import' | 'history' | 'report';
 type DatePeriod = 'today' | 'week' | 'month' | 'custom';
 
+// ─── Searchable Item Dropdown ────────────────────────────────────────
+const SearchableItemSelect: React.FC<{
+    items: (InventoryItem & { id: string })[];
+    onSelect: (itemId: string) => void;
+    placeholder?: string;
+}> = ({ items, onSelect, placeholder = 'Type to search...' }) => {
+    const [search, setSearch] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const [highlightIdx, setHighlightIdx] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
+
+    const filtered = useMemo(() => {
+        if (!search.trim()) return items;
+        const q = search.toLowerCase().trim();
+        return items.filter(i => i.name.toLowerCase().includes(q));
+    }, [items, search]);
+
+    // Reset highlight when filter changes
+    useEffect(() => setHighlightIdx(0), [filtered]);
+
+    // Click outside to close
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    // Scroll highlighted item into view
+    useEffect(() => {
+        if (isOpen && listRef.current) {
+            const el = listRef.current.children[highlightIdx] as HTMLElement;
+            el?.scrollIntoView({ block: 'nearest' });
+        }
+    }, [highlightIdx, isOpen]);
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setIsOpen(true);
+            setHighlightIdx(prev => Math.min(prev + 1, filtered.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlightIdx(prev => Math.max(prev - 1, 0));
+        } else if (e.key === 'Enter' && filtered[highlightIdx]) {
+            e.preventDefault();
+            onSelect(filtered[highlightIdx].id);
+            setIsOpen(false);
+            setSearch('');
+        } else if (e.key === 'Escape') {
+            setIsOpen(false);
+        }
+    };
+
+    return (
+        <div ref={containerRef} className="relative">
+            <div className="relative">
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setIsOpen(true); }}
+                    onFocus={() => setIsOpen(true)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={placeholder}
+                    className="w-full bg-white dark:bg-slate-700/80 text-slate-900 dark:text-white border border-red-500/30 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500"
+                />
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            </div>
+            {isOpen && (
+                <ul
+                    ref={listRef}
+                    className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl text-sm"
+                >
+                    {filtered.length === 0 ? (
+                        <li className="px-3 py-2 text-slate-400 italic">No items found</li>
+                    ) : (
+                        filtered.map((item, idx) => (
+                            <li
+                                key={item.id}
+                                className={`px-3 py-1.5 cursor-pointer transition-colors ${
+                                    idx === highlightIdx
+                                        ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300'
+                                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/60'
+                                }`}
+                                onMouseEnter={() => setHighlightIdx(idx)}
+                                onClick={() => {
+                                    onSelect(item.id);
+                                    setIsOpen(false);
+                                    setSearch('');
+                                }}
+                            >
+                                {item.name} <span className="text-xs text-slate-400">(Stock: {item.currentStock ?? 0})</span>
+                            </li>
+                        ))
+                    )}
+                </ul>
+            )}
+        </div>
+    );
+};
+
 const PosImportDashboard: React.FC<Props> = () => {
     const { currentUser } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
@@ -571,21 +676,11 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                                 )}
                                                             </div>
                                                         ) : (
-                                                            <div className="relative">
-                                                                <select
-                                                                    onChange={(e) => handleManualMatch(row.rowIndex, e.target.value)}
-                                                                    className="w-full bg-white dark:bg-slate-700/80 text-slate-900 dark:text-white border border-red-500/30 rounded-lg px-2 py-1.5 text-sm appearance-none cursor-pointer"
-                                                                    defaultValue=""
-                                                                >
-                                                                    <option value="">Select item...</option>
-                                                                    {inventoryItems.map(item => (
-                                                                        <option key={item.id} value={item.id}>
-                                                                            {item.name} (Stock: {item.currentStock})
-                                                                        </option>
-                                                                    ))}
-                                                                </select>
-                                                                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                                                            </div>
+                                                            <SearchableItemSelect
+                                                                items={inventoryItems}
+                                                                onSelect={(itemId) => handleManualMatch(row.rowIndex, itemId)}
+                                                                placeholder="Type to search..."
+                                                            />
                                                         )}
                                                     </td>
                                                 </tr>
