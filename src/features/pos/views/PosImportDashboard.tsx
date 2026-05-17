@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar, Info } from 'lucide-react';
 import { PosImportService } from '../services/pos-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
@@ -18,7 +18,7 @@ type ViewState = 'UPLOAD' | 'PREVIEW' | 'COMMITTING' | 'SUCCESS';
 type Tab = 'import' | 'history' | 'report';
 type DatePeriod = 'today' | 'week' | 'month' | 'custom';
 
-const PosImportDashboard: React.FC<Props> = (_props) => {
+const PosImportDashboard: React.FC<Props> = () => {
     const { currentUser } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -33,6 +33,7 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
     const [file, setFile] = useState<File | null>(null);
     const [fileHash, setFileHash] = useState<string>('');
     const [parsedRows, setParsedRows] = useState<PosImportRow[]>([]);
+    const [hasAmountColumn, setHasAmountColumn] = useState<boolean>(true);
     const [mappedRows, setMappedRows] = useState<PosImportMappedRow[]>([]);
     const [inventoryItems, setInventoryItems] = useState<(InventoryItem & { id: string })[]>([]);
     const [importHistory, setImportHistory] = useState<PosImportBatch[]>([]);
@@ -178,11 +179,12 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
                 }
             }
 
-            const rows = await PosImportService.parseFile(selectedFile);
+            const { rows, hasAmountColumn: hasAmount } = await PosImportService.parseFile(selectedFile);
             setParsedRows(rows);
+            setHasAmountColumn(hasAmount);
 
             if (selectedBU) {
-                const { mappedRows: mapped, inventoryItems: items } = await PosImportService.matchItemsToInventory(rows, selectedBU);
+                const { mappedRows: mapped, inventoryItems: items } = await PosImportService.matchItemsToInventory(rows, selectedBU, hasAmount);
                 setMappedRows(mapped);
                 setInventoryItems(items);
             }
@@ -216,16 +218,29 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
         setMappedRows(prev => prev.map(row => {
             if (row.rowIndex !== rowIndex) return row;
             if (!item) {
-                return { ...row, matchedItemId: null, matchedItemName: null, matchStatus: 'UNMATCHED', currentStock: null, negativeStockFlag: false };
+                return { ...row, matchedItemId: null, matchedItemName: null, matchStatus: 'UNMATCHED', currentStock: null, negativeStockFlag: false, amountSource: 'file' };
             }
             const theoStock = item.theoreticalStock ?? item.currentStock;
             const newStock = theoStock - row.qtySold;
-            // Override costs with recipe-derived baseCost (preferred) or costPerUnit (legacy fallback)
-            const unitCost = item.baseCost ?? item.costPerUnit ?? 0;
+
+            // Smart amount: auto-fill from selling price if file had no amount column or row amount is 0
+            let resolvedAmount = row.amount;
+            let amountSource: 'file' | 'selling_price' = row.amountSource || 'file';
+            if (!hasAmountColumn || row.amount === 0) {
+                const fgSellingPrice = item.costPerUnit ?? 0;
+                if (fgSellingPrice > 0) {
+                    resolvedAmount = fgSellingPrice * row.qtySold;
+                    amountSource = 'selling_price';
+                }
+            }
+
+            // Override costs with recipe-derived baseCost
+            const unitCost = item.baseCost ?? 0;
             const recipeCost = unitCost * row.qtySold;
-            const recipeProfit = row.amount - recipeCost;
+            const recipeProfit = resolvedAmount - recipeCost;
             return {
                 ...row,
+                amount: resolvedAmount,
                 costs: recipeCost,
                 profit: recipeProfit,
                 matchedItemId: item.id,
@@ -233,6 +248,7 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
                 matchStatus: 'MATCHED',
                 currentStock: theoStock,
                 negativeStockFlag: newStock < 0,
+                amountSource,
             };
         }));
     };
@@ -461,6 +477,18 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
                                 <SummaryCard label="Total Profit" value={`₱${totalProfit.toLocaleString()}`} color="violet" />
                             </div>
 
+                            {!hasAmountColumn && (
+                                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3">
+                                    <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-blue-600 dark:text-blue-300 font-medium">No Amount Column Detected</p>
+                                        <p className="text-blue-500 dark:text-blue-400/80 text-sm mt-1">
+                                            Sales amounts are being auto-filled from FG selling prices. Items marked with <span className="inline-flex text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-500">SP</span> are auto-calculated.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {negativeStockRows.length > 0 && (
                                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
                                     <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
@@ -510,9 +538,17 @@ const PosImportDashboard: React.FC<Props> = (_props) => {
                                                     <td className="py-2.5 px-4 text-slate-600 dark:text-slate-300">{row.category}</td>
                                                     <td className="py-2.5 px-4 text-slate-900 dark:text-white font-medium">{row.itemName}</td>
                                                     <td className="py-2.5 px-4 text-right text-slate-900 dark:text-white">{row.qtySold}</td>
-                                                    <td className="py-2.5 px-4 text-right text-emerald-600 dark:text-emerald-400">₱{row.amount.toLocaleString()}</td>
+                                                    <td className="py-2.5 px-4 text-right text-emerald-600 dark:text-emerald-400">
+                                                        <span>₱{row.amount.toLocaleString()}</span>
+                                                        {row.amountSource === 'selling_price' && (
+                                                            <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-500" title="Auto-filled from FG selling price">SP</span>
+                                                        )}
+                                                    </td>
                                                     <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-300">₱{row.costs.toLocaleString()}</td>
-                                                    <td className="py-2.5 px-4 text-right text-blue-600 dark:text-blue-400">₱{row.profit.toLocaleString()}</td>
+                                                    <td className={`py-2.5 px-4 text-right ${row.profit < 0 ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
+                                                        ₱{row.profit.toLocaleString()}
+                                                        {row.profit < 0 && <span className="ml-1 text-[10px]">⚠ negative</span>}
+                                                    </td>
                                                     <td className="py-2.5 px-4 text-center">
                                                         {row.matchStatus === 'MATCHED' ? (
                                                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">

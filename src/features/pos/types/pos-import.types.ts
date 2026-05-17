@@ -26,6 +26,7 @@ export interface PosImportMappedRow extends PosImportRow {
   matchStatus: MatchStatus;
   currentStock: number | null;        // Snapshot of stock before deduction
   negativeStockFlag: boolean;         // True if deduction would make stock < 0
+  amountSource?: 'file' | 'selling_price';  // Where the amount value came from
 }
 
 // ============================================================

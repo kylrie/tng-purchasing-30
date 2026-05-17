@@ -40,7 +40,7 @@ export class PosImportService {
      * Parse an .xlsx or .csv file into typed PosImportRow[]
      * Normalizes column headers (case-insensitive, trimmed)
      */
-    static async parseFile(file: File): Promise<PosImportRow[]> {
+    static async parseFile(file: File): Promise<{ rows: PosImportRow[]; hasAmountColumn: boolean }> {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
@@ -72,19 +72,25 @@ export class PosImportService {
         console.log('[POS Import] File columns:', Object.keys(firstRow));
         console.log('[POS Import] Mapped headers:', JSON.stringify(headerMap));
 
-        // Validate that we found the minimum required columns
-        const mapped = Object.values(headerMap);
+        // Check if the file has an amount column
+        const mappedFields = Object.values(headerMap);
+        const hasAmountColumn = mappedFields.includes('amount');
+
+        // Validate minimum required columns (amount is now optional)
         const requiredFields: { key: keyof PosImportRow; display: string }[] = [
             { key: 'itemName', display: 'ITEM NAME' },
             { key: 'qtySold',  display: 'QTY SOLD'  },
-            { key: 'amount',   display: 'AMOUNT'    },
         ];
-        const missing = requiredFields.filter(f => !mapped.includes(f.key)).map(f => f.display);
+        const missing = requiredFields.filter(f => !mappedFields.includes(f.key)).map(f => f.display);
         if (missing.length > 0) {
             throw new Error(
                 `Missing required column(s): ${missing.join(', ')}. ` +
                 `Columns found in file: ${Object.keys(firstRow).join(', ')}`
             );
+        }
+
+        if (!hasAmountColumn) {
+            console.warn('[POS Import] No amount column found — will auto-fill from FG selling prices during matching.');
         }
 
         // Helper: safely parse numbers that may contain currency symbols, commas, or whitespace
@@ -116,9 +122,10 @@ export class PosImportService {
         // Debug: log first 3 parsed rows to verify parsing
         if (parsed.length > 0) {
             console.log('[POS Import] Sample parsed rows:', parsed.slice(0, 3));
+            console.log('[POS Import] Has amount column:', hasAmountColumn);
         }
 
-        return parsed;
+        return { rows: parsed, hasAmountColumn };
     }
 
     // ================================================================
@@ -160,7 +167,8 @@ export class PosImportService {
      */
     static async matchItemsToInventory(
         rows: PosImportRow[],
-        businessUnitId: string
+        businessUnitId: string,
+        hasAmountColumn: boolean = true
     ): Promise<{ mappedRows: PosImportMappedRow[]; inventoryItems: (InventoryItem & { id: string })[] }> {
 
         // Fetch all FINISHED_GOOD items for this business unit
@@ -175,6 +183,30 @@ export class PosImportService {
             id: d.id,
             ...d.data()
         })) as (InventoryItem & { id: string })[];
+
+        // If no amount column, pre-fetch menu items for accurate selling prices
+        // Menu items have the canonical sellingPrice; FG's costPerUnit is the legacy fallback
+        let menuSellingPriceMap = new Map<string, number>();
+        if (!hasAmountColumn) {
+            try {
+                const menuQuery = query(
+                    collection(db, 'menu_items'),
+                    where('businessUnitId', '==', businessUnitId),
+                    where('isActive', '==', true)
+                );
+                const menuSnap = await getDocs(menuQuery);
+                menuSnap.docs.forEach(d => {
+                    const data = d.data();
+                    // Map by linkedInventoryItemId so we can look up by FG id
+                    if (data.linkedInventoryItemId && data.sellingPrice > 0) {
+                        menuSellingPriceMap.set(data.linkedInventoryItemId, data.sellingPrice);
+                    }
+                });
+                console.log(`[POS Import] Loaded ${menuSellingPriceMap.size} menu selling prices for auto-fill.`);
+            } catch (err) {
+                console.warn('[POS Import] Could not load menu items for selling price lookup:', err);
+            }
+        }
 
         const mappedRows: PosImportMappedRow[] = rows.map((row, index) => {
             const normalizedName = row.itemName.toLowerCase().trim();
@@ -194,13 +226,29 @@ export class PosImportService {
 
             const newStock = match ? (match.theoreticalStock ?? match.currentStock) - row.qtySold : null;
 
+            // Smart amount resolution:
+            // If the file has no amount column (or row amount is 0), auto-fill from the FG's selling price.
+            // Priority: MenuItem.sellingPrice > InventoryItem.costPerUnit (legacy selling price)
+            let resolvedAmount = row.amount;
+            let amountSource: 'file' | 'selling_price' = 'file';
+
+            if (match && (!hasAmountColumn || row.amount === 0)) {
+                const menuPrice = menuSellingPriceMap.get(match.id);
+                const fgSellingPrice = menuPrice ?? match.costPerUnit ?? 0;
+                if (fgSellingPrice > 0) {
+                    resolvedAmount = fgSellingPrice * row.qtySold;
+                    amountSource = 'selling_price';
+                }
+            }
+
             // Override costs with recipe-derived baseCost (preferred) or costPerUnit (legacy fallback)
-            const unitCost = match ? (match.baseCost ?? match.costPerUnit ?? 0) : 0;
+            const unitCost = match ? (match.baseCost ?? 0) : 0;
             const recipeCost = match ? unitCost * row.qtySold : row.costs;
-            const recipeProfit = match ? row.amount - recipeCost : row.profit;
+            const recipeProfit = match ? resolvedAmount - recipeCost : row.profit;
 
             return {
                 ...row,
+                amount: resolvedAmount,
                 costs: recipeCost,
                 profit: recipeProfit,
                 rowIndex: index,
@@ -209,6 +257,7 @@ export class PosImportService {
                 matchStatus: match ? 'MATCHED' : 'UNMATCHED',
                 currentStock: match ? (match.theoreticalStock ?? match.currentStock) : null,
                 negativeStockFlag: newStock !== null ? newStock < 0 : false,
+                amountSource,
             };
         });
 
