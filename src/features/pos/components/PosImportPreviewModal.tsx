@@ -31,10 +31,8 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
     const [showOnlyWarnings, setShowOnlyWarnings] = useState(false);
 
-    if (!isOpen) return null;
-
     // ================================================================
-    // DATA AGGREGATION
+    // DATA AGGREGATION (hooks must run before any conditional returns)
     // ================================================================
 
     const fgItems = simulatedDeductions.filter(d => d.type === 'FG' || d.type === 'FG_DIRECT');
@@ -55,7 +53,8 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
         });
 
         return groups;
-    }, [simulatedDeductions, fgItems]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [simulatedDeductions]);
 
     // Filter groups based on search and warning filter
     const filteredGroups = useMemo(() => {
@@ -69,6 +68,9 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
             );
         });
     }, [groupedData, searchTerm, showOnlyWarnings]);
+
+    // Early return AFTER all hooks to satisfy Rules of Hooks
+    if (!isOpen) return null;
 
     const toggleGroup = (itemId: string) => {
         setExpandedGroups(prev => {
