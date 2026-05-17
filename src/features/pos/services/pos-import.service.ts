@@ -224,7 +224,12 @@ export class PosImportService {
                 );
             }
 
-            const newStock = match ? (match.theoreticalStock ?? match.currentStock) - row.qtySold : null;
+            // For FGs WITH recipes, stock deductions happen at the ingredient level (BOM explosion),
+            // NOT at the FG level. So only check negative stock for recipe-less FGs (direct deduction).
+            const hasRecipe = match?.recipe && match.recipe.length > 0;
+            const newStock = match && !hasRecipe
+                ? (match.theoreticalStock ?? match.currentStock ?? 0) - row.qtySold
+                : null;
 
             // Smart amount resolution:
             // If the file has no amount column (or row amount is 0), auto-fill from the FG's selling price.

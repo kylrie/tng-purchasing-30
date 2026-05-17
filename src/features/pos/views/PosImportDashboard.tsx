@@ -220,8 +220,10 @@ const PosImportDashboard: React.FC<Props> = () => {
             if (!item) {
                 return { ...row, matchedItemId: null, matchedItemName: null, matchStatus: 'UNMATCHED', currentStock: null, negativeStockFlag: false, amountSource: 'file' };
             }
-            const theoStock = item.theoreticalStock ?? item.currentStock;
-            const newStock = theoStock - row.qtySold;
+            const theoStock = item.theoreticalStock ?? item.currentStock ?? 0;
+            // FGs with recipes don't get their own stock deducted — BOM ingredients do
+            const hasRecipe = item.recipe && item.recipe.length > 0;
+            const newStock = hasRecipe ? null : theoStock - row.qtySold;
 
             // Smart amount: auto-fill from selling price if file had no amount column or row amount is 0
             let resolvedAmount = row.amount;
@@ -247,7 +249,7 @@ const PosImportDashboard: React.FC<Props> = () => {
                 matchedItemName: item.name,
                 matchStatus: 'MATCHED',
                 currentStock: theoStock,
-                negativeStockFlag: newStock < 0,
+                negativeStockFlag: newStock !== null ? newStock < 0 : false,
                 amountSource,
             };
         }));
