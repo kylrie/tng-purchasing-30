@@ -523,7 +523,7 @@ const PosImportDashboard: React.FC<Props> = () => {
                     {viewState === 'UPLOAD' && (
                         <div className="space-y-4">
                             <div className="flex items-center gap-3">
-                                <label className="text-sm text-slate-500 dark:text-slate-400">Import Date:</label>
+                                <label className="text-sm text-slate-500 dark:text-slate-400">POS Sales Date:</label>
                                 <input
                                     type="date"
                                     value={importDate}
@@ -613,7 +613,7 @@ const PosImportDashboard: React.FC<Props> = () => {
                                     <FileSpreadsheet className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                                     <div>
                                         <p className="text-slate-900 dark:text-white font-medium">{file?.name}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">{file ? `${(file.size / 1024).toFixed(1)} KB` : ''} • Date: {importDate}</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">{file ? `${(file.size / 1024).toFixed(1)} KB` : ''} • POS Sales Date: {importDate}</p>
                                     </div>
                                 </div>
                                 <button onClick={resetAll} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700/60 hover:bg-red-500/20 text-slate-500 dark:text-slate-400 hover:text-red-400 rounded-lg transition-colors text-sm">
