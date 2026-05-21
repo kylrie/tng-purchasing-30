@@ -326,33 +326,33 @@ const PosImportDashboard: React.FC<Props> = () => {
                 return { ...row, matchedItemId: null, matchedItemName: null, matchStatus: 'UNMATCHED', currentStock: null, negativeStockFlag: false, amountSource: 'file' };
             }
             const theoStock = item.theoreticalStock ?? item.currentStock ?? 0;
-            // FGs with recipes don't get their own stock deducted — BOM ingredients do
             const hasRecipe = item.recipe && item.recipe.length > 0;
             const newStock = hasRecipe ? null : theoStock - row.qtySold;
 
-            const srp = item.costPerUnit ?? 0;
-            const unitCost = item.baseCost ?? 0;
-            const foc = row.qtyFoc ?? 0;
+            const srp = item.costPerUnit ?? 0;       // Selling price (SRP)
+            const baseCost = item.baseCost ?? 0;     // FG recipe cost from menu engineering
 
-            // AMOUNT = (QTY SOLD - FOC) * SRP  — FOC items generate no revenue
+            // AMOUNT = QTY SOLD × Selling Price
             let resolvedAmount = row.amount;
             let amountSource: 'file' | 'selling_price' = row.amountSource || 'file';
             if (!hasAmountColumn || row.amount === 0) {
                 if (srp > 0) {
-                    resolvedAmount = srp * (row.qtySold - foc);
+                    resolvedAmount = srp * row.qtySold;
                     amountSource = 'selling_price';
                 }
             }
 
-            // COST = QTY SOLD * unitCost (menu engineering cost — all prepared items)
-            const recipeCost = unitCost * row.qtySold;
-            const recipeProfit = resolvedAmount - recipeCost;
+            // COST = QTY SOLD × baseCost (FG recipe / menu engineering)
+            const totalCost = baseCost * row.qtySold;
+
+            // PROFIT = AMOUNT − COST
+            const totalProfit = resolvedAmount - totalCost;
 
             return {
                 ...row,
                 amount: resolvedAmount,
-                costs: recipeCost,
-                profit: recipeProfit,
+                costs: totalCost,
+                profit: totalProfit,
                 matchedItemId: item.id,
                 matchedItemName: item.name,
                 matchStatus: 'MATCHED',
@@ -372,23 +372,27 @@ const PosImportDashboard: React.FC<Props> = () => {
         setMappedRows(prev => prev.map(row => {
             if (row.rowIndex !== rowIndex) return row;
 
+            // FOC is stored for BOM deduction and audit — financials are unchanged:
+            // AMOUNT = qtySold × SRP  |  COST = qtySold × baseCost  |  PROFIT = AMOUNT - COST
+            // (Re-derive from matched item if available so values stay consistent)
             const matchedItem = row.matchedItemId
                 ? inventoryItems.find(i => i.id === row.matchedItemId)
                 : null;
             const srp = matchedItem?.costPerUnit ?? 0;
-            const unitCost = matchedItem?.baseCost ?? 0;
+            const baseCost = matchedItem?.baseCost ?? 0;
 
-            // AMOUNT = (QTY SOLD - FOC) * SRP
-            const newAmount = srp > 0
-                ? srp * (row.qtySold - focQty)
-                : row.amount; // keep file amount if no SRP available
-
-            // COST = QTY SOLD * unitCost (unchanged by FOC)
-            const newCosts = unitCost > 0 ? unitCost * row.qtySold : row.costs;
-
+            const newAmount = srp > 0 ? srp * row.qtySold : row.amount;
+            const newCosts  = baseCost > 0 ? baseCost * row.qtySold : row.costs;
             const newProfit = newAmount - newCosts;
 
-            return { ...row, qtyFoc: focQty, amount: newAmount, costs: newCosts, profit: newProfit, amountSource: srp > 0 ? 'selling_price' : row.amountSource };
+            return {
+                ...row,
+                qtyFoc: focQty,
+                amount: newAmount,
+                costs: newCosts,
+                profit: newProfit,
+                amountSource: srp > 0 ? 'selling_price' : row.amountSource,
+            };
         }));
     };
 
