@@ -3,7 +3,7 @@ import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2,
 import { EventImportService } from '../services/event-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
-import type { EventImportMappedRow, EventImportBatch, EventPackageTemplate, EventSimulatedDeduction } from '../types/event-sales.types';
+import type { EventImportMappedRow, EventImportBatch, EventSimulatedDeduction } from '../types/event-sales.types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 
 interface Props { businesses: { id: string; name: string }[]; }
@@ -22,7 +22,6 @@ const EventImportDashboard: React.FC<Props> = () => {
     const [fileHash, setFileHash] = useState('');
     const [mappedRows, setMappedRows] = useState<EventImportMappedRow[]>([]);
     const [inventoryItems, setInventoryItems] = useState<(InventoryItem & { id: string })[]>([]);
-    const [, setTemplates] = useState<EventPackageTemplate[]>([]);
     const [importHistory, setImportHistory] = useState<EventImportBatch[]>([]);
     const [simDeductions, setSimDeductions] = useState<EventSimulatedDeduction[]>([]);
     const [loading, setLoading] = useState(false);
@@ -47,9 +46,8 @@ const EventImportDashboard: React.FC<Props> = () => {
             const dup = await EventImportService.checkDuplicateImport(hash, selectedBU);
             if (dup) { setError(`This file was already imported on ${dup.importedAt?.toDate?.()?.toLocaleDateString() ?? 'unknown date'}.`); setLoading(false); return; }
             const rows = await EventImportService.parseFile(f);
-            const { mappedRows: mapped, templates: tpls, inventoryItems: inv } = await EventImportService.matchRowsToInventory(rows, selectedBU);
+            const { mappedRows: mapped, inventoryItems: inv } = await EventImportService.matchRowsToInventory(rows, selectedBU);
             setMappedRows(mapped);
-            setTemplates(tpls);
             setInventoryItems(inv);
             setViewState('PREVIEW');
         } catch (err: any) { setError(err.message || 'Failed to parse file'); }
@@ -141,8 +139,8 @@ const EventImportDashboard: React.FC<Props> = () => {
                                         <span className="px-3 py-1 bg-slate-700/50 rounded-full">Event Name</span>
                                         <span className="px-3 py-1 bg-slate-700/50 rounded-full">Package Name</span>
                                         <span className="px-3 py-1 bg-slate-700/50 rounded-full">Guest Count (Pax)</span>
-                                        <span className="px-3 py-1 bg-slate-700/50 rounded-full">Selection: *</span>
-                                        <span className="px-3 py-1 bg-slate-700/50 rounded-full">Consumables Logged</span>
+                                        <span className="px-3 py-1 bg-slate-700/50 rounded-full">Item</span>
+                                        <span className="px-3 py-1 bg-slate-700/50 rounded-full">Qty</span>
                                     </div>
                                     <button
                                         type="button"
@@ -184,7 +182,7 @@ const EventImportDashboard: React.FC<Props> = () => {
                                 <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                                     <table className="w-full text-sm">
                                         <thead className="bg-slate-900/50 sticky top-0"><tr>
-                                            {['#', 'Date', 'Event Name', 'Package', 'Pax', 'Selections', 'Consumables', 'Status'].map(h => (
+                                            {['#', 'Date', 'Event Name', 'Package', 'Pax', 'Items', 'Status'].map(h => (
                                                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase">{h}</th>
                                             ))}
                                         </tr></thead>
@@ -194,24 +192,15 @@ const EventImportDashboard: React.FC<Props> = () => {
                                                     <td className="px-4 py-3 text-slate-400">{i + 1}</td>
                                                     <td className="px-4 py-3 text-slate-200">{row.eventDate}</td>
                                                     <td className="px-4 py-3 text-white font-medium">{row.eventName}</td>
-                                                    <td className="px-4 py-3">
-                                                        <StatusBadge status={row.packageMatchStatus} />
-                                                        <span className="ml-2 text-slate-300">{row.matchedPackageName || row.packageName}</span>
-                                                    </td>
+                                                    <td className="px-4 py-3 text-slate-300">{row.packageName || '—'}</td>
                                                     <td className="px-4 py-3 text-cyan-400 font-semibold">{row.paxCount}</td>
                                                     <td className="px-4 py-3">
-                                                        {row.resolvedSelections.map((s, j) => (
+                                                        {row.resolvedItems.map((item, j) => (
                                                             <div key={j} className="flex items-center gap-1 mb-0.5">
-                                                                <StatusBadge status={s.matchStatus} />
-                                                                <span className="text-slate-300 text-xs">{s.groupName}: {s.matchedItemName || s.inputText}</span>
-                                                            </div>
-                                                        ))}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        {row.resolvedConsumables.map((c, j) => (
-                                                            <div key={j} className="flex items-center gap-1 mb-0.5">
-                                                                <StatusBadge status={c.matchStatus} />
-                                                                <span className="text-slate-300 text-xs">{c.matchedItemName || c.inputText} ×{c.qty}</span>
+                                                                <StatusBadge status={item.matchStatus} />
+                                                                <span className="text-slate-300 text-xs">
+                                                                    {item.matchedItemName || item.inputText} ×{item.qty}
+                                                                </span>
                                                             </div>
                                                         ))}
                                                     </td>

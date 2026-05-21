@@ -6,8 +6,7 @@ import { db } from '../../../config/firebase';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 import type {
     EventImportRow, EventImportMappedRow, EventImportBatch,
-    EventSalesRecord, EventPackageTemplate, EventSimulatedDeduction,
-    EventActualConsumable, EventFlexibleSelection, EventStandardItem,
+    EventSalesRecord, EventSimulatedDeduction, EventSaleItem,
 } from '../types/event-sales.types';
 import { EVENT_COL } from '../types/event-sales.types';
 
@@ -17,52 +16,37 @@ const COL = {
     ...EVENT_COL,
 } as const;
 
-// ================================================================
-// HELPERS
-// ================================================================
-
 const safeNum = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
 
-/** Case-insensitive fuzzy match: returns true if `input` is a substring of `target` or vice versa */
 const fuzzyMatch = (input: string, target: string): boolean => {
     const a = input.toLowerCase().trim();
     const b = target.toLowerCase().trim();
     return a === b || b.includes(a) || a.includes(b);
 };
 
-/** Convert "YYYY-MM-DD" to a Firestore Timestamp at local midnight */
 const importDateToTimestamp = (dateStr: string): Timestamp => {
     const [year, month, day] = dateStr.split('-').map(Number);
     return Timestamp.fromDate(new Date(year, month - 1, day, 0, 0, 0, 0));
 };
 
-/** Generate SHA-256 hash for file deduplication */
 const generateFileHash = async (file: File): Promise<string> => {
     const buffer = await file.arrayBuffer();
     const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
     return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-// ================================================================
-// EVENT IMPORT SERVICE
-// ================================================================
-
 export class EventImportService {
-
-    // ================================================================
-    // FILE PARSING
-    // ================================================================
 
     static async generateFileHash(file: File): Promise<string> {
         return generateFileHash(file);
     }
 
-    /**
-     * Parse an Excel file into EventImportRow[].
-     * Expected columns:
-     *   Event Date | Event Name | Package Name | Guest Count (Pax)
-     *   Selection: <GroupName> (dynamic) | Consumables Logged
-     */
+    // ================================================================
+    // FILE PARSING — Vertical line-item format
+    // Row with EVENT DATE/EVENT NAME starts a new event.
+    // Subsequent rows with only ITEM/QTY belong to the same event.
+    // ================================================================
+
     static async parseFile(file: File): Promise<EventImportRow[]> {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
@@ -71,73 +55,69 @@ export class EventImportService {
 
         if (rawRows.length === 0) throw new Error('The uploaded file contains no data rows.');
 
-        // Normalize headers
         const headers = Object.keys(rawRows[0]).map(h => h.trim());
         const normalize = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        const findCol = (keywords: string[]): string | null => {
-            return headers.find(h => keywords.some(kw => normalize(h).includes(normalize(kw)))) || null;
-        };
+        const findCol = (keywords: string[]): string | null =>
+            headers.find(h => keywords.some(kw => normalize(h).includes(normalize(kw)))) || null;
 
         const dateCol = findCol(['eventdate', 'date']);
         const nameCol = findCol(['eventname', 'event']);
         const pkgCol = findCol(['packagename', 'package']);
         const paxCol = findCol(['guestcount', 'pax', 'guests']);
-        const consumCol = findCol(['consumables', 'consumableslogged', 'drinks']);
+        const itemCol = findCol(['item', 'itemname', 'product']);
+        const qtyCol = findCol(['qty', 'quantity']);
 
-        if (!dateCol || !nameCol || !pkgCol || !paxCol) {
-            throw new Error('Missing required columns. Expected: Event Date, Event Name, Package Name, Guest Count (Pax)');
-        }
+        if (!itemCol) throw new Error('Missing required ITEM column.');
 
-        // Find dynamic "Selection: *" columns
-        const selectionCols = headers
-            .filter(h => h.toLowerCase().startsWith('selection:'))
-            .map(h => ({ header: h, groupName: h.replace(/^selection:\s*/i, '').trim() }));
+        const raw = (row: Record<string, unknown>, key: string | null): string =>
+            key ? String(row[key] ?? '').trim() : '';
 
-        return rawRows.map((row) => {
-            const raw = (key: string | null): string => key ? String(row[key] ?? '').trim() : '';
-            const selections: Record<string, string> = {};
-            for (const sc of selectionCols) {
-                const val = raw(sc.header);
-                if (val) selections[sc.groupName] = val;
+        const events: EventImportRow[] = [];
+        let current: EventImportRow | null = null;
+
+        for (const row of rawRows) {
+            const eventName = raw(row, nameCol);
+            const itemName = raw(row, itemCol);
+            const qtyRaw = qtyCol ? Number(row[qtyCol]) : 0;
+            const qty = Number.isFinite(qtyRaw) ? qtyRaw : 0;
+
+            // If this row has an event name, start a new event
+            if (eventName) {
+                if (current && current.items.length > 0) events.push(current);
+                current = {
+                    eventDate: raw(row, dateCol),
+                    eventName,
+                    packageName: raw(row, pkgCol),
+                    paxCount: paxCol ? (parseInt(String(row[paxCol]), 10) || 0) : 0,
+                    items: [],
+                };
             }
 
-            return {
-                eventDate: raw(dateCol),
-                eventName: raw(nameCol),
-                packageName: raw(pkgCol),
-                paxCount: parseInt(String(row[paxCol!]), 10) || 0,
-                selections,
-                consumablesRaw: raw(consumCol),
-            };
-        }).filter(r => r.eventName && r.paxCount > 0);
+            // Add item to current event
+            if (current && itemName) {
+                current.items.push({ name: itemName, qty });
+            }
+        }
+
+        // Push last event
+        if (current && current.items.length > 0) events.push(current);
+        if (events.length === 0) throw new Error('No valid events found in the file.');
+
+        return events;
     }
 
     // ================================================================
     // SMART MATCHING
     // ================================================================
 
-    /**
-     * Match parsed rows against event_package_templates and inventory items.
-     */
     static async matchRowsToInventory(
         rows: EventImportRow[],
         businessUnitId: string
     ): Promise<{
         mappedRows: EventImportMappedRow[];
-        templates: EventPackageTemplate[];
         inventoryItems: (InventoryItem & { id: string })[];
     }> {
-        // Fetch templates
-        const tplQuery = query(
-            collection(db, COL.EVENT_PACKAGE_TEMPLATES),
-            where('businessUnitId', '==', businessUnitId),
-            where('isActive', '==', true)
-        );
-        const tplSnap = await getDocs(tplQuery);
-        const templates = tplSnap.docs.map(d => ({ id: d.id, ...d.data() } as EventPackageTemplate));
-
-        // Fetch active inventory items (FG + RM for BOM later)
         const invQuery = query(
             collection(db, COL.INVENTORY_ITEMS),
             where('businessUnitId', '==', businessUnitId),
@@ -146,93 +126,36 @@ export class EventImportService {
         const invSnap = await getDocs(invQuery);
         const inventoryItems = invSnap.docs.map(d => ({ id: d.id, ...d.data() } as InventoryItem & { id: string }));
 
-        const fgItems = inventoryItems.filter(i => i.type === 'FINISHED_GOOD' || i.type === 'PRODUCTION');
+        const matchableItems = inventoryItems.filter(i =>
+            i.type === 'FINISHED_GOOD' || i.type === 'PRODUCTION' || i.type === 'RAW_MATERIAL'
+        );
 
-        const matchFG = (text: string): { id: string; name: string } | null => {
-            const exact = fgItems.find(i => i.name.toLowerCase() === text.toLowerCase().trim());
+        const matchItem = (text: string): { id: string; name: string } | null => {
+            const exact = matchableItems.find(i => i.name.toLowerCase() === text.toLowerCase().trim());
             if (exact) return { id: exact.id, name: exact.name };
-            const fuzzy = fgItems.find(i => fuzzyMatch(text, i.name));
+            const fuzzy = matchableItems.find(i => fuzzyMatch(text, i.name));
             if (fuzzy) return { id: fuzzy.id, name: fuzzy.name };
             return null;
         };
 
         const mappedRows: EventImportMappedRow[] = rows.map((row, idx) => {
-            // 1. Match package template
-            const matchedTpl = templates.find(t => fuzzyMatch(row.packageName, t.name));
+            const resolvedItems = row.items.map(item => {
+                const matched = matchItem(item.name);
+                return {
+                    inputText: item.name,
+                    qty: item.qty,
+                    matchedItemId: matched?.id ?? null,
+                    matchedItemName: matched?.name ?? null,
+                    matchStatus: matched ? 'MATCHED' as const : 'UNMATCHED' as const,
+                };
+            });
 
-            // 2. Resolve flexible selections
-            const resolvedSelections = matchedTpl
-                ? matchedTpl.flexibleChoices.map(group => {
-                    const inputText = row.selections[group.groupName] || '';
-                    const matched = inputText ? matchFG(inputText) : null;
-                    return {
-                        choiceGroupId: group.choiceGroupId,
-                        groupName: group.groupName,
-                        inputText,
-                        matchedItemId: matched?.id ?? null,
-                        matchedItemName: matched?.name ?? null,
-                        matchStatus: !inputText ? 'UNMATCHED' as const : matched ? 'MATCHED' as const : 'UNMATCHED' as const,
-                        qtyServed: row.paxCount * group.allowedQty,
-                    };
-                })
-                : Object.entries(row.selections).map(([groupName, inputText]) => {
-                    const matched = inputText ? matchFG(inputText) : null;
-                    return {
-                        choiceGroupId: groupName.toLowerCase().replace(/\s+/g, '_'),
-                        groupName,
-                        inputText,
-                        matchedItemId: matched?.id ?? null,
-                        matchedItemName: matched?.name ?? null,
-                        matchStatus: matched ? 'MATCHED' as const : 'UNMATCHED' as const,
-                        qtyServed: row.paxCount,
-                    };
-                });
+            const hasErrors = resolvedItems.some(i => i.matchStatus === 'UNMATCHED');
 
-            // 3. Parse consumables (format: "Item:Qty; Item:Qty")
-            const resolvedConsumables = row.consumablesRaw
-                ? row.consumablesRaw.split(';').map(entry => {
-                    const parts = entry.trim().split(':');
-                    const inputText = parts[0]?.trim() || '';
-                    const qty = parseInt(parts[1]?.trim() || '0', 10) || 0;
-                    const matched = inputText ? matchFG(inputText) : null;
-                    return {
-                        inputText,
-                        qty,
-                        matchedItemId: matched?.id ?? null,
-                        matchedItemName: matched?.name ?? null,
-                        matchStatus: matched ? 'MATCHED' as const : 'UNMATCHED' as const,
-                    };
-                }).filter(c => c.inputText)
-                : [];
-
-            // 4. Standard items from template
-            const resolvedStandardItems = matchedTpl
-                ? matchedTpl.standardItemsIncluded.map(si => ({
-                    inventoryItemId: si.inventoryItemId,
-                    inventoryItemName: si.inventoryItemName,
-                    totalQty: si.qtyPerPax * row.paxCount,
-                }))
-                : [];
-
-            const hasErrors =
-                !matchedTpl ||
-                resolvedSelections.some(s => s.matchStatus === 'UNMATCHED' && s.inputText) ||
-                resolvedConsumables.some(c => c.matchStatus === 'UNMATCHED');
-
-            return {
-                ...row,
-                rowIndex: idx,
-                matchedPackageId: matchedTpl?.id ?? null,
-                matchedPackageName: matchedTpl?.name ?? null,
-                packageMatchStatus: matchedTpl ? 'MATCHED' : 'UNMATCHED',
-                resolvedSelections,
-                resolvedConsumables,
-                resolvedStandardItems,
-                hasErrors,
-            };
+            return { ...row, rowIndex: idx, resolvedItems, hasErrors };
         });
 
-        return { mappedRows, templates, inventoryItems };
+        return { mappedRows, inventoryItems };
     }
 
     // ================================================================
@@ -247,38 +170,20 @@ export class EventImportService {
         const runningStock = new Map<string, number>();
 
         for (const row of mappedRows) {
-            if (!row.matchedPackageId) continue;
             const eventName = row.eventName;
-
-            // Collect all FG demands: { itemId -> totalQty }
             const demandMap = new Map<string, number>();
 
-            // Standard items
-            for (const si of row.resolvedStandardItems) {
-                demandMap.set(si.inventoryItemId, (demandMap.get(si.inventoryItemId) ?? 0) + si.totalQty);
-            }
-
-            // Flexible selections
-            for (const sel of row.resolvedSelections) {
-                if (sel.matchedItemId) {
-                    demandMap.set(sel.matchedItemId, (demandMap.get(sel.matchedItemId) ?? 0) + sel.qtyServed);
+            for (const item of row.resolvedItems) {
+                if (item.matchedItemId) {
+                    demandMap.set(item.matchedItemId, (demandMap.get(item.matchedItemId) ?? 0) + item.qty);
                 }
             }
 
-            // Consumables
-            for (const con of row.resolvedConsumables) {
-                if (con.matchedItemId) {
-                    demandMap.set(con.matchedItemId, (demandMap.get(con.matchedItemId) ?? 0) + con.qty);
-                }
-            }
-
-            // Now explode each FG in the demand map
             for (const [fgId, totalQty] of demandMap) {
                 const fgItem = allItemsMap.get(fgId);
                 if (!fgItem) continue;
 
                 if (fgItem.recipe && fgItem.recipe.length > 0) {
-                    // Has recipe — show FG as routing node, then recurse into ingredients
                     deductions.push({
                         itemId: fgId, itemName: fgItem.name, type: 'FG',
                         currentTheoreticalStock: 0, deductionAmount: totalQty,
@@ -286,7 +191,6 @@ export class EventImportService {
                     });
                     this.simulateRecursiveBOM(fgItem, totalQty, fgId, fgItem.name, eventName, allItemsMap, runningStock, deductions);
                 } else {
-                    // No recipe — direct FG deduction
                     const currentStock = runningStock.get(fgId) ?? (safeNum(fgItem.theoreticalStock) || safeNum(fgItem.currentStock));
                     const newStock = currentStock - totalQty;
                     runningStock.set(fgId, newStock);
@@ -303,14 +207,10 @@ export class EventImportService {
     }
 
     private static simulateRecursiveBOM(
-        item: InventoryItem & { id: string },
-        multiplier: number,
-        parentItemId: string,
-        parentItemName: string,
-        eventName: string,
+        item: InventoryItem & { id: string }, multiplier: number,
+        parentItemId: string, parentItemName: string, eventName: string,
         allItemsMap: Map<string, InventoryItem & { id: string }>,
-        runningStock: Map<string, number>,
-        deductions: EventSimulatedDeduction[]
+        runningStock: Map<string, number>, deductions: EventSimulatedDeduction[]
     ) {
         if (!item.recipe || item.recipe.length === 0) return;
         for (const ingredient of item.recipe) {
@@ -351,11 +251,9 @@ export class EventImportService {
         fileName: string;
     }): Promise<string> {
         const { mappedRows, businessUnitId, userId, userName, fileHash, fileName } = params;
-
-        const rowsToCommit = mappedRows.filter(r => r.matchedPackageId !== null);
+        const rowsToCommit = mappedRows.filter(r => !r.hasErrors);
         if (rowsToCommit.length === 0) throw new Error('No matched events to import.');
 
-        // Pre-fetch all inventory items for BOM
         const allItemsQuery = query(
             collection(db, COL.INVENTORY_ITEMS),
             where('businessUnitId', '==', businessUnitId),
@@ -365,7 +263,7 @@ export class EventImportService {
         const allItemsMap = new Map<string, InventoryItem & { id: string }>();
         allItemsSnap.docs.forEach(d => allItemsMap.set(d.id, { id: d.id, ...d.data() } as InventoryItem & { id: string }));
 
-        // ── BOM Explosion: aggregate all RM and direct FG deductions ──
+        // BOM Explosion: aggregate RM and direct FG deductions
         const rmDeductionMap = new Map<string, { totalQty: number; note: string }>();
         const fgDirectDeductionMap = new Map<string, { totalQty: number; note: string }>();
 
@@ -385,25 +283,18 @@ export class EventImportService {
         };
 
         let totalPax = 0;
-        let totalRevenue = 0;
 
         for (const row of rowsToCommit) {
             totalPax += row.paxCount;
-            const eventNote = `Event: ${row.eventName} (${row.matchedPackageName})`;
-
-            // Build demand map for this event
+            const eventNote = `Event: ${row.eventName}`;
             const demandMap = new Map<string, number>();
-            for (const si of row.resolvedStandardItems) {
-                demandMap.set(si.inventoryItemId, (demandMap.get(si.inventoryItemId) ?? 0) + si.totalQty);
-            }
-            for (const sel of row.resolvedSelections) {
-                if (sel.matchedItemId) demandMap.set(sel.matchedItemId, (demandMap.get(sel.matchedItemId) ?? 0) + sel.qtyServed);
-            }
-            for (const con of row.resolvedConsumables) {
-                if (con.matchedItemId) demandMap.set(con.matchedItemId, (demandMap.get(con.matchedItemId) ?? 0) + con.qty);
+
+            for (const item of row.resolvedItems) {
+                if (item.matchedItemId) {
+                    demandMap.set(item.matchedItemId, (demandMap.get(item.matchedItemId) ?? 0) + item.qty);
+                }
             }
 
-            // Explode each FG
             for (const [fgId, totalQty] of demandMap) {
                 const fgItem = allItemsMap.get(fgId);
                 if (!fgItem) continue;
@@ -423,11 +314,9 @@ export class EventImportService {
             if (rmItem) rmStockMap.set(rmId, safeNum(rmItem.theoreticalStock) || safeNum(rmItem.currentStock));
         }
 
-        // Generate batch import ID
         const batchDocRef = doc(collection(db, COL.EVENT_IMPORT_BATCHES));
         const batchImportId = batchDocRef.id;
 
-        // ── Build batch writes (Firestore 500-op limit) ──
         const MAX_OPS = 490;
         const batches: ReturnType<typeof writeBatch>[] = [];
         let currentBatch = writeBatch(db);
@@ -436,53 +325,35 @@ export class EventImportService {
 
         const now = Timestamp.now();
 
-        // ── Write event_sales documents ──
+        // Write event_sales documents
         for (const row of rowsToCommit) {
             const eventTs = importDateToTimestamp(row.eventDate);
 
-            const flexibleSelections: EventFlexibleSelection[] = row.resolvedSelections
-                .filter(s => s.matchedItemId)
-                .map(s => ({
-                    choiceGroupId: s.choiceGroupId, groupName: s.groupName,
-                    selectedItemId: s.matchedItemId!, selectedItemName: s.matchedItemName!,
-                    qtyServed: s.qtyServed,
+            const items: EventSaleItem[] = row.resolvedItems
+                .filter(i => i.matchedItemId)
+                .map(i => ({
+                    inventoryItemId: i.matchedItemId!,
+                    inventoryItemName: i.matchedItemName!,
+                    qty: i.qty,
                 }));
-
-            const actualConsumables: EventActualConsumable[] = row.resolvedConsumables
-                .filter(c => c.matchedItemId)
-                .map(c => {
-                    const item = allItemsMap.get(c.matchedItemId!);
-                    return {
-                        inventoryItemId: c.matchedItemId!, inventoryItemName: c.matchedItemName!,
-                        qtyConsumed: c.qty, unitPrice: item?.sellingPrice ?? 0, isOverAllowance: false,
-                    };
-                });
-
-            const standardItems: EventStandardItem[] = row.resolvedStandardItems;
-
-            // Calculate revenue
-            const tpl = allItemsMap.get(row.matchedPackageId!) as unknown as EventPackageTemplate | undefined;
-            const pkgRevenue = tpl ? (tpl.isPerPaxPricing ? tpl.basePrice * row.paxCount : tpl.basePrice) : 0;
-            totalRevenue += pkgRevenue;
 
             const saleRef = doc(collection(db, COL.EVENT_SALES));
             ensureBatch();
             currentBatch.set(saleRef, {
                 batchImportId, businessUnitId,
                 eventName: row.eventName,
-                packageTemplateId: row.matchedPackageId!,
-                packageTemplateName: row.matchedPackageName!,
+                packageName: row.packageName,
                 eventDate: row.eventDate,
                 paxCount: row.paxCount,
-                flexibleSelections, actualConsumables, standardItems,
-                totalRevenue: pkgRevenue, totalIngredientCost: 0, totalProfit: 0,
+                items,
+                totalRevenue: 0, totalIngredientCost: 0, totalProfit: 0,
                 performedBy: userId, performedByName: userName,
                 createdAt: eventTs,
             } satisfies Omit<EventSalesRecord, 'id'>);
             opCount++;
         }
 
-        // ── BOM Explosion writes: raw material deductions ──
+        // RM deductions
         const runningRmStock = new Map(rmStockMap);
         for (const [rmId, { totalQty, note }] of rmDeductionMap) {
             const rmItem = allItemsMap.get(rmId);
@@ -491,7 +362,6 @@ export class EventImportService {
             const newTheoStock = theoStock - totalQty;
             runningRmStock.set(rmId, newTheoStock);
 
-            // Stock transaction
             ensureBatch();
             currentBatch.set(doc(collection(db, COL.STOCK_TRANSACTIONS)), {
                 itemId: rmId, itemName: rmItem.name, businessUnitId,
@@ -504,7 +374,6 @@ export class EventImportService {
             });
             opCount++;
 
-            // Update inventory
             ensureBatch();
             const rmCurrentStock = safeNum(rmItem.currentStock);
             currentBatch.update(doc(db, COL.INVENTORY_ITEMS, rmId), {
@@ -515,7 +384,7 @@ export class EventImportService {
             opCount++;
         }
 
-        // ── Direct FG deductions (no-recipe items) ──
+        // Direct FG deductions (no-recipe items)
         for (const [fgId, { totalQty, note }] of fgDirectDeductionMap) {
             const fgItem = allItemsMap.get(fgId);
             if (!fgItem) continue;
@@ -544,11 +413,11 @@ export class EventImportService {
             opCount++;
         }
 
-        // ── Write batch metadata ──
+        // Batch metadata
         ensureBatch();
         currentBatch.set(batchDocRef, {
             businessUnitId, fileHash, fileName,
-            totalEvents: rowsToCommit.length, totalPax, totalRevenue,
+            totalEvents: rowsToCommit.length, totalPax, totalRevenue: 0,
             importedBy: userId, importedByName: userName, importedAt: now,
         } satisfies Omit<EventImportBatch, 'id'>);
         opCount++;
@@ -591,137 +460,56 @@ export class EventImportService {
         return snap.docs.map(d => ({ id: d.id, ...d.data() } as EventSalesRecord));
     }
 
-    static async getPackageTemplates(businessUnitId: string): Promise<EventPackageTemplate[]> {
-        const q = query(
-            collection(db, COL.EVENT_PACKAGE_TEMPLATES),
-            where('businessUnitId', '==', businessUnitId),
-            where('isActive', '==', true)
-        );
-        const snap = await getDocs(q);
-        return snap.docs.map(d => ({ id: d.id, ...d.data() } as EventPackageTemplate));
-    }
-
-    static async createPackageTemplate(
-        template: Omit<EventPackageTemplate, 'id' | 'createdAt' | 'updatedAt'>
-    ): Promise<string> {
-        const now = Timestamp.now();
-        const ref = doc(collection(db, COL.EVENT_PACKAGE_TEMPLATES));
-        const batch = writeBatch(db);
-        batch.set(ref, { ...template, createdAt: now, updatedAt: now });
-        await batch.commit();
-        return ref.id;
-    }
-
     // ================================================================
     // TEMPLATE EXPORT
     // ================================================================
 
-    /**
-     * Generate and download an Excel template with the correct headers,
-     * sample data, and an instructions sheet for staff to fill in.
-     */
     static downloadTemplate(): void {
         const wb = XLSX.utils.book_new();
 
-        // ── Sheet 1: Event Sales Data ──
-        const headers = [
-            'Event Date',
-            'Event Name',
-            'Package Name',
-            'Guest Count (Pax)',
-            'Selection: Main Course',
-            'Selection: Dessert',
-            'Selection: Beverage',
-            'Consumables Logged',
+        const wsData = [
+            ['EVENT DATE', 'EVENT NAME', 'PACKAGE NAME', 'GUEST COUNT (PAX)', 'ITEM', 'QTY'],
+            ['2026-01-15', 'Acme Corp Annual Dinner', 'Gold Wedding Package', 120, 'GRILLED SALMON', 120],
+            ['', '', '', '', 'DRAFT BEER', 80],
+            ['', '', '', '', 'SAN MIG', 40],
+            ['', '', '', '', 'TFR FRIES', 120],
+            ['', '', '', '', 'SOUP', 120],
+            [],
+            ['2026-01-20', 'Johnson Birthday', 'Silver Party Package', 80, 'BEEF TENDERLOIN', 80],
+            ['', '', '', '', 'ICED TEA', 80],
+            ['', '', '', '', 'CHOCOLATE CAKE', 40],
         ];
 
-        const sampleRows = [
-            [
-                '2026-01-15',
-                'Acme Corp Annual Dinner',
-                'Gold Wedding Package',
-                150,
-                'Grilled Salmon',
-                'Tiramisu',
-                'House Red Wine',
-                'Craft Beer:80; Mojito:45',
-            ],
-            [
-                '2026-01-20',
-                'Johnson Birthday Celebration',
-                'Silver Party Package',
-                80,
-                'Beef Tenderloin',
-                'Chocolate Cake',
-                'Iced Tea',
-                'San Miguel Light:50; Margarita:20',
-            ],
-            [
-                '2026-02-01',
-                'TechCo Product Launch',
-                'Corporate Gala Tier 1',
-                200,
-                'Roasted Chicken',
-                'Panna Cotta',
-                'Sparkling Water',
-                'Heineken:100; Red Horse:60; House Wine:30',
-            ],
-        ];
-
-        const wsData = [headers, ...sampleRows];
         const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-        // Column widths for readability
         ws['!cols'] = [
-            { wch: 14 },  // Event Date
-            { wch: 32 },  // Event Name
-            { wch: 28 },  // Package Name
-            { wch: 18 },  // Guest Count
-            { wch: 24 },  // Selection: Main Course
-            { wch: 24 },  // Selection: Dessert
-            { wch: 24 },  // Selection: Beverage
-            { wch: 40 },  // Consumables Logged
+            { wch: 14 }, { wch: 30 }, { wch: 26 }, { wch: 18 }, { wch: 24 }, { wch: 10 },
         ];
-
         XLSX.utils.book_append_sheet(wb, ws, 'Event Sales');
 
-        // ── Sheet 2: Instructions ──
         const instructions = [
             ['EVENT SALES UPLOAD TEMPLATE — INSTRUCTIONS'],
             [],
-            ['REQUIRED COLUMNS'],
-            ['Column', 'Description', 'Format / Example'],
-            ['Event Date', 'The date the event took place', 'YYYY-MM-DD  (e.g. 2026-01-15)'],
-            ['Event Name', 'Name or title of the event', 'Free text  (e.g. Acme Corp Annual Dinner)'],
-            ['Package Name', 'Must match an active package template', 'Exact or close match  (e.g. Gold Wedding Package)'],
-            ['Guest Count (Pax)', 'Number of guests (used as BOM multiplier)', 'Whole number  (e.g. 150)'],
+            ['COLUMN', 'DESCRIPTION', 'FORMAT'],
+            ['EVENT DATE', 'Date the event took place', 'YYYY-MM-DD'],
+            ['EVENT NAME', 'Name/title of the event', 'Free text'],
+            ['PACKAGE NAME', 'Package label (optional)', 'Free text'],
+            ['GUEST COUNT (PAX)', 'Number of guests', 'Whole number'],
+            ['ITEM', 'Item served at the event', 'Must match inventory name'],
+            ['QTY', 'Quantity served', 'Number'],
             [],
-            ['OPTIONAL COLUMNS'],
-            ['Column', 'Description', 'Format / Example'],
-            ['Selection: <GroupName>', 'Guest\'s chosen item for a flexible choice group. Add one column per group.', 'Item name  (e.g. Grilled Salmon)'],
-            ['Consumables Logged', 'Actual consumables used at the event', 'Item:Qty; Item:Qty  (e.g. Craft Beer:80; Mojito:45)'],
-            [],
-            ['NOTES'],
-            ['• You can add as many "Selection: *" columns as needed. The group name after "Selection:" will be used to match flexible choice groups in the package template.'],
-            ['• Consumables are separated by semicolons (;). Each entry is "ItemName:Quantity".'],
-            ['• Item names are fuzzy-matched against the inventory. Exact names produce the best results.'],
-            ['• Rows with a Guest Count of 0 or missing Event Name will be skipped automatically.'],
-            ['• Duplicate file uploads are detected by file hash and will be rejected.'],
-            ['• Delete the sample data rows before uploading your actual data.'],
+            ['HOW IT WORKS'],
+            ['• Each event starts with a row that has EVENT DATE and EVENT NAME filled in.'],
+            ['• Subsequent rows with only ITEM and QTY belong to the same event.'],
+            ['• A new row with EVENT NAME starts a new event.'],
+            ['• Items are fuzzy-matched against inventory. Exact names work best.'],
+            ['• Delete sample data before uploading your actual data.'],
         ];
 
-        const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
-        wsInstructions['!cols'] = [
-            { wch: 30 },
-            { wch: 55 },
-            { wch: 50 },
-        ];
-        // Merge the title row across 3 columns
-        wsInstructions['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+        const wsInstr = XLSX.utils.aoa_to_sheet(instructions);
+        wsInstr['!cols'] = [{ wch: 28 }, { wch: 50 }, { wch: 40 }];
+        wsInstr['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+        XLSX.utils.book_append_sheet(wb, wsInstr, 'Instructions');
 
-        XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
-
-        // ── Download ──
         XLSX.writeFile(wb, 'Event_Sales_Upload_Template.xlsx');
     }
 }

@@ -42,8 +42,7 @@ export interface EventFlexibleChoiceGroup {
 
 // ============================================================
 // EVENT SALES RECORD - Stored in `event_sales`
-// Represents a finalized event that occurred, logging what
-// was actually served, matched, and consumed.
+// Represents a finalized event with line-item detail.
 // ============================================================
 
 export interface EventSalesRecord {
@@ -51,19 +50,12 @@ export interface EventSalesRecord {
   batchImportId: string;            // Linked to import batch for traceability
   businessUnitId: string;
   eventName: string;                // e.g., "Acme Corp Annual Dinner"
-  packageTemplateId: string;        // FK to event_package_templates
-  packageTemplateName: string;      // Denormalized for reports
+  packageName: string;              // Package label from upload (optional reference)
   eventDate: string;                // YYYY-MM-DD
   paxCount: number;                 // Number of guests (used as multiplier)
 
-  // 1. Resolved Flexible Selections
-  flexibleSelections: EventFlexibleSelection[];
-
-  // 2. Actual Consumables Used
-  actualConsumables: EventActualConsumable[];
-
-  // 3. Standard Items Included (auto-populated from template × pax)
-  standardItems: EventStandardItem[];
+  // Line items served at the event
+  items: EventSaleItem[];
 
   // Financial Metrics
   totalRevenue: number;             // Package base price + any over-allowance consumables
@@ -75,26 +67,10 @@ export interface EventSalesRecord {
   createdAt: Timestamp;
 }
 
-export interface EventFlexibleSelection {
-  choiceGroupId: string;            // e.g., "entree_selection"
-  groupName: string;                // e.g., "Main Course (Select 1)"
-  selectedItemId: string;           // Matched Finished Good ID
-  selectedItemName: string;         // Denormalized
-  qtyServed: number;                // Typically paxCount × allowedQty
-}
-
-export interface EventActualConsumable {
-  inventoryItemId: string;          // Finished Good ID
-  inventoryItemName: string;
-  qtyConsumed: number;
-  unitPrice: number;                // Retail price at time of event
-  isOverAllowance: boolean;         // Flag if it exceeded package consumable credit
-}
-
-export interface EventStandardItem {
-  inventoryItemId: string;          // Finished Good ID
-  inventoryItemName: string;
-  totalQty: number;                 // qtyPerPax × paxCount
+export interface EventSaleItem {
+  inventoryItemId: string;          // Matched Finished Good / RM ID
+  inventoryItemName: string;        // Denormalized
+  qty: number;                      // Quantity served
 }
 
 // ============================================================
@@ -115,40 +91,26 @@ export interface EventImportBatch {
 }
 
 // ============================================================
-// EXCEL PARSER - Intermediary parsed row before match
+// EXCEL PARSER - Vertical line-item format
+// One event = multiple rows. First row has the event metadata,
+// subsequent rows only have ITEM + QTY.
 // ============================================================
 
 export interface EventImportRow {
   eventDate: string;                // Raw from Excel
   eventName: string;
-  packageName: string;              // Free-text to match against templates
+  packageName: string;              // Free-text (optional reference)
   paxCount: number;
-  selections: Record<string, string>;  // { "Main": "Grilled Salmon", "Dessert": "Tiramisu" }
-  consumablesRaw: string;           // Raw semicolon-delimited string (e.g., "Craft Beer:80; House Wine:30")
+  items: { name: string; qty: number }[];
 }
 
 export type EventMatchStatus = 'MATCHED' | 'UNMATCHED' | 'PARTIAL';
 
 export interface EventImportMappedRow extends EventImportRow {
   rowIndex: number;
-  // Package Match
-  matchedPackageId: string | null;
-  matchedPackageName: string | null;
-  packageMatchStatus: EventMatchStatus;
 
-  // Resolved Selections per group
-  resolvedSelections: {
-    choiceGroupId: string;
-    groupName: string;
-    inputText: string;              // What the user typed
-    matchedItemId: string | null;
-    matchedItemName: string | null;
-    matchStatus: EventMatchStatus;
-    qtyServed: number;              // paxCount × allowedQty
-  }[];
-
-  // Parsed Consumables
-  resolvedConsumables: {
+  // Resolved line items
+  resolvedItems: {
     inputText: string;              // What the user typed
     qty: number;
     matchedItemId: string | null;
@@ -156,15 +118,8 @@ export interface EventImportMappedRow extends EventImportRow {
     matchStatus: EventMatchStatus;
   }[];
 
-  // Standard Items (auto-populated from template)
-  resolvedStandardItems: {
-    inventoryItemId: string;
-    inventoryItemName: string;
-    totalQty: number;
-  }[];
-
   // Flags
-  hasErrors: boolean;               // True if any sub-match is UNMATCHED
+  hasErrors: boolean;               // True if any item is UNMATCHED
 }
 
 // ============================================================
