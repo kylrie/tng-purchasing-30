@@ -8,6 +8,7 @@ export interface PosImportRow {
   category: string;
   itemName: string;
   qtySold: number;
+  qtyFoc: number;        // Free of Charge quantity — deducted from stock but earns no revenue
   amount: number;
   costs: number;
   profit: number;
@@ -41,6 +42,7 @@ export interface PosSaleRecord {
   inventoryItemName: string;
   category: string;
   qtySold: number;
+  qtyFoc: number;        // Free of Charge quantity saved for audit trail
   amount: number;
   costs: number;
   profit: number;

@@ -112,6 +112,7 @@ export class PosImportService {
                 category: String(getVal('category') || '').trim(),
                 itemName: String(getVal('itemName') || '').trim(),
                 qtySold: parseNumber(getVal('qtySold')),
+                qtyFoc: 0,   // Always starts at 0 — user sets this in the preview UI
                 amount: parseNumber(getVal('amount')),
                 costs: parseNumber(getVal('costs')),
                 profit: parseNumber(getVal('profit')),
@@ -247,8 +248,10 @@ export class PosImportService {
             }
 
             // Override costs with recipe-derived baseCost (preferred) or costPerUnit (legacy fallback)
+            // For FOC: include qtyFoc in the cost base so the "free" items reduce profit correctly.
             const unitCost = match ? (match.baseCost ?? 0) : 0;
-            const recipeCost = match ? unitCost * row.qtySold : row.costs;
+            const totalBilledQty = row.qtySold + (row.qtyFoc ?? 0);
+            const recipeCost = match ? unitCost * totalBilledQty : row.costs;
             const recipeProfit = match ? resolvedAmount - recipeCost : row.profit;
 
             return {
@@ -292,6 +295,9 @@ export class PosImportService {
             const fgItem = allItemsMap.get(row.matchedItemId!);
             if (!fgItem) continue;
 
+            // Total quantity to deduct = sold + free-of-charge (FOC)
+            const totalQty = row.qtySold + (row.qtyFoc ?? 0);
+
             if (fgItem.recipe && fgItem.recipe.length > 0) {
                 // Push the FG header so the preview modal can group children under it
                 const safeStockFG = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
@@ -308,9 +314,10 @@ export class PosImportService {
                 });
 
                 // FG has a recipe — explode into underlying ingredient deductions
+                // Use totalQty so FOC items also consume raw materials
                 this.simulateRecursiveBOM(
                     fgItem,
-                    row.qtySold,
+                    totalQty,
                     row.matchedItemId!,
                     row.matchedItemName || row.itemName,
                     allItemsMap,
@@ -324,7 +331,7 @@ export class PosImportService {
                 const currentStock = runningStock.has(fgItem.id)
                     ? runningStock.get(fgItem.id)!
                     : safeStock(fgItem.theoreticalStock) || safeStock(fgItem.currentStock);
-                const newStock = currentStock - row.qtySold;
+                const newStock = currentStock - totalQty;
                 runningStock.set(fgItem.id, newStock);
 
                 simulatedDeductions.push({
@@ -332,7 +339,7 @@ export class PosImportService {
                     itemName: fgItem.name,
                     type: 'FG_DIRECT',
                     currentTheoreticalStock: currentStock,
-                    deductionAmount: row.qtySold,
+                    deductionAmount: totalQty,
                     newTheoreticalStock: newStock,
                     parentItemId: row.matchedItemId!,
                     parentItemName: row.matchedItemName || row.itemName,
@@ -511,14 +518,17 @@ export class PosImportService {
             if (!fgItem) continue;
             const fgName = row.matchedItemName || row.itemName;
 
+            // totalQty = sold + FOC — both consume raw materials but only qtySold earns revenue
+            const totalQty = row.qtySold + (row.qtyFoc ?? 0);
+
             if (fgItem.recipe && fgItem.recipe.length > 0) {
-                // Has recipe — explode into raw material deductions
-                recursiveExplosion(fgItem, row.qtySold, fgName);
+                // Has recipe — explode into raw material deductions using totalQty
+                recursiveExplosion(fgItem, totalQty, fgName);
             } else {
-                // No recipe — track for direct FG stock deduction
+                // No recipe — track for direct FG stock deduction using totalQty
                 const prev = fgDirectDeductionMap.get(row.matchedItemId!);
                 fgDirectDeductionMap.set(row.matchedItemId!, {
-                    totalQty: (prev?.totalQty ?? 0) + row.qtySold,
+                    totalQty: (prev?.totalQty ?? 0) + totalQty,
                     fgName: prev?.fgName ?? fgName,
                 });
             }
@@ -566,6 +576,7 @@ export class PosImportService {
                 inventoryItemName: row.matchedItemName || row.itemName,
                 category: row.category,
                 qtySold: row.qtySold,
+                qtyFoc: row.qtyFoc ?? 0,
                 amount: row.amount,
                 costs: row.costs,
                 profit: row.profit,

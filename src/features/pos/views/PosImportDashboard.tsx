@@ -341,9 +341,10 @@ const PosImportDashboard: React.FC<Props> = () => {
                 }
             }
 
-            // Override costs with recipe-derived baseCost
+            // Factor in existing qtyFoc when computing costs after a manual match
             const unitCost = item.baseCost ?? 0;
-            const recipeCost = unitCost * row.qtySold;
+            const totalBilledQty = row.qtySold + (row.qtyFoc ?? 0);
+            const recipeCost = unitCost * totalBilledQty;
             const recipeProfit = resolvedAmount - recipeCost;
             return {
                 ...row,
@@ -357,6 +358,29 @@ const PosImportDashboard: React.FC<Props> = () => {
                 negativeStockFlag: newStock !== null ? newStock < 0 : false,
                 amountSource,
             };
+        }));
+    };
+
+    // ================================================================
+    // FOC QUANTITY CHANGE
+    // ================================================================
+
+    const handleFocChange = (rowIndex: number, rawValue: string) => {
+        const focQty = Math.max(0, parseInt(rawValue, 10) || 0);
+        setMappedRows(prev => prev.map(row => {
+            if (row.rowIndex !== rowIndex) return row;
+
+            // Recalculate costs using the matched item's baseCost when available
+            const matchedItem = row.matchedItemId
+                ? inventoryItems.find(i => i.id === row.matchedItemId)
+                : null;
+            const unitCost = matchedItem?.baseCost ?? 0;
+            const totalBilledQty = row.qtySold + focQty;
+            // Only override costs if we have a known unit cost from the matched item
+            const newCosts = unitCost > 0 ? unitCost * totalBilledQty : row.costs;
+            const newProfit = row.amount - newCosts;
+
+            return { ...row, qtyFoc: focQty, costs: newCosts, profit: newProfit };
         }));
     };
 
@@ -631,6 +655,12 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                 <th className="text-left py-3 px-4">Category</th>
                                                 <th className="text-left py-3 px-4">Item Name (File)</th>
                                                 <th className="text-right py-3 px-4">Qty Sold</th>
+                                                <th className="text-right py-3 px-4 min-w-[90px]">
+                                                    <span className="inline-flex items-center gap-1">
+                                                        FOC Qty
+                                                        <span className="text-[9px] px-1 py-0.5 rounded bg-violet-500/20 text-violet-400 font-semibold tracking-wide">FREE</span>
+                                                    </span>
+                                                </th>
                                                 <th className="text-right py-3 px-4">Amount</th>
                                                 <th className="text-right py-3 px-4">Cost</th>
                                                 <th className="text-right py-3 px-4">Profit</th>
@@ -645,6 +675,23 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                     <td className="py-2.5 px-4 text-slate-600 dark:text-slate-300">{row.category}</td>
                                                     <td className="py-2.5 px-4 text-slate-900 dark:text-white font-medium">{row.itemName}</td>
                                                     <td className="py-2.5 px-4 text-right text-slate-900 dark:text-white">{row.qtySold}</td>
+                                                    {/* FOC Qty input */}
+                                                    <td className="py-2.5 px-2 text-right">
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <input
+                                                                id={`foc-qty-${row.rowIndex}`}
+                                                                type="number"
+                                                                min={0}
+                                                                value={row.qtyFoc || ''}
+                                                                placeholder="0"
+                                                                onChange={(e) => handleFocChange(row.rowIndex, e.target.value)}
+                                                                className="w-14 text-right bg-white dark:bg-slate-700/80 text-violet-700 dark:text-violet-300 border border-violet-400/40 rounded-md px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500 placeholder-slate-400"
+                                                            />
+                                                            {(row.qtyFoc ?? 0) > 0 && (
+                                                                <span className="text-[9px] px-1 py-0.5 rounded bg-violet-500/20 text-violet-400 font-semibold whitespace-nowrap">FOC</span>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td className="py-2.5 px-4 text-right text-emerald-600 dark:text-emerald-400">
                                                         <span>₱{row.amount.toLocaleString()}</span>
                                                         {row.amountSource === 'selling_price' && (
