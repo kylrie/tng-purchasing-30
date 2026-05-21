@@ -94,6 +94,7 @@ export interface InventoryItem {
   costPerUnit: number;               // Legacy Cost per recipeUnit (kept for compatibility)
   buyCost?: number;                  // Cost per Buy Unit (e.g. per case)
   baseCost?: number;                 // Cost per Base Unit (used by POS BOM explosion and Recipe builder)
+  sellingPrice?: number;             // Menu engineering selling price (SRP) — injected at runtime from menu_items
   supplier?: string;
   notes?: string;
   menuItemId?: string;               // Link to menu item if FINISHED_GOOD from Menu Engineering

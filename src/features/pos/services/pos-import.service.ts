@@ -185,41 +185,46 @@ export class PosImportService {
             ...d.data()
         })) as (InventoryItem & { id: string })[];
 
-        // If no amount column, pre-fetch menu items for accurate selling prices
-        // Menu items have the canonical sellingPrice; FG's costPerUnit is the legacy fallback
+        // Always pre-fetch menu items for accurate selling prices (SRP)
+        // Menu items have the canonical sellingPrice; InventoryItem.costPerUnit is the legacy COST (not price)
         let menuSellingPriceMap = new Map<string, number>();
-        if (!hasAmountColumn) {
-            try {
-                const menuQuery = query(
-                    collection(db, 'menu_items'),
-                    where('businessUnitId', '==', businessUnitId),
-                    where('isActive', '==', true)
-                );
-                const menuSnap = await getDocs(menuQuery);
-                menuSnap.docs.forEach(d => {
-                    const data = d.data();
-                    // Map by linkedInventoryItemId so we can look up by FG id
-                    if (data.linkedInventoryItemId && data.sellingPrice > 0) {
-                        menuSellingPriceMap.set(data.linkedInventoryItemId, data.sellingPrice);
-                    }
-                });
-                console.log(`[POS Import] Loaded ${menuSellingPriceMap.size} menu selling prices for auto-fill.`);
-            } catch (err) {
-                console.warn('[POS Import] Could not load menu items for selling price lookup:', err);
-            }
+        try {
+            const menuQuery = query(
+                collection(db, 'menu_items'),
+                where('businessUnitId', '==', businessUnitId),
+                where('isActive', '==', true)
+            );
+            const menuSnap = await getDocs(menuQuery);
+            menuSnap.docs.forEach(d => {
+                const data = d.data();
+                // Map by linkedInventoryItemId so we can look up by FG inventory id
+                if (data.linkedInventoryItemId && data.sellingPrice > 0) {
+                    menuSellingPriceMap.set(data.linkedInventoryItemId, data.sellingPrice);
+                }
+            });
+            console.log(`[POS Import] Loaded ${menuSellingPriceMap.size} menu selling prices.`);
+        } catch (err) {
+            console.warn('[POS Import] Could not load menu items for selling price lookup:', err);
         }
+
+        // Inject sellingPrice onto each inventory item so the dashboard can access it
+        // during manual re-matching (handleManualMatch) without a second Firestore fetch
+        const enrichedItems = inventoryItems.map(item => ({
+            ...item,
+            sellingPrice: menuSellingPriceMap.get(item.id) ?? undefined,
+        }));
 
         const mappedRows: PosImportMappedRow[] = rows.map((row, index) => {
             const normalizedName = row.itemName.toLowerCase().trim();
 
             // Priority 1: Exact match (case-insensitive)
-            let match = inventoryItems.find(item =>
+            let match = enrichedItems.find(item =>
                 item.name.toLowerCase().trim() === normalizedName
             );
 
             // Priority 2: Contains match
             if (!match) {
-                match = inventoryItems.find(item =>
+                match = enrichedItems.find(item =>
                     item.name.toLowerCase().trim().includes(normalizedName) ||
                     normalizedName.includes(item.name.toLowerCase().trim())
                 );
@@ -232,26 +237,24 @@ export class PosImportService {
                 ? (match.theoreticalStock ?? match.currentStock ?? 0) - row.qtySold
                 : null;
 
-            // Smart amount resolution:
-            // If the file has no amount column (or row amount is 0), auto-fill from the FG's selling price.
-            // Priority: MenuItem.sellingPrice > InventoryItem.costPerUnit (legacy selling price)
+            // AMOUNT = QTY SOLD × Selling Price (SRP from menu engineering)
             let resolvedAmount = row.amount;
             let amountSource: 'file' | 'selling_price' = 'file';
 
             if (match && (!hasAmountColumn || row.amount === 0)) {
-                const menuPrice = menuSellingPriceMap.get(match.id);
-                const fgSellingPrice = menuPrice ?? match.costPerUnit ?? 0;
-                if (fgSellingPrice > 0) {
-                    resolvedAmount = fgSellingPrice * row.qtySold;
+                const srp = match.sellingPrice ?? 0; // already injected above
+                if (srp > 0) {
+                    resolvedAmount = srp * row.qtySold;
                     amountSource = 'selling_price';
                 }
             }
 
-            // Override costs with recipe-derived baseCost (preferred) or costPerUnit (legacy fallback)
-            // For FOC: include qtyFoc in the cost base so the "free" items reduce profit correctly.
+            // COST = QTY SOLD × baseCost (FG recipe cost from menu engineering)
+            // baseCost is the fully-loaded recipe cost per unit — not costPerUnit (which is the legacy cost field)
             const unitCost = match ? (match.baseCost ?? 0) : 0;
-            const totalBilledQty = row.qtySold + (row.qtyFoc ?? 0);
-            const recipeCost = match ? unitCost * totalBilledQty : row.costs;
+            const recipeCost = match ? unitCost * row.qtySold : row.costs;
+
+            // PROFIT = AMOUNT − COST
             const recipeProfit = match ? resolvedAmount - recipeCost : row.profit;
 
             return {
@@ -269,7 +272,7 @@ export class PosImportService {
             };
         });
 
-        return { mappedRows, inventoryItems };
+        return { mappedRows, inventoryItems: enrichedItems };
     }
 
     // ================================================================

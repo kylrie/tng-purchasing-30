@@ -329,10 +329,13 @@ const PosImportDashboard: React.FC<Props> = () => {
             const hasRecipe = item.recipe && item.recipe.length > 0;
             const newStock = hasRecipe ? null : theoStock - row.qtySold;
 
-            const srp = item.costPerUnit ?? 0;       // Selling price (SRP)
-            const baseCost = item.baseCost ?? 0;     // FG recipe cost from menu engineering
+            // SRP = sellingPrice from menu engineering (injected by service)
+            // baseCost = FG recipe cost from menu engineering
+            // NOTE: costPerUnit is the legacy COST field, NOT the selling price
+            const srp = item.sellingPrice ?? 0;
+            const baseCost = item.baseCost ?? 0;
 
-            // AMOUNT = QTY SOLD × Selling Price
+            // AMOUNT = QTY SOLD × Selling Price (SRP)
             let resolvedAmount = row.amount;
             let amountSource: 'file' | 'selling_price' = row.amountSource || 'file';
             if (!hasAmountColumn || row.amount === 0) {
@@ -372,15 +375,15 @@ const PosImportDashboard: React.FC<Props> = () => {
         setMappedRows(prev => prev.map(row => {
             if (row.rowIndex !== rowIndex) return row;
 
-            // FOC is stored for BOM deduction and audit — financials are unchanged:
-            // AMOUNT = qtySold × SRP  |  COST = qtySold × baseCost  |  PROFIT = AMOUNT - COST
-            // (Re-derive from matched item if available so values stay consistent)
             const matchedItem = row.matchedItemId
                 ? inventoryItems.find(i => i.id === row.matchedItemId)
                 : null;
-            const srp = matchedItem?.costPerUnit ?? 0;
+
+            // Use sellingPrice (real SRP from menu engineering); baseCost for recipe cost
+            const srp = matchedItem?.sellingPrice ?? 0;
             const baseCost = matchedItem?.baseCost ?? 0;
 
+            // Financials are not changed by FOC — FOC only affects BOM deduction audit
             const newAmount = srp > 0 ? srp * row.qtySold : row.amount;
             const newCosts  = baseCost > 0 ? baseCost * row.qtySold : row.costs;
             const newProfit = newAmount - newCosts;
