@@ -185,9 +185,11 @@ export class PosImportService {
             ...d.data()
         })) as (InventoryItem & { id: string })[];
 
-        // Always pre-fetch menu items for accurate selling prices (SRP)
-        // Menu items have the canonical sellingPrice; InventoryItem.costPerUnit is the legacy COST (not price)
+        // Always pre-fetch menu items for accurate selling prices (SRP) and recipe costs
+        // MenuItem.sellingPrice = the retail price (SRP)
+        // MenuItem.calculatedCost = sum of all ingredient costs = the FG recipe cost per unit
         let menuSellingPriceMap = new Map<string, number>();
+        let menuCostMap = new Map<string, number>();
         try {
             const menuQuery = query(
                 collection(db, 'menu_items'),
@@ -198,20 +200,28 @@ export class PosImportService {
             menuSnap.docs.forEach(d => {
                 const data = d.data();
                 // Map by linkedInventoryItemId so we can look up by FG inventory id
-                if (data.linkedInventoryItemId && data.sellingPrice > 0) {
-                    menuSellingPriceMap.set(data.linkedInventoryItemId, data.sellingPrice);
+                if (data.linkedInventoryItemId) {
+                    if (data.sellingPrice > 0) {
+                        menuSellingPriceMap.set(data.linkedInventoryItemId, data.sellingPrice);
+                    }
+                    // calculatedCost is the FG recipe cost (sum of all ingredient totalCost)
+                    if ((data.calculatedCost ?? 0) > 0) {
+                        menuCostMap.set(data.linkedInventoryItemId, data.calculatedCost);
+                    }
                 }
             });
-            console.log(`[POS Import] Loaded ${menuSellingPriceMap.size} menu selling prices.`);
+            console.log(`[POS Import] Loaded ${menuSellingPriceMap.size} selling prices, ${menuCostMap.size} recipe costs.`);
         } catch (err) {
             console.warn('[POS Import] Could not load menu items for selling price lookup:', err);
         }
 
-        // Inject sellingPrice onto each inventory item so the dashboard can access it
-        // during manual re-matching (handleManualMatch) without a second Firestore fetch
+        // Inject sellingPrice and baseCost onto each inventory item so the dashboard can
+        // access both during manual re-matching without a second Firestore fetch.
+        // baseCost priority: menu_items.calculatedCost > InventoryItem.baseCost (legacy)
         const enrichedItems = inventoryItems.map(item => ({
             ...item,
             sellingPrice: menuSellingPriceMap.get(item.id) ?? undefined,
+            baseCost: menuCostMap.get(item.id) ?? item.baseCost ?? undefined,
         }));
 
         const mappedRows: PosImportMappedRow[] = rows.map((row, index) => {
@@ -237,20 +247,22 @@ export class PosImportService {
                 ? (match.theoreticalStock ?? match.currentStock ?? 0) - row.qtySold
                 : null;
 
-            // AMOUNT = QTY SOLD × Selling Price (SRP from menu engineering)
+            // AMOUNT = (QTY SOLD - FOC QTY) × Selling Price (SRP from menu engineering)
+            // FOC items are given free — they reduce billable revenue but raw material is still consumed.
+            const billedQty = Math.max(0, row.qtySold - (row.qtyFoc ?? 0));
             let resolvedAmount = row.amount;
             let amountSource: 'file' | 'selling_price' = 'file';
 
             if (match && (!hasAmountColumn || row.amount === 0)) {
-                const srp = match.sellingPrice ?? 0; // already injected above
+                const srp = match.sellingPrice ?? 0; // injected above from menu_items
                 if (srp > 0) {
-                    resolvedAmount = srp * row.qtySold;
+                    resolvedAmount = srp * billedQty;
                     amountSource = 'selling_price';
                 }
             }
 
-            // COST = QTY SOLD × baseCost (FG recipe cost from menu engineering)
-            // baseCost is the fully-loaded recipe cost per unit — not costPerUnit (which is the legacy cost field)
+            // COST = QTY SOLD × baseCost (FG recipe cost from menu_items.calculatedCost)
+            // Full qtySold used — FOC items still consume raw materials
             const unitCost = match ? (match.baseCost ?? 0) : 0;
             const recipeCost = match ? unitCost * row.qtySold : row.costs;
 

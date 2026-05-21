@@ -329,23 +329,23 @@ const PosImportDashboard: React.FC<Props> = () => {
             const hasRecipe = item.recipe && item.recipe.length > 0;
             const newStock = hasRecipe ? null : theoStock - row.qtySold;
 
-            // SRP = sellingPrice from menu engineering (injected by service)
-            // baseCost = FG recipe cost from menu engineering
-            // NOTE: costPerUnit is the legacy COST field, NOT the selling price
+            // SRP from menu engineering (injected by service from menu_items.sellingPrice)
+            // baseCost from menu engineering (injected by service from menu_items.calculatedCost)
             const srp = item.sellingPrice ?? 0;
             const baseCost = item.baseCost ?? 0;
 
-            // AMOUNT = QTY SOLD × Selling Price (SRP)
+            // AMOUNT = (QTY SOLD - FOC QTY) × SRP — FOC items reduce billable revenue
+            const billedQty = Math.max(0, row.qtySold - (row.qtyFoc ?? 0));
             let resolvedAmount = row.amount;
             let amountSource: 'file' | 'selling_price' = row.amountSource || 'file';
             if (!hasAmountColumn || row.amount === 0) {
                 if (srp > 0) {
-                    resolvedAmount = srp * row.qtySold;
+                    resolvedAmount = srp * billedQty;
                     amountSource = 'selling_price';
                 }
             }
 
-            // COST = QTY SOLD × baseCost (FG recipe / menu engineering)
+            // COST = QTY SOLD × baseCost — full qty incl. FOC consumes raw materials
             const totalCost = baseCost * row.qtySold;
 
             // PROFIT = AMOUNT − COST
@@ -379,13 +379,18 @@ const PosImportDashboard: React.FC<Props> = () => {
                 ? inventoryItems.find(i => i.id === row.matchedItemId)
                 : null;
 
-            // Use sellingPrice (real SRP from menu engineering); baseCost for recipe cost
+            // SRP and recipe cost injected by service from menu engineering
             const srp = matchedItem?.sellingPrice ?? 0;
             const baseCost = matchedItem?.baseCost ?? 0;
 
-            // Financials are not changed by FOC — FOC only affects BOM deduction audit
-            const newAmount = srp > 0 ? srp * row.qtySold : row.amount;
-            const newCosts  = baseCost > 0 ? baseCost * row.qtySold : row.costs;
+            // AMOUNT = (QTY SOLD - FOC QTY) × SRP — FOC reduces billable revenue
+            const billedQty = Math.max(0, row.qtySold - focQty);
+            const newAmount = srp > 0 ? srp * billedQty : row.amount;
+
+            // COST = QTY SOLD × baseCost — all units (incl. FOC) consume raw materials
+            const newCosts = baseCost > 0 ? baseCost * row.qtySold : row.costs;
+
+            // PROFIT = AMOUNT − COST
             const newProfit = newAmount - newCosts;
 
             return {
