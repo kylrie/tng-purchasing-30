@@ -295,8 +295,9 @@ export class PosImportService {
             const fgItem = allItemsMap.get(row.matchedItemId!);
             if (!fgItem) continue;
 
-            // Total quantity to deduct = sold + free-of-charge (FOC)
-            const totalQty = row.qtySold + (row.qtyFoc ?? 0);
+            // Deduction qty = qtySold (all prepared items, FOC is a revenue-reducing subset)
+            // FOC reduces AMOUNT=(qtySold-FOC)*SRP, but ALL items consume raw materials
+            const totalQty = row.qtySold;
 
             if (fgItem.recipe && fgItem.recipe.length > 0) {
                 // Push the FG header so the preview modal can group children under it
@@ -518,8 +519,9 @@ export class PosImportService {
             if (!fgItem) continue;
             const fgName = row.matchedItemName || row.itemName;
 
-            // totalQty = sold + FOC — both consume raw materials but only qtySold earns revenue
-            const totalQty = row.qtySold + (row.qtyFoc ?? 0);
+            // Deduction qty = qtySold — FOC is a subset of sold qty that removes revenue,
+            // not an additive quantity. All prepared items (including FOC) consume raw materials.
+            const totalQty = row.qtySold;
 
             if (fgItem.recipe && fgItem.recipe.length > 0) {
                 // Has recipe — explode into raw material deductions using totalQty

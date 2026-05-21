@@ -330,22 +330,24 @@ const PosImportDashboard: React.FC<Props> = () => {
             const hasRecipe = item.recipe && item.recipe.length > 0;
             const newStock = hasRecipe ? null : theoStock - row.qtySold;
 
-            // Smart amount: auto-fill from selling price if file had no amount column or row amount is 0
+            const srp = item.costPerUnit ?? 0;
+            const unitCost = item.baseCost ?? 0;
+            const foc = row.qtyFoc ?? 0;
+
+            // AMOUNT = (QTY SOLD - FOC) * SRP  — FOC items generate no revenue
             let resolvedAmount = row.amount;
             let amountSource: 'file' | 'selling_price' = row.amountSource || 'file';
             if (!hasAmountColumn || row.amount === 0) {
-                const fgSellingPrice = item.costPerUnit ?? 0;
-                if (fgSellingPrice > 0) {
-                    resolvedAmount = fgSellingPrice * row.qtySold;
+                if (srp > 0) {
+                    resolvedAmount = srp * (row.qtySold - foc);
                     amountSource = 'selling_price';
                 }
             }
 
-            // Factor in existing qtyFoc when computing costs after a manual match
-            const unitCost = item.baseCost ?? 0;
-            const totalBilledQty = row.qtySold + (row.qtyFoc ?? 0);
-            const recipeCost = unitCost * totalBilledQty;
+            // COST = QTY SOLD * unitCost (menu engineering cost — all prepared items)
+            const recipeCost = unitCost * row.qtySold;
             const recipeProfit = resolvedAmount - recipeCost;
+
             return {
                 ...row,
                 amount: resolvedAmount,
@@ -370,17 +372,23 @@ const PosImportDashboard: React.FC<Props> = () => {
         setMappedRows(prev => prev.map(row => {
             if (row.rowIndex !== rowIndex) return row;
 
-            // Recalculate costs using the matched item's baseCost when available
             const matchedItem = row.matchedItemId
                 ? inventoryItems.find(i => i.id === row.matchedItemId)
                 : null;
+            const srp = matchedItem?.costPerUnit ?? 0;
             const unitCost = matchedItem?.baseCost ?? 0;
-            const totalBilledQty = row.qtySold + focQty;
-            // Only override costs if we have a known unit cost from the matched item
-            const newCosts = unitCost > 0 ? unitCost * totalBilledQty : row.costs;
-            const newProfit = row.amount - newCosts;
 
-            return { ...row, qtyFoc: focQty, costs: newCosts, profit: newProfit };
+            // AMOUNT = (QTY SOLD - FOC) * SRP
+            const newAmount = srp > 0
+                ? srp * (row.qtySold - focQty)
+                : row.amount; // keep file amount if no SRP available
+
+            // COST = QTY SOLD * unitCost (unchanged by FOC)
+            const newCosts = unitCost > 0 ? unitCost * row.qtySold : row.costs;
+
+            const newProfit = newAmount - newCosts;
+
+            return { ...row, qtyFoc: focQty, amount: newAmount, costs: newCosts, profit: newProfit, amountSource: srp > 0 ? 'selling_price' : row.amountSource };
         }));
     };
 
