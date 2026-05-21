@@ -611,4 +611,117 @@ export class EventImportService {
         await batch.commit();
         return ref.id;
     }
+
+    // ================================================================
+    // TEMPLATE EXPORT
+    // ================================================================
+
+    /**
+     * Generate and download an Excel template with the correct headers,
+     * sample data, and an instructions sheet for staff to fill in.
+     */
+    static downloadTemplate(): void {
+        const wb = XLSX.utils.book_new();
+
+        // ── Sheet 1: Event Sales Data ──
+        const headers = [
+            'Event Date',
+            'Event Name',
+            'Package Name',
+            'Guest Count (Pax)',
+            'Selection: Main Course',
+            'Selection: Dessert',
+            'Selection: Beverage',
+            'Consumables Logged',
+        ];
+
+        const sampleRows = [
+            [
+                '2026-01-15',
+                'Acme Corp Annual Dinner',
+                'Gold Wedding Package',
+                150,
+                'Grilled Salmon',
+                'Tiramisu',
+                'House Red Wine',
+                'Craft Beer:80; Mojito:45',
+            ],
+            [
+                '2026-01-20',
+                'Johnson Birthday Celebration',
+                'Silver Party Package',
+                80,
+                'Beef Tenderloin',
+                'Chocolate Cake',
+                'Iced Tea',
+                'San Miguel Light:50; Margarita:20',
+            ],
+            [
+                '2026-02-01',
+                'TechCo Product Launch',
+                'Corporate Gala Tier 1',
+                200,
+                'Roasted Chicken',
+                'Panna Cotta',
+                'Sparkling Water',
+                'Heineken:100; Red Horse:60; House Wine:30',
+            ],
+        ];
+
+        const wsData = [headers, ...sampleRows];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+        // Column widths for readability
+        ws['!cols'] = [
+            { wch: 14 },  // Event Date
+            { wch: 32 },  // Event Name
+            { wch: 28 },  // Package Name
+            { wch: 18 },  // Guest Count
+            { wch: 24 },  // Selection: Main Course
+            { wch: 24 },  // Selection: Dessert
+            { wch: 24 },  // Selection: Beverage
+            { wch: 40 },  // Consumables Logged
+        ];
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Event Sales');
+
+        // ── Sheet 2: Instructions ──
+        const instructions = [
+            ['EVENT SALES UPLOAD TEMPLATE — INSTRUCTIONS'],
+            [],
+            ['REQUIRED COLUMNS'],
+            ['Column', 'Description', 'Format / Example'],
+            ['Event Date', 'The date the event took place', 'YYYY-MM-DD  (e.g. 2026-01-15)'],
+            ['Event Name', 'Name or title of the event', 'Free text  (e.g. Acme Corp Annual Dinner)'],
+            ['Package Name', 'Must match an active package template', 'Exact or close match  (e.g. Gold Wedding Package)'],
+            ['Guest Count (Pax)', 'Number of guests (used as BOM multiplier)', 'Whole number  (e.g. 150)'],
+            [],
+            ['OPTIONAL COLUMNS'],
+            ['Column', 'Description', 'Format / Example'],
+            ['Selection: <GroupName>', 'Guest\'s chosen item for a flexible choice group. Add one column per group.', 'Item name  (e.g. Grilled Salmon)'],
+            ['Consumables Logged', 'Actual consumables used at the event', 'Item:Qty; Item:Qty  (e.g. Craft Beer:80; Mojito:45)'],
+            [],
+            ['NOTES'],
+            ['• You can add as many "Selection: *" columns as needed. The group name after "Selection:" will be used to match flexible choice groups in the package template.'],
+            ['• Consumables are separated by semicolons (;). Each entry is "ItemName:Quantity".'],
+            ['• Item names are fuzzy-matched against the inventory. Exact names produce the best results.'],
+            ['• Rows with a Guest Count of 0 or missing Event Name will be skipped automatically.'],
+            ['• Duplicate file uploads are detected by file hash and will be rejected.'],
+            ['• Delete the sample data rows before uploading your actual data.'],
+        ];
+
+        const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
+        wsInstructions['!cols'] = [
+            { wch: 30 },
+            { wch: 55 },
+            { wch: 50 },
+        ];
+        // Merge the title row across 3 columns
+        wsInstructions['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }];
+
+        XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
+
+        // ── Download ──
+        XLSX.writeFile(wb, 'Event_Sales_Upload_Template.xlsx');
+    }
 }

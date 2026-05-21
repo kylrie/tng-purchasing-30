@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, Calendar, Package, Users, Eye } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, Calendar, Package, Users, Eye, Download } from 'lucide-react';
 import { EventImportService } from '../services/event-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
@@ -144,6 +144,14 @@ const EventImportDashboard: React.FC<Props> = () => {
                                         <span className="px-3 py-1 bg-slate-700/50 rounded-full">Selection: *</span>
                                         <span className="px-3 py-1 bg-slate-700/50 rounded-full">Consumables Logged</span>
                                     </div>
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); EventImportService.downloadTemplate(); }}
+                                        className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 bg-violet-600/20 hover:bg-violet-600/40 border border-violet-500/30 hover:border-violet-400/50 text-violet-300 hover:text-violet-200 text-sm font-medium rounded-xl transition-all duration-200"
+                                    >
+                                        <Download size={16} />
+                                        Download Template
+                                    </button>
                                 </>
                             )}
                         </div>
