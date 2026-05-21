@@ -786,10 +786,10 @@ service cloud.firestore {
       allow create: if isSignedIn() && hasPermission('inventory:manage:items');
       
       // Update: Requires inventory:manage:items OR specific system-level updates
-      // Allow POS Import module to update theoreticalStock and updatedAt
+      // Allow POS/Event Import module to update stock fields (currentStock, theoreticalStock) and updatedAt
       allow update: if isSignedIn() && (
         hasPermission('inventory:manage:items') ||
-        (hasPermission('module:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['theoreticalStock', 'updatedAt']))
+        (hasPermission('module:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentStock', 'theoreticalStock', 'updatedAt']))
       );
       
       // Delete: Admin only (to prevent accidental data loss)
@@ -1020,6 +1020,40 @@ service cloud.firestore {
       allow update: if false;
     }
     
+    // =====================================================
+    // EVENT SALES COLLECTION
+    // Imported event sales records with BOM-exploded items
+    // =====================================================
+    match /event_sales/{saleId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // Only admins can delete for rollback
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      allow update: if false;
+    }
+
+    // =====================================================
+    // EVENT IMPORT BATCHES COLLECTION
+    // Metadata for each event import batch (idempotency/history)
+    // =====================================================
+    match /event_import_batches/{batchId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // Only admins can delete for rollback
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      allow update: if false;
+    }
+
+    // =====================================================
+    // EVENT PACKAGE TEMPLATES COLLECTION
+    // Reusable event package templates
+    // =====================================================
+    match /event_package_templates/{templateId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+
     // =====================================================
     // STOCK TRANSACTIONS COLLECTION
     // Immutable audit trail of all inventory movements
