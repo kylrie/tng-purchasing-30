@@ -64,7 +64,8 @@ export type StockTransactionType =
   | 'PRODUCTION_YIELD'    // Production run: finished production item yield increase
   | 'PRODUCTION_CONSUME'  // Production run: raw material consumed during production
   | 'STOCK_COUNT'
-  | 'WASTAGE';            // Material wastage: stock manually deducted due to loss
+  | 'WASTAGE'            // Material wastage: stock manually deducted due to loss
+  | 'EVENT_CONSUMPTION'; // Event package: direct FG deducted from event sale
 
 export interface StockTransaction {
   id: string;

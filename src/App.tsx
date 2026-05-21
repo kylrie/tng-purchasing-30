@@ -61,6 +61,7 @@ const MainDashboardRouter = React.lazy(() => import('./features/dashboard/views/
 const NotificationsView = React.lazy(() => import('./features/notifications/views/NotificationsView'));
 const POSView = React.lazy(() => import('./features/pos/views/POSView'));
 const PosImportDashboard = React.lazy(() => import('./features/pos/views/PosImportDashboard'));
+const EventImportDashboard = React.lazy(() => import('./features/pos/views/EventImportDashboard'));
 const WastageView = React.lazy(() => import('./features/inventory/views/WastageView'));
 
 // Loading component
@@ -348,6 +349,11 @@ function ProtectedApp() {
                 <Route path="/finance/income/sales" element={
                   <ProtectedRoute permission="module:view:finance">
                     <PosImportDashboard businesses={accessibleBusinesses} />
+                  </ProtectedRoute>
+                } />
+                <Route path="/finance/income/event-sales" element={
+                  <ProtectedRoute permission="module:view:finance">
+                    <EventImportDashboard businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
                 <Route path="/finance/income/invoices" element={

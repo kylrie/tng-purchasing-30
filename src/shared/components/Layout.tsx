@@ -39,7 +39,8 @@ import {
     Search,
     Landmark,
     Store,
-    Trash2
+    Trash2,
+    Calendar
 } from 'lucide-react';
 import type { User, Business } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -311,6 +312,7 @@ const Layout: React.FC<LayoutProps> = ({
                     canView: hasPermission('module:view:finance'),
                     children: [
                         { path: '/finance/income/sales', label: 'Sales', icon: Receipt, canView: hasPermission('module:view:finance') },
+                        { path: '/finance/income/event-sales', label: 'Event Sales', icon: Calendar, canView: hasPermission('module:view:finance') },
                         { path: '/finance/income/invoices', label: 'Invoices', icon: FileSpreadsheet, canView: hasPermission('module:view:finance') }
                     ]
                 },
