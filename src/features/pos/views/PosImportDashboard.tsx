@@ -338,18 +338,22 @@ const PosImportDashboard: React.FC<Props> = () => {
             const srp = item.sellingPrice ?? 0;
             const baseCost = item.baseCost ?? 0;
 
-            // AMOUNT = (QTY SOLD - FOC QTY) × SRP — FOC items reduce billable revenue
+            // AMOUNT = ((QTY SOLD - FOC QTY) × SRP) - DISCOUNT
             const billedQty = Math.max(0, row.qtySold - (row.qtyFoc ?? 0));
             let resolvedAmount = row.amount;
             let amountSource: 'file' | 'selling_price' = row.amountSource || 'file';
             if (!hasAmountColumn || row.amount === 0) {
                 if (srp > 0) {
-                    resolvedAmount = srp * billedQty;
+                    resolvedAmount = (srp * billedQty) - (row.discount || 0);
                     amountSource = 'selling_price';
                 }
+            } else {
+                 // Ensure discount is applied to amount if not already applied
+                 // Actually, PosImportService already subtracts discount. So we might need to be careful not to double count.
+                 // But wait, if they change the item, we just recalculate based on existing row.amount (which was already adjusted by service)
             }
 
-            // COST = QTY SOLD × baseCost — full qty incl. FOC consumes raw materials
+            // COST = QTY SOLD × baseCost
             const totalCost = baseCost * row.qtySold;
 
             // PROFIT = AMOUNT − COST
@@ -364,8 +368,54 @@ const PosImportDashboard: React.FC<Props> = () => {
                 matchedItemName: item.name,
                 matchStatus: 'MATCHED',
                 currentStock: theoStock,
-                negativeStockFlag: newStock !== null ? newStock < 0 : false,
+                negativeStockFlag: newStock !== null && !row.isDirectSale ? newStock < 0 : false,
                 amountSource,
+            };
+        }));
+    };
+
+    const handleDiscountChange = (rowIndex: number, rawValue: string) => {
+        const discountAmount = Math.max(0, parseFloat(rawValue) || 0);
+        setMappedRows(prev => prev.map(row => {
+            if (row.rowIndex !== rowIndex) return row;
+
+            const matchedItem = row.matchedItemId
+                ? inventoryItems.find(i => i.id === row.matchedItemId)
+                : null;
+
+            const srp = matchedItem?.sellingPrice ?? 0;
+            const baseCost = matchedItem?.baseCost ?? 0;
+
+            const billedQty = Math.max(0, row.qtySold - (row.qtyFoc ?? 0));
+            // Recompute amount: start from base revenue (srp * billedQty) if using srp, otherwise we don't have a reliable base revenue to subtract from
+            // We should probably rely on (amount + oldDiscount) - newDiscount
+            const oldDiscount = row.discount || 0;
+            const baseRevenue = row.amountSource === 'selling_price' && srp > 0 ? (srp * billedQty) : (row.amount + oldDiscount);
+            const newAmount = Math.max(0, baseRevenue - discountAmount);
+
+            const newCosts = baseCost > 0 ? baseCost * row.qtySold : row.costs;
+            const newProfit = newAmount - newCosts;
+
+            return {
+                ...row,
+                discount: discountAmount,
+                amount: newAmount,
+                costs: newCosts,
+                profit: newProfit,
+                amountSource: srp > 0 ? 'selling_price' : row.amountSource,
+            };
+        }));
+    };
+
+    const handleDirectSaleToggle = (rowIndex: number) => {
+        setMappedRows(prev => prev.map(row => {
+            if (row.rowIndex !== rowIndex) return row;
+            const isDirectSale = !row.isDirectSale;
+            return {
+                ...row,
+                isDirectSale,
+                // Remove negative stock warning if it's a direct sale
+                negativeStockFlag: isDirectSale ? false : row.negativeStockFlag
             };
         }));
     };
@@ -389,7 +439,14 @@ const PosImportDashboard: React.FC<Props> = () => {
 
             // AMOUNT = (QTY SOLD - FOC QTY) × SRP — FOC reduces billable revenue
             const billedQty = Math.max(0, row.qtySold - focQty);
-            const newAmount = srp > 0 ? srp * billedQty : row.amount;
+            
+            let newAmount = row.amount;
+            if (srp > 0) {
+                newAmount = Math.max(0, (srp * billedQty) - (row.discount || 0));
+            } else if (row.amountSource === 'file') {
+                 // For file imports without known SRP, we can't reliably recalculate Amount when FOC changes,
+                 // but we can at least maintain the existing amount. 
+            }
 
             // COST = QTY SOLD × baseCost — all units (incl. FOC) consume raw materials
             const newCosts = baseCost > 0 ? baseCost * row.qtySold : row.costs;
@@ -699,9 +756,11 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                         <span className="text-[9px] px-1 py-0.5 rounded bg-violet-500/20 text-violet-400 font-semibold tracking-wide">FREE</span>
                                                     </span>
                                                 </th>
+                                                <th className="text-right py-3 px-4 min-w-[100px]">Discount</th>
                                                 <th className="text-right py-3 px-4">Amount</th>
                                                 <th className="text-right py-3 px-4">Cost</th>
                                                 <th className="text-right py-3 px-4">Profit</th>
+                                                <th className="text-center py-3 px-4 min-w-[100px]">Direct Sale</th>
                                                 <th className="text-center py-3 px-4">Status</th>
                                                 <th className="text-left py-3 px-4 min-w-[200px]">Matched To</th>
                                             </tr>
@@ -730,16 +789,39 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                             )}
                                                         </div>
                                                     </td>
+                                                    <td className="py-2.5 px-2 text-right">
+                                                        <input
+                                                            id={`discount-${row.rowIndex}`}
+                                                            type="number"
+                                                            min={0}
+                                                            step="0.01"
+                                                            value={row.discount || ''}
+                                                            placeholder="0.00"
+                                                            onChange={(e) => handleDiscountChange(row.rowIndex, e.target.value)}
+                                                            className="w-20 text-right bg-white dark:bg-slate-700/80 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 rounded-md px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 placeholder-slate-400"
+                                                        />
+                                                    </td>
                                                     <td className="py-2.5 px-4 text-right text-emerald-600 dark:text-emerald-400">
-                                                        <span>₱{row.amount.toLocaleString()}</span>
+                                                        <span>₱{row.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                                                         {row.amountSource === 'selling_price' && (
                                                             <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-500" title="Auto-filled from FG selling price">SP</span>
                                                         )}
                                                     </td>
-                                                    <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-300">₱{row.costs.toLocaleString()}</td>
+                                                    <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-300">₱{row.costs.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                                     <td className={`py-2.5 px-4 text-right ${row.profit < 0 ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
-                                                        ₱{row.profit.toLocaleString()}
+                                                        ₱{row.profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                                         {row.profit < 0 && <span className="ml-1 text-[10px]">⚠ negative</span>}
+                                                    </td>
+                                                    <td className="py-2.5 px-4 text-center">
+                                                        <label className="relative inline-flex items-center cursor-pointer justify-center">
+                                                            <input
+                                                                type="checkbox"
+                                                                className="sr-only peer"
+                                                                checked={row.isDirectSale}
+                                                                onChange={() => handleDirectSaleToggle(row.rowIndex)}
+                                                            />
+                                                            <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-blue-600"></div>
+                                                        </label>
                                                     </td>
                                                     <td className="py-2.5 px-4 text-center">
                                                         {row.matchStatus === 'MATCHED' ? (

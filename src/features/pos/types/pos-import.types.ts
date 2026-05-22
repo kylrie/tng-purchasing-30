@@ -9,6 +9,8 @@ export interface PosImportRow {
   itemName: string;
   qtySold: number;
   qtyFoc: number;        // Free of Charge quantity — deducted from stock but earns no revenue
+  discount: number;      // Discount applied to this sale, reducing total amount
+  isDirectSale: boolean; // True if this item goes straight to sales without deducting inventory
   amount: number;
   costs: number;
   profit: number;
@@ -43,6 +45,8 @@ export interface PosSaleRecord {
   category: string;
   qtySold: number;
   qtyFoc: number;        // Free of Charge quantity saved for audit trail
+  discount: number;      // Discount amount applied
+  isDirectSale: boolean; // Flag to indicate if this bypassed inventory deduction
   amount: number;
   costs: number;
   profit: number;

@@ -66,6 +66,7 @@ export class PosImportService {
                        'selling price', 'sell price'].includes(normalized)) headerMap[key] = 'amount';
             else if (normalized === 'costs' || normalized === 'cost') headerMap[key] = 'costs';
             else if (normalized === 'profit' || normalized === 'net') headerMap[key] = 'profit';
+            else if (normalized === 'discount' || normalized === 'discounts') headerMap[key] = 'discount';
         }
 
         // Debug: log header mapping for troubleshooting
@@ -113,10 +114,19 @@ export class PosImportService {
                 itemName: String(getVal('itemName') || '').trim(),
                 qtySold: parseNumber(getVal('qtySold')),
                 qtyFoc: 0,   // Always starts at 0 — user sets this in the preview UI
+                discount: parseNumber(getVal('discount')),
+                isDirectSale: false,
                 amount: parseNumber(getVal('amount')),
                 costs: parseNumber(getVal('costs')),
                 profit: parseNumber(getVal('profit')),
             };
+            
+            // If discount is provided in file, ensure it deducts from amount and profit
+            if (row.discount > 0) {
+                row.amount = Math.max(0, row.amount - row.discount);
+                row.profit = row.amount - row.costs;
+            }
+            
             return row;
         }).filter(row => row.itemName && row.qtySold > 0); // Skip empty/zero rows
 
@@ -135,6 +145,7 @@ export class PosImportService {
                 existing.amount += row.amount;
                 existing.costs += row.costs;
                 existing.profit += row.profit;
+                existing.discount += row.discount;
                 // Keep the first-seen category (they should be the same item)
             } else {
                 // Clone the row so we don't mutate the original
@@ -333,6 +344,11 @@ export class PosImportService {
         for (const row of rowsToCommit) {
             const fgItem = allItemsMap.get(row.matchedItemId!);
             if (!fgItem) continue;
+
+            // Direct Sale: Bypass stock deduction simulation
+            if (row.isDirectSale) {
+                continue;
+            }
 
             // Deduction qty = qtySold (all prepared items, FOC is a revenue-reducing subset)
             // FOC reduces AMOUNT=(qtySold-FOC)*SRP, but ALL items consume raw materials
@@ -557,6 +573,11 @@ export class PosImportService {
             const fgItem = allItemsMap.get(row.matchedItemId!);
             if (!fgItem) continue;
             const fgName = row.matchedItemName || row.itemName;
+
+            // Direct Sale: Bypass stock deductions
+            if (row.isDirectSale) {
+                continue;
+            }
 
             // Deduction qty = qtySold — FOC is a subset of sold qty that removes revenue,
             // not an additive quantity. All prepared items (including FOC) consume raw materials.
