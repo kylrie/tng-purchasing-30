@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar, Info } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar, Info, Search } from 'lucide-react';
 import { PosImportService } from '../services/pos-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
@@ -171,6 +171,7 @@ const PosImportDashboard: React.FC<Props> = () => {
     const [isSimulating, setIsSimulating] = useState(false);
 
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const handleDeleteBatch = async (batchId: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -554,6 +555,16 @@ const PosImportDashboard: React.FC<Props> = () => {
     const negativeStockRows = mappedRows.filter(r => r.negativeStockFlag);
     const canCommit = matchedCount > 0;
 
+    const filteredMappedRows = useMemo(() => {
+        if (!searchQuery.trim()) return mappedRows;
+        const q = searchQuery.toLowerCase();
+        return mappedRows.filter(row => 
+            row.itemName?.toLowerCase().includes(q) || 
+            row.category?.toLowerCase().includes(q) ||
+            row.matchedItemName?.toLowerCase().includes(q)
+        );
+    }, [mappedRows, searchQuery]);
+
     // Sales report aggregate stats
     const reportTotalRevenue = allSales.reduce((s, r) => s + r.amount, 0);
     const reportTotalProfit = allSales.reduce((s, r) => s + r.profit, 0);
@@ -741,6 +752,17 @@ const PosImportDashboard: React.FC<Props> = () => {
                                 </button>
                             </div>
 
+                            <div className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                <input
+                                    type="text"
+                                    placeholder="Search by item name or category..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full bg-white dark:bg-slate-800/60 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700/50 rounded-xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition-colors"
+                                />
+                            </div>
+
                             <div className="bg-white dark:bg-slate-800/60 backdrop-blur border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden">
                                 <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                                     <table className="w-full text-sm">
@@ -766,9 +788,16 @@ const PosImportDashboard: React.FC<Props> = () => {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {mappedRows.map((row) => (
-                                                <tr key={row.rowIndex} className={`border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 ${row.negativeStockFlag ? 'bg-amber-500/5' : ''}`}>
-                                                    <td className="py-2.5 px-4 text-slate-400 dark:text-slate-500">{row.rowIndex + 1}</td>
+                                            {filteredMappedRows.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={12} className="py-8 text-center text-slate-500 dark:text-slate-400">
+                                                        No matching items found.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                filteredMappedRows.map((row) => (
+                                                    <tr key={row.rowIndex} className={`border-b border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700/30 ${row.negativeStockFlag ? 'bg-amber-500/5' : ''}`}>
+                                                        <td className="py-2.5 px-4 text-slate-400 dark:text-slate-500">{row.rowIndex + 1}</td>
                                                     <td className="py-2.5 px-4 text-slate-600 dark:text-slate-300">{row.category}</td>
                                                     <td className="py-2.5 px-4 text-slate-900 dark:text-white font-medium">{row.itemName}</td>
                                                     <td className="py-2.5 px-4 text-right text-slate-900 dark:text-white">{row.qtySold}</td>
@@ -851,7 +880,7 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                         )}
                                                     </td>
                                                 </tr>
-                                            ))}
+                                            )))}
                                         </tbody>
                                     </table>
                                 </div>
