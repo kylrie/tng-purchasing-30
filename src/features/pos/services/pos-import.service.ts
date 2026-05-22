@@ -40,7 +40,7 @@ export class PosImportService {
      * Parse an .xlsx or .csv file into typed PosImportRow[]
      * Normalizes column headers (case-insensitive, trimmed)
      */
-    static async parseFile(file: File): Promise<{ rows: PosImportRow[]; hasAmountColumn: boolean }> {
+    static async parseFile(file: File): Promise<{ rows: PosImportRow[]; hasAmountColumn: boolean; rawRowCount: number; consolidatedCount: number }> {
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
@@ -120,13 +120,37 @@ export class PosImportService {
             return row;
         }).filter(row => row.itemName && row.qtySold > 0); // Skip empty/zero rows
 
-        // Debug: log first 3 parsed rows to verify parsing
-        if (parsed.length > 0) {
-            console.log('[POS Import] Sample parsed rows:', parsed.slice(0, 3));
+        const rawRowCount = parsed.length;
+
+        // ── SMART CONSOLIDATION ──────────────────────────────────────
+        // Group rows with the same item name (case-insensitive) and sum
+        // their qtySold, amount, costs, and profit into a single row.
+        // This turns e.g. 9 "BOTTLED WATER" lines into 1 consolidated row.
+        const consolidationMap = new Map<string, PosImportRow>();
+        for (const row of parsed) {
+            const key = row.itemName.toUpperCase().trim();
+            const existing = consolidationMap.get(key);
+            if (existing) {
+                existing.qtySold += row.qtySold;
+                existing.amount += row.amount;
+                existing.costs += row.costs;
+                existing.profit += row.profit;
+                // Keep the first-seen category (they should be the same item)
+            } else {
+                // Clone the row so we don't mutate the original
+                consolidationMap.set(key, { ...row });
+            }
+        }
+        const consolidated = Array.from(consolidationMap.values());
+
+        // Debug: log consolidation stats
+        if (consolidated.length > 0) {
+            console.log(`[POS Import] Consolidated ${rawRowCount} raw rows → ${consolidated.length} unique items`);
+            console.log('[POS Import] Sample consolidated rows:', consolidated.slice(0, 3));
             console.log('[POS Import] Has amount column:', hasAmountColumn);
         }
 
-        return { rows: parsed, hasAmountColumn };
+        return { rows: consolidated, hasAmountColumn, rawRowCount, consolidatedCount: consolidated.length };
     }
 
     // ================================================================

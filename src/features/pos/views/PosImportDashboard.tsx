@@ -137,9 +137,11 @@ const PosImportDashboard: React.FC<Props> = () => {
     const [viewState, setViewState] = useState<ViewState>('UPLOAD');
     const [file, setFile] = useState<File | null>(null);
     const [fileHash, setFileHash] = useState<string>('');
-    const [parsedRows, setParsedRows] = useState<PosImportRow[]>([]);
+    const [_parsedRows, setParsedRows] = useState<PosImportRow[]>([]);
     const [hasAmountColumn, setHasAmountColumn] = useState<boolean>(true);
     const [mappedRows, setMappedRows] = useState<PosImportMappedRow[]>([]);
+    const [rawRowCount, setRawRowCount] = useState<number>(0);
+    const [consolidatedCount, setConsolidatedCount] = useState<number>(0);
     const [inventoryItems, setInventoryItems] = useState<(InventoryItem & { id: string })[]>([]);
     const [importHistory, setImportHistory] = useState<PosImportBatch[]>([]);
     const [importDate, setImportDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -284,9 +286,11 @@ const PosImportDashboard: React.FC<Props> = () => {
                 }
             }
 
-            const { rows, hasAmountColumn: hasAmount } = await PosImportService.parseFile(selectedFile);
+            const { rows, hasAmountColumn: hasAmount, rawRowCount: rawCount, consolidatedCount: consCount } = await PosImportService.parseFile(selectedFile);
             setParsedRows(rows);
             setHasAmountColumn(hasAmount);
+            setRawRowCount(rawCount);
+            setConsolidatedCount(consCount);
 
             if (selectedBU) {
                 const { mappedRows: mapped, inventoryItems: items } = await PosImportService.matchItemsToInventory(rows, selectedBU, hasAmount);
@@ -467,6 +471,8 @@ const PosImportDashboard: React.FC<Props> = () => {
         setFileHash('');
         setParsedRows([]);
         setMappedRows([]);
+        setRawRowCount(0);
+        setConsolidatedCount(0);
         setViewState('UPLOAD');
         setError(null);
         setSuccessId(null);
@@ -621,12 +627,24 @@ const PosImportDashboard: React.FC<Props> = () => {
                     {viewState === 'PREVIEW' && (
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                <SummaryCard label="Total Rows" value={String(parsedRows.length)} color="slate" />
+                                <SummaryCard label={rawRowCount !== consolidatedCount ? `Items (${rawRowCount} → ${consolidatedCount})` : 'Total Items'} value={String(consolidatedCount)} color="slate" />
                                 <SummaryCard label="Matched" value={String(matchedCount)} color="emerald" />
                                 <SummaryCard label="Unmatched" value={String(unmatchedCount)} color={unmatchedCount > 0 ? 'red' : 'slate'} />
                                 <SummaryCard label="Total Revenue" value={`₱${totalAmount.toLocaleString()}`} color="blue" />
                                 <SummaryCard label="Total Profit" value={`₱${totalProfit.toLocaleString()}`} color="violet" />
                             </div>
+
+                            {rawRowCount !== consolidatedCount && (
+                                <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-4 flex items-start gap-3">
+                                    <Package className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="text-cyan-600 dark:text-cyan-300 font-medium">Smart Consolidation Applied</p>
+                                        <p className="text-cyan-500 dark:text-cyan-400/80 text-sm mt-1">
+                                            {rawRowCount} raw rows were consolidated into <strong>{consolidatedCount}</strong> unique items. Quantities, amounts, and costs have been summed for duplicate item names.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {!hasAmountColumn && (
                                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3">
