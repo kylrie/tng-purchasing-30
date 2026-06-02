@@ -814,10 +814,10 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                                         className="text-slate-900 dark:text-white font-medium hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline cursor-pointer transition-colors"
                                                         title="Click to edit"
                                                     >
-                                                        {Number((item.currentStock).toFixed(2))} {item.units.recipeUnit}
+                                                        {Number((item.currentStock || 0).toFixed(2))} {item.units.recipeUnit}
                                                     </button>
                                                     <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                                                        = <span className="text-cyan-600 dark:text-cyan-500">{Number((item.currentStock / (item.units.conversion > 0 ? item.units.conversion : 1)).toFixed(2))} {item.units.buyUnit}</span>
+                                                        = <span className="text-cyan-600 dark:text-cyan-500">{Number(((item.currentStock || 0) / (item.units.conversion > 0 ? item.units.conversion : 1)).toFixed(2))} {item.units.buyUnit}</span>
                                                     </div>
                                                 </div>
                                             )}

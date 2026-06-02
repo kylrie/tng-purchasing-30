@@ -132,7 +132,8 @@ export class ReconService {
 
                 // Beginning inventory = theoreticalStock (or currentStock as fallback)
                 // This represents the last known physical count
-                const beginningInventory = item.theoreticalStock ?? item.currentStock;
+                let beginningInventory = item.theoreticalStock ?? item.currentStock ?? 0;
+                if (Number.isNaN(beginningInventory)) beginningInventory = 0;
 
                 // Calculated columns
                 const stockOnHand = beginningInventory + purchasesIn - purchasesOut;
