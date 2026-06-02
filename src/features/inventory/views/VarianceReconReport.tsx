@@ -16,7 +16,8 @@ import {
     FileText,
     History,
     Eye,
-    X
+    X,
+    Search
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ReconService, type ReconRow, type ReconHistoryRecord } from '../services/recon.service';
@@ -129,6 +130,7 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
     const [error, setError] = useState<string | null>(null);
     const [saveResult, setSaveResult] = useState<{ updatedItems: number; adjustmentsCreated: number; historyId: string } | null>(null);
     const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // History
     const [history, setHistory] = useState<ReconHistoryRecord[]>([]);
@@ -249,7 +251,16 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
     // The active display rows — either live data or a history snapshot
     const displayRows = viewingRecord ? viewingRecord.rows : rows;
     const categories = useMemo(() => Array.from(new Set(displayRows.map(r => r.category))).sort(), [displayRows]);
-    const filteredRows = categoryFilter === 'ALL' ? displayRows : displayRows.filter(r => r.category === categoryFilter);
+    
+    const filteredRows = useMemo(() => {
+        let result = categoryFilter === 'ALL' ? displayRows : displayRows.filter(r => r.category === categoryFilter);
+        if (searchQuery.trim()) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(r => r.itemName?.toLowerCase().includes(q));
+        }
+        return result;
+    }, [displayRows, categoryFilter, searchQuery]);
+
     const countedRows = filteredRows.filter(r => r.endingActual !== null);
     const varianceRows = filteredRows.filter(r => r.variance !== null && Math.abs(r.variance) > 0.001);
 
@@ -289,6 +300,18 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                             value={dateRange.end}
                             onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
                             className="px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                        />
+                    </div>
+
+                    {/* Search Filter */}
+                    <div className="relative">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search item name..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40 w-full sm:w-[200px]"
                         />
                     </div>
 
@@ -630,7 +653,9 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                     </div>
                     <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">No Items Found</h3>
                     <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                        No inventory items found for this business unit. Add items first, then return here to reconcile.
+                        {displayRows.length === 0 
+                            ? 'No inventory items found for this business unit. Add items first, then return here to reconcile.'
+                            : 'No matching items found for the applied filters.'}
                     </p>
                 </div>
             )}
