@@ -16,7 +16,8 @@ import {
     ClipboardList,
     TrendingUp,
     TrendingDown,
-    Minus
+    Minus,
+    Tag
 } from 'lucide-react';
 import type { InventoryItem, InventoryItemType, StockCountSession, CreateInventoryItemInput, StocktakeAuditLog } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
@@ -462,6 +463,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
     // Storage area filter
     const [storageAreas, setStorageAreas] = useState<string[]>([]);
     const [activeStorageArea, setActiveStorageArea] = useState<string>('ALL');
+    const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('ALL');
 
     // Data state
     const [items, setItems] = useState<InventoryItem[]>([]);
@@ -550,6 +552,13 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
         loadLogs();
     }, [mainTab, selectedBusinessUnit]);
 
+    // Derive unique categories from loaded items for dynamic filter pills
+    const availableCategories = React.useMemo(() => {
+        const cats = new Set<string>();
+        items.forEach(item => { if (item.category) cats.add(item.category); });
+        return Array.from(cats).sort();
+    }, [items]);
+
     // Filter items
     const filteredItems = items.filter(item => {
         const matchesSearch = searchQuery === '' ||
@@ -557,7 +566,9 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             item.sku?.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStorageArea = activeStorageArea === 'ALL' ||
             item.storageAreas.includes(activeStorageArea);
-        return matchesSearch && matchesStorageArea;
+        const matchesCategory = activeCategoryFilter === 'ALL' ||
+            item.category === activeCategoryFilter;
+        return matchesSearch && matchesStorageArea && matchesCategory;
     });
 
     // Session handlers
@@ -847,6 +858,28 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                             <button onClick={() => setActiveStorageArea('ALL')} className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeStorageArea === 'ALL' ? 'bg-cyan-500 text-white' : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'}`}>All Areas</button>
                             {storageAreas.map(area => (
                                 <button key={area} onClick={() => setActiveStorageArea(area)} className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeStorageArea === area ? 'bg-cyan-500 text-white' : 'bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'}`}>{area}</button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Category Filter */}
+                    {availableCategories.length > 1 && (
+                        <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                            <Tag size={16} className="text-slate-400 flex-shrink-0" />
+                            <button
+                                onClick={() => setActiveCategoryFilter('ALL')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeCategoryFilter === 'ALL' ? 'bg-purple-500 text-white' : 'bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'}`}
+                            >
+                                All Categories
+                            </button>
+                            {availableCategories.map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setActiveCategoryFilter(cat)}
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeCategoryFilter === cat ? 'bg-purple-500 text-white' : 'bg-slate-200 dark:bg-slate-700/50 text-slate-600 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-700'}`}
+                                >
+                                    {cat}
+                                </button>
                             ))}
                         </div>
                     )}

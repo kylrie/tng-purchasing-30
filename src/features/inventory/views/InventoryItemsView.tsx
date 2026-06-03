@@ -16,7 +16,9 @@ import {
     X,
     Square,
     CheckSquare,
-    Layers
+    Layers,
+    Sparkles,
+    Loader2
 } from 'lucide-react';
 import type { InventoryItem, InventoryItemType, CreateInventoryItemInput, ServiceType } from '../types/InventoryItem';
 import { SERVICE_TYPES } from '../types/InventoryItem';
@@ -26,6 +28,7 @@ import InventoryItemModal from '../components/InventoryItemModal';
 import ProduceBatchModal from '../components/ProduceBatchModal';
 import type { Business } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
 
 // ============================================================
 // PROPS
@@ -153,6 +156,9 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     // Produce Batch modal state
     const [producingItem, setProducingItem] = useState<InventoryItem | null>(null);
 
+    // Auto-categorize state
+    const [isAutoCategorizing, setIsAutoCategorizing] = useState(false);
+
 
     // Load inventory when BU or type changes
     useEffect(() => {
@@ -263,6 +269,59 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
         setItems(refreshedItems);
         setShowItemModal(false);
         setEditingItem(null);
+    };
+
+    // ============================================================
+    // AUTO-CATEGORIZE ALL ITEMS
+    // ============================================================
+    const handleAutoCategorizeAll = async () => {
+        const itemsToUpdate = allItems;
+        
+        if (itemsToUpdate.length === 0) {
+            alert("No items found to categorize.");
+            return;
+        }
+
+        if (!confirm(`This will ask the AI to verify and re-categorize ALL ${itemsToUpdate.length} item(s) in this Business Unit. This may take a moment. Proceed?`)) {
+            return;
+        }
+
+        setIsAutoCategorizing(true);
+        try {
+            // Batch into chunks of 30 to avoid prompt limits
+            const CHUNK_SIZE = 30;
+            let successCount = 0;
+
+            for (let i = 0; i < itemsToUpdate.length; i += CHUNK_SIZE) {
+                const chunk = itemsToUpdate.slice(i, i + CHUNK_SIZE);
+                const itemsToCategorize = chunk.map(item => ({ name: item.name, type: item.type }));
+                
+                const results = await GeminiVisionService.categorizeItems(itemsToCategorize);
+                
+                for (const item of chunk) {
+                    const newCategory = results[item.name];
+                    // Only update if the category actually changed
+                    if (newCategory && newCategory !== item.category) {
+                        await InventoryService.updateInventoryItem(item.id, { category: newCategory as any });
+                        successCount++;
+                    }
+                }
+            }
+
+            // Reload inventory
+            const typeFilter = activeTypeTab === 'ALL' ? undefined : activeTypeTab;
+            const refreshedItems = await InventoryService.getInventory(selectedBusinessUnit, typeFilter);
+            const refreshedAllItems = await InventoryService.getInventory(selectedBusinessUnit);
+            setItems(refreshedItems);
+            setAllItems(refreshedAllItems);
+            
+            alert(`Auto-categorization complete! Successfully categorized ${successCount} item(s).`);
+        } catch (err) {
+            console.error('Auto-categorize failed:', err);
+            alert('Failed to auto-categorize some items.');
+        } finally {
+            setIsAutoCategorizing(false);
+        }
     };
 
     // ============================================================
@@ -544,6 +603,17 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-3">
+                    {/* Auto-Categorize Button */}
+                    <button
+                        onClick={handleAutoCategorizeAll}
+                        disabled={isAutoCategorizing}
+                        className="px-4 py-2 bg-purple-50 dark:bg-purple-500/10 hover:bg-purple-100 dark:hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
+                        title="Automatically verify and re-categorize all items"
+                    >
+                        {isAutoCategorizing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                        Auto-Categorize All
+                    </button>
+
                     {/* Download Template */}
                     <button
                         onClick={handleDownloadTemplate}

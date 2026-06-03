@@ -29,6 +29,8 @@ export type InventoryCategory =
   | 'Supplies'
   | 'Glassware'
   | 'Souvenir'
+  | 'Alcohol Beverage'
+  | 'Non Alcohol'
   | 'Other';
 
 // ============================================================

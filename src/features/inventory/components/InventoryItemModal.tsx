@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, Package, AlertTriangle } from 'lucide-react';
+import { X, Save, Loader2, Package, AlertTriangle, Sparkles } from 'lucide-react';
 import type {
     InventoryItem,
     InventoryItemType,
@@ -9,6 +9,7 @@ import type {
     ServiceType
 } from '../types/InventoryItem';
 import { SERVICE_TYPES } from '../types/InventoryItem';
+import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
 
 // ============================================================
 // TYPES
@@ -89,6 +90,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 }) => {
     const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
     const [saving, setSaving] = useState(false);
+    const [autoCategorizing, setAutoCategorizing] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const isEditing = !!item;
@@ -194,6 +196,31 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
         }
     };
 
+    // Auto-categorize using Gemini
+    const handleAutoCategorize = async () => {
+        if (!formData.name.trim()) {
+            setErrors({ ...errors, name: 'Please enter an item name first to auto-categorize.' });
+            return;
+        }
+        
+        setAutoCategorizing(true);
+        try {
+            const results = await GeminiVisionService.categorizeItems([{
+                name: formData.name.trim(),
+                type: formData.type
+            }]);
+            const category = results[formData.name.trim()];
+            if (category && CATEGORIES.includes(category as InventoryCategory)) {
+                setFormData(prev => ({ ...prev, category: category as InventoryCategory }));
+                setErrors(prev => ({ ...prev, name: '' })); // clear name error if any
+            }
+        } catch (error) {
+            console.error('Auto-categorize failed:', error);
+        } finally {
+            setAutoCategorizing(false);
+        }
+    };
+
     // Handle storage area toggle
     const handleStorageAreaToggle = (area: string) => {
         setFormData(prev => ({
@@ -277,7 +304,19 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
 
                                 {/* Category */}
                                 <div>
-                                    <label className={labelClass}>Category</label>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Category</label>
+                                        <button
+                                            type="button"
+                                            onClick={handleAutoCategorize}
+                                            disabled={autoCategorizing || !formData.name.trim()}
+                                            className="text-xs flex items-center gap-1 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 disabled:opacity-50 transition-colors bg-purple-50 dark:bg-purple-900/20 px-2 py-0.5 rounded"
+                                            title="Auto-detect category from name"
+                                        >
+                                            {autoCategorizing ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                                            Auto
+                                        </button>
+                                    </div>
                                     <select
                                         value={formData.category}
                                         onChange={(e) => setFormData({ ...formData, category: e.target.value as InventoryCategory })}
