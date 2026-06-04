@@ -369,7 +369,7 @@ export class InventoryService {
     /**
      * Submit session - Update stock levels and write per-item audit logs
      */
-    static async submitSession(sessionId: string): Promise<void> {
+    static async submitSession(sessionId: string, sessionName?: string): Promise<void> {
         try {
             const session = await FirestoreService.getDocument<StockCountSession>(
                 COLLECTIONS.STOCK_COUNTS,
@@ -431,11 +431,15 @@ export class InventoryService {
                 // Non-critical — don't fail the submit if logging fails
             }
 
-            // Mark session as completed
-            await FirestoreService.updateDocument(COLLECTIONS.STOCK_COUNTS, sessionId, {
+            // Mark session as completed (include name if provided)
+            const updateData: Record<string, unknown> = {
                 status: 'COMPLETED' as StockCountStatus,
                 completedAt: now
-            });
+            };
+            if (sessionName) {
+                updateData.name = sessionName;
+            }
+            await FirestoreService.updateDocument(COLLECTIONS.STOCK_COUNTS, sessionId, updateData);
         } catch (error) {
             console.error('Error submitting session:', error);
             throw error;

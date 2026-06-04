@@ -178,7 +178,9 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                             <option value="">Select start session...</option>
                             {sessions.map(session => (
                                 <option key={session.id} value={session.id} disabled={session.id === endSessionId}>
-                                    {formatDate(session.startedAt?.toDate?.() || new Date())} - {session.location}
+                                    {session.name
+                                        ? `${session.name} – ${session.location}`
+                                        : `${formatDate(session.startedAt?.toDate?.() || new Date())} – ${session.location}`}
                                 </option>
                             ))}
                         </select>
@@ -196,7 +198,9 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                             <option value="">Select end session...</option>
                             {sessions.map(session => (
                                 <option key={session.id} value={session.id} disabled={session.id === startSessionId}>
-                                    {formatDate(session.startedAt?.toDate?.() || new Date())} - {session.location}
+                                    {session.name
+                                        ? `${session.name} – ${session.location}`
+                                        : `${formatDate(session.startedAt?.toDate?.() || new Date())} – ${session.location}`}
                                 </option>
                             ))}
                         </select>

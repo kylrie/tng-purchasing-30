@@ -355,16 +355,29 @@ const StocktakeLogsPanel: React.FC<{
 // REVIEW PANEL
 // ============================================================
 
+const STOCK_COUNT_TYPES = ['Cycle Count', 'Daily Count', 'Spot Count'] as const;
+
 const ReviewPanel: React.FC<{
     session: StockCountSession | null;
     countStates: Map<string, CountItemState>;
     items: InventoryItem[];
-    onSubmit: () => void;
+    onSubmit: (sessionName: string) => void;
     onCancel: () => void;
     isSubmitting: boolean;
 }> = ({ session, countStates, items, onSubmit, onCancel, isSubmitting }) => {
+    const [selectedCountType, setSelectedCountType] = useState<string>('');
     const countedItemsCount = countStates.size;
     const totalItems = items.length;
+
+    // Build the full session name: "Cycle Count [06-4-2026]"
+    const buildSessionName = () => {
+        if (!selectedCountType) return '';
+        const now = new Date();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const d = now.getDate();
+        const y = now.getFullYear();
+        return `${selectedCountType} [${mm}-${d}-${y}]`;
+    };
 
     let totalValue = 0;
     countStates.forEach((state, itemId) => {
@@ -382,6 +395,28 @@ const ReviewPanel: React.FC<{
                 <Check size={20} className="text-cyan-500 dark:text-cyan-400" />
                 Review & Submit
             </h3>
+
+            {/* Count Type Selector */}
+            <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">
+                    Count Type <span className="text-red-500">*</span>
+                </label>
+                <select
+                    value={selectedCountType}
+                    onChange={(e) => setSelectedCountType(e.target.value)}
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
+                >
+                    <option value="">Select count type...</option>
+                    {STOCK_COUNT_TYPES.map(type => (
+                        <option key={type} value={type}>{type}</option>
+                    ))}
+                </select>
+                {selectedCountType && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
+                        Will be saved as: <span className="text-cyan-600 dark:text-cyan-400 font-medium">{buildSessionName()}</span>
+                    </p>
+                )}
+            </div>
 
             <div className="mb-4">
                 <div className="flex justify-between text-sm mb-1">
@@ -413,8 +448,8 @@ const ReviewPanel: React.FC<{
 
             <div className="space-y-2">
                 <button
-                    onClick={onSubmit}
-                    disabled={countedItemsCount === 0 || isSubmitting}
+                    onClick={() => onSubmit(buildSessionName())}
+                    disabled={countedItemsCount === 0 || isSubmitting || !selectedCountType}
                     className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {isSubmitting ? (
@@ -598,7 +633,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
         });
     }, []);
 
-    const submitSession = async () => {
+    const submitSession = async (sessionName: string) => {
         if (!session) return;
         setIsSubmitting(true);
         try {
@@ -615,7 +650,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                     });
                 }
             }
-            await InventoryService.submitSession(session.id);
+            await InventoryService.submitSession(session.id, sessionName);
             setSession(null);
             setCountStates(new Map());
             alert('Stock count submitted successfully!');

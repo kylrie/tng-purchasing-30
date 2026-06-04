@@ -124,6 +124,7 @@ export interface StockCountItem {
 export interface StockCountSession {
   id: string;
   businessUnitId: string;            // Multi-tenant filter
+  name?: string;                     // Custom session name (e.g. "Cycle Count [06-4-2026]")
   status: StockCountStatus;
   startedAt: Timestamp;
   completedAt?: Timestamp;
