@@ -114,7 +114,7 @@ Rules:
 - Return ONLY the JSON, no other text`;
 
         const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash',
             config: {
                 thinkingConfig: { thinkingBudget: -1 }
             },
@@ -202,7 +202,7 @@ Return ONLY a JSON object where the key is the exact item name and the value is 
 Do not return any markdown code block wrappers or other text. ONLY the raw JSON object.`;
 
         const response = await client.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash',
             config: {
                 thinkingConfig: { thinkingBudget: -1 }
             },
