@@ -115,6 +115,9 @@ Rules:
 
         const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
+            config: {
+                thinkingConfig: { thinkingBudget: -1 }
+            },
             contents: [
                 {
                     role: 'user',
@@ -200,6 +203,9 @@ Do not return any markdown code block wrappers or other text. ONLY the raw JSON 
 
         const response = await client.models.generateContent({
             model: 'gemini-2.5-flash',
+            config: {
+                thinkingConfig: { thinkingBudget: -1 }
+            },
             contents: [{ role: 'user', parts: [{ text: prompt }] }]
         });
 

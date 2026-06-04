@@ -44,6 +44,7 @@ export const generateProcurementInsight = async (
             contents: `Analyze this procurement data: ${promptContext}`,
             config: {
                 systemInstruction: systemInstruction,
+                thinkingConfig: { thinkingBudget: -1 }
             }
         });
 
@@ -72,6 +73,9 @@ export const estimateItemCost = async (itemName: string): Promise<number> => {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
+            config: {
+                thinkingConfig: { thinkingBudget: -1 }
+            }
         });
 
         const text = response.text || "0";
