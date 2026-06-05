@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     Package,
     Search,
@@ -17,7 +17,11 @@ import {
     TrendingUp,
     TrendingDown,
     Minus,
-    Tag
+    Tag,
+    ChevronDown,
+    ChevronRight,
+    User2,
+    Calendar
 } from 'lucide-react';
 import type { InventoryItem, InventoryItemType, StockCountSession, CreateInventoryItemInput, StocktakeAuditLog } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
@@ -168,47 +172,96 @@ const CalculatorPopup: React.FC<{
 };
 
 // ============================================================
-// STOCKTAKE LOGS PANEL
+// STOCKTAKE LOGS PANEL — Grouped accordion by session
 // ============================================================
+
+interface SessionGroup {
+    sessionId: string;
+    date: Date;
+    countedByName: string;
+    logs: StocktakeAuditLog[];
+    totalItems: number;
+    decreases: number;
+    increases: number;
+    unchanged: number;
+}
 
 const StocktakeLogsPanel: React.FC<{
     logs: StocktakeAuditLog[];
     isLoading: boolean;
 }> = ({ logs, isLoading }) => {
     const [search, setSearch] = useState('');
-    const [sessionFilter, setSessionFilter] = useState('ALL');
-    const [typeFilter, setTypeFilter] = useState('ALL');
+    const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
 
-    // Build session → date map (use earliest submittedAt per session)
-    const sessionDateMap = new Map<string, Date>();
-    logs.forEach(log => {
-        const ts = log.submittedAt?.toDate?.();
-        if (ts && (!sessionDateMap.has(log.sessionId) || ts < sessionDateMap.get(log.sessionId)!)) {
-            sessionDateMap.set(log.sessionId, ts);
-        }
-    });
+    // Group logs by sessionId
+    const sessionGroups = useMemo(() => {
+        const groupMap = new Map<string, SessionGroup>();
 
-    // Sort sessions by date descending (newest first)
-    const sessions = Array.from(sessionDateMap.entries())
-        .sort((a, b) => b[1].getTime() - a[1].getTime())
-        .map(([id]) => id);
+        logs.forEach(log => {
+            const ts = log.submittedAt?.toDate?.();
+            if (!groupMap.has(log.sessionId)) {
+                groupMap.set(log.sessionId, {
+                    sessionId: log.sessionId,
+                    date: ts || new Date(),
+                    countedByName: log.countedByName || 'Unknown',
+                    logs: [],
+                    totalItems: 0,
+                    decreases: 0,
+                    increases: 0,
+                    unchanged: 0
+                });
+            }
+            const group = groupMap.get(log.sessionId)!;
+            // Use earliest timestamp
+            if (ts && ts < group.date) group.date = ts;
+            group.logs.push(log);
+            group.totalItems++;
+            if (log.variance < 0) group.decreases++;
+            else if (log.variance > 0) group.increases++;
+            else group.unchanged++;
+        });
 
-    const formatSessionDate = (sessionId: string) => {
-        const date = sessionDateMap.get(sessionId);
-        if (!date) return sessionId.slice(0, 8);
-        return date.toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric',
-            hour: 'numeric', minute: '2-digit', hour12: true
+        return Array.from(groupMap.values())
+            .sort((a, b) => b.date.getTime() - a.date.getTime());
+    }, [logs]);
+
+    // Search filter: filter groups that have matching items
+    const filteredGroups = useMemo(() => {
+        if (!search) return sessionGroups;
+        const q = search.toLowerCase();
+        return sessionGroups.map(group => ({
+            ...group,
+            logs: group.logs.filter(l => l.itemName.toLowerCase().includes(q))
+        })).filter(g => g.logs.length > 0);
+    }, [sessionGroups, search]);
+
+    const toggleSession = (sessionId: string) => {
+        setExpandedSessions(prev => {
+            const next = new Set(prev);
+            if (next.has(sessionId)) next.delete(sessionId);
+            else next.add(sessionId);
+            return next;
         });
     };
 
-    const filtered = logs.filter(log => {
-        const matchSearch = search === '' ||
-            log.itemName.toLowerCase().includes(search.toLowerCase());
-        const matchSession = sessionFilter === 'ALL' || log.sessionId === sessionFilter;
-        const matchType = typeFilter === 'ALL' || log.itemType === typeFilter;
-        return matchSearch && matchSession && matchType;
-    });
+    const formatGroupDate = (date: Date) =>
+        date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    const formatGroupTime = (date: Date) =>
+        date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    const typeLabel: Record<string, string> = {
+        RAW_MATERIAL: 'Raw Material',
+        PRODUCTION: 'Production',
+        ASSET: 'Asset',
+        FINISHED_GOOD: 'Finished Good'
+    };
+    const typeBadge: Record<string, string> = {
+        RAW_MATERIAL: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+        PRODUCTION: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+        ASSET: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
+        FINISHED_GOOD: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+    };
 
     if (isLoading) return (
         <div className="flex items-center justify-center h-48">
@@ -218,133 +271,143 @@ const StocktakeLogsPanel: React.FC<{
 
     return (
         <div className="space-y-4">
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Search item name..."
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500"
-                    />
-                </div>
-                <select
-                    value={sessionFilter}
-                    onChange={e => setSessionFilter(e.target.value)}
-                    className="px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-purple-500"
-                >
-                    <option value="ALL">All Sessions</option>
-                    {sessions.map(s => (
-                        <option key={s} value={s}>{formatSessionDate(s)}</option>
-                    ))}
-                </select>
-                <select
-                    value={typeFilter}
-                    onChange={e => setTypeFilter(e.target.value)}
-                    className="px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-purple-500"
-                >
-                    <option value="ALL">All Types</option>
-                    <option value="RAW_MATERIAL">Raw Material</option>
-                    <option value="PRODUCTION">Production</option>
-                    <option value="FINISHED_GOOD">Finished Good</option>
-                    <option value="ASSET">Asset</option>
-                </select>
+            {/* Search */}
+            <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                    type="text"
+                    placeholder="Search item name..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500"
+                />
             </div>
 
-            {/* Summary badges */}
-            {filtered.length > 0 && (
-                <div className="flex gap-3 flex-wrap">
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
-                        {filtered.length} entries
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
-                        {filtered.filter(l => l.variance < 0).length} decreases
-                    </span>
-                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400">
-                        {filtered.filter(l => l.variance > 0).length} increases
-                    </span>
-                </div>
-            )}
+            {/* Summary */}
+            <div className="flex gap-3 flex-wrap">
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    {filteredGroups.length} sessions
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    {logs.length} total entries
+                </span>
+            </div>
 
-            {/* Table */}
-            {filtered.length === 0 ? (
+            {/* Session Groups */}
+            {filteredGroups.length === 0 ? (
                 <div className="text-center py-16 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
                     <ClipboardList size={40} className="text-slate-300 dark:text-slate-600 mx-auto mb-3" />
                     <p className="text-slate-500 dark:text-slate-400 text-sm">No stocktake logs yet.</p>
                     <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Logs are created when you submit a counting session.</p>
                 </div>
             ) : (
-                <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
-                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Item</th>
-                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Type</th>
-                                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Before</th>
-                                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">After</th>
-                                    <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Variance</th>
-                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Counted By</th>
-                                    <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date & Time</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                                {filtered.map(log => {
-                                    const varianceColor = log.variance > 0
-                                        ? 'text-green-600 dark:text-green-400'
-                                        : log.variance < 0
-                                            ? 'text-red-500 dark:text-red-400'
-                                            : 'text-slate-400 dark:text-slate-500';
-                                    const typeLabel: Record<string, string> = {
-                                        RAW_MATERIAL: 'Raw Material',
-                                        PRODUCTION: 'Production',
-                                        ASSET: 'Asset',
-                                        FINISHED_GOOD: 'Finished Good'
-                                    };
-                                    const typeBadge: Record<string, string> = {
-                                        RAW_MATERIAL: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-                                        PRODUCTION: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-                                        ASSET: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300',
-                                        FINISHED_GOOD: 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
-                                    };
-                                    const ts = log.submittedAt?.toDate?.();
-                                    return (
-                                        <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                                            <td className="px-4 py-3">
-                                                <span className="font-medium text-slate-900 dark:text-white">{log.itemName}</span>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeBadge[log.itemType] ?? ''}`}>
-                                                    {typeLabel[log.itemType] ?? log.itemType}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">
-                                                {log.stockBefore.toFixed(2)} {log.unit}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">
-                                                {log.stockAfter.toFixed(2)} {log.unit}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <span className={`inline-flex items-center gap-1 font-semibold ${varianceColor}`}>
-                                                    {log.variance > 0 ? <TrendingUp size={13} /> : log.variance < 0 ? <TrendingDown size={13} /> : <Minus size={13} />}
-                                                    {log.variance > 0 ? '+' : ''}{log.variance.toFixed(2)}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                                                {log.countedByName}
-                                            </td>
-                                            <td className="px-4 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap">
-                                                {ts ? ts.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) + ' ' +
-                                                    ts.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '—'}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                <div className="space-y-3">
+                    {filteredGroups.map(group => {
+                        const isExpanded = expandedSessions.has(group.sessionId);
+                        return (
+                            <div key={group.sessionId} className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm dark:shadow-none transition-all">
+                                {/* Session Header — clickable */}
+                                <button
+                                    onClick={() => toggleSession(group.sessionId)}
+                                    className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+                                >
+                                    {/* Expand icon */}
+                                    <div className="text-slate-400 dark:text-slate-500 flex-shrink-0">
+                                        {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                                    </div>
+
+                                    {/* Date & Time */}
+                                    <div className="flex-shrink-0">
+                                        <div className="flex items-center gap-1.5 text-slate-900 dark:text-white font-semibold text-sm">
+                                            <Calendar size={14} className="text-cyan-500 dark:text-cyan-400" />
+                                            {formatGroupDate(group.date)}
+                                        </div>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 ml-5">
+                                            {formatGroupTime(group.date)}
+                                        </p>
+                                    </div>
+
+                                    {/* Submitted By */}
+                                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                        <User2 size={14} className="text-purple-500 dark:text-purple-400" />
+                                        <span className="text-sm text-slate-700 dark:text-slate-300">{group.countedByName}</span>
+                                    </div>
+
+                                    {/* Spacer */}
+                                    <div className="flex-1" />
+
+                                    {/* Stats badges */}
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                                            {group.totalItems} items
+                                        </span>
+                                        {group.decreases > 0 && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center gap-1">
+                                                <TrendingDown size={11} /> {group.decreases}
+                                            </span>
+                                        )}
+                                        {group.increases > 0 && (
+                                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 flex items-center gap-1">
+                                                <TrendingUp size={11} /> {group.increases}
+                                            </span>
+                                        )}
+                                    </div>
+                                </button>
+
+                                {/* Expanded Detail Table */}
+                                {isExpanded && (
+                                    <div className="border-t border-slate-200 dark:border-slate-700">
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                                                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Item</th>
+                                                        <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Type</th>
+                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Before</th>
+                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">After</th>
+                                                        <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Variance</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                                                    {group.logs.map(log => {
+                                                        const varianceColor = log.variance > 0
+                                                            ? 'text-green-600 dark:text-green-400'
+                                                            : log.variance < 0
+                                                                ? 'text-red-500 dark:text-red-400'
+                                                                : 'text-slate-400 dark:text-slate-500';
+                                                        return (
+                                                            <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                                                <td className="px-4 py-3">
+                                                                    <span className="font-medium text-slate-900 dark:text-white">{log.itemName}</span>
+                                                                </td>
+                                                                <td className="px-4 py-3">
+                                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${typeBadge[log.itemType] ?? ''}`}>
+                                                                        {typeLabel[log.itemType] ?? log.itemType}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right text-slate-600 dark:text-slate-300">
+                                                                    {log.stockBefore.toFixed(2)} {log.unit}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right font-semibold text-slate-900 dark:text-white">
+                                                                    {log.stockAfter.toFixed(2)} {log.unit}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-right">
+                                                                    <span className={`inline-flex items-center gap-1 font-semibold ${varianceColor}`}>
+                                                                        {log.variance > 0 ? <TrendingUp size={13} /> : log.variance < 0 ? <TrendingDown size={13} /> : <Minus size={13} />}
+                                                                        {log.variance > 0 ? '+' : ''}{log.variance.toFixed(2)}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </div>
