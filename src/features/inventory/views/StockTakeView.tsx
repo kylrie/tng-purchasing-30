@@ -21,7 +21,8 @@ import {
     ChevronDown,
     ChevronRight,
     User2,
-    Calendar
+    Calendar,
+    Save
 } from 'lucide-react';
 import type { InventoryItem, InventoryItemType, StockCountSession, CreateInventoryItemInput, StocktakeAuditLog } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
@@ -74,15 +75,30 @@ const CalculatorPopup: React.FC<{
 }> = ({ isOpen, onClose, onSubmit, currentValue, itemName, unit }) => {
     const [value, setValue] = useState(currentValue.toString());
 
+    const evaluateExpression = (expr: string): string => {
+        try {
+            const sanitized = expr.replace(/[^0-9+\-*/.]/g, '');
+            if (!sanitized) return '0';
+            // eslint-disable-next-line no-new-func
+            const result = new Function(`return ${sanitized}`)();
+            return Number.isFinite(result) ? String(Number(result.toFixed(4))) : '0';
+        } catch {
+            return expr;
+        }
+    };
+
     const handleKeyPress = (key: string) => {
         if (key === 'C') setValue('0');
         else if (key === '⌫') setValue(prev => prev.length > 1 ? prev.slice(0, -1) : '0');
-        else if (key === '.' && !value.includes('.')) setValue(prev => prev + '.');
+        else if (key === '=') setValue(prev => evaluateExpression(prev));
+        else if (['+', '-', '*', '/'].includes(key)) setValue(prev => prev + key);
+        else if (key === '.') setValue(prev => prev + '.');
         else if (/[0-9]/.test(key)) setValue(prev => prev === '0' ? key : prev + key);
     };
 
     const handleSubmit = () => {
-        onSubmit(parseFloat(value) || 0);
+        const evaluated = evaluateExpression(value);
+        onSubmit(parseFloat(evaluated) || 0);
         onClose();
     };
 
@@ -98,6 +114,7 @@ const CalculatorPopup: React.FC<{
                 '0','1','2','3','4','5','6','7','8','9',
                 'Numpad0','Numpad1','Numpad2','Numpad3','Numpad4',
                 'Numpad5','Numpad6','Numpad7','Numpad8','Numpad9',
+                '+', '-', '*', '/', '=', 'NumpadAdd', 'NumpadSubtract', 'NumpadMultiply', 'NumpadDivide', 'NumpadEqual'
             ];
             if (handled.includes(e.key) || handled.includes(e.code)) {
                 e.preventDefault();
@@ -107,6 +124,11 @@ const CalculatorPopup: React.FC<{
             if (e.key === 'Enter' || e.code === 'NumpadEnter') { handleSubmit(); return; }
             if (e.key === 'Backspace') { handleKeyPress('⌫'); return; }
             if (e.key === 'Delete') { handleKeyPress('C'); return; }
+            if (e.key === '+' || e.code === 'NumpadAdd') { handleKeyPress('+'); return; }
+            if (e.key === '-' || e.code === 'NumpadSubtract') { handleKeyPress('-'); return; }
+            if (e.key === '*' || e.code === 'NumpadMultiply') { handleKeyPress('*'); return; }
+            if (e.key === '/' || e.code === 'NumpadDivide') { handleKeyPress('/'); return; }
+            if (e.key === '=' || e.code === 'NumpadEqual') { handleKeyPress('='); return; }
             if (e.key === '.' || e.key === ',' || e.code === 'Decimal') { handleKeyPress('.'); return; }
             // Digit row (0-9) and numpad (Numpad0-Numpad9)
             if (/^[0-9]$/.test(e.key)) { handleKeyPress(e.key); return; }
@@ -135,21 +157,22 @@ const CalculatorPopup: React.FC<{
                 </div>
 
                 <div className="p-4">
-                    <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 text-right">
+                    <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-4 text-right overflow-x-auto whitespace-nowrap">
                         <span className="text-3xl font-bold text-slate-900 dark:text-white">{value}</span>
                         <span className="text-xl text-slate-400 ml-2">{unit}s</span>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-2 p-4 pt-0">
-                    {['7', '8', '9', 'C', '4', '5', '6', '⌫', '1', '2', '3', '.', '0', '00', ''].map((key, idx) => (
+                    {['C', '/', '*', '⌫', '7', '8', '9', '-', '4', '5', '6', '+', '1', '2', '3', '=', '0', '00', '.', ''].map((key, idx) => (
                         <button
                             key={idx}
                             onClick={() => key && handleKeyPress(key)}
-                            className={`h-14 rounded-xl font-semibold text-lg transition-all ${key === 'C' ? 'bg-red-500/10 dark:bg-red-500/20 text-red-500 dark:text-red-400'
+                            className={`h-14 rounded-xl font-semibold text-lg transition-all flex items-center justify-center ${key === 'C' ? 'bg-red-500/10 dark:bg-red-500/20 text-red-500 dark:text-red-400'
                                 : key === '⌫' ? 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 dark:text-amber-400'
-                                    : key === '' ? 'invisible'
-                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-600'
+                                : ['+', '-', '*', '/', '='].includes(key) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800/50'
+                                : key === '' ? 'invisible'
+                                : 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white hover:bg-slate-200 dark:hover:bg-slate-600'
                                 }`}
                         >
                             {key}
@@ -425,9 +448,11 @@ const ReviewPanel: React.FC<{
     countStates: Map<string, CountItemState>;
     items: InventoryItem[];
     onSubmit: (sessionName: string) => void;
+    onSaveDraft: () => void;
     onCancel: () => void;
     isSubmitting: boolean;
-}> = ({ session, countStates, items, onSubmit, onCancel, isSubmitting }) => {
+    isSavingDraft: boolean;
+}> = ({ session, countStates, items, onSubmit, onSaveDraft, onCancel, isSubmitting, isSavingDraft }) => {
     const [selectedCountType, setSelectedCountType] = useState<string>('');
     const countedItemsCount = countStates.size;
     const totalItems = items.length;
@@ -512,7 +537,7 @@ const ReviewPanel: React.FC<{
             <div className="space-y-2">
                 <button
                     onClick={() => onSubmit(buildSessionName())}
-                    disabled={countedItemsCount === 0 || isSubmitting || !selectedCountType}
+                    disabled={countedItemsCount === 0 || isSubmitting || isSavingDraft || !selectedCountType}
                     className="w-full py-3 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {isSubmitting ? (
@@ -524,8 +549,21 @@ const ReviewPanel: React.FC<{
                 </button>
 
                 <button
+                    onClick={onSaveDraft}
+                    disabled={countedItemsCount === 0 || isSubmitting || isSavingDraft}
+                    className="w-full py-3 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-semibold rounded-xl hover:bg-blue-200 dark:hover:bg-blue-800/50 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors"
+                >
+                    {isSavingDraft ? (
+                        <div className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                    ) : (
+                        <Save size={18} />
+                    )}
+                    Save Draft
+                </button>
+
+                <button
                     onClick={onCancel}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isSavingDraft}
                     className="w-full py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center gap-2 transition-colors"
                 >
                     <X size={18} />
@@ -566,6 +604,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
     // Data state
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [session, setSession] = useState<StockCountSession | null>(null);
+    const [hasActiveDraft, setHasActiveDraft] = useState(false);
     const [countStates, setCountStates] = useState<Map<string, CountItemState>>(new Map());
     const [searchQuery, setSearchQuery] = useState('');
     const [calculatorItem, setCalculatorItem] = useState<InventoryItem | null>(null);
@@ -577,6 +616,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
     // UI state
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Modal & Import/Export state
@@ -610,17 +650,9 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
 
                 const openSession = await InventoryService.getOpenSession(selectedBusinessUnit, currentUser.id);
                 if (openSession) {
-                    setSession(openSession);
-                    const states = new Map<string, CountItemState>();
-                    openSession.items.forEach(item => {
-                        states.set(item.itemId, {
-                            itemId: item.itemId,
-                            count: item.count,
-                            partialCount: item.partialCount,
-                            unit: item.unit
-                        });
-                    });
-                    setCountStates(states);
+                    setHasActiveDraft(true);
+                } else {
+                    setHasActiveDraft(false);
                 }
             } catch (err) {
                 console.error('Error loading data:', err);
@@ -696,6 +728,35 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
         });
     }, []);
 
+    const saveDraft = async () => {
+        if (!session) return;
+        setIsSavingDraft(true);
+        try {
+            for (const [itemId, state] of countStates) {
+                const item = items.find(i => i.id === itemId);
+                if (item) {
+                    await InventoryService.saveCountItem({
+                        sessionId: session.id,
+                        itemId,
+                        itemName: item.name,
+                        count: state.count,
+                        unit: state.unit,
+                        partialCount: state.partialCount
+                    });
+                }
+            }
+            setSession(null);
+            setCountStates(new Map());
+            setHasActiveDraft(true);
+            alert('Draft saved successfully!');
+        } catch (err) {
+            console.error('Error saving draft:', err);
+            setError('Failed to save draft');
+        } finally {
+            setIsSavingDraft(false);
+        }
+    };
+
     const submitSession = async (sessionName: string) => {
         if (!session) return;
         setIsSubmitting(true);
@@ -716,6 +777,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             await InventoryService.submitSession(session.id, sessionName);
             setSession(null);
             setCountStates(new Map());
+            setHasActiveDraft(false);
             alert('Stock count submitted successfully!');
             // Refresh logs if on logs tab
             if (mainTab === 'logs') {
@@ -736,6 +798,33 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             await InventoryService.cancelSession(session.id);
             setSession(null);
             setCountStates(new Map());
+            setHasActiveDraft(false);
+        }
+    };
+
+    const resumeSession = async () => {
+        if (!selectedBusinessUnit) return;
+        setIsLoading(true);
+        try {
+            const openSession = await InventoryService.getOpenSession(selectedBusinessUnit, currentUser.id);
+            if (openSession) {
+                setSession(openSession);
+                const states = new Map<string, CountItemState>();
+                openSession.items.forEach(item => {
+                    states.set(item.itemId, {
+                        itemId: item.itemId,
+                        count: item.count,
+                        partialCount: item.partialCount,
+                        unit: item.unit
+                    });
+                });
+                setCountStates(states);
+            }
+        } catch (err) {
+            console.error('Error resuming session:', err);
+            setError('Failed to resume session');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -874,13 +963,23 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                 {mainTab === 'count' && (
                     <div className="flex items-center gap-3">
                         {!session ? (
-                            <button
-                                onClick={startSession}
-                                className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
-                            >
-                                <Play size={18} />
-                                Start Session
-                            </button>
+                            hasActiveDraft ? (
+                                <button
+                                    onClick={resumeSession}
+                                    className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
+                                >
+                                    <Play size={18} />
+                                    Resume Draft
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={startSession}
+                                    className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
+                                >
+                                    <Play size={18} />
+                                    Start Session
+                                </button>
+                            )
                         ) : (
                             <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/50 rounded-xl">
                                 <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
@@ -1013,7 +1112,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                                 </div>
                             </div>
                             <div className="lg:col-span-1">
-                                <ReviewPanel session={session} countStates={countStates} items={items} onSubmit={submitSession} onCancel={cancelSession} isSubmitting={isSubmitting} />
+                                <ReviewPanel session={session} countStates={countStates} items={items} onSubmit={submitSession} onSaveDraft={saveDraft} onCancel={cancelSession} isSubmitting={isSubmitting} isSavingDraft={isSavingDraft} />
                             </div>
                         </div>
                     ) : (
@@ -1021,14 +1120,24 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                             <div className="w-20 h-20 rounded-full bg-gradient-to-br from-purple-500/20 to-cyan-500/20 flex items-center justify-center mx-auto mb-6">
                                 <Package size={36} className="text-purple-600 dark:text-purple-400" />
                             </div>
-                            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Ready to Count?</h2>
+                            <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+                                {hasActiveDraft ? 'Draft Session Available' : 'Ready to Count?'}
+                            </h2>
                             <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
-                                Start a counting session for <strong>{currentBusiness?.name || 'selected business'}</strong>.
-                                Items are filtered by type tabs above.
+                                {hasActiveDraft 
+                                    ? `You have an active draft for ${currentBusiness?.name || 'selected business'}. Resume counting to finish it.` 
+                                    : `Start a counting session for ${currentBusiness?.name || 'selected business'}. Items are filtered by type tabs above.`}
                             </p>
-                            <button onClick={startSession} className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-purple-500/20">
-                                <Play size={20} />Start Counting Session
-                            </button>
+                            
+                            {hasActiveDraft ? (
+                                <button onClick={resumeSession} className="px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-blue-500/20">
+                                    <Play size={20} />Resume Draft
+                                </button>
+                            ) : (
+                                <button onClick={startSession} className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-purple-500/20">
+                                    <Play size={20} />Start Counting Session
+                                </button>
+                            )}
                         </div>
                     )}
                 </>
