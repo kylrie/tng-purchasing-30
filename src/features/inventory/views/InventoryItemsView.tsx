@@ -18,7 +18,8 @@ import {
     CheckSquare,
     Layers,
     Sparkles,
-    Loader2
+    Loader2,
+    Plus
 } from 'lucide-react';
 import type { InventoryItem, InventoryItemType, CreateInventoryItemInput, ServiceType } from '../types/InventoryItem';
 import { SERVICE_TYPES } from '../types/InventoryItem';
@@ -29,6 +30,7 @@ import ProduceBatchModal from '../components/ProduceBatchModal';
 import type { Business } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // ============================================================
 // PROPS
@@ -120,6 +122,12 @@ interface BalanceImportResult {
 // ============================================================
 
 const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uomOptions }) => {
+    // Permission guards
+    const { hasPermission } = usePermissions();
+    const canCreate = hasPermission('inventory:item:create');
+    const canEdit   = hasPermission('inventory:item:edit');
+    const canDelete = hasPermission('inventory:item:delete');
+
     // State
     const { selectedBusinessUnit } = useBusinessUnit();
     const [activeTypeTab, setActiveTypeTab] = useState<InventoryItemType | 'ALL'>('ALL');
@@ -329,6 +337,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     // ============================================================
 
     const startInlineEdit = (item: InventoryItem) => {
+        if (!canEdit) return; // read-only: block inline stock edit
         setEditingStockId(item.id);
         setEditingStockValue(item.currentStock.toString());
     };
@@ -603,18 +612,20 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* Auto-Categorize Button */}
-                    <button
-                        onClick={handleAutoCategorizeAll}
-                        disabled={isAutoCategorizing}
-                        className="px-4 py-2 bg-purple-50 dark:bg-purple-500/10 hover:bg-purple-100 dark:hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
-                        title="Automatically verify and re-categorize all items"
-                    >
-                        {isAutoCategorizing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                        Auto-Categorize All
-                    </button>
+                    {/* Auto-Categorize — requires edit */}
+                    {canEdit && (
+                        <button
+                            onClick={handleAutoCategorizeAll}
+                            disabled={isAutoCategorizing}
+                            className="px-4 py-2 bg-purple-50 dark:bg-purple-500/10 hover:bg-purple-100 dark:hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
+                            title="Automatically verify and re-categorize all items"
+                        >
+                            {isAutoCategorizing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                            Auto-Categorize All
+                        </button>
+                    )}
 
-                    {/* Download Template */}
+                    {/* Export — always visible (read) */}
                     <button
                         onClick={handleDownloadTemplate}
                         className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
@@ -624,44 +635,59 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                         Export Balances
                     </button>
 
-                    {/* Temporary Dev Button - Fix Costs */}
-                    <button
-                        onClick={async () => {
-                            if (confirm('Run base cost migration to fix missing costs?')) {
-                                try {
-                                    await InventoryService.migrateInventoryBaseCosts(selectedBusinessUnit);
-                                    alert('Cost migration completed. Please refresh the page to see changes.');
-                                } catch (e) {
-                                    console.error(e);
-                                    alert('Migration failed.');
+                    {/* Fix Legacy Costs — requires edit */}
+                    {canEdit && (
+                        <button
+                            onClick={async () => {
+                                if (confirm('Run base cost migration to fix missing costs?')) {
+                                    try {
+                                        await InventoryService.migrateInventoryBaseCosts(selectedBusinessUnit);
+                                        alert('Cost migration completed. Please refresh the page to see changes.');
+                                    } catch (e) {
+                                        console.error(e);
+                                        alert('Migration failed.');
+                                    }
                                 }
-                            }
-                        }}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
-                        title="Run this to recalculate legacy cost values"
-                    >
-                        <AlertTriangle size={16} />
-                        Fix Legacy Costs
-                    </button>
+                            }}
+                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                            title="Run this to recalculate legacy cost values"
+                        >
+                            <AlertTriangle size={16} />
+                            Fix Legacy Costs
+                        </button>
+                    )}
 
-                    {/* Import Beginning Balance */}
-                    <label className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer">
-                        <Upload size={16} />
-                        {isImporting ? 'Processing...' : 'Import Balances'}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept=".csv"
-                            onChange={handleFileSelect}
-                            disabled={isImporting}
-                            className="hidden"
-                        />
-                    </label>
+                    {/* Import Balances — requires create */}
+                    {canCreate && (
+                        <label className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer">
+                            <Upload size={16} />
+                            {isImporting ? 'Processing...' : 'Import Balances'}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".csv"
+                                onChange={handleFileSelect}
+                                disabled={isImporting}
+                                className="hidden"
+                            />
+                        </label>
+                    )}
+
+                    {/* Add Item — requires create */}
+                    {canCreate && (
+                        <button
+                            onClick={() => { setEditingItem(null); setShowItemModal(true); }}
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors"
+                        >
+                            <Plus size={16} />
+                            Add Item
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Bulk Actions Bar - Shows when items are selected */}
-            {selectedItems.size > 0 && (
+            {/* Bulk Actions Bar - Shows when items are selected AND user has edit permission */}
+            {selectedItems.size > 0 && canEdit && (
                 <div className="bg-purple-50 dark:bg-purple-500/20 border border-purple-200 dark:border-purple-500/40 rounded-xl p-4 flex items-center justify-between">
                     <span className="text-purple-700 dark:text-purple-300 font-medium">
                         {selectedItems.size} item(s) selected
@@ -795,7 +821,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                 <th className="text-left p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Category</th>
                                 <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">
                                     {activeTypeTab === 'FINISHED_GOOD' ? 'Sellable Stock' : 'Current Stock'}
-                                    {activeTypeTab !== 'FINISHED_GOOD' && (
+                                    {activeTypeTab !== 'FINISHED_GOOD' && canEdit && (
                                         <span className="text-xs text-slate-400 dark:text-slate-500 block">(Click to edit)</span>
                                     )}
                                 </th>
@@ -879,13 +905,19 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col items-end gap-1">
-                                                    <button
-                                                        onClick={() => startInlineEdit(item)}
-                                                        className="text-slate-900 dark:text-white font-medium hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline cursor-pointer transition-colors"
-                                                        title="Click to edit"
-                                                    >
-                                                        {Number((item.currentStock || 0).toFixed(2))} {item.units.recipeUnit}
-                                                    </button>
+                                                    {canEdit ? (
+                                                        <button
+                                                            onClick={() => startInlineEdit(item)}
+                                                            className="text-slate-900 dark:text-white font-medium hover:text-cyan-600 dark:hover:text-cyan-400 hover:underline cursor-pointer transition-colors"
+                                                            title="Click to edit"
+                                                        >
+                                                            {Number((item.currentStock || 0).toFixed(2))} {item.units.recipeUnit}
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-slate-900 dark:text-white font-medium">
+                                                            {Number((item.currentStock || 0).toFixed(2))} {item.units.recipeUnit}
+                                                        </span>
+                                                    )}
                                                     <div className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                                                         = <span className="text-cyan-600 dark:text-cyan-500">{Number(((item.currentStock || 0) / (item.units.conversion > 0 ? item.units.conversion : 1)).toFixed(2))} {item.units.buyUnit}</span>
                                                     </div>
@@ -910,20 +942,22 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                                     </button>
                                                 )}
 
-                                                <button
-                                                    onClick={() => handleEdit(item)}
-                                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
-                                                    title="Edit item"
-                                                >
-                                                    <Edit size={16} />
-                                                </button>
-                                                <button
+                                                {canEdit && (
+                                                    <button
+                                                        onClick={() => handleEdit(item)}
+                                                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+                                                        title="Edit item"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                )}
+                                                {canDelete && <button
                                                     onClick={() => handleDelete(item)}
                                                     className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                                                     title="Delete item"
                                                 >
                                                     <Trash2 size={16} />
-                                                </button>
+                                                </button>}
                                             </div>
                                         </td>
                                     </tr>
