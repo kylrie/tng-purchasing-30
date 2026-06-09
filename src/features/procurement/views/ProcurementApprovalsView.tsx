@@ -119,12 +119,13 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
 
                 // Note: Sub-tab filtering (BURF/CIC/PRF) is applied after this via displayRequisitions
 
-                // PRF_PENDING_MANAGER: Must be the designated approver or have global access
+                // PRF_PENDING_MANAGER: Must be the designated approver, manager for BURF-sourced, or have global access
                 if (req.status === RequisitionStatus.PRF_PENDING_MANAGER) {
                     const isDesignated = req.prfDetails?.designatedApproverId === currentUser.id;
+                    const isManagerForBurf = req.prfDetails?.sourceType === 'BURF' && hasPermission('procurement:prf:approve:manager');
                     const hasGlobalAccess = hasPermission('procurement:burf:view:all');
                     const isSuperAdminUser = isSuperAdmin(currentUser.role);
-                    if (!isDesignated && !hasGlobalAccess && !isSuperAdminUser) {
+                    if (!isDesignated && !isManagerForBurf && !hasGlobalAccess && !isSuperAdminUser) {
                         return false;
                     }
                 }
@@ -646,19 +647,21 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 onReject={handleDrawerReject}
                 onCancel={handleDrawerCancel}
                 canApprove={activeTab === 'pending' && !!drawerReq && (
-                    // For PRF_PENDING_MANAGER: Must be the designated approver
+                    // For PRF_PENDING_MANAGER: Must be the designated approver or manager
                     drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER
                         ? (
                             drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
+                            (drawerReq.prfDetails?.sourceType === 'BURF' && hasPermission('procurement:prf:approve:manager')) ||
                             isSuperAdmin(currentUser.role)
                         )
                         : userApprovalStatuses.includes(drawerReq.status)
                 )}
                 canReject={activeTab === 'pending' && !!drawerReq && (
-                    // For PRF_PENDING_MANAGER: Must be the designated approver
+                    // For PRF_PENDING_MANAGER: Must be the designated approver or manager
                     drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER
                         ? (
                             drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
+                            (drawerReq.prfDetails?.sourceType === 'BURF' && hasPermission('procurement:prf:approve:manager')) ||
                             isSuperAdmin(currentUser.role)
                         )
                         : userApprovalStatuses.includes(drawerReq.status)
