@@ -122,7 +122,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 // PRF_PENDING_MANAGER: Must be the designated approver, manager for BURF-sourced, or have global access
                 if (req.status === RequisitionStatus.PRF_PENDING_MANAGER) {
                     const isDesignated = req.prfDetails?.designatedApproverId === currentUser.id;
-                    const isManagerForBurf = req.prfDetails?.sourceType === 'BURF' && hasPermission('procurement:prf:approve:manager');
+                    const isManagerForBurf = !!req.parentBurfId && hasPermission('procurement:prf:approve:manager');
                     const hasGlobalAccess = hasPermission('procurement:burf:view:all');
                     const isSuperAdminUser = isSuperAdmin(currentUser.role);
                     if (!isDesignated && !isManagerForBurf && !hasGlobalAccess && !isSuperAdminUser) {
@@ -651,7 +651,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                     drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER
                         ? (
                             drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
-                            (drawerReq.prfDetails?.sourceType === 'BURF' && hasPermission('procurement:prf:approve:manager')) ||
+                            (!!drawerReq.parentBurfId && hasPermission('procurement:prf:approve:manager')) ||
                             isSuperAdmin(currentUser.role)
                         )
                         : userApprovalStatuses.includes(drawerReq.status)
@@ -661,7 +661,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                     drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER
                         ? (
                             drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
-                            (drawerReq.prfDetails?.sourceType === 'BURF' && hasPermission('procurement:prf:approve:manager')) ||
+                            (!!drawerReq.parentBurfId && hasPermission('procurement:prf:approve:manager')) ||
                             isSuperAdmin(currentUser.role)
                         )
                         : userApprovalStatuses.includes(drawerReq.status)
