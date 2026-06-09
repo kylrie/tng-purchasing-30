@@ -33,6 +33,7 @@ import InventoryItemModal from '../components/InventoryItemModal';
 import type { User, Business } from '../../procurement/types';
 import { UI_CONSTANTS } from '../../../config/constants';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // ============================================================
 // PROPS
@@ -586,6 +587,7 @@ const LOGS_ALLOWED_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BOARD_OF_DIRECTOR'];
 const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, uomOptions }) => {
     // Business unit selection
     const { selectedBusinessUnit } = useBusinessUnit();
+    const { hasPermission } = usePermissions();
 
     // Role-based access for Logs tab
     const canViewLogs = LOGS_ALLOWED_ROLES.includes(currentUser.role);
@@ -991,17 +993,21 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2">
-                    <button onClick={handleAddItem} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors">
-                        <Plus size={16} />Add Item
-                    </button>
+                    {hasPermission('inventory:item:create') && (
+                        <>
+                            <button onClick={handleAddItem} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors">
+                                <Plus size={16} />Add Item
+                            </button>
+                            <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer">
+                                <Upload size={16} />
+                                {isImporting ? 'Importing...' : 'Import Items'}
+                                <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} disabled={isImporting} className="hidden" />
+                            </label>
+                        </>
+                    )}
                     <button onClick={handleExport} disabled={items.length === 0} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50">
                         <Download size={16} />Export
                     </button>
-                    <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer">
-                        <Upload size={16} />
-                        {isImporting ? 'Importing...' : 'Import Items'}
-                        <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} disabled={isImporting} className="hidden" />
-                    </label>
                     <button onClick={downloadSampleCSV} className="px-3 py-2 bg-purple-800 hover:bg-purple-700 text-purple-200 rounded-lg text-sm transition-colors flex items-center gap-1" title="Download Inventory Items Template">
                         <Download size={14} /><span className="text-xs">Items</span>
                     </button>
@@ -1129,14 +1135,16 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                                     : `Start a counting session for ${currentBusiness?.name || 'selected business'}. Items are filtered by type tabs above.`}
                             </p>
                             
-                            {hasActiveDraft ? (
-                                <button onClick={resumeSession} className="px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-blue-500/20">
-                                    <Play size={20} />Resume Draft
-                                </button>
-                            ) : (
-                                <button onClick={startSession} className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-purple-500/20">
-                                    <Play size={20} />Start Counting Session
-                                </button>
+                            {hasPermission('inventory:stock_take:create') && (
+                                hasActiveDraft ? (
+                                    <button onClick={resumeSession} className="px-8 py-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-blue-500/20">
+                                        <Play size={20} />Resume Draft
+                                    </button>
+                                ) : (
+                                    <button onClick={startSession} className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-3 mx-auto shadow-lg shadow-purple-500/20">
+                                        <Play size={20} />Start Counting Session
+                                    </button>
+                                )
                             )}
                         </div>
                     )}

@@ -36,6 +36,7 @@ import { GeminiVisionService, type ExtractedItem, type ExtractionResult } from '
 import type { Business, User, Requisition } from '../../procurement/types';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // ============================================================
 // TYPES
@@ -542,6 +543,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
     const [isApplying, setIsApplying] = useState(false);
     const [applySuccess, setApplySuccess] = useState(false);
     const [applyError, setApplyError] = useState<string | null>(null);
+    const { hasPermission } = usePermissions();
 
     // PRF Link state
     const [selectedPrfId, setSelectedPrfId] = useState('');
@@ -1383,9 +1385,11 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                             )}
                             <div className="flex items-center justify-between">
                                 <button onClick={() => setStep(1)} className="px-5 py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-medium rounded-xl transition-colors">Back</button>
-                                <button onClick={handleApply} disabled={isApplying} className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg shadow-emerald-500/20">
-                                    {isApplying ? <><Loader2 size={18} className="animate-spin" />Updating...</> : <><CheckCircle size={18} />Apply {confirmedRows.length} Update{confirmedRows.length !== 1 ? 's' : ''}</>}
-                                </button>
+                                {hasPermission('inventory:receiving:create') && (
+                                    <button onClick={handleApply} disabled={isApplying} className="flex items-center gap-2 px-8 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg shadow-emerald-500/20">
+                                        {isApplying ? <><Loader2 size={18} className="animate-spin" /> Applying...</> : <><CheckCircle size={18} /> Apply to Inventory</>}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     )}

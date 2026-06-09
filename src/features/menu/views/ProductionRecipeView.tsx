@@ -24,6 +24,7 @@ import { SERVICE_TYPES } from '../../inventory/types/InventoryItem';
 import { InventoryService } from '../../inventory/services/inventory.service';
 import ProductionLogsView from './ProductionLogsView';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // ============================================================
 // PROPS
@@ -45,6 +46,8 @@ const RecipeCard: React.FC<{
     onDelete: (recipe: ProductionRecipe) => void;
     onRecordYield: (recipe: ProductionRecipe) => void;
 }> = ({ recipe, productionStock, onEdit, onDelete, onRecordYield }) => {
+    const { hasPermission } = usePermissions();
+
     return (
         <div className="bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 hover:border-amber-500/50 transition-all shadow-sm dark:shadow-none">
             {/* Header */}
@@ -72,25 +75,31 @@ const RecipeCard: React.FC<{
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
-                    <button
-                        onClick={() => onRecordYield(recipe)}
-                        title="Record Production Yield"
-                        className="p-2 hover:bg-green-100 dark:hover:bg-green-500/20 rounded-lg text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
-                    >
-                        <Play size={16} />
-                    </button>
-                    <button
-                        onClick={() => onEdit(recipe)}
-                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
-                    >
-                        <Edit size={16} />
-                    </button>
-                    <button
-                        onClick={() => onDelete(recipe)}
-                        className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                    >
-                        <Trash2 size={16} />
-                    </button>
+                    {hasPermission('menu:production_log:create') && (
+                        <button
+                            onClick={() => onRecordYield(recipe)}
+                            title="Record Production Yield"
+                            className="p-2 hover:bg-green-100 dark:hover:bg-green-500/20 rounded-lg text-slate-400 hover:text-green-600 dark:hover:text-green-400 transition-colors"
+                        >
+                            <Play size={16} />
+                        </button>
+                    )}
+                    {hasPermission('menu:recipe:edit') && (
+                        <button
+                            onClick={() => onEdit(recipe)}
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+                        >
+                            <Edit size={16} />
+                        </button>
+                    )}
+                    {hasPermission('menu:recipe:delete') && (
+                        <button
+                            onClick={() => onDelete(recipe)}
+                            className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -173,6 +182,8 @@ const RecipeList: React.FC<{
     onDelete: (recipe: ProductionRecipe) => void;
     onRecordYield: (recipe: ProductionRecipe) => void;
 }> = ({ recipes, productionStockMap, onEdit, onDelete, onRecordYield }) => {
+    const { hasPermission } = usePermissions();
+
     return (
         <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm dark:shadow-none">
             <div className="overflow-x-auto">
@@ -251,27 +262,33 @@ const RecipeList: React.FC<{
                                     </td>
                                     <td className="p-4 text-center">
                                         <div className="flex items-center justify-center gap-1">
-                                            <button
-                                                onClick={() => onRecordYield(recipe)}
-                                                className="p-1.5 text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-100 dark:hover:bg-green-500/20 rounded transition-colors"
-                                                title="Record Production Yield"
-                                            >
-                                                <Play size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => onEdit(recipe)}
-                                                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-600 rounded transition-colors"
-                                                title="Edit recipe"
-                                            >
-                                                <Edit size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => onDelete(recipe)}
-                                                className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded transition-colors"
-                                                title="Delete recipe"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            {hasPermission('menu:production_log:create') && (
+                                                <button
+                                                    onClick={() => onRecordYield(recipe)}
+                                                    className="p-1.5 text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-100 dark:hover:bg-green-500/20 rounded transition-colors"
+                                                    title="Record Production Yield"
+                                                >
+                                                    <Play size={16} />
+                                                </button>
+                                            )}
+                                            {hasPermission('menu:recipe:edit') && (
+                                                <button
+                                                    onClick={() => onEdit(recipe)}
+                                                    className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-600 rounded transition-colors"
+                                                    title="Edit recipe"
+                                                >
+                                                    <Edit size={16} />
+                                                </button>
+                                            )}
+                                            {hasPermission('menu:recipe:delete') && (
+                                                <button
+                                                    onClick={() => onDelete(recipe)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/10 rounded transition-colors"
+                                                    title="Delete recipe"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -292,6 +309,7 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
     // State
     const [activeTab, setActiveTab] = useState<'recipes' | 'logs'>('recipes');
     const { selectedBusinessUnit } = useBusinessUnit();
+    const { hasPermission } = usePermissions();
     const [recipes, setRecipes] = useState<ProductionRecipe[]>([]);
     const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
     const [productionItems, setProductionItems] = useState<InventoryItem[]>([]);
@@ -482,7 +500,7 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
 
                 {/* Right: BU selector + New Recipe (only on recipes tab) */}
                 <div className="flex flex-wrap items-center gap-3">
-                    {activeTab === 'recipes' && (
+                    {activeTab === 'recipes' && hasPermission('menu:recipe:create') && (
                         <button
                             onClick={handleAddNew}
                             className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
@@ -634,7 +652,7 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                     <p className="text-slate-500 dark:text-slate-400 mb-4">
                         {searchQuery ? 'No recipes match your search' : 'No production recipes yet'}
                     </p>
-                    {!searchQuery && (
+                    {!searchQuery && hasPermission('menu:recipe:create') && (
                         <button
                             onClick={handleAddNew}
                             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors"

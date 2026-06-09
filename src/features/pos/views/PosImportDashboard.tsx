@@ -9,6 +9,7 @@ import type { InventoryItem } from '../../inventory/types/InventoryItem';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { PosImportPreviewModal } from '../components/PosImportPreviewModal';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 interface Props {
     businesses: { id: string; name: string }[];
@@ -126,6 +127,7 @@ const SearchableItemSelect: React.FC<{
 const PosImportDashboard: React.FC<Props> = () => {
     const { currentUser } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
+    const { hasPermission } = usePermissions();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Resolve the active BU id: if 'all' is selected in global context,
@@ -639,8 +641,9 @@ const PosImportDashboard: React.FC<Props> = () => {
                 <>
                     {/* UPLOAD STATE */}
                     {viewState === 'UPLOAD' && (
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3">
+                        hasPermission('pos:import:create') ? (
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
                                 <label className="text-sm text-slate-500 dark:text-slate-400">POS Sales Date:</label>
                                 <input
                                     type="date"
@@ -689,6 +692,12 @@ const PosImportDashboard: React.FC<Props> = () => {
                                 )}
                             </div>
                         </div>
+                        ) : (
+                            <div className="bg-white dark:bg-slate-800/60 backdrop-blur border border-slate-200 dark:border-slate-700/50 rounded-xl p-12 text-center">
+                                <AlertTriangle className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+                                <p className="text-slate-500 dark:text-slate-400">You don't have permission to import POS sales.</p>
+                            </div>
+                        )
                     )}
 
                     {/* PREVIEW STATE */}
@@ -1009,7 +1018,7 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                 <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">₱{batch.totalAmount.toLocaleString()}</p>
                                                 <p className="text-xs text-blue-500 dark:text-blue-400">Profit: ₱{batch.totalProfit.toLocaleString()}</p>
                                             </div>
-                                            {currentUser?.role === 'SUPER_ADMIN' && (
+                                            {hasPermission('pos:import:delete') && (
                                                 <button
                                                     onClick={(e) => handleDeleteBatch(batch.id, e)}
                                                     disabled={isDeleting === batch.id}

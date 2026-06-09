@@ -7,6 +7,8 @@ import Papa from 'papaparse';
 import { CoaService } from '../../../shared/services/coa.service';
 import type { ChartOfAccount } from '../../../shared/types/firebase.types';
 
+import { usePermissions } from '../../../hooks/usePermissions';
+
 interface ChartOfAccountsViewProps {
     // Can add props for permissions if needed
 }
@@ -292,6 +294,8 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
     const [editingAccount, setEditingAccount] = useState<Partial<ChartOfAccount> | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
+    const { hasPermission } = usePermissions();
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Load accounts on mount
@@ -536,15 +540,21 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
                     <td className="px-4 py-2 text-slate-500 dark:text-slate-400 text-sm">{account.classification}</td>
                     <td className="px-4 py-2">
                         <div className="flex items-center gap-1">
-                            <button onClick={() => handleEdit(account)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400" title="Edit">
-                                <Edit2 size={14} />
-                            </button>
-                            <button onClick={() => handleToggleActive(account)} className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${account.isActive ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`} title={account.isActive ? 'Deactivate' : 'Activate'}>
-                                {account.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
-                            </button>
-                            <button onClick={() => setDeleteConfirm(account.code)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Delete">
-                                <Trash2 size={14} />
-                            </button>
+                            {hasPermission('admin:coa:edit') && (
+                                <>
+                                    <button onClick={() => handleEdit(account)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400" title="Edit">
+                                        <Edit2 size={14} />
+                                    </button>
+                                    <button onClick={() => handleToggleActive(account)} className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${account.isActive ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`} title={account.isActive ? 'Deactivate' : 'Activate'}>
+                                        {account.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                                    </button>
+                                </>
+                            )}
+                            {hasPermission('admin:coa:delete') && (
+                                <button onClick={() => setDeleteConfirm(account.code)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Delete">
+                                    <Trash2 size={14} />
+                                </button>
+                            )}
                         </div>
                     </td>
                 </tr>
@@ -571,19 +581,23 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
-                    <button onClick={handleAddNew} className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
-                        <Plus size={16} />
-                        Add Account
-                    </button>
+                    {hasPermission('admin:coa:create') && (
+                        <button onClick={handleAddNew} className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors">
+                            <Plus size={16} />
+                            Add Account
+                        </button>
+                    )}
                     <button onClick={loadAccounts} disabled={loading} className="px-3 py-2 bg-white dark:bg-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-white border border-slate-300 dark:border-transparent rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50">
                         <RefreshCw size={16} className={`text-slate-500 dark:text-slate-300 ${loading ? 'animate-spin' : ''}`} />
                         Refresh
                     </button>
-                    <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 cursor-pointer transition-colors">
-                        <Upload size={16} />
-                        {importing ? 'Importing...' : 'Import CSV'}
-                        <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} disabled={importing} className="hidden" />
-                    </label>
+                    {hasPermission('admin:coa:create') && (
+                        <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 cursor-pointer transition-colors">
+                            <Upload size={16} />
+                            {importing ? 'Importing...' : 'Import CSV'}
+                            <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} disabled={importing} className="hidden" />
+                        </label>
+                    )}
                 </div>
             </div>
 
@@ -657,15 +671,21 @@ const ChartOfAccountsView: React.FC<ChartOfAccountsViewProps> = () => {
                                             <td className="px-4 py-2 text-slate-500 dark:text-slate-400 text-sm">{account.classification}</td>
                                             <td className="px-4 py-2">
                                                 <div className="flex items-center gap-1">
-                                                    <button onClick={() => handleEdit(account)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400" title="Edit">
-                                                        <Edit2 size={14} />
-                                                    </button>
-                                                    <button onClick={() => handleToggleActive(account)} className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${account.isActive ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`} title={account.isActive ? 'Deactivate' : 'Activate'}>
-                                                        {account.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
-                                                    </button>
-                                                    <button onClick={() => setDeleteConfirm(account.code)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Delete">
-                                                        <Trash2 size={14} />
-                                                    </button>
+                                                    {hasPermission('admin:coa:edit') && (
+                                                        <>
+                                                            <button onClick={() => handleEdit(account)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-yellow-500 dark:hover:text-yellow-400" title="Edit">
+                                                                <Edit2 size={14} />
+                                                            </button>
+                                                            <button onClick={() => handleToggleActive(account)} className={`p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded ${account.isActive ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`} title={account.isActive ? 'Deactivate' : 'Activate'}>
+                                                                {account.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {hasPermission('admin:coa:delete') && (
+                                                        <button onClick={() => setDeleteConfirm(account.code)} className="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-slate-400 hover:text-red-500 dark:hover:text-red-400" title="Delete">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>

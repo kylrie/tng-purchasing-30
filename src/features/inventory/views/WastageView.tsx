@@ -14,11 +14,12 @@ import {
     History
 } from 'lucide-react';
 import type { InventoryItem, WastageRecord, WastageReason, RecordWastageInput } from '../types/InventoryItem';
+import type { Business, User } from '../../procurement/types';
 import { InventoryService } from '../services/inventory.service';
 import { WastageService, WASTAGE_REASONS } from '../services/wastage.service';
-import type { Business, User } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { ActivityLogService } from '../../../shared/services/activityLog.service';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // ============================================================
 // TYPES
@@ -38,6 +39,7 @@ type TabKey = 'record' | 'log';
 const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) => {
     // ---- Global BU Context ----
     const { selectedBusinessUnit } = useBusinessUnit();
+    const { hasPermission } = usePermissions();
 
     // Resolve: if 'all' is selected, fall back to user's first BU
     const selectedBU = selectedBusinessUnit === 'all'
@@ -411,17 +413,19 @@ const WastageView: React.FC<WastageViewProps> = ({ businesses, currentUser }) =>
                             </div>
 
                             {/* Submit */}
-                            <button
-                                type="submit"
-                                disabled={submitting || !selectedItemId || !quantity}
-                                className="w-full sm:w-auto px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                            >
-                                {submitting ? (
-                                    <><Loader2 className="w-4 h-4 animate-spin" /> Recording…</>
-                                ) : (
-                                    <><Trash2 className="w-4 h-4" /> Record Wastage</>
-                                )}
-                            </button>
+                            {hasPermission('inventory:wastage:create') && (
+                                <button
+                                    type="submit"
+                                    disabled={submitting || !selectedItemId || !quantity}
+                                    className="w-full sm:w-auto px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                >
+                                    {submitting ? (
+                                        <><Loader2 className="w-4 h-4 animate-spin" /> Recording…</>
+                                    ) : (
+                                        <><Trash2 className="w-4 h-4" /> Record Wastage</>
+                                    )}
+                                </button>
+                            )}
                         </form>
                     </div>
 

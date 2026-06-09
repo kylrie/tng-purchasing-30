@@ -18,6 +18,7 @@ import { InventoryService } from '../services/inventory.service';
 import FixedAssetModal from '../components/FixedAssetModal';
 import type { Business, User } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // ============================================================
 // PROPS
@@ -92,6 +93,7 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ allUsers = [] }) => {
     const [assets, setAssets] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const { hasPermission } = usePermissions();
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -212,13 +214,15 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ allUsers = [] }) => {
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-3">
-                    <button
-                        onClick={handleAddAsset}
-                        className="px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
-                    >
-                        <Plus size={18} />
-                        Add Asset
-                    </button>
+                    {hasPermission('inventory:asset:create') && (
+                        <button
+                            onClick={handleAddAsset}
+                            className="px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-500 text-white rounded-xl font-semibold flex items-center gap-2 hover:opacity-90 transition-opacity"
+                        >
+                            <Plus size={18} />
+                            Add Asset
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -278,7 +282,7 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ allUsers = [] }) => {
                         <p className="text-slate-500 dark:text-slate-400 mb-4">
                             {searchQuery ? 'No assets match your search' : 'No fixed assets yet'}
                         </p>
-                        {!searchQuery && (
+                        {!searchQuery && hasPermission('inventory:asset:create') && (
                             <button
                                 onClick={handleAddAsset}
                                 className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors"
@@ -381,20 +385,24 @@ const FixedAssetsView: React.FC<FixedAssetsViewProps> = ({ allUsers = [] }) => {
                                         {/* Actions */}
                                         <td className="p-4 text-right">
                                             <div className="flex items-center justify-end gap-1">
-                                                <button
-                                                    onClick={() => handleEditAsset(asset)}
-                                                    className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
-                                                    title="Edit Asset"
-                                                >
-                                                    <Edit size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDecommissionAsset(asset)}
-                                                    className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                                                    title="Decommission Asset"
-                                                >
-                                                    <Archive size={16} />
-                                                </button>
+                                                {hasPermission('inventory:asset:edit') && (
+                                                    <button
+                                                        onClick={() => handleEditAsset(asset)}
+                                                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
+                                                        title="Edit Asset"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                )}
+                                                {hasPermission('inventory:asset:delete') && (
+                                                    <button
+                                                        onClick={() => handleDecommissionAsset(asset)}
+                                                        className="p-2 hover:bg-red-100 dark:hover:bg-red-500/20 rounded-lg text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                                                        title="Decommission Asset"
+                                                    >
+                                                        <Archive size={16} />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

@@ -15,6 +15,7 @@ import type { StockCountSession } from '../types/InventoryItem';
 import { InventoryReportsService, type VarianceReport, type VarianceReportItem } from '../services/inventory.reports.service';
 import type { Business } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 
 // ============================================================
 // PROPS
@@ -31,6 +32,7 @@ interface VarianceReportViewProps {
 const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) => {
     // State
     const { selectedBusinessUnit } = useBusinessUnit();
+    const { hasPermission } = usePermissions();
     const [sessions, setSessions] = useState<StockCountSession[]>([]);
     const [startSessionId, setStartSessionId] = useState<string>('');
     const [endSessionId, setEndSessionId] = useState<string>('');
@@ -303,13 +305,15 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                             <span className="text-slate-900 dark:text-white">{formatDate(report.endSession.startedAt)}</span>
                         </div>
                         <div className="flex-1" />
-                        <button
-                            onClick={handleExportCSV}
-                            className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm transition-colors"
-                        >
-                            <Download size={16} />
-                            Export CSV
-                        </button>
+                        {hasPermission('inventory:report:export') && (
+                            <button
+                                onClick={handleExportCSV}
+                                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm transition-colors"
+                            >
+                                <Download size={16} />
+                                Export CSV
+                            </button>
+                        )}
                     </div>
 
                     {/* Variance Table */}
