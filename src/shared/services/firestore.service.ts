@@ -18,6 +18,7 @@ import {
     type DocumentData,
     type QuerySnapshot,
     type DocumentSnapshot,
+    writeBatch
 } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { firestoreTimestamp } from '../utils/firestore.utils';
@@ -135,6 +136,55 @@ export class FirestoreService {
             await updateDoc(docRef, updateData);
         } catch (error) {
             console.error(`Error updating document ${documentId} in ${collectionName}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Batch update multiple documents in a collection
+     */
+    static async batchUpdateDocuments<T extends DocumentData>(
+        collectionName: string,
+        updates: { id: string; data: Partial<T> }[]
+    ): Promise<void> {
+        try {
+            const batch = writeBatch(db);
+            updates.forEach(update => {
+                const docRef = doc(db, collectionName, update.id);
+                batch.update(docRef, {
+                    ...(update.data as object),
+                    updatedAt: firestoreTimestamp(),
+                });
+            });
+            await batch.commit();
+        } catch (error) {
+            console.error(`Error batch updating documents in ${collectionName}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Batch create multiple documents in a collection
+     */
+    static async batchCreateDocuments<T extends DocumentData>(
+        collectionName: string,
+        documents: T[]
+    ): Promise<void> {
+        try {
+            const batch = writeBatch(db);
+            const collectionRef = collection(db, collectionName);
+            
+            documents.forEach(docData => {
+                const docRef = doc(collectionRef);
+                batch.set(docRef, {
+                    ...docData,
+                    createdAt: firestoreTimestamp(),
+                    updatedAt: firestoreTimestamp(),
+                });
+            });
+            await batch.commit();
+        } catch (error) {
+            console.error(`Error batch creating documents in ${collectionName}:`, error);
             throw error;
         }
     }

@@ -179,6 +179,13 @@ export class InventoryService {
     }
 
     /**
+     * Batch update multiple inventory items (fastest, skips recipe recalculation)
+     */
+    static async batchUpdateInventoryItems(updates: { id: string; data: Partial<InventoryItem> }[]): Promise<void> {
+        return FirestoreService.batchUpdateDocuments(COLLECTIONS.INVENTORY_ITEMS, updates);
+    }
+
+    /**
      * Update an inventory item
      * Optional skipRecipeRecalculation prevents infinite loops when recipes update their own products
      */
@@ -382,6 +389,7 @@ export class InventoryService {
 
             const now = Timestamp.now();
             const auditLogs: Omit<StocktakeAuditLog, 'id'>[] = [];
+            const inventoryUpdates: { id: string; data: Partial<InventoryItem> }[] = [];
 
             // Update inventory stock levels and collect audit data
             for (const countItem of session.items) {
@@ -396,11 +404,10 @@ export class InventoryService {
                 const stockBefore = itemDoc.currentStock ?? 0;
                 const newStock = (countItem.count + countItem.partialCount) * conversion;
 
-                await FirestoreService.updateDocument(
-                    COLLECTIONS.INVENTORY_ITEMS,
-                    countItem.itemId,
-                    { currentStock: newStock }
-                );
+                inventoryUpdates.push({
+                    id: countItem.itemId,
+                    data: { currentStock: newStock }
+                });
 
                 // Build audit log entry for this item
                 auditLogs.push({
@@ -412,20 +419,32 @@ export class InventoryService {
                     stockBefore,
                     stockAfter: newStock,
                     variance: newStock - stockBefore,
-                    unit: itemDoc.units.recipeUnit,
+                    unit: itemDoc.units?.recipeUnit || '',
                     countedBy: session.performedBy,
                     countedByName: session.performedByName ?? 'Unknown',
                     submittedAt: now
                 });
             }
 
-            // Write all audit logs in parallel (fire-and-forget safe)
+            // Batch update inventory items
             try {
-                await Promise.all(
-                    auditLogs.map(log =>
-                        FirestoreService.createDocument(COLLECTIONS.STOCKTAKE_AUDIT_LOGS, log)
-                    )
-                );
+                const BATCH_SIZE = 400; // Firebase limit is 500
+                for (let i = 0; i < inventoryUpdates.length; i += BATCH_SIZE) {
+                    const chunk = inventoryUpdates.slice(i, i + BATCH_SIZE);
+                    await FirestoreService.batchUpdateDocuments(COLLECTIONS.INVENTORY_ITEMS, chunk);
+                }
+            } catch (invErr) {
+                console.error('[InventoryService] Failed to batch update inventory items:', invErr);
+                throw invErr;
+            }
+
+            // Write all audit logs using batches to avoid Firebase concurrent connection limits
+            try {
+                const BATCH_SIZE = 400; // Firebase limit is 500
+                for (let i = 0; i < auditLogs.length; i += BATCH_SIZE) {
+                    const chunk = auditLogs.slice(i, i + BATCH_SIZE);
+                    await FirestoreService.batchCreateDocuments(COLLECTIONS.STOCKTAKE_AUDIT_LOGS, chunk);
+                }
             } catch (logErr) {
                 console.error('[InventoryService] Failed to write stocktake audit logs:', logErr);
                 // Non-critical — don't fail the submit if logging fails

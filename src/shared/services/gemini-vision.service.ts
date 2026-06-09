@@ -224,4 +224,128 @@ Do not return any markdown code block wrappers or other text. ONLY the raw JSON 
             return {};
         }
     }
+
+    /**
+     * Automatically assign a Category and a Department (Bar, Kitchen, Retail) to a list of items based on their name and type.
+     */
+    static async organizeItems(itemsToOrganize: {name: string, type: string}[]): Promise<Record<string, {category: string, department: string}>> {
+        if (itemsToOrganize.length === 0) return {};
+
+        const client = this.getClient();
+        
+        const prompt = `You are an expert restaurant and bar inventory manager.
+For each item in the following list, you must provide BOTH an appropriate Category and a logical Department based on its name and type.
+
+Allowed Categories: Spirits, Wine, Beer, Mixers, Beverage, Food, Frozen Good, Dry Goods, Equipment, Furniture, Supplies, Glassware, Souvenir, Alcohol Beverage, Non Alcohol, Other
+Allowed Departments: Bar, Kitchen, Retail, Office
+
+CRITICAL CATEGORY RULES:
+1. The "Food" category should ONLY be used if the item type is FINISHED_GOOD. If the item type is RAW_MATERIAL, PRODUCTION, or anything else, food-related items MUST be categorized as "Dry Goods" or "Frozen Good", never "Food".
+2. If the item type is FINISHED_GOOD, it MUST ONLY be categorized into one of these: "Food", "Souvenir", "Alcohol Beverage", or "Non Alcohol".
+3. If the item type is RAW_MATERIAL or PRODUCTION, use the old categories (Spirits, Wine, Beer, Mixers, Beverage, Equipment, Furniture, Supplies, Glassware, Other) as appropriate, but strictly follow Rule 1.
+
+CRITICAL DEPARTMENT RULES:
+1. "Bar" should contain items related to beverages (alcoholic or non-alcoholic), drink mixers, glassware, and bar equipment. Categories like Spirits, Wine, Beer, Mixers, Beverage usually belong here.
+2. "Kitchen" should contain items related to food production, cooking, ingredients, kitchen equipment. Categories like Food, Frozen Good, Dry Goods usually belong here.
+3. "Retail" should contain items intended for direct sale as merchandise or pre-packaged goods that aren't prepared in-house (e.g., Souvenirs).
+4. "Office" should contain items used for administrative, back-office, and general business operations (e.g., office supplies, IT equipment, furniture).
+
+Items to organize:
+${JSON.stringify(itemsToOrganize)}
+
+Return ONLY a JSON object where the key is the exact item name and the value is an object with "category" and "department" keys. Example:
+{
+  "Jameson Irish Whiskey": { "category": "Spirits", "department": "Bar" },
+  "Chicken wings": { "category": "Frozen Good", "department": "Kitchen" },
+  "T-Shirt Logo": { "category": "Souvenir", "department": "Retail" },
+  "Napkins": { "category": "Supplies", "department": "Kitchen" }
+}
+
+Do not return any markdown code block wrappers or other text. ONLY the raw JSON object.`;
+
+        const response = await client.models.generateContent({
+            model: 'gemini-3.5-flash',
+            config: {
+                thinkingConfig: { thinkingBudget: -1 }
+            },
+            contents: [{ role: 'user', parts: [{ text: prompt }] }]
+        });
+
+        const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        
+        try {
+            const jsonText = rawText
+                .replace(/^```json\s*/i, '')
+                .replace(/^```\s*/i, '')
+                .replace(/\s*```$/i, '')
+                .trim();
+            
+            return JSON.parse(jsonText);
+        } catch {
+            console.error('[GeminiVisionService] Failed to parse organize items JSON:', rawText);
+            return {};
+        }
+    }
+
+    /**
+     * Parse unstructured raw text from a manual count sheet and match it to inventory IDs.
+     */
+    static async extractManualCounts(fileText: string, availableItems: {id: string, name: string}[]): Promise<Record<string, number>> {
+        if (!fileText || availableItems.length === 0) return {};
+
+        const client = this.getClient();
+        
+        // Trim filetext to avoid incredibly massive prompts if the file is insanely huge. 
+        // 50,000 characters is plenty for a CSV of this size.
+        const trimmedText = fileText.substring(0, 50000);
+        
+        const prompt = `You are an expert inventory data entry assistant.
+I have an unstructured text report (like a CSV or Excel dump) of manual inventory counts, and I have a list of my exact inventory items in the database.
+
+Your task is to extract the quantities for each item found in the report and match them to the EXACT 'id' of my database items.
+
+Here is the list of my database items:
+${JSON.stringify(availableItems)}
+
+Here is the unstructured manual count report:
+${trimmedText}
+
+Instructions:
+1. Carefully read the report and look for item names and their counted quantities. Often, the quantity is under a column like "IN", "TOTAL COUNT", "BEG", or just a number next to the item name.
+2. For every item you find in the report, try to fuzzy-match its name to the closest matching "name" in my database items list.
+3. If you find a solid match, extract the counted quantity as a number.
+4. Return ONLY a JSON object where the key is the database item "id" and the value is the numeric counted quantity.
+
+Example Output:
+{
+  "item_id_123": 45.5,
+  "item_id_456": 12
+}
+
+Do not return any markdown code block wrappers or other text. ONLY the raw JSON object.`;
+
+        try {
+            const response = await client.models.generateContent({
+                model: 'gemini-3.5-flash',
+                config: {
+                    temperature: 0.1,
+                    thinkingConfig: { thinkingBudget: -1 }
+                },
+                contents: [{ role: 'user', parts: [{ text: prompt }] }]
+            });
+
+            const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+            
+            const jsonText = rawText
+                .replace(/^```json\s*/i, '')
+                .replace(/^```\s*/i, '')
+                .replace(/\s*```$/i, '')
+                .trim();
+                
+            return JSON.parse(jsonText);
+        } catch (error) {
+            console.error('[GeminiVisionService] Failed to extract manual counts:', error);
+            return {};
+        }
+    }
 }

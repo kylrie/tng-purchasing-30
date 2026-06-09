@@ -15,6 +15,11 @@ export type ServiceType = 'Alacarte' | 'Event' | 'Retail';
 
 export const SERVICE_TYPES: ServiceType[] = ['Alacarte', 'Event', 'Retail'];
 
+// Department segregation — primary grouping for inventory navigation
+export type InventoryDepartment = 'Bar' | 'Kitchen' | 'Retail' | 'Office' | 'Unassigned';
+
+export const DEPARTMENTS: InventoryDepartment[] = ['Bar', 'Kitchen', 'Retail', 'Office', 'Unassigned'];
+
 export type InventoryCategory =
   | 'Spirits'
   | 'Wine'
@@ -84,6 +89,7 @@ export interface InventoryItem {
   businessUnitId: string;            // CRUCIAL - Multi-tenant filter
   name: string;
   type: InventoryItemType;           // RAW_MATERIAL, FINISHED_GOOD, PRODUCTION, ASSET
+  department: InventoryDepartment;   // Bar, Kitchen, Retail — primary grouping for navigation
   serviceType?: ServiceType;           // Alacarte or Event — applies to FINISHED_GOOD & PRODUCTION
   category: InventoryCategory;
   sku?: string;
@@ -169,6 +175,7 @@ export interface CreateInventoryItemInput {
   businessUnitId: string;
   name: string;
   type: InventoryItemType;
+  department?: InventoryDepartment;   // Bar, Kitchen, Retail — defaults to 'Unassigned'
   serviceType?: ServiceType;           // Alacarte or Event — applies to FINISHED_GOOD & PRODUCTION
   category: InventoryCategory;
   sku?: string;
@@ -293,6 +300,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     businessUnitId: 'bu-1',
     name: 'All-Purpose Flour',
     type: 'RAW_MATERIAL',
+    department: 'Kitchen',
     category: 'Dry Goods',
     storageAreas: ['Kitchen', 'Storage Room'],
     units: { recipeUnit: 'kg', buyUnit: 'sack', conversion: 25 },
@@ -306,6 +314,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     businessUnitId: 'bu-1',
     name: 'Jameson Irish Whiskey',
     type: 'RAW_MATERIAL',
+    department: 'Bar',
     category: 'Spirits',
     storageAreas: ['Bar', 'Storage Room'],
     units: { recipeUnit: 'bottle', buyUnit: 'case', conversion: 12 },
@@ -320,6 +329,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     businessUnitId: 'bu-1',
     name: 'House Margarita Mix',
     type: 'PRODUCTION',
+    department: 'Bar',
     category: 'Mixers',
     storageAreas: ['Bar'],
     units: { recipeUnit: 'liter', buyUnit: 'batch', conversion: 5 },
@@ -334,6 +344,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     businessUnitId: 'bu-1',
     name: 'Bottled Hot Sauce',
     type: 'FINISHED_GOOD',
+    department: 'Retail',
     category: 'Food',
     storageAreas: ['Kitchen', 'Storage Room'],
     units: { recipeUnit: 'bottle', buyUnit: 'case', conversion: 24 },
@@ -348,6 +359,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     businessUnitId: 'bu-1',
     name: 'Commercial Blender',
     type: 'ASSET',
+    department: 'Kitchen',
     category: 'Equipment',
     storageAreas: ['Kitchen'],
     units: { recipeUnit: 'unit', buyUnit: 'unit', conversion: 1 },
@@ -361,6 +373,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     businessUnitId: 'bu-1',
     name: 'Bar Stool',
     type: 'ASSET',
+    department: 'Bar',
     category: 'Furniture',
     storageAreas: ['Bar'],
     units: { recipeUnit: 'piece', buyUnit: 'piece', conversion: 1 },
@@ -375,6 +388,7 @@ export const MOCK_INVENTORY_ITEMS: Omit<InventoryItem, 'id' | 'createdAt' | 'upd
     businessUnitId: 'bu-2',
     name: 'Absolut Vodka',
     type: 'RAW_MATERIAL',
+    department: 'Bar',
     category: 'Spirits',
     storageAreas: ['Bar'],
     units: { recipeUnit: 'bottle', buyUnit: 'case', conversion: 12 },

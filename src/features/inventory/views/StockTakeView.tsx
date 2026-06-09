@@ -22,11 +22,17 @@ import {
     ChevronRight,
     User2,
     Calendar,
-    Save
+    Save,
+    Wine,
+    UtensilsCrossed,
+    ShoppingCart,
+    LayoutGrid,
+    Briefcase
 } from 'lucide-react';
-import type { InventoryItem, InventoryItemType, StockCountSession, CreateInventoryItemInput, StocktakeAuditLog } from '../types/InventoryItem';
+import type { InventoryItem, InventoryItemType, InventoryDepartment, StockCountSession, CreateInventoryItemInput, StocktakeAuditLog } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
 import { exportInventoryToCSV, importInventoryBatch, parseCSVFile, downloadSampleCSV } from '../services/inventory.data.service';
+import * as XLSX from 'xlsx';
 import type { ImportResult } from '../services/inventory.data.service';
 import VisualCountRow from '../components/VisualCountRow';
 import InventoryItemModal from '../components/InventoryItemModal';
@@ -34,6 +40,7 @@ import type { User, Business } from '../../procurement/types';
 import { UI_CONSTANTS } from '../../../config/constants';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { usePermissions } from '../../../hooks/usePermissions';
+import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
 
 // ============================================================
 // PROPS
@@ -60,6 +67,14 @@ const TYPE_TABS: { key: InventoryItemType | 'ALL'; label: string; icon: React.El
     { key: 'RAW_MATERIAL', label: 'Raw Materials', icon: Boxes },
     { key: 'PRODUCTION', label: 'Production', icon: Factory },
     { key: 'ASSET', label: 'Assets', icon: Wrench }
+];
+
+const DEPARTMENT_TABS: { key: InventoryDepartment | 'ALL'; label: string; icon: React.ElementType }[] = [
+    { key: 'ALL', label: 'All Departments', icon: LayoutGrid },
+    { key: 'Bar', label: 'Bar', icon: Wine },
+    { key: 'Kitchen', label: 'Kitchen', icon: UtensilsCrossed },
+    { key: 'Retail', label: 'Retail', icon: ShoppingCart },
+    { key: 'Office', label: 'Office', icon: Briefcase }
 ];
 
 // ============================================================
@@ -453,7 +468,8 @@ const ReviewPanel: React.FC<{
     onCancel: () => void;
     isSubmitting: boolean;
     isSavingDraft: boolean;
-}> = ({ session, countStates, items, onSubmit, onSaveDraft, onCancel, isSubmitting, isSavingDraft }) => {
+    activeDepartmentTab: InventoryDepartment | 'ALL';
+}> = ({ session, countStates, items, onSubmit, onSaveDraft, onCancel, isSubmitting, isSavingDraft, activeDepartmentTab }) => {
     const [selectedCountType, setSelectedCountType] = useState<string>('');
     const countedItemsCount = countStates.size;
     const totalItems = items.length;
@@ -465,7 +481,9 @@ const ReviewPanel: React.FC<{
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const d = now.getDate();
         const y = now.getFullYear();
-        return `${selectedCountType} [${mm}-${d}-${y}]`;
+        
+        const departmentLabel = activeDepartmentTab === 'ALL' ? 'All Departments' : activeDepartmentTab;
+        return `${selectedCountType} - ${departmentLabel} [${mm}-${d}-${y}]`;
     };
 
     let totalValue = 0;
@@ -602,6 +620,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
     const [storageAreas, setStorageAreas] = useState<string[]>([]);
     const [activeStorageArea, setActiveStorageArea] = useState<string>('ALL');
     const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('ALL');
+    const [activeDepartmentTab, setActiveDepartmentTab] = useState<InventoryDepartment | 'ALL'>('ALL');
 
     // Data state
     const [items, setItems] = useState<InventoryItem[]>([]);
@@ -625,8 +644,10 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
     const [showItemModal, setShowItemModal] = useState(false);
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
     const [isImporting, setIsImporting] = useState(false);
+    const [isUploadingCountSheet, setIsUploadingCountSheet] = useState(false);
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const countSheetInputRef = useRef<HTMLInputElement>(null);
 
     // Load inventory when BU or type changes
     useEffect(() => {
@@ -700,7 +721,9 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             item.storageAreas.includes(activeStorageArea);
         const matchesCategory = activeCategoryFilter === 'ALL' ||
             item.category === activeCategoryFilter;
-        return matchesSearch && matchesStorageArea && matchesCategory;
+        const matchesDepartment = activeDepartmentTab === 'ALL' ||
+            (item.department || 'Unassigned') === activeDepartmentTab;
+        return matchesSearch && matchesStorageArea && matchesCategory && matchesDepartment;
     });
 
     // Session handlers
@@ -895,6 +918,52 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
         }
     };
 
+    const handleUploadCountSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !session) return;
+        setIsUploadingCountSheet(true);
+        try {
+            // Read file and convert to CSV string
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const csvText = XLSX.utils.sheet_to_csv(worksheet);
+
+            // Pass to Gemini
+            const availableItems = items.map(i => ({ id: i.id, name: i.name }));
+            const extractedCounts = await GeminiVisionService.extractManualCounts(csvText, availableItems);
+
+            // Update count states (Overwrite strategy)
+            setCountStates(prev => {
+                const next = new Map(prev);
+                for (const [itemId, count] of Object.entries(extractedCounts)) {
+                    if (typeof count === 'number' && !isNaN(count)) {
+                        const item = items.find(i => i.id === itemId);
+                        if (item) {
+                            next.set(itemId, {
+                                itemId,
+                                count,
+                                partialCount: 0,
+                                unit: item.units.recipeUnit
+                            });
+                        }
+                    }
+                }
+                return next;
+            });
+
+            alert(`Successfully extracted and matched ${Object.keys(extractedCounts).length} items from the count sheet! Please review the counts.`);
+        } catch (err) {
+            console.error('Failed to parse count sheet:', err);
+            setError('Failed to process count sheet');
+            setTimeout(() => setError(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
+        } finally {
+            setIsUploadingCountSheet(false);
+            if (countSheetInputRef.current) countSheetInputRef.current.value = '';
+        }
+    };
+
     const currentBusiness = businesses.find(b => b.id === selectedBusinessUnit);
 
     if (isLoading) {
@@ -923,76 +992,102 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-                        <Package className="text-purple-600 dark:text-purple-400" />
-                        Stock Take
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Count and reconcile physical inventory
-                    </p>
-                </div>
+                {/* Left Side: Title & Tabs */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                            <Package className="text-purple-600 dark:text-purple-400" />
+                            Stock Take
+                        </h1>
+                        <p className="text-slate-500 dark:text-slate-400 mt-1">
+                            Count and reconcile physical inventory
+                        </p>
+                    </div>
 
-                {/* Main Tab Toggle */}
-                <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                    <button
-                        onClick={() => setMainTab('count')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            mainTab === 'count'
-                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                        }`}
-                    >
-                        <Package size={16} />
-                        Count
-                    </button>
-                    {canViewLogs && (
-                    <button
-                        onClick={() => setMainTab('logs')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                            mainTab === 'logs'
-                                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                        }`}
-                    >
-                        <ClipboardList size={16} />
-                        Logs
-                    </button>
-                    )}
-                </div>
-
-                {/* Session Status (Count tab only) */}
-                {mainTab === 'count' && (
-                    <div className="flex items-center gap-3">
-                        {!session ? (
-                            hasActiveDraft ? (
-                                <button
-                                    onClick={resumeSession}
-                                    className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
-                                >
-                                    <Play size={18} />
-                                    Resume Draft
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={startSession}
-                                    className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
-                                >
-                                    <Play size={18} />
-                                    Start Session
-                                </button>
-                            )
-                        ) : (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/50 rounded-xl">
-                                <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                                <span className="text-green-400 font-medium">Active</span>
-                            </div>
+                    {/* Main Tab Toggle */}
+                    <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                        <button
+                            onClick={() => setMainTab('count')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                mainTab === 'count'
+                                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            <Package size={16} />
+                            Count
+                        </button>
+                        {canViewLogs && (
+                        <button
+                            onClick={() => setMainTab('logs')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                                mainTab === 'logs'
+                                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                                    : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                            }`}
+                        >
+                            <ClipboardList size={16} />
+                            Logs
+                        </button>
                         )}
                     </div>
-                )}
+                </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2">
+                {/* Right Side: Actions & Session Status */}
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Session Status (Count tab only) */}
+                    {mainTab === 'count' && (
+                        <div className="flex items-center gap-3">
+                            {!session ? (
+                                hasActiveDraft ? (
+                                    <button
+                                        onClick={resumeSession}
+                                        className="px-6 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
+                                    >
+                                        <Play size={18} />
+                                        Resume Draft
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={startSession}
+                                        className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold rounded-xl hover:opacity-90 flex items-center gap-2"
+                                    >
+                                        <Play size={18} />
+                                        Start Session
+                                    </button>
+                                )
+                            ) : (
+                                <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-xl font-medium border border-purple-200 dark:border-purple-800/50">
+                                        <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse" />
+                                        Active Session
+                                    </div>
+                                    <input
+                                        type="file"
+                                        ref={countSheetInputRef}
+                                        onChange={handleUploadCountSheet}
+                                        accept=".csv, .xlsx, .xls"
+                                        className="hidden"
+                                    />
+                                    <button
+                                        onClick={() => countSheetInputRef.current?.click()}
+                                        disabled={isUploadingCountSheet}
+                                        className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center gap-2 disabled:opacity-50"
+                                    >
+                                        {isUploadingCountSheet ? (
+                                            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                        ) : (
+                                            <Upload size={16} />
+                                        )}
+                                        Upload Count Sheet
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
                     {hasPermission('inventory:item:create') && (
                         <>
                             <button onClick={handleAddItem} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors">
@@ -1012,6 +1107,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                         <Download size={14} /><span className="text-xs">Items</span>
                     </button>
                 </div>
+                </div>
             </div>
 
             {/* LOGS TAB (role-gated) */}
@@ -1022,6 +1118,26 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             {/* COUNT TAB */}
             {mainTab === 'count' && (
                 <>
+                    {/* Department Tabs — Primary Navigation */}
+                    <div className="flex gap-2 overflow-x-auto pb-2">
+                        {DEPARTMENT_TABS.map(tab => {
+                            const TabIcon = tab.icon;
+                            return (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setActiveDepartmentTab(tab.key)}
+                                    className={`px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${activeDepartmentTab === tab.key
+                                        ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-purple-500/20'
+                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                                        }`}
+                                >
+                                    <TabIcon size={18} />
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+
                     <div className="flex gap-2 overflow-x-auto pb-2">
                         {TYPE_TABS.map(tab => {
                             const TabIcon = tab.icon;
@@ -1118,7 +1234,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                                 </div>
                             </div>
                             <div className="lg:col-span-1">
-                                <ReviewPanel session={session} countStates={countStates} items={items} onSubmit={submitSession} onSaveDraft={saveDraft} onCancel={cancelSession} isSubmitting={isSubmitting} isSavingDraft={isSavingDraft} />
+                                <ReviewPanel session={session} countStates={countStates} items={items} onSubmit={submitSession} onSaveDraft={saveDraft} onCancel={cancelSession} isSubmitting={isSubmitting} isSavingDraft={isSavingDraft} activeDepartmentTab={activeDepartmentTab} />
                             </div>
                         </div>
                     ) : (

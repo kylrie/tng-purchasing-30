@@ -19,10 +19,15 @@ import {
     Layers,
     Sparkles,
     Loader2,
-    Plus
+    Plus,
+    Wine,
+    ChefHat,
+    Store,
+    LayoutGrid,
+    Briefcase
 } from 'lucide-react';
-import type { InventoryItem, InventoryItemType, CreateInventoryItemInput, ServiceType } from '../types/InventoryItem';
-import { SERVICE_TYPES } from '../types/InventoryItem';
+import type { InventoryItem, InventoryItemType, CreateInventoryItemInput, ServiceType, InventoryDepartment } from '../types/InventoryItem';
+import { SERVICE_TYPES, DEPARTMENTS } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
 import { calculateSellableQuantity } from '../utils/sellable-quantity';
 import InventoryItemModal from '../components/InventoryItemModal';
@@ -48,6 +53,15 @@ const TYPE_TABS: { key: InventoryItemType | 'ALL'; label: string; icon: React.El
     { key: 'PRODUCTION', label: 'Production', icon: Factory },
     { key: 'FINISHED_GOOD', label: 'Finished Goods', icon: ShoppingBag },
     { key: 'ASSET', label: 'Assets', icon: Wrench }
+];
+
+// Department tab configuration
+const DEPARTMENT_TABS: { key: InventoryDepartment | 'ALL'; label: string; icon: React.ElementType }[] = [
+    { key: 'ALL', label: 'All Departments', icon: LayoutGrid },
+    { key: 'Bar', label: 'Bar', icon: Wine },
+    { key: 'Kitchen', label: 'Kitchen', icon: ChefHat },
+    { key: 'Retail', label: 'Retail', icon: Store },
+    { key: 'Office', label: 'Office', icon: Briefcase }
 ];
 
 // ============================================================
@@ -131,6 +145,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     // State
     const { selectedBusinessUnit } = useBusinessUnit();
     const [activeTypeTab, setActiveTypeTab] = useState<InventoryItemType | 'ALL'>('ALL');
+    const [activeDepartmentTab, setActiveDepartmentTab] = useState<InventoryDepartment | 'ALL'>('ALL');
     const [items, setItems] = useState<InventoryItem[]>([]);
     const [storageAreas, setStorageAreas] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -164,8 +179,8 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     // Produce Batch modal state
     const [producingItem, setProducingItem] = useState<InventoryItem | null>(null);
 
-    // Auto-categorize state
-    const [isAutoCategorizing, setIsAutoCategorizing] = useState(false);
+    // Auto-organize state
+    const [isAutoOrganizing, setIsAutoOrganizing] = useState(false);
 
 
     // Load inventory when BU or type changes
@@ -220,7 +235,9 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
             item.category.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesServiceType = serviceTypeFilter === 'ALL' ||
             (item as any).serviceType === serviceTypeFilter;
-        return matchesSearch && matchesServiceType;
+        const matchesDepartment = activeDepartmentTab === 'ALL' ||
+            (item.department || 'Unassigned') === activeDepartmentTab;
+        return matchesSearch && matchesServiceType && matchesDepartment;
     });
 
     // Toggle item selection
@@ -280,21 +297,21 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
     };
 
     // ============================================================
-    // AUTO-CATEGORIZE ALL ITEMS
+    // AUTO-ORGANIZE ALL ITEMS (Category & Department)
     // ============================================================
-    const handleAutoCategorizeAll = async () => {
+    const handleAutoOrganizeAll = async () => {
         const itemsToUpdate = allItems;
         
         if (itemsToUpdate.length === 0) {
-            alert("No items found to categorize.");
+            alert("No items found to organize.");
             return;
         }
 
-        if (!confirm(`This will ask the AI to verify and re-categorize ALL ${itemsToUpdate.length} item(s) in this Business Unit. This may take a moment. Proceed?`)) {
+        if (!confirm(`This will ask the AI to verify and assign Categories and Departments to ALL ${itemsToUpdate.length} item(s) in this Business Unit. This may take a moment. Proceed?`)) {
             return;
         }
 
-        setIsAutoCategorizing(true);
+        setIsAutoOrganizing(true);
         try {
             // Batch into chunks of 30 to avoid prompt limits
             const CHUNK_SIZE = 30;
@@ -302,17 +319,37 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
             for (let i = 0; i < itemsToUpdate.length; i += CHUNK_SIZE) {
                 const chunk = itemsToUpdate.slice(i, i + CHUNK_SIZE);
-                const itemsToCategorize = chunk.map(item => ({ name: item.name, type: item.type }));
+                const itemsToOrganize = chunk.map(item => ({ name: item.name, type: item.type }));
                 
-                const results = await GeminiVisionService.categorizeItems(itemsToCategorize);
+                const results = await GeminiVisionService.organizeItems(itemsToOrganize);
+                
+                const batchUpdates: { id: string; data: any }[] = [];
                 
                 for (const item of chunk) {
-                    const newCategory = results[item.name];
-                    // Only update if the category actually changed
-                    if (newCategory && newCategory !== item.category) {
-                        await InventoryService.updateInventoryItem(item.id, { category: newCategory as any });
-                        successCount++;
+                    const result = results[item.name];
+                    if (result) {
+                        const { category: newCategory, department: newDepartment } = result;
+                        let updates: any = {};
+                        let changed = false;
+
+                        if (newCategory && newCategory !== item.category) {
+                            updates.category = newCategory;
+                            changed = true;
+                        }
+                        if (newDepartment && DEPARTMENTS.includes(newDepartment as InventoryDepartment) && newDepartment !== item.department) {
+                            updates.department = newDepartment;
+                            changed = true;
+                        }
+
+                        if (changed) {
+                            batchUpdates.push({ id: item.id, data: updates });
+                        }
                     }
+                }
+
+                if (batchUpdates.length > 0) {
+                    await InventoryService.batchUpdateInventoryItems(batchUpdates);
+                    successCount += batchUpdates.length;
                 }
             }
 
@@ -323,12 +360,12 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
             setItems(refreshedItems);
             setAllItems(refreshedAllItems);
             
-            alert(`Auto-categorization complete! Successfully categorized ${successCount} item(s).`);
+            alert(`Auto-organization complete! Successfully updated ${successCount} item(s).`);
         } catch (err) {
-            console.error('Auto-categorize failed:', err);
-            alert('Failed to auto-categorize some items.');
+            console.error('Auto-organize failed:', err);
+            alert('Failed to auto-organize some items.');
         } finally {
-            setIsAutoCategorizing(false);
+            setIsAutoOrganizing(false);
         }
     };
 
@@ -612,16 +649,16 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* Auto-Categorize — requires edit */}
-                    {canEdit && (
+                    {/* AI Tools */}
+                    {hasPermission('inventory:item:edit') && (
                         <button
-                            onClick={handleAutoCategorizeAll}
-                            disabled={isAutoCategorizing}
-                            className="px-4 py-2 bg-purple-50 dark:bg-purple-500/10 hover:bg-purple-100 dark:hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50"
-                            title="Automatically verify and re-categorize all items"
+                            onClick={handleAutoOrganizeAll}
+                            disabled={isAutoOrganizing}
+                            className="px-4 py-2 bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-600 hover:from-purple-700 hover:via-indigo-700 hover:to-cyan-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                            title="Automatically verify and assign Categories and Departments to all items"
                         >
-                            {isAutoCategorizing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                            Auto-Categorize All
+                            {isAutoOrganizing ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                            Auto-Organize All
                         </button>
                     )}
 
@@ -708,6 +745,26 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                     </div>
                 </div>
             )}
+
+            {/* Department Tabs — Primary Navigation */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+                {DEPARTMENT_TABS.map(tab => {
+                    const TabIcon = tab.icon;
+                    return (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveDepartmentTab(tab.key)}
+                            className={`px-5 py-2.5 rounded-xl font-semibold whitespace-nowrap transition-all flex items-center gap-2 ${activeDepartmentTab === tab.key
+                                ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white shadow-lg shadow-purple-500/20'
+                                : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                                }`}
+                        >
+                            <TabIcon size={18} />
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </div>
 
             {/* Type Tabs */}
             <div className="flex gap-2 overflow-x-auto pb-2">
@@ -863,10 +920,23 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                         </td>
                                         <td className="p-4">{getTypeBadge(item.type)}</td>
                                         <td className="p-4 text-slate-600 dark:text-slate-300">
-                                            <div className="flex items-center gap-2">
-                                                {item.category}
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                                        (item.department || 'Unassigned') === 'Bar'
+                                                            ? 'bg-amber-500/20 text-amber-500 dark:text-amber-400'
+                                                            : (item.department || 'Unassigned') === 'Kitchen'
+                                                                ? 'bg-emerald-500/20 text-emerald-500 dark:text-emerald-400'
+                                                                : (item.department || 'Unassigned') === 'Retail'
+                                                                    ? 'bg-blue-500/20 text-blue-500 dark:text-blue-400'
+                                                                    : 'bg-slate-500/20 text-slate-500 dark:text-slate-400'
+                                                    }`}>
+                                                        {item.department || 'Unassigned'}
+                                                    </span>
+                                                    {item.category}
+                                                </div>
                                                 {(item as any).serviceType && (
-                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider w-fit ${
                                                         (item as any).serviceType === 'Alacarte'
                                                             ? 'bg-indigo-500/20 text-indigo-400'
                                                             : (item as any).serviceType === 'Event'

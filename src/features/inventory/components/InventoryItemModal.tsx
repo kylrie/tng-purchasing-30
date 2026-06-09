@@ -6,9 +6,10 @@ import type {
     InventoryCategory,
     CreateInventoryItemInput,
     UnitConversion,
-    ServiceType
+    ServiceType,
+    InventoryDepartment
 } from '../types/InventoryItem';
-import { SERVICE_TYPES } from '../types/InventoryItem';
+import { SERVICE_TYPES, DEPARTMENTS } from '../types/InventoryItem';
 import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
 
 // ============================================================
@@ -28,6 +29,7 @@ interface InventoryItemModalProps {
 interface FormData {
     name: string;
     type: InventoryItemType;
+    department: InventoryDepartment;
     serviceType: ServiceType | '';
     category: InventoryCategory;
     sku: string;
@@ -61,6 +63,7 @@ const CATEGORIES: InventoryCategory[] = [
 const INITIAL_FORM_DATA: FormData = {
     name: '',
     type: 'RAW_MATERIAL',
+    department: 'Unassigned',
     serviceType: '',
     category: 'Other',
     sku: '',
@@ -98,6 +101,17 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
     // Derived state for base cost calculation
     const baseCost = formData.conversion > 0 ? (formData.buyCost / formData.conversion) : 0;
 
+    // Auto-suggest department based on category (only for new items)
+    const suggestDepartment = (category: InventoryCategory): InventoryDepartment | null => {
+        const barCategories: InventoryCategory[] = ['Spirits', 'Wine', 'Beer', 'Mixers', 'Glassware', 'Alcohol Beverage'];
+        const kitchenCategories: InventoryCategory[] = ['Food', 'Frozen Good', 'Dry Goods'];
+        const retailCategories: InventoryCategory[] = ['Souvenir'];
+        if (barCategories.includes(category)) return 'Bar';
+        if (kitchenCategories.includes(category)) return 'Kitchen';
+        if (retailCategories.includes(category)) return 'Retail';
+        return null;
+    };
+
     // Populate form when editing
     useEffect(() => {
         if (item) {
@@ -105,6 +119,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
             setFormData({
                 name: item.name || '',
                 type: item.type || 'RAW_MATERIAL',
+                department: item.department || 'Unassigned',
                 serviceType: (item as any).serviceType || '',
                 category: item.category || 'Other',
                 sku: item.sku || '',
@@ -171,6 +186,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 businessUnitId,
                 name: (formData.name || '').trim(),
                 type: formData.type,
+                department: formData.department,
                 ...(formData.serviceType && { serviceType: formData.serviceType as ServiceType }),
                 category: formData.category,
                 storageAreas: formData.storageAreas,
@@ -302,6 +318,21 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                     </select>
                                 </div>
 
+                                {/* Department */}
+                                <div>
+                                    <label className={labelClass}>Department</label>
+                                    <select
+                                        value={formData.department}
+                                        onChange={(e) => setFormData({ ...formData, department: e.target.value as InventoryDepartment })}
+                                        className={inputClass}
+                                    >
+                                        {DEPARTMENTS.map(d => (
+                                            <option key={d} value={d}>{d}</option>
+                                        ))}
+                                    </select>
+                                    <p className="text-xs text-slate-500 mt-1">Bar, Kitchen, or Retail grouping</p>
+                                </div>
+
                                 {/* Category */}
                                 <div>
                                     <div className="flex items-center justify-between mb-1.5">
@@ -319,7 +350,16 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                                     </div>
                                     <select
                                         value={formData.category}
-                                        onChange={(e) => setFormData({ ...formData, category: e.target.value as InventoryCategory })}
+                                        onChange={(e) => {
+                                            const newCategory = e.target.value as InventoryCategory;
+                                            const updates: Partial<FormData> = { category: newCategory };
+                                            // Auto-suggest department for new items when department is still Unassigned
+                                            if (!isEditing && formData.department === 'Unassigned') {
+                                                const suggested = suggestDepartment(newCategory);
+                                                if (suggested) updates.department = suggested;
+                                            }
+                                            setFormData(prev => ({ ...prev, ...updates }));
+                                        }}
                                         className={inputClass}
                                     >
                                         {CATEGORIES.map(c => (
