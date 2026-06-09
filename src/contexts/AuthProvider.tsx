@@ -18,7 +18,7 @@ import { AuthContext } from './AuthContext';
 // =====================================================
 const LOCKOUT_STORAGE_KEY = 'auth_lockout_until';
 const ATTEMPTS_STORAGE_KEY = 'auth_login_attempts';
-const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
 interface AuthProviderProps {
     children: ReactNode;
@@ -235,7 +235,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }, [navigate]);
 
     // =====================================================
-    // FIX M7: Session Timeout - Auto-logout after 30 min inactivity
+    // FIX M7: Session Timeout - Auto-logout after 1 hour inactivity
     // FIX BUG 11: Added logout to dependency array
     // =====================================================
     useEffect(() => {
