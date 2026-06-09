@@ -52,7 +52,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
     };
 
     // Fetch history liquidations (approved, replenished, rejected, cancelled)
-    const canViewAllHistory = hasPermission('pcf:view:all') || hasPermission('pcf:view:history:all');
+    const canViewAllHistory = hasPermission('finance:pcf:view:all') || hasPermission('finance:pcf:view:history');
 
     const loadHistoryLiquidations = async () => {
         setLoading(true);
@@ -711,7 +711,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
                                     <XCircle size={18} />
                                 </button>
                                 {/* Cancel button - requires pcf:cancel permission */}
-                                {hasPermission('pcf:cancel') && (
+                                {hasPermission('finance:pcf:cancel') && (
                                     <button
                                         onClick={() => setCancelModalId(selectedLiquidation.id)}
                                         disabled={processingId === selectedLiquidation.id}

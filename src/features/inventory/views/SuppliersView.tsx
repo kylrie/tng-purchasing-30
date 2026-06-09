@@ -482,7 +482,7 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    {hasPermission('supplier:create') && (
+                    {hasPermission('master_data:supplier:create') && (
                         <button
                             onClick={handleAdd}
                             className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2"
@@ -548,7 +548,7 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            {hasPermission('supplier:edit') && (
+                                            {hasPermission('master_data:supplier:edit') && (
                                                 <button
                                                     onClick={() => handleEdit(supplier)}
                                                     className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
@@ -556,7 +556,7 @@ const SuppliersView: React.FC<SuppliersViewProps> = ({ suppliers, onCreateSuppli
                                                     <Edit2 size={16} />
                                                 </button>
                                             )}
-                                            {hasPermission('supplier:delete') && (
+                                            {hasPermission('master_data:supplier:delete') && (
                                                 <button
                                                     onClick={() => handleDelete(supplier.id)}
                                                     className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"

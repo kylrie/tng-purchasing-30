@@ -15,31 +15,31 @@ const db = getFirestore();
 
 // PURCHASING_SUP permissions (same as PURCHASING_OFFICER)
 const PURCHASING_SUP_PERMISSIONS = [
-    'requisition:prepare:prf',  // Prepare PRF from approved BURF
-    'requisition:create:prf',   // Create Direct PRF
-    'requisition:view:all',
-    'requisition:print',
-    'supplier:view',
-    'supplier:create',
-    'supplier:edit',
-    'supplier:delete',
-    'liquidation:view',
-    'liquidation:file:own',
-    'liquidation:print',
-    'module:view:dashboard',
-    'module:view:burf',
-    'module:view:prf',
-    'module:view:approved',
-    'module:view:liquidation',
-    'module:view:suppliers',
-    'module:view:prf_tracker',
-    'inventory:manage:uom',
-    'dashboard:widget:active_prfs',
-    'dashboard:widget:ready_for_prf',
-    'dashboard:widget:total_spend',
-    'dashboard:widget:pending_audit',
-    'dashboard:section:ready_for_prf_list',
-    'prf_tracker:view:all',
+    'procurement:prf:create:from_burf',  // Prepare PRF from approved BURF
+    'procurement:prf:create:direct',   // Create Direct PRF
+    'procurement:burf:view:all',
+    'procurement:burf:print',
+    'master_data:supplier:view:all',
+    'master_data:supplier:create',
+    'master_data:supplier:edit',
+    'master_data:supplier:delete',
+    'finance:liquidation:view:all',
+    'finance:liquidation:create:own',
+    'finance:liquidation:print',
+    'ui:module_access:view:dashboard',
+    'ui:module_access:view:burf',
+    'ui:module_access:view:prf',
+    'ui:module_access:view:approved',
+    'ui:module_access:view:liquidation',
+    'ui:module_access:view:suppliers',
+    'ui:module_access:view:prf_tracker',
+    'inventory:uom:edit',
+    'ui:widget:view:active_prfs',
+    'ui:widget:view:ready_for_prf',
+    'ui:widget:view:total_spend',
+    'ui:widget:view:pending_audit',
+    'ui:section:view:ready_for_prf_list',
+    'ui:module_access:view:prf_tracker',
 ];
 
 async function addPurchasingSup() {

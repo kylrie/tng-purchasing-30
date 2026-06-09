@@ -26,7 +26,7 @@ interface ProtectedRouteProps {
  * 2. User has the required permission(s) (if specified)
  * 
  * Usage:
- * <ProtectedRoute permission="module:view:finance">
+ * <ProtectedRoute permission="ui:module_access:view:finance">
  *   <FinanceView />
  * </ProtectedRoute>
  */

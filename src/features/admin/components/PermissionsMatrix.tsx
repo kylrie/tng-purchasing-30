@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { ALL_PERMISSIONS } from '../../../config/permissions';
-import type { Permission } from '../../../config/permissions';
+import { ALL_PERMISSIONS, PERMISSION_REGISTRY, PERMISSION_GROUPS } from '../../../config/permissions';
+import type { Permission, CrudCell, ResourceGroup } from '../../../config/permissions';
 import { UserRole, SystemRole, DEFAULT_BUSINESS_ROLES } from '../../procurement/types';
 import Card from '../../../shared/components/Card';
 import { usePermissionsContext } from '../../../contexts/PermissionsContext';
@@ -34,169 +34,19 @@ interface PermissionConfig {
   basePermission?: string;
 }
 
-// Scoped permissions map - CLEARED to show individual permissions
-// Previously grouped requisition:create:burf/prf together, now they show separately
-const SCOPED_PERMISSIONS_MAP: Record<string, string[]> = {
-  // Empty - all permissions now show individually with clear labels
-};
+// Build PERMISSION_CONFIG directly from the canonical PERMISSION_REGISTRY
+// This ensures the PermissionsMatrix always stays in sync with ALL_PERMISSIONS
+const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = Object.fromEntries(
+  ALL_PERMISSIONS.map(p => [
+    p,
+    {
+      label: PERMISSION_REGISTRY[p].label,
+      category: PERMISSION_REGISTRY[p].category,
+      description: PERMISSION_REGISTRY[p].description,
+    },
+  ])
+);
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PROCUREMENT MODULE
-// ═══════════════════════════════════════════════════════════════════════════
-
-const PERMISSION_CONFIG: Record<string, Omit<PermissionConfig, 'id'>> = {
-  // Requisition Creation
-  'requisition:create:burf': {
-    label: 'Create BURF',
-    category: 'Procurement: Creation',
-    description: 'Allows users to create new Budget Use Request Forms (BURF).'
-  },
-  'requisition:prepare:prf': {
-    label: 'Prepare PRF (from BURF)',
-    category: 'Procurement: Creation',
-    description: 'Allows converting approved BURFs into Purchase Requisition Forms.'
-  },
-  'requisition:create:prf': {
-    label: 'Create Direct PRF',
-    category: 'Procurement: Creation',
-    description: 'Allows creating PRFs directly without a preceding BURF.'
-  },
-
-  // Requisition Actions
-  'requisition:edit:draft': { label: 'Edit Drafts', category: 'Procurement: Actions', description: 'Edit requisitions that are still in Draft status.' },
-  'requisition:refile:rejected': { label: 'Refile Rejected', category: 'Procurement: Actions', description: 'Edit and resubmit rejected requisitions.' },
-  'requisition:cancel': { label: 'Cancel Requisition', category: 'Procurement: Actions', description: 'Cancel an active requisition.' },
-  'requisition:print': { label: 'Print Requisition', category: 'Procurement: Actions', description: 'Generate PDF print view of requisitions.' },
-
-  // Data Visibility
-  'requisition:view:own': { label: 'View Own Requests', category: 'Procurement: Visibility', description: 'View only requisitions created by the user.' },
-  'requisition:view:business_unit': { label: 'View Business Unit', category: 'Procurement: Visibility', description: 'View all requisitions within the user\'s assigned Business Unit.' },
-  'requisition:view:all': { label: 'View All Requests', category: 'Procurement: Visibility', description: 'View all requisitions across all Business Units.' },
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // APPROVAL WORKFLOW
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  'approval:manager:burf': { label: 'Manager Approval (BURF)', category: 'Approval Chain', description: 'Approve BURFs at the Manager level.' },
-  'approval:cic:burf': { label: 'CIC Approval', category: 'Approval Chain', description: 'Approve BURFs at the CIC (Control) level.' },
-  'approval:manager:prf': { label: 'Manager Approval (PRF)', category: 'Approval Chain', description: 'Approve PRFs at the Manager level.' },
-  'approval:finance_head:br': { label: 'Finance Head BR Approval', category: 'Approval Chain', description: 'Approve Budget Requests at Finance Head level.' },
-  'approval:gm:br': { label: 'GM Budget Review', category: 'Approval Chain', description: 'Approve Budget Requests at General Manager level.' },
-  'approval:cfo': { label: 'CFO Approval', category: 'Approval Chain', description: 'Final financial approval by CFO.' },
-  'approval:bod': { label: 'BOD Approval', category: 'Approval Chain', description: 'Board of Directors approval for high-value items.' },
-  'approval:view:history': { label: 'View Approval History', category: 'Approval Chain', description: 'View the audit trail of approvals.' },
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // FINANCE & LIQUIDATION
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  'finance:release_funds': { label: 'Release Funds', category: 'Finance Operations', description: 'Mark requests as paid/released.' },
-  'finance:view_cheque': { label: 'View Cheque Details', category: 'Finance Operations', description: 'View check numbers and vouchers.' },
-  'finance:upload_check': { label: 'Check Preparation', category: 'Finance Operations', description: 'Upload check details for BOD authorization.' },
-
-  'liquidation:view': { label: 'View Liquidations', category: 'Liquidation', description: 'View liquidation reports.' },
-  'liquidation:file:own': { label: 'File Own Liquidation', category: 'Liquidation', description: 'File liquidation for own requests.' },
-  'liquidation:file:all': { label: 'File All Liquidations', category: 'Liquidation', description: 'File liquidation for any request (Admin/Finance).' },
-  'liquidation:audit': { label: 'Audit Liquidations', category: 'Liquidation', description: 'Audit and approve/reject liquidation reports.' },
-  'liquidation:print': { label: 'Print Liquidation', category: 'Liquidation', description: 'Print liquidation reports.' },
-
-  // Petty Cash Fund (PCF)
-  'pcf:view:own': { label: 'View Own PCF', category: 'Petty Cash', description: 'View own PCF requests.' },
-  'pcf:view:all': { label: 'View All PCF', category: 'Petty Cash', description: 'View all PCF requests.' },
-  'pcf:view:history:all': { label: 'View All PCF History', category: 'Petty Cash', description: 'View history of all PCF transactions.' },
-  'pcf:create': { label: 'Create PCF', category: 'Petty Cash', description: 'Create new Petty Cash requests.' },
-  'pcf:approve': { label: 'Approve PCF', category: 'Petty Cash', description: 'Approve Petty Cash requests.' },
-  'pcf:cancel': { label: 'Cancel PCF', category: 'Petty Cash', description: 'Cancel PCF requests.' },
-  'pcf:audit_review': { label: 'PCF Audit Review', category: 'Petty Cash', description: 'Review PCF requests before approval.' },
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // MASTER DATA & ADMIN
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  // Suppliers
-  'supplier:view': { label: 'View Suppliers', category: 'Master Data: Suppliers' },
-  'supplier:create': { label: 'Create Supplier', category: 'Master Data: Suppliers' },
-  'supplier:edit': { label: 'Edit Supplier', category: 'Master Data: Suppliers' },
-  'supplier:delete': { label: 'Delete Supplier', category: 'Master Data: Suppliers' },
-
-  // Admin
-  'admin:manage:users': { label: 'Manage Users', category: 'System Admin' },
-  'admin:manage:businesses': { label: 'Manage Businesses', category: 'System Admin' },
-  'admin:manage:permissions': { label: 'Manage Permissions', category: 'System Admin' },
-  'admin:view:user_approvals': { label: 'View Pending Users', category: 'System Admin' },
-
-  // Inventory
-  'module:view:inventory': { label: 'Access Inventory', category: 'Inventory' },
-  'inventory:view:items': { label: 'View Items', category: 'Inventory' },
-  'inventory:manage:items': { label: 'Manage Items', category: 'Inventory' },
-  'inventory:manage:assets': { label: 'Manage Assets', category: 'Inventory' },
-  'inventory:manage:storage_areas': { label: 'Manage Storage', category: 'Inventory' },
-  'inventory:view:reports': { label: 'View Reports', category: 'Inventory' },
-  'inventory:manage:uom': { label: 'Manage UOM', category: 'Inventory' },
-
-  // COA & Budget
-  'coa:view': { label: 'View Chart of Accounts', category: 'Finance Config' },
-  'coa:manage': { label: 'Manage COA', category: 'Finance Config' },
-  'budget:view': { label: 'View Budgets', category: 'Finance Config' },
-  'budget:manage': { label: 'Manage Budgets', category: 'Finance Config' },
-
-  // Bank Reconciliation
-  'module:view:bank_recon': { label: 'Bank Recon Module', category: 'Module Access' },
-  'bank_recon:upload': { label: 'Upload Statements', category: 'Bank Reconciliation', description: 'Upload new bank statement Excel files for reconciliation.' },
-  'bank_recon:enrich': { label: 'Enrich/Match Data', category: 'Bank Reconciliation', description: 'Match uploaded statements against procurement records.' },
-  'bank_recon:edit': { label: 'Edit Statements', category: 'Bank Reconciliation', description: 'Edit remarks on bank statement transactions.' },
-  'bank_recon:delete': { label: 'Delete Statements', category: 'Bank Reconciliation', description: 'Delete uploaded bank statements.' },
-  'bank_recon:audit': { label: 'Audit Transactions', category: 'Bank Reconciliation', description: 'Approve or reject bank statement transactions.' },
-  'bank_recon:view:all': { label: 'View All BU Statements', category: 'Bank Reconciliation', description: 'View bank statements from all Business Units.' },
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // MODULE ACCESS (SIDEBAR VISIBILITY)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  'module:view:dashboard': { label: 'Dashboard', category: 'Module Access' },
-  'module:view:burf': { label: 'BURF Module', category: 'Module Access' },
-  'module:view:prf': { label: 'PRF Module', category: 'Module Access' },
-  'module:view:approvals': { label: 'Approvals', category: 'Module Access' },
-  'module:view:approved': { label: 'Approved List', category: 'Module Access' },
-  'module:view:finance': { label: 'Finance Module', category: 'Module Access' },
-  'module:view:liquidation': { label: 'Liquidation Module', category: 'Module Access' },
-  'module:view:pcf': { label: 'PCF Module', category: 'Module Access' },
-  'module:view:pcf_approvals': { label: 'PCF Approvals', category: 'Module Access' },
-  'module:view:suppliers': { label: 'Suppliers Module', category: 'Module Access' },
-  'module:view:settings': { label: 'Settings Module', category: 'Module Access' },
-  'module:view:finance:br': { label: 'Finance BR Tab', category: 'Module Access' },
-  'module:view:finance:check_auth': { label: 'Check Auth Tab', category: 'Module Access' },
-  'module:view:prf_tracker': { label: 'PRF Tracker', category: 'Module Access' },
-  'module:view:coa': { label: 'COA Module', category: 'Module Access' },
-  'module:view:budgets': { label: 'Budget Module', category: 'Module Access' },
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DASHBOARD WIDGETS
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  'dashboard:widget:pending_approvals': { label: 'Pending Approvals Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:active_prfs': { label: 'Active PRFs Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:ready_for_prf': { label: 'Ready for PRF Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:total_spend': { label: 'Total Spend Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:pending_audit': { label: 'Pending Audit Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:pcf_approvals': { label: 'PCF Approvals Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:overdue_items': { label: 'Overdue Items Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:avg_processing': { label: 'Avg Processing Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:completed_month': { label: 'Completed Month Card', category: 'Dashboard Widgets' },
-  'dashboard:widget:top_requesters': { label: 'Top Requesters Card', category: 'Dashboard Widgets' },
-
-  'dashboard:section:pending_list': { label: 'Pending List', category: 'Dashboard Widgets' },
-  'dashboard:section:ready_for_prf_list': { label: 'Ready for PRF List', category: 'Dashboard Widgets' },
-  'dashboard:section:pending_fund_release': { label: 'Pending Release List', category: 'Dashboard Widgets' },
-  'dashboard:section:pending_audit_list': { label: 'Pending Audit List', category: 'Dashboard Widgets' },
-  'dashboard:section:br_list': { label: 'BR List', category: 'Dashboard Widgets' },
-  'dashboard:section:finance_head_br': { label: 'Finance Head BR', category: 'Dashboard Widgets' },
-  'dashboard:section:gm_br': { label: 'GM BR', category: 'Dashboard Widgets' },
-  'dashboard:section:bod_br': { label: 'BOD BR', category: 'Dashboard Widgets' },
-  'dashboard:section:check_auth': { label: 'Check Auth', category: 'Dashboard Widgets' },
-
-  'prf_tracker:view:all': { label: 'View All (Tracker)', category: 'Other', description: 'See all requests in PRF Tracker.' },
-};
 
 // Default roles that cannot be deleted (system + original business roles)
 const DEFAULT_ROLES: string[] = [
@@ -217,6 +67,7 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
   const [viewMode, setViewMode] = useState<'matrix' | 'role'>('role');
   const [selectedRoleForPivot, setSelectedRoleForPivot] = useState<string>('EMPLOYEE');
   const [isDirty, setIsDirty] = useState(false);
+  const [expandedActions, setExpandedActions] = useState<Record<string, boolean>>({});
   // Only sync from context once — after Firestore has finished loading
   const isInitialized = useRef(false);
 
@@ -244,20 +95,12 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
+  // Flat-toggle permissions: only Module Access, Widgets & Dashboard Sections (ui: prefix)
   const groupedPermissions = useMemo(() => {
     const groups: Record<string, PermissionConfig[]> = {};
-
-    Object.entries(PERMISSION_CONFIG).forEach(([key, config]) => {
-      if (config.isScoped) {
-        if (searchTerm && !config.label.toLowerCase().includes(searchTerm.toLowerCase())) return;
-        if (!groups[config.category]) groups[config.category] = [];
-        groups[config.category].push({ id: key, ...config });
-      }
-    });
-
+    const flatPrefixes = ['ui:module_access:', 'ui:widget:', 'ui:section:'];
     ALL_PERMISSIONS.forEach(p => {
-      const isHandledByScope = Object.keys(SCOPED_PERMISSIONS_MAP).some(base => p.startsWith(base + ':'));
-      if (isHandledByScope) return;
+      if (!flatPrefixes.some(prefix => p.startsWith(prefix))) return;
       const config = PERMISSION_CONFIG[p] || { label: p, category: 'Uncategorized' };
       if (searchTerm && !config.label.toLowerCase().includes(searchTerm.toLowerCase())) return;
       if (!groups[config.category]) groups[config.category] = [];
@@ -267,6 +110,33 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     });
     return groups;
   }, [searchTerm]);
+
+  // CRUD resource groups grouped by category — drives the Role View CRUD grid
+  const groupedResourceGroups = useMemo(() => {
+    const groups: Record<string, ResourceGroup[]> = {};
+    PERMISSION_GROUPS.forEach(group => {
+      if (searchTerm) {
+        const resourceMatches = group.resource.toLowerCase().includes(searchTerm.toLowerCase());
+        const allPerms: Permission[] = [
+          ...(group.read?.variants?.map(v => v.permission) ?? []),
+          ...(group.read?.permission ? [group.read.permission] : []),
+          ...(group.create?.variants?.map(v => v.permission) ?? []),
+          ...(group.create?.permission ? [group.create.permission] : []),
+          ...(group.edit?.permission ? [group.edit.permission] : []),
+          ...(group.delete?.permission ? [group.delete.permission] : []),
+          ...(group.actions ?? []),
+        ];
+        const permMatches = allPerms.some(p =>
+          PERMISSION_REGISTRY[p]?.label?.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+        if (!resourceMatches && !permMatches) return;
+      }
+      if (!groups[group.category]) groups[group.category] = [];
+      groups[group.category].push(group);
+    });
+    return groups;
+  }, [searchTerm]);
+
 
   const toggleCategory = (category: string) => {
     setCollapsedCategories(prev => ({ ...prev, [category]: !prev[category] }));
@@ -338,6 +208,72 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     });
     setPermissions(newPermissions);
     setIsDirty(true);
+  };
+
+  // ─── CRUD cell renderer ─────────────────────────────────────────────────
+  const renderCrudCell = (cell: CrudCell | undefined, role: string) => {
+    const isSuperAdmin = role === UserRole.SUPER_ADMIN;
+    const rolePerms = permissions[role] || [];
+
+    if (!cell) {
+      return <span className="text-slate-700 select-none text-lg">—</span>;
+    }
+
+    if (cell.variants) {
+      return (
+        <div className="flex flex-col gap-1.5 items-start mx-auto w-fit">
+          {cell.variants.map(v => {
+            const isChecked = isSuperAdmin || rolePerms.includes(v.permission as Permission);
+            return (
+              <label
+                key={v.permission}
+                onClick={() => !isSuperAdmin && handlePermissionChange(role as UserRole, v.permission)}
+                className={`flex items-center gap-2 ${isSuperAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                  isSuperAdmin
+                    ? 'bg-slate-700/50 border-slate-600'
+                    : isChecked
+                      ? 'bg-purple-600 border-purple-500'
+                      : 'border-slate-600 hover:border-purple-400 bg-slate-800'
+                }`}>
+                  {isChecked && (
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </div>
+                <span className={`text-xs ${isChecked ? 'text-slate-300' : 'text-slate-500'}`}>{v.label}</span>
+              </label>
+            );
+          })}
+        </div>
+      );
+    }
+
+    if (cell.permission) {
+      const isChecked = isSuperAdmin || rolePerms.includes(cell.permission as Permission);
+      return (
+        <div
+          onClick={() => !isSuperAdmin && handlePermissionChange(role as UserRole, cell.permission!)}
+          className={`w-5 h-5 rounded border mx-auto flex items-center justify-center transition-all ${
+            isSuperAdmin
+              ? 'bg-slate-700/50 border-slate-600 cursor-not-allowed'
+              : isChecked
+                ? 'bg-purple-600 border-purple-500 cursor-pointer'
+                : 'border-slate-600 hover:border-purple-400 bg-slate-800 cursor-pointer'
+          }`}
+        >
+          {isChecked && (
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2.5 6l2.5 2.5 4.5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          )}
+        </div>
+      );
+    }
+
+    return <span className="text-slate-700 select-none text-lg">—</span>;
   };
 
   const handleSave = async () => {
@@ -643,24 +579,120 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
                     </button>
                   )}
                 </div>
+                {/* ── CRUD Resource Grid ─────────────────────────────── */}
+                <div className="space-y-6 mb-8">
+                  {Object.entries(groupedResourceGroups).map(([category, groups]) => {
+                    const rolePerms = permissions[selectedRoleForPivot] || [];
+                    const isSuperAdmin = selectedRoleForPivot === UserRole.SUPER_ADMIN;
+                    return (
+                      <div key={category} className="bg-slate-800/20 border border-slate-700/50 rounded-xl overflow-hidden">
+                        {/* Category header */}
+                        <div className="px-6 py-3 bg-slate-800/60 border-b border-slate-700/50">
+                          <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider">{category}</h3>
+                        </div>
+                        {/* CRUD table */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-slate-700/30">
+                                <th className="px-5 py-2.5 text-left text-xs text-slate-500 font-medium min-w-[180px]">Resource</th>
+                                {(['Read', 'Create', 'Edit', 'Delete'] as const).map(action => (
+                                  <th key={action} className="px-4 py-2.5 text-center text-xs font-semibold w-36">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium ${
+                                      action === 'Read'   ? 'bg-blue-900/40 text-blue-400' :
+                                      action === 'Create' ? 'bg-green-900/40 text-green-400' :
+                                      action === 'Edit'   ? 'bg-amber-900/40 text-amber-400' :
+                                                            'bg-red-900/40 text-red-400'
+                                    }`}>{action}</span>
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800/30">
+                              {groups.map(group => (
+                                <React.Fragment key={group.id}>
+                                  {/* CRUD row */}
+                                  <tr className="hover:bg-slate-800/20 transition-colors">
+                                    <td className="px-5 py-3.5 font-medium text-slate-300 text-sm">{group.resource}</td>
+                                    <td className="px-4 py-3.5 text-center">{renderCrudCell(group.read, selectedRoleForPivot)}</td>
+                                    <td className="px-4 py-3.5 text-center">{renderCrudCell(group.create, selectedRoleForPivot)}</td>
+                                    <td className="px-4 py-3.5 text-center">{renderCrudCell(group.edit, selectedRoleForPivot)}</td>
+                                    <td className="px-4 py-3.5 text-center">{renderCrudCell(group.delete, selectedRoleForPivot)}</td>
+                                  </tr>
+                                  {/* Extended actions — collapsible sub-row */}
+                                  {group.actions && group.actions.length > 0 && (
+                                    <>
+                                      <tr>
+                                        <td colSpan={5} className="px-5 py-1.5 bg-slate-900/40">
+                                          <button
+                                            onClick={() => setExpandedActions(prev => ({ ...prev, [group.id]: !prev[group.id] }))}
+                                            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-purple-400 transition-colors"
+                                          >
+                                            {expandedActions[group.id] ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                            <span>Extended Actions</span>
+                                            <span className="bg-slate-700 text-slate-400 rounded-full px-1.5 py-0.5 text-[10px] leading-none ml-0.5">{group.actions.length}</span>
+                                          </button>
+                                        </td>
+                                      </tr>
+                                      {expandedActions[group.id] && (
+                                        <tr>
+                                          <td colSpan={5} className="px-5 pb-3 pt-1.5 bg-slate-900/40">
+                                            <div className="flex flex-wrap gap-2">
+                                              {group.actions.map(action => {
+                                                const isChecked = isSuperAdmin || rolePerms.includes(action as Permission);
+                                                const meta = PERMISSION_REGISTRY[action as Permission];
+                                                return (
+                                                  <button
+                                                    key={action}
+                                                    onClick={() => !isSuperAdmin && handlePermissionChange(selectedRoleForPivot as UserRole, action)}
+                                                    disabled={isSuperAdmin}
+                                                    title={meta?.description}
+                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                                                      isSuperAdmin
+                                                        ? 'bg-slate-700/30 border-slate-600 text-slate-500 cursor-not-allowed'
+                                                        : isChecked
+                                                          ? 'bg-purple-600/30 border-purple-500 text-purple-300 hover:bg-purple-600/40'
+                                                          : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-purple-500/50 hover:text-slate-300'
+                                                    }`}
+                                                  >
+                                                    {isChecked && !isSuperAdmin && (
+                                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                        <path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                                      </svg>
+                                                    )}
+                                                    {meta?.label ?? action}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </>
+                                  )}
+                                </React.Fragment>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* ── Module Access & Dashboard — flat toggles ─────────── */}
                 <div className="space-y-6">
                   {Object.entries(groupedPermissions).map(([category, items]) => {
                     const rolePerms = permissions[selectedRoleForPivot] || [];
-                    const areAllChecked = items.every(perm => {
-                      if (perm.isScoped && perm.scopes) {
-                        return perm.scopes.every(scope =>
-                          rolePerms.includes(`${perm.basePermission}:${scope.toLowerCase()}` as Permission)
-                        );
-                      }
-                      return rolePerms.includes(perm.id as Permission);
-                    });
+                    const isSuperAdmin = selectedRoleForPivot === UserRole.SUPER_ADMIN;
+                    const areAllChecked = isSuperAdmin || items.every(perm => rolePerms.includes(perm.id as Permission));
                     return (
                       <div key={category} className="bg-slate-800/20 border border-slate-700/50 rounded-xl overflow-hidden">
                         <div className="px-6 py-3 bg-slate-800/60 border-b border-slate-700/50 flex items-center justify-between">
                           <h3 className="font-semibold text-slate-200 text-sm uppercase tracking-wider">{category}</h3>
-                          {selectedRoleForPivot !== UserRole.SUPER_ADMIN && (
+                          {!isSuperAdmin && (
                             <button
-                              onClick={() => toggleRoleColumn(selectedRoleForPivot, items)}
+                              onClick={() => toggleRoleColumn(selectedRoleForPivot as UserRole, items)}
                               className="text-xs font-medium text-purple-400 hover:text-purple-300 transition-colors"
                             >
                               {areAllChecked ? 'Uncheck All' : 'Select All'}
@@ -670,66 +702,28 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
                         <div className="p-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1">
                             {items.map(perm => {
-                              if (perm.isScoped && perm.scopes) {
-                                const selectedScopes = rolePerms.filter(p => p.startsWith(`${perm.basePermission}:`)).map(p => p.split(':')[2].toUpperCase());
-                                return (
-                                  <div key={perm.id} className="flex items-center justify-between py-2 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 px-2 -mx-2 rounded transition-colors">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-sm font-medium text-slate-300">{perm.label}</span>
-                                      {perm.description && (
-                                        <div className="relative group/tooltip">
-                                          <div title={perm.description} className="cursor-help">
-                                            <AlertCircle size={14} className="text-slate-500 hover:text-purple-400" />
-                                          </div>
-                                          <div className="hidden group-hover/tooltip:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-800 border border-slate-600 rounded shadow-xl text-xs text-slate-200 z-[100] pointer-events-none">
-                                            {perm.description}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                    {selectedRoleForPivot === UserRole.SUPER_ADMIN ? (
-                                      <div className="flex items-center gap-2 text-slate-500">
-                                        <span className="text-xs">All Types</span>
-                                        <Lock size={12} />
-                                      </div>
-                                    ) : (
-                                      <ScopedPermissionCell
-                                        label=""
-                                        scopes={perm.scopes}
-                                        selectedScopes={selectedScopes}
-                                        onChange={(newScopes) => handleScopeChange(selectedRoleForPivot, perm.basePermission!, newScopes)}
-                                      />
-                                    )}
-                                  </div>
-                                )
-                              }
-                              const isChecked = selectedRoleForPivot === UserRole.SUPER_ADMIN || rolePerms.includes(perm.id as Permission);
+                              const isChecked = isSuperAdmin || rolePerms.includes(perm.id as Permission);
                               return (
                                 <div
                                   key={perm.id}
-                                  onClick={() => handlePermissionChange(selectedRoleForPivot, perm.id)}
+                                  onClick={() => !isSuperAdmin && handlePermissionChange(selectedRoleForPivot as UserRole, perm.id)}
                                   className="flex items-center justify-between py-2 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30 px-2 -mx-2 rounded cursor-pointer transition-colors group"
                                 >
                                   <div className="flex items-center gap-2">
                                     <span className={`text-sm font-medium transition-colors ${isChecked ? 'text-purple-200' : 'text-slate-400 group-hover:text-slate-300'}`}>{perm.label}</span>
                                     {perm.description && (
-                                      <div className="relative group/tooltip" onClick={(e) => e.stopPropagation()}>
-                                        <div title={perm.description} className="cursor-help">
-                                          <AlertCircle size={14} className="text-slate-500 hover:text-purple-400" />
-                                        </div>
-                                        <div className="hidden group-hover/tooltip:block absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-64 p-2 bg-slate-800 border border-slate-600 rounded shadow-xl text-xs text-slate-200 z-[100] pointer-events-none">
-                                          {perm.description}
-                                        </div>
+                                      <div title={perm.description} className="cursor-help" onClick={e => e.stopPropagation()}>
+                                        <AlertCircle size={14} className="text-slate-500 hover:text-purple-400" />
                                       </div>
                                     )}
                                   </div>
-                                  {selectedRoleForPivot === UserRole.SUPER_ADMIN ? <Lock size={14} className="text-slate-600" /> : (
+                                  {isSuperAdmin ? <Lock size={14} className="text-slate-600" /> : (
                                     <div className={`w-9 h-5 rounded-full relative transition-colors duration-200 ease-in-out ${isChecked ? 'bg-purple-600' : 'bg-slate-700'}`}>
                                       <div className={`absolute top-1 left-1 bg-white w-3 h-3 rounded-full shadow-sm transition-transform duration-200 ${isChecked ? 'translate-x-4' : 'translate-x-0'}`} />
                                     </div>
                                   )}
                                 </div>
-                              )
+                              );
                             })}
                           </div>
                         </div>

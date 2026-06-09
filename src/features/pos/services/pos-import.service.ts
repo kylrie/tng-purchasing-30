@@ -881,57 +881,75 @@ export class PosImportService {
     /**
      * Delete an import batch and reverse inventory deductions.
      * Hard-coded for Super Admin use.
+     *
+     * What this does:
+     * 1. Deletes all pos_sales docs for this batch
+     * 2. Deletes all original stock_transactions (THEORETICAL_USAGE / POS_SALE) for this batch
+     *    → This is critical: Recon and Variance reports query stock_transactions by date range.
+     *      If we leave the originals behind, the deductions keep appearing in both reports
+     *      even after the batch is "deleted".
+     * 3. Adds a POS_REVERSAL audit transaction per item (for the ledger trail)
+     * 4. Restores currentStock and theoreticalStock on each affected inventory item
+     * 5. Deletes the batch metadata doc
      */
     static async deleteImportBatch(
         batchImportId: string,
         userId: string,
         userName: string
     ): Promise<void> {
-        // 1. Get the batch
+        // 1. Get the batch metadata
         const batchRef = doc(db, COL.POS_SALES_BATCHES, batchImportId);
-        
-        // 2. Get all sales for this batch
+
+        // 2. Get all pos_sales for this batch
         const salesQuery = query(
             collection(db, COL.POS_SALES),
             where('batchImportId', '==', batchImportId)
         );
         const salesSnap = await getDocs(salesQuery);
 
-        // 3. Get all stock transactions for this batch
+        // 3. Get all original stock_transactions for this batch
+        //    These are the THEORETICAL_USAGE and POS_SALE records written during commitImport.
+        //    We must delete them so Recon/Variance queries no longer see them.
         const txQuery = query(
             collection(db, COL.STOCK_TRANSACTIONS),
             where('referenceId', '==', batchImportId)
         );
         const txSnap = await getDocs(txQuery);
 
-        // 4. Calculate total deducted per item
-        // Note: quantity in these transactions represents the deducted amount (positive number)
-        const deductionsByItem = new Map<string, { qty: number; businessUnitId: string; unitCost: number; itemName: string }>();
+        // 4. Calculate total deducted per item from the original transactions.
+        //    We only want THEORETICAL_USAGE and POS_SALE (the deductions written on import).
+        //    Skip any POS_REVERSAL rows (from a previous partial rollback attempt).
+        const DEDUCTION_TYPES = new Set(['THEORETICAL_USAGE', 'POS_SALE']);
+        const deductionsByItem = new Map<string, {
+            qty: number;
+            businessUnitId: string;
+            unitCost: number;
+            itemName: string;
+        }>();
+
         txSnap.docs.forEach(docSnap => {
             const data = docSnap.data();
-            const itemId = data.itemId;
+            if (!DEDUCTION_TYPES.has(data.type)) return; // skip reversals / adjustments
+            const itemId = data.itemId as string;
             const prev = deductionsByItem.get(itemId);
             deductionsByItem.set(itemId, {
-                qty: (prev?.qty || 0) + data.quantity,
+                qty: (prev?.qty || 0) + Math.abs(data.quantity as number || 0),
                 businessUnitId: data.businessUnitId,
                 unitCost: data.unitCost || 0,
-                itemName: data.itemName || 'Unknown Item'
+                itemName: data.itemName || 'Unknown Item',
             });
         });
 
-        // 5. Fetch current inventory to know balanceAfter
+        // 5. Fetch current inventory state for affected items (to compute new balances)
         const itemIds = Array.from(deductionsByItem.keys());
         const itemsMap = new Map<string, Partial<InventoryItem>>();
-        
-        // Firestore 'in' query supports max 10 items. So we chunk it.
+
         const chunkArray = <T>(arr: T[], size: number): T[][] => {
             const chunks = [];
-            for (let i = 0; i < arr.length; i += size) {
-                chunks.push(arr.slice(i, i + size));
-            }
+            for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
             return chunks;
         };
-        
+
         for (const chunk of chunkArray(itemIds, 10)) {
             const q = query(
                 collection(db, COL.INVENTORY_ITEMS),
@@ -941,6 +959,9 @@ export class PosImportService {
             snap.docs.forEach(d => itemsMap.set(d.id, d.data()));
         }
 
+        // ================================================================
+        // Build Firestore batches
+        // ================================================================
         const MAX_OPS = 490;
         const batches: ReturnType<typeof writeBatch>[] = [];
         let currentBatch = writeBatch(db);
@@ -955,39 +976,54 @@ export class PosImportService {
         };
 
         const now = Timestamp.now();
+        const safeNum = (v: unknown): number =>
+            typeof v === 'number' && Number.isFinite(v) ? v : 0;
 
-        // 6. Delete pos_sales
+        // 6. Delete all pos_sales docs
         salesSnap.docs.forEach(docSnap => {
             ensureBatch();
             currentBatch.delete(docSnap.ref);
             opCount++;
         });
 
-        // 7. Add reversing stock transactions & update inventory items
+        // 7. Delete the original stock_transactions (THEORETICAL_USAGE / POS_SALE).
+        //    This is the key step — without this, Recon and Variance reports keep
+        //    reading these deductions inside the date range and showing wrong numbers.
+        txSnap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!DEDUCTION_TYPES.has(data.type)) return; // only delete the originals
+            ensureBatch();
+            currentBatch.delete(docSnap.ref);
+            opCount++;
+        });
+
+        // 8. For each affected item: add a POS_REVERSAL audit record and restore stock
         for (const [itemId, info] of deductionsByItem.entries()) {
             const itemData = itemsMap.get(itemId);
-            if (!itemData) continue; // Item might have been deleted, skip
-            
-            const currentStock = (typeof itemData.theoreticalStock === 'number' && Number.isFinite(itemData.theoreticalStock)) 
-                ? itemData.theoreticalStock 
-                : itemData.currentStock || 0;
-                
-            const newStock = currentStock + info.qty; // Add back the deducted qty
+            if (!itemData) continue;
 
-            // Reversal transaction
+            const currentTheo = safeNum(itemData.theoreticalStock);
+            const currentPhys = safeNum(itemData.currentStock);
+
+            // Restore: add back what was originally deducted
+            const newTheoStock = currentTheo + info.qty;
+            const newCurrentStock = currentPhys + info.qty;
+
+            // Audit trail — POS_REVERSAL is NOT counted by Recon aggregation
+            // (aggregatePosSales only reads THEORETICAL_USAGE and POS_SALE)
             const adjTxRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
             ensureBatch();
             currentBatch.set(adjTxRef, {
                 itemId,
                 itemName: info.itemName,
                 businessUnitId: info.businessUnitId,
-                type: 'ADJUSTMENT', // Using ADJUSTMENT to revert
-                quantity: info.qty, // positive quantity = addition
+                type: 'POS_REVERSAL',
+                quantity: info.qty,   // positive = stock returned
                 unitCost: info.unitCost,
                 totalValue: info.qty * info.unitCost,
-                balanceAfter: newStock,
-                referenceId: batchImportId, // keep reference to original batch
-                notes: `Reversed POS Import Batch ${batchImportId}`,
+                balanceAfter: newTheoStock,
+                referenceId: batchImportId,
+                notes: `Reversed POS Import Batch ${batchImportId} — ${info.qty} ${info.itemName} returned to stock`,
                 performedBy: userId,
                 performedByName: userName,
                 timestamp: now,
@@ -995,21 +1031,18 @@ export class PosImportService {
             });
             opCount++;
 
-            // Update item stock — restore both currentStock and theoreticalStock
+            // Restore item stock fields
             const itemRef = doc(db, COL.INVENTORY_ITEMS, itemId);
-            const curCurrentStock = (typeof itemData.currentStock === 'number' && Number.isFinite(itemData.currentStock))
-                ? itemData.currentStock : 0;
-            const newCurrentStock = curCurrentStock + info.qty;
             ensureBatch();
             currentBatch.update(itemRef, {
                 currentStock: newCurrentStock,
-                theoreticalStock: newStock,
+                theoreticalStock: newTheoStock,
                 updatedAt: now,
             });
             opCount++;
         }
 
-        // 8. Delete the batch metadata document
+        // 9. Delete the batch metadata document
         ensureBatch();
         currentBatch.delete(batchRef);
         opCount++;

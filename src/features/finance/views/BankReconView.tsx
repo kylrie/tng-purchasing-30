@@ -21,9 +21,9 @@ import './BankReconView.css';
 const BankReconView: React.FC = () => {
     const { currentUser } = useAuth();
     const { hasPermission } = usePermissions();
-    const canAudit = hasPermission('bank_recon:audit');
-    const canEdit = hasPermission('bank_recon:edit');
-    const canViewAll = hasPermission('bank_recon:view:all');
+    const canAudit = hasPermission('finance:bank_recon:audit');
+    const canEdit = hasPermission('finance:bank_recon:edit:remarks');
+    const canViewAll = hasPermission('finance:bank_recon:view:all');
 
     // COA accounts for dropdown
     const [coaAccounts, setCoaAccounts] = useState<ChartOfAccount[]>([]);

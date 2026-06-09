@@ -41,15 +41,15 @@ export const usePermissions = () => {
     if (!hasPermission(permission)) return false;
 
     // If the permission is global (e.g., SUPER_ADMIN), no further checks needed
-    if (hasPermission('requisition:view:all')) return true;
+    if (hasPermission('procurement:burf:view:all')) return true;
 
     // Check for business unit scope
-    if (hasPermission('requisition:view:business_unit') && currentUser.businessId === requisition.businessId) {
+    if (hasPermission('procurement:burf:view:bu') && currentUser.businessId === requisition.businessId) {
       return true;
     }
 
     // Check for ownership scope
-    if (hasPermission('requisition:view:own') && currentUser.id === requisition.requesterId) {
+    if (hasPermission('procurement:burf:view:own') && currentUser.id === requisition.requesterId) {
       return true;
     }
 
@@ -73,10 +73,10 @@ export const usePermissions = () => {
     }
 
     // Finance can file for anyone
-    if (hasPermission('liquidation:file:all')) return true;
+    if (hasPermission('finance:liquidation:create:all')) return true;
 
     // Check if user has permission to file for own
-    if (hasPermission('liquidation:file:own')) {
+    if (hasPermission('finance:liquidation:create:own')) {
       // Option C: Check if user is BURF creator OR PRF creator
       const isBurfCreator = requisition.requesterId === currentUser.id;
       const isPrfCreator = requisition.prfDetails?.createdBy === currentUser.id;

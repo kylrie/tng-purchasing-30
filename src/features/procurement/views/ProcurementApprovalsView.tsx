@@ -84,17 +84,17 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const userApprovalStatuses = useMemo(() => {
         const statuses: RequisitionStatus[] = [];
 
-        if (hasPermission('approval:manager:burf')) {
+        if (hasPermission('procurement:burf:approve:manager')) {
             statuses.push(RequisitionStatus.BURF_PENDING_MANAGER);
         }
-        if (hasPermission('approval:cic:burf')) {
+        if (hasPermission('procurement:burf:approve:cic')) {
             statuses.push(RequisitionStatus.BURF_PENDING_CIC);
         }
         // PRF_PENDING_MANAGER now uses designatedApproverId - include for all users who might be designated
         statuses.push(RequisitionStatus.PRF_PENDING_MANAGER);
 
         // GM PRF Approval (Step 2 for items >= 50k) - only include if user is the assigned GM
-        if (isAssignedGM || hasPermission('requisition:view:all')) {
+        if (isAssignedGM || hasPermission('procurement:burf:view:all')) {
             statuses.push(RequisitionStatus.PENDING_GM_PRF_APPROVAL);
         }
 
@@ -122,7 +122,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 // PRF_PENDING_MANAGER: Must be the designated approver or have global access
                 if (req.status === RequisitionStatus.PRF_PENDING_MANAGER) {
                     const isDesignated = req.prfDetails?.designatedApproverId === currentUser.id;
-                    const hasGlobalAccess = hasPermission('requisition:view:all');
+                    const hasGlobalAccess = hasPermission('procurement:burf:view:all');
                     const isSuperAdminUser = isSuperAdmin(currentUser.role);
                     if (!isDesignated && !hasGlobalAccess && !isSuperAdminUser) {
                         return false;
@@ -134,7 +134,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             }
 
             // Filter by Business Unit
-            const hasGlobal = hasPermission('requisition:view:all');
+            const hasGlobal = hasPermission('procurement:burf:view:all');
             if (hasGlobal) {
                 if (selectedBusinessUnit !== 'all' && req.businessId !== selectedBusinessUnit) return false;
             } else {
@@ -232,7 +232,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
         // BOD users skip signature modal — approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             try {
                 await RequisitionService.approveRequisition(
                     req.id, currentUser.id, currentUser.name, undefined, undefined
@@ -305,7 +305,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
     const handleDrawerApprove = async () => {
         if (!drawerReq) return;
         // BOD users skip signature modal — approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             setDrawerLoading(true);
             try {
                 await RequisitionService.approveRequisition(
@@ -391,7 +391,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                         >
                             Pending Approvals
                         </button>
-                        {hasPermission('approval:view:history') && (
+                        {hasPermission('procurement:approval:view:history') && (
                             <button
                                 onClick={() => setActiveTab('history')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'history'
@@ -409,7 +409,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                     {/* Secondary Tabs - Only show for Pending tab, filtered by permission */}
                     {activeTab === 'pending' && (
                         <div className="flex gap-2 flex-wrap">
-                            {hasPermission('approval:manager:burf') && (
+                            {hasPermission('procurement:burf:approve:manager') && (
                                 <button
                                     onClick={() => setPendingSubTab('burf')}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'burf'
@@ -426,7 +426,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                     )}
                                 </button>
                             )}
-                            {hasPermission('approval:cic:burf') && (
+                            {hasPermission('procurement:burf:approve:cic') && (
                                 <button
                                     onClick={() => setPendingSubTab('cic')}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'cic'
@@ -443,7 +443,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                                     )}
                                 </button>
                             )}
-                            {hasPermission('approval:manager:prf') && (
+                            {hasPermission('procurement:prf:approve:manager') && (
                                 <button
                                     onClick={() => setPendingSubTab('prf')}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingSubTab === 'prf'

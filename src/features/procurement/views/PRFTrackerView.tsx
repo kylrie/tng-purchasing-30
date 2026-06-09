@@ -73,7 +73,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
             if (isAdmin) return true;
 
             // "View All" mode - show all within user's assigned BUs
-            if (viewMode === 'all' && hasPermission('prf_tracker:view:all')) {
+            if (viewMode === 'all' && hasPermission('ui:module_access:view:prf_tracker')) {
                 return userBusinessUnitIds.has(req.businessId);
             }
 
@@ -198,7 +198,7 @@ const PRFTrackerView: React.FC<PRFTrackerViewProps> = ({
                             onFilterChange={(start: string | null, end: string | null) => setDateRange({ start, end })}
                         />
                         {/* View Mode Toggle */}
-                        {hasPermission('prf_tracker:view:all') && (
+                        {hasPermission('ui:module_access:view:prf_tracker') && (
                             <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                                 <button
                                     onClick={() => setViewMode('mine')}

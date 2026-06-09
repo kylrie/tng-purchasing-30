@@ -92,7 +92,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         SettingsService.getApproverAssignments().then(setApproverAssignments);
 
         // Fetch real PCF pending count
-        if (hasPermission('pcf:approve')) {
+        if (hasPermission('finance:pcf:approve')) {
             PCFService.getPendingLiquidations()
                 .then(liquidations => setPcfPendingCount(liquidations.length))
                 .catch(() => setPcfPendingCount(0));
@@ -135,7 +135,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 return false;
 
             case RequisitionStatus.FOR_FUND_RELEASE:
-                return hasPermission('finance:release_funds');
+                return hasPermission('finance:cheque:release');
             default:
                 return false;
         }
@@ -228,7 +228,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const pendingApprovals = [...requisitions]
         .filter(r => {
             // Super Admin / Global View - see all pending
-            if (hasPermission('requisition:view:all') && hasPermission('admin:manage:users')) {
+            if (hasPermission('procurement:burf:view:all') && hasPermission('admin:user:edit')) {
                 return [
                     RequisitionStatus.BURF_PENDING_MANAGER,
                     RequisitionStatus.BURF_PENDING_CIC,
@@ -244,15 +244,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             }
 
             // Permission-based checks
-            if (hasPermission('approval:manager:burf') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
-            if (hasPermission('approval:cic:burf') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
-            if (hasPermission('finance:release_funds') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
+            if (hasPermission('procurement:burf:approve:manager') && r.status === RequisitionStatus.BURF_PENDING_MANAGER) return true;
+            if (hasPermission('procurement:burf:approve:cic') && r.status === RequisitionStatus.BURF_PENDING_CIC) return true;
+            if (hasPermission('finance:cheque:release') && r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) return true;
 
             // PRF_PENDING_MANAGER: Check based on source type
             if (r.status === RequisitionStatus.PRF_PENDING_MANAGER) {
                 // BURF→PRF conversions: Use BUM role-based approval
                 if (r.parentBurfId) {
-                    return hasPermission('approval:manager:prf');
+                    return hasPermission('procurement:prf:approve:manager');
                 } else {
                     // Direct PRF: Use designated approver
                     return r.prfDetails?.designatedApproverId === currentUser.id;
@@ -347,10 +347,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const readyForPrfItems = requisitions.filter(r => {
         if (r.status !== RequisitionStatus.READY_FOR_PRF &&
             r.status !== RequisitionStatus.BURF_PARTIALLY_PROCESSED) return false;
-        if (!hasPermission('requisition:create:prf')) return false;
+        if (!hasPermission('procurement:prf:create:direct')) return false;
 
         // Filter by Business Unit
-        if (hasPermission('requisition:view:all')) return true;
+        if (hasPermission('procurement:burf:view:all')) return true;
 
         const userBUs = currentUser.businessUnitIds || [currentUser.businessId];
         return userBUs.includes(r.businessId);
@@ -360,7 +360,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const pendingFundReleaseItems = requisitions.filter(r =>
         (r.status === RequisitionStatus.FOR_FUND_RELEASE ||
             r.status === RequisitionStatus.APPROVED_FOR_PAYMENT) &&
-        hasPermission('finance:release_funds')
+        hasPermission('finance:cheque:release')
     );
 
     // Finance Head BR Items - BU-specific filtering with permission fallback
@@ -403,7 +403,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         }
 
         // Option 2: Fallback - if user has BOD approval permission
-        if (hasPermission('approval:bod')) return true;
+        if (hasPermission('finance:budget_request:approve:bod')) return true;
 
         return false;
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
@@ -413,7 +413,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         if (r.status !== RequisitionStatus.PENDING_CHECK_AUTH_BOD) return false;
 
         // SuperAdmins and users with BOD approval permission can always see
-        if (hasPermission('approval:bod')) return true;
+        if (hasPermission('finance:budget_request:approve:bod')) return true;
 
         // BOD approvers assigned in settings can approve check authorization
         const bodApprovers = approverAssignments.bodApprovers;
@@ -451,7 +451,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     // Pending Audit (Auditor)
     const pendingAuditItems = requisitions.filter(r =>
         r.status === RequisitionStatus.LIQUIDATION_FILED &&
-        hasPermission('liquidation:audit')
+        hasPermission('finance:liquidation:audit')
     );
 
     // Consolidated Deep Linking & Notification Handling
@@ -533,7 +533,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
         // BOD users skip signature modal — approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             try {
                 await RequisitionService.approveRequisition(
                     req.id, currentUser.id, currentUser.name, undefined, undefined
@@ -664,7 +664,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         if (selectedCheckAuthIds.size === 0) return;
         const idsToApprove = Array.from(selectedCheckAuthIds);
         // BOD users skip signature modal — bulk approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             try {
                 for (const id of idsToApprove) {
                     await RequisitionService.approveRequisition(
@@ -715,7 +715,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         if (selectedFinanceBRIds.size === 0) return;
         const idsToApprove = Array.from(selectedFinanceBRIds);
         // BOD users skip signature modal — bulk approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             try {
                 for (const id of idsToApprove) {
                     await RequisitionService.approveRequisition(
@@ -753,7 +753,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         if (selectedGmBRIds.size === 0) return;
         const idsToApprove = Array.from(selectedGmBRIds);
         // BOD users skip signature modal — bulk approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             try {
                 for (const id of idsToApprove) {
                     await RequisitionService.approveRequisition(
@@ -791,7 +791,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         if (selectedBodBRIds.size === 0) return;
         const idsToApprove = Array.from(selectedBodBRIds);
         // BOD users skip signature modal — bulk approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             try {
                 for (const id of idsToApprove) {
                     await RequisitionService.approveRequisition(
@@ -851,7 +851,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         if (selectedPendingApprovalIds.size === 0) return;
         const idsToApprove = Array.from(selectedPendingApprovalIds);
         // BOD users skip signature modal — bulk approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             try {
                 for (const id of idsToApprove) {
                     await RequisitionService.approveRequisition(
@@ -893,7 +893,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     {/* Stats Grid - Role-Specific Approval Cards */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                         {/* BURF Manager Approval Card */}
-                        {hasPermission('approval:manager:burf') && (
+                        {hasPermission('procurement:burf:approve:manager') && (
                             <DashboardCard
                                 id="burf-manager"
                                 label="BURF Mgr"
@@ -910,7 +910,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* CIC Review Card */}
-                        {hasPermission('approval:cic:burf') && (
+                        {hasPermission('procurement:burf:approve:cic') && (
                             <DashboardCard
                                 id="cic-review"
                                 label="CIC Review"
@@ -927,7 +927,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* PRF Manager Approval Card */}
-                        {hasPermission('approval:manager:prf') && (
+                        {hasPermission('procurement:prf:approve:manager') && (
                             <DashboardCard
                                 id="prf-manager"
                                 label="PRF Mgr"
@@ -978,7 +978,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* BOD Approval Card */}
-                        {(hasPermission('approval:bod') || approverAssignments.bodApprovers?.some(b => b.userId === currentUser.id)) && checkAuthApprovals.length > 0 && (
+                        {(hasPermission('finance:budget_request:approve:bod') || approverAssignments.bodApprovers?.some(b => b.userId === currentUser.id)) && checkAuthApprovals.length > 0 && (
                             <DashboardCard
                                 id="bod-approval"
                                 label="BOD Auth"
@@ -995,7 +995,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Fund Release Card */}
-                        {hasPermission('finance:release_funds') && pendingFundReleaseItems.length > 0 && (
+                        {hasPermission('finance:cheque:release') && pendingFundReleaseItems.length > 0 && (
                             <DashboardCard
                                 id="fund-release"
                                 label="Fund Release"
@@ -1012,7 +1012,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Overdue Items Card */}
-                        {hasPermission('dashboard:widget:overdue_items') && (
+                        {hasPermission('ui:widget:view:overdue_items') && (
                             <DashboardCard
                                 id="overdue-items"
                                 label="Overdue"
@@ -1034,7 +1034,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* PCF Approval Card - Connected to real data */}
-                        {hasPermission('pcf:approve') && (
+                        {hasPermission('finance:pcf:approve') && (
                             <DashboardCard
                                 id="pcf-approval"
                                 label="PCF Approval"
@@ -1068,7 +1068,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Ready for PRF Card */}
-                        {hasPermission('dashboard:widget:ready_for_prf') && (
+                        {hasPermission('ui:widget:view:ready_for_prf') && (
                             <DashboardCard
                                 id="ready-for-prf"
                                 label="Ready for PRF"
@@ -1086,7 +1086,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Avg Processing Time Card */}
-                        {hasPermission('dashboard:widget:avg_processing') && (
+                        {hasPermission('ui:widget:view:avg_processing') && (
                             <DashboardCard
                                 id="avg-processing"
                                 label="Avg Days"
@@ -1104,7 +1104,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Completed This Month Card */}
-                        {hasPermission('dashboard:widget:completed_month') && (
+                        {hasPermission('ui:widget:view:completed_month') && (
                             <DashboardCard
                                 id="completed-month"
                                 label="Completed"
@@ -1122,7 +1122,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Total Spend Card with Business Filter */}
-                        {hasPermission('dashboard:widget:total_spend') && (
+                        {hasPermission('ui:widget:view:total_spend') && (
                             <DashboardCard
                                 id="total-spend"
                                 label="Spend"
@@ -1143,7 +1143,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Top Requesters Card */}
-                        {hasPermission('dashboard:widget:top_requesters') && (
+                        {hasPermission('ui:widget:view:top_requesters') && (
                             <DashboardCard
                                 id="top-requesters"
                                 label="Top Requester"
@@ -1171,9 +1171,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
 
                     {/* === BUDGET REVIEW SECTION === */}
-                    {(hasPermission('dashboard:section:finance_head_br') && financeHeadBRItems.length > 0) ||
-                        (hasPermission('dashboard:section:gm_br') && gmBRItems.length > 0) ||
-                        (hasPermission('dashboard:section:bod_br') && bodBRItems.length > 0) ? (
+                    {(hasPermission('ui:section:view:finance_head_br') && financeHeadBRItems.length > 0) ||
+                        (hasPermission('ui:section:view:gm_br') && gmBRItems.length > 0) ||
+                        (hasPermission('ui:section:view:bod_br') && bodBRItems.length > 0) ? (
                         <div className="mb-6">
                             <h2 className="text-base font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
                                 <FileText size={16} />
@@ -1181,7 +1181,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                             </h2>
                             <div className="space-y-6">
                                 {/* Finance Head BR Widget - Enhanced with Bulk Selection */}
-                                {hasPermission('dashboard:section:finance_head_br') && financeHeadBRItems.length > 0 && (
+                                {hasPermission('ui:section:view:finance_head_br') && financeHeadBRItems.length > 0 && (
                                     <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-indigo-200/60 dark:border-indigo-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.15)] dark:shadow-none flex flex-col min-h-[420px]">
                                         <div className="p-5 flex flex-col gap-3 border-b border-indigo-100 dark:border-slate-700/50">
                                             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1275,7 +1275,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 )}
 
                                 {/* GM Budget Review Widget - Enhanced with Bulk Selection */}
-                                {hasPermission('dashboard:section:gm_br') && gmBRItems.length > 0 && (
+                                {hasPermission('ui:section:view:gm_br') && gmBRItems.length > 0 && (
                                     <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-violet-200/60 dark:border-violet-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.15)] dark:shadow-none flex flex-col min-h-[420px]">
                                         <div className="p-5 flex flex-col gap-3 border-b border-violet-100 dark:border-slate-700/50">
                                             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1361,7 +1361,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                 )}
 
                                 {/* BOD Budget Review Widget - Enhanced with Bulk Selection */}
-                                {hasPermission('dashboard:section:bod_br') && bodBRItems.length > 0 && (
+                                {hasPermission('ui:section:view:bod_br') && bodBRItems.length > 0 && (
                                     <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-rose-200/60 dark:border-rose-500/30 shadow-[0_8px_30px_-6px_rgba(244,63,94,0.15)] dark:shadow-none flex flex-col min-h-[420px]">
                                         <div className="p-5 flex flex-col gap-3 border-b border-rose-100 dark:border-slate-700/50">
                                             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1450,7 +1450,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                     ) : null}
 
                     {/* === CHECK AUTHORIZATION SECTION - ENHANCED === */}
-                    {hasPermission('dashboard:section:check_auth') && checkAuthItems.length > 0 && (
+                    {hasPermission('ui:section:view:check_auth') && checkAuthItems.length > 0 && (
                         <div className="mb-6">
                             <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
                                 <ShieldCheck size={14} />
@@ -1630,7 +1630,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                     <div className="space-y-8 max-w-[1920px] mx-auto">
                         {/* Pending Approvals - Only visible with permission */}
-                        {hasPermission('dashboard:section:pending_list') && (
+                        {hasPermission('ui:section:view:pending_list') && (
                             <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-purple-200/60 dark:border-purple-500/30 shadow-[0_8px_30px_-6px_rgba(139,92,246,0.1)] dark:shadow-none flex flex-col">
                                 {/* Header with View All */}
                                 <div className="p-6 flex justify-between items-center border-b border-purple-100 dark:border-slate-700/50">
@@ -1643,7 +1643,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
                                 {/* Secondary Tab Bar - Filtered by Permission */}
                                 <div className="px-6 pt-4 pb-2 flex gap-2 border-b border-purple-50 dark:border-slate-700/30 flex-wrap">
-                                    {hasPermission('approval:manager:burf') && (
+                                    {hasPermission('procurement:burf:approve:manager') && (
                                         <button
                                             onClick={() => { setPendingApprovalTab('burf'); setSelectedPendingApprovalIds(new Set()); }}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'burf'
@@ -1660,7 +1660,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                             )}
                                         </button>
                                     )}
-                                    {hasPermission('approval:cic:burf') && (
+                                    {hasPermission('procurement:burf:approve:cic') && (
                                         <button
                                             onClick={() => { setPendingApprovalTab('cic'); setSelectedPendingApprovalIds(new Set()); }}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'cic'
@@ -1678,7 +1678,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                                         </button>
                                     )}
                                     {/* Show PRF tab if user has permission OR is a designated approver for any Direct PRF */}
-                                    {(hasPermission('approval:manager:prf') || prfApprovals.length > 0) && (
+                                    {(hasPermission('procurement:prf:approve:manager') || prfApprovals.length > 0) && (
                                         <button
                                             onClick={() => { setPendingApprovalTab('prf'); setSelectedPendingApprovalIds(new Set()); }}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${pendingApprovalTab === 'prf'
@@ -1816,7 +1816,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Ready for PRF - Visible to Purchasing Officers */}
-                        {hasPermission('dashboard:section:ready_for_prf_list') && readyForPrfItems.length > 0 && (
+                        {hasPermission('ui:section:view:ready_for_prf_list') && readyForPrfItems.length > 0 && (
                             <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-blue-200 dark:border-blue-500/30 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-blue-100 dark:border-slate-700/50">
                                     <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -1876,7 +1876,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* Pending Fund Release - Visible to Finance */}
-                        {hasPermission('dashboard:section:pending_fund_release') && pendingFundReleaseItems.length > 0 && (
+                        {hasPermission('ui:section:view:pending_fund_release') && pendingFundReleaseItems.length > 0 && (
                             <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-emerald-200 dark:border-emerald-500/30 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-emerald-100 dark:border-slate-700/50">
                                     <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -1945,7 +1945,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         {/* BR and Check Auth widgets have been moved to separate sections above */}
 
                         {/* Pending Audit - Visible to Auditors */}
-                        {hasPermission('dashboard:section:pending_audit_list') && pendingAuditItems.length > 0 && (
+                        {hasPermission('ui:section:view:pending_audit_list') && pendingAuditItems.length > 0 && (
                             <div className="bg-white/80 dark:bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-amber-200 dark:border-amber-500/30 shadow-lg flex flex-col">
                                 <div className="p-6 flex justify-between items-center border-b border-amber-100 dark:border-slate-700/50">
                                     <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
@@ -2105,7 +2105,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 onApprove={async () => {
                     if (drawerReq) {
                         // BOD users skip signature modal — approve directly
-                        if (hasPermission('approval:skip_signature')) {
+                        if (hasPermission('procurement:approval:approve:skip_signature')) {
                             try {
                                 await RequisitionService.approveRequisition(
                                     drawerReq.id, currentUser.id, currentUser.name, undefined, undefined
@@ -2151,8 +2151,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 canApprove={
                     !!drawerReq && (
                         // BURF Workflow
-                        (drawerReq.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('approval:manager:burf')) ||
-                        (drawerReq.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('approval:cic:burf')) ||
+                        (drawerReq.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('procurement:burf:approve:manager')) ||
+                        (drawerReq.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('procurement:burf:approve:cic')) ||
                         // PRF Workflow - Step 1: Must be the designated approver OR SuperAdmin
                         (drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER && (
                             drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
@@ -2160,12 +2160,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )) ||
                         // GM PRF Approval (50k+): Check if assigned as GM
                         (drawerReq.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL &&
-                            hasPermission('approval:gm:br') &&
+                            hasPermission('finance:budget_request:approve:gm') &&
                             currentUser.id === approverAssignments.gmUid
                         ) ||
                         // Finance Head BR: Check if assigned for this BU
                         (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
-                            hasPermission('approval:finance_head:br') &&
+                            hasPermission('finance:budget_request:approve:finance_head') &&
                             approverAssignments.financeHeads?.some(fh =>
                                 fh.userId === currentUser.id &&
                                 fh.businessUnitIds.includes(drawerReq.businessId)
@@ -2173,22 +2173,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         ) ||
                         // GM BR: Check if assigned as GM
                         (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
-                            hasPermission('approval:gm:br') &&
+                            hasPermission('finance:budget_request:approve:gm') &&
                             currentUser.id === approverAssignments.gmUid
                         ) ||
                         // BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
-                            hasPermission('approval:bod') &&
+                            hasPermission('finance:budget_request:approve:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // CFO: Check if assigned as CFO
                         (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
-                            hasPermission('approval:cfo') &&
+                            hasPermission('finance:budget_request:approve:cfo') &&
                             currentUser.id === approverAssignments.cfoUid
                         ) ||
                         // Check Auth BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
-                            hasPermission('approval:bod') &&
+                            hasPermission('finance:budget_request:approve:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // SuperAdmin can always approve (except READY_FOR_PRF which needs Prepare PRF action)
@@ -2198,8 +2198,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 canReject={
                     !!drawerReq && (
                         // BURF Workflow
-                        (drawerReq.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('approval:manager:burf')) ||
-                        (drawerReq.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('approval:cic:burf')) ||
+                        (drawerReq.status === RequisitionStatus.BURF_PENDING_MANAGER && hasPermission('procurement:burf:approve:manager')) ||
+                        (drawerReq.status === RequisitionStatus.BURF_PENDING_CIC && hasPermission('procurement:burf:approve:cic')) ||
                         // PRF Workflow - Step 1: Must be the designated approver OR SuperAdmin
                         (drawerReq.status === RequisitionStatus.PRF_PENDING_MANAGER && (
                             drawerReq.prfDetails?.designatedApproverId === currentUser.id ||
@@ -2207,12 +2207,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )) ||
                         // GM PRF Approval (50k+): Check if assigned as GM
                         (drawerReq.status === RequisitionStatus.PENDING_GM_PRF_APPROVAL &&
-                            hasPermission('approval:gm:br') &&
+                            hasPermission('finance:budget_request:approve:gm') &&
                             currentUser.id === approverAssignments.gmUid
                         ) ||
                         // Finance Head BR: Check if assigned for this BU
                         (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
-                            hasPermission('approval:finance_head:br') &&
+                            hasPermission('finance:budget_request:approve:finance_head') &&
                             approverAssignments.financeHeads?.some(fh =>
                                 fh.userId === currentUser.id &&
                                 fh.businessUnitIds.includes(drawerReq.businessId)
@@ -2220,22 +2220,22 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         ) ||
                         // GM BR: Check if assigned as GM
                         (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
-                            hasPermission('approval:gm:br') &&
+                            hasPermission('finance:budget_request:approve:gm') &&
                             currentUser.id === approverAssignments.gmUid
                         ) ||
                         // BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
-                            hasPermission('approval:bod') &&
+                            hasPermission('finance:budget_request:approve:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // CFO: Check if assigned as CFO
                         (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
-                            hasPermission('approval:cfo') &&
+                            hasPermission('finance:budget_request:approve:cfo') &&
                             currentUser.id === approverAssignments.cfoUid
                         ) ||
                         // Check Auth BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
-                            hasPermission('approval:bod') &&
+                            hasPermission('finance:budget_request:approve:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // SuperAdmin can always reject (except READY_FOR_PRF which needs Prepare PRF action)
@@ -2252,7 +2252,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                 canPreparePrf={
                     !!drawerReq &&
                     drawerReq.status === RequisitionStatus.READY_FOR_PRF &&
-                    hasPermission('requisition:prepare:prf')
+                    hasPermission('procurement:prf:create:from_burf')
                 }
             />
 

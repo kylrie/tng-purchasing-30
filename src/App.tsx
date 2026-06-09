@@ -228,7 +228,7 @@ function ProtectedApp() {
         <Routes>
           {/* External Routes (No Layout) */}
           <Route path="/pos" element={
-            <ProtectedRoute permission="module:view:pos">
+            <ProtectedRoute permission="ui:module_access:view:pos">
               <POSView businesses={accessibleBusinesses} allUsers={users} />
             </ProtectedRoute>
           } />
@@ -241,7 +241,7 @@ function ProtectedApp() {
                 <Route path="/dashboard" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
 
                 <Route path="/burf" element={
-                  <ProtectedRoute permission="module:view:burf">
+                  <ProtectedRoute permission="ui:module_access:view:burf">
                     <BurfView
                       currentUser={currentUser}
                       visibleRequisitions={requisitions}
@@ -257,18 +257,18 @@ function ProtectedApp() {
 
                 {/* Full-screen BURF Page Routes (modal-to-page refactor) */}
                 <Route path="/burf/new" element={
-                  <ProtectedRoute permission="requisition:create:burf">
+                  <ProtectedRoute permission="procurement:burf:create">
                     <BURFPage />
                   </ProtectedRoute>
                 } />
                 <Route path="/burf/edit/:burfId" element={
-                  <ProtectedRoute permission="requisition:edit:draft">
+                  <ProtectedRoute permission="procurement:burf:edit:draft">
                     <BURFPage />
                   </ProtectedRoute>
                 } />
 
                 <Route path="/prf" element={
-                  <ProtectedRoute permission="module:view:prf">
+                  <ProtectedRoute permission="ui:module_access:view:prf">
                     <PrfView
                       currentUser={currentUser}
                       visibleRequisitions={requisitions}
@@ -284,7 +284,7 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/prf-tracker" element={
-                  <ProtectedRoute permission="module:view:prf_tracker">
+                  <ProtectedRoute permission="ui:module_access:view:prf_tracker">
                     <PRFTrackerView
                       currentUser={currentUser}
                       requisitions={requisitions}
@@ -296,7 +296,7 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/procurement-approvals" element={
-                  <ProtectedRoute permission="module:view:approvals">
+                  <ProtectedRoute permission="ui:module_access:view:approvals">
                     <ProcurementApprovalsView
                       currentUser={currentUser}
                       requisitions={requisitions}
@@ -309,7 +309,7 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/approved" element={
-                  <ProtectedRoute permission="module:view:approved">
+                  <ProtectedRoute permission="ui:module_access:view:approved">
                     <ApprovedView
                       currentUser={currentUser}
                       requisitions={requisitions}
@@ -323,14 +323,14 @@ function ProtectedApp() {
                 {/* Finance Module - Restructured Routes */}
                 {/* Overview - Strategic Finance Dashboard */}
                 <Route path="/finance/overview" element={
-                  <ProtectedRoute permission="module:view:finance">
+                  <ProtectedRoute permission="ui:module_access:view:finance">
                     <FinanceOverview businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
 
                 {/* BR Flow - Existing FinanceView with Fund Release/Check Prep */}
                 <Route path="/finance/expenses/br-flow" element={
-                  <ProtectedRoute permission="module:view:finance">
+                  <ProtectedRoute permission="ui:module_access:view:finance">
                     <FinanceView
                       currentUser={currentUser}
                       requisitions={requisitions}
@@ -347,17 +347,17 @@ function ProtectedApp() {
 
                 {/* Income placeholders */}
                 <Route path="/finance/income/sales" element={
-                  <ProtectedRoute permission="module:view:finance">
+                  <ProtectedRoute permission="ui:module_access:view:finance">
                     <PosImportDashboard businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
                 <Route path="/finance/income/event-sales" element={
-                  <ProtectedRoute permission="module:view:finance">
+                  <ProtectedRoute permission="ui:module_access:view:finance">
                     <EventImportDashboard businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
                 <Route path="/finance/income/invoices" element={
-                  <ProtectedRoute permission="module:view:finance">
+                  <ProtectedRoute permission="ui:module_access:view:finance">
                     <div className="p-8">
                       <h1 className="text-2xl font-bold text-white mb-4">Invoices</h1>
                       <p className="text-slate-400">Coming soon - Invoice management.</p>
@@ -366,7 +366,7 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/procurement/liquidation" element={
-                  <ProtectedRoute permission="liquidation:file:own">
+                  <ProtectedRoute permission="finance:liquidation:create:own">
                     <LiquidationView
                       currentUser={currentUser}
                       requisitions={requisitions}
@@ -382,7 +382,7 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/liquidation" element={
-                  <ProtectedRoute permission="liquidation:audit">
+                  <ProtectedRoute permission="finance:liquidation:audit">
                     <LiquidationView
                       currentUser={currentUser}
                       requisitions={requisitions}
@@ -399,13 +399,13 @@ function ProtectedApp() {
 
                 {/* Liquidation Page - Full page for filing liquidation (opens in new window) */}
                 <Route path="/liquidation/:prfId" element={
-                  <ProtectedRoute permission={['liquidation:file:own', 'liquidation:file:all']}>
+                  <ProtectedRoute permission={['finance:liquidation:create:own', 'finance:liquidation:create:all']}>
                     <LiquidationPage />
                   </ProtectedRoute>
                 } />
 
                 <Route path="/pcf" element={
-                  <ProtectedRoute permission="module:view:pcf">
+                  <ProtectedRoute permission="ui:module_access:view:pcf">
                     <PCFView
                       currentUser={currentUser}
                       businesses={businesses}
@@ -415,7 +415,7 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/pcf-approvals" element={
-                  <ProtectedRoute permission="pcf:approve">
+                  <ProtectedRoute permission="finance:pcf:approve">
                     <PCFApprovalView
                       currentUser={currentUser}
                       businesses={accessibleBusinesses}
@@ -425,7 +425,7 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/pcf-audit-review" element={
-                  <ProtectedRoute permission="pcf:audit_review">
+                  <ProtectedRoute permission="finance:pcf:audit">
                     <PCFAuditReviewView
                       currentUser={currentUser}
                       businesses={accessibleBusinesses}
@@ -435,7 +435,7 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/suppliers" element={
-                  <ProtectedRoute permission="module:view:suppliers">
+                  <ProtectedRoute permission="ui:module_access:view:suppliers">
                     <SuppliersView
                       suppliers={suppliers}
                       onCreateSupplier={createSupplier}
@@ -448,14 +448,14 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/chart-of-accounts" element={
-                  <ProtectedRoute permission="module:view:coa">
+                  <ProtectedRoute permission="ui:module_access:view:coa">
                     <ChartOfAccountsView />
                   </ProtectedRoute>
                 } />
 
                 {/* Budget Configuration - FINANCE_HEAD or SUPER_ADMIN */}
                 <Route path="/budgets" element={
-                  <ProtectedRoute permission="budget:manage">
+                  <ProtectedRoute permission="master_data:budget:edit">
                     <div className="p-8">
                       <BudgetConfigPanel businesses={accessibleBusinesses} />
                     </div>
@@ -464,14 +464,14 @@ function ProtectedApp() {
 
                 {/* Transaction History - View all budget transactions */}
                 <Route path="/finance/transactions" element={
-                  <ProtectedRoute permission="module:view:finance">
+                  <ProtectedRoute permission="ui:module_access:view:finance">
                     <TransactionHistoryView businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
 
                 {/* Bank Reconciliation */}
                 <Route path="/finance/bank-recon" element={
-                  <ProtectedRoute permission="module:view:bank_recon">
+                  <ProtectedRoute permission="ui:module_access:view:bank_recon">
                     <BankReconView />
                   </ProtectedRoute>
                 } />
@@ -519,7 +519,7 @@ function ProtectedApp() {
 
 
                 <Route path="/settings" element={
-                  <ProtectedRoute permission="module:view:settings">
+                  <ProtectedRoute permission="ui:module_access:view:settings">
                     <SettingsView
                       currentUser={currentUser}
                       businesses={businesses}

@@ -55,7 +55,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
   const { selectedBusinessUnit } = useBusinessUnit();
   const navigate = useNavigate();
 
-  const canView = hasPermission('liquidation:view') || hasPermission('liquidation:file:own') || hasPermission('liquidation:audit');
+  const canView = hasPermission('finance:liquidation:view:all') || hasPermission('finance:liquidation:create:own') || hasPermission('finance:liquidation:audit');
 
   // Scope all data to the globally selected Business Unit (must be before early return — Rules of Hooks)
   const buFilteredRequisitions = React.useMemo(() => {
@@ -294,7 +294,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                 My Liquidations
               </button>
               {/* All Liquidations tab - only if has liquidation:file:all */}
-              {hasPermission('liquidation:file:all') && (
+              {hasPermission('finance:liquidation:create:all') && (
                 <button
                   className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'all_liquidations'
                     ? 'border-b-2 border-cyan-500 text-cyan-400'
@@ -330,7 +330,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                 For Audit ({activeTab === 'for_audit' ? filteredReqs.length : auditingReqs.length})
               </button>
               {/* Audit History tab - only visible to auditors */}
-              {hasPermission('liquidation:audit') && (
+              {hasPermission('finance:liquidation:audit') && (
                 <button
                   className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'audit_history'
                     ? 'border-b-2 border-cyan-500 text-cyan-400'
@@ -439,7 +439,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                         {/* File/Edit Liquidation - Opens in new window */}
                         {(req.status === RequisitionStatus.FUNDS_RELEASED || req.status === RequisitionStatus.LIQUIDATION_FILED) &&
                           (activeTab === 'liquidations' || activeTab === 'all_liquidations') &&
-                          (req.requesterId === currentUser.id || hasPermission('liquidation:file:all')) && (
+                          (req.requesterId === currentUser.id || hasPermission('finance:liquidation:create:all')) && (
                             <button
                               onClick={() => navigate(`/liquidation/${req.id}`)}
                               className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1 border border-cyan-200 dark:border-cyan-700 bg-cyan-50 dark:bg-cyan-900/50 hover:bg-cyan-100 dark:hover:bg-cyan-800/50"
@@ -454,7 +454,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
 
                         {/* Audit (Auditor/SuperAdmin) */}
                         {req.status === RequisitionStatus.LIQUIDATION_FILED &&
-                          hasPermission('liquidation:audit') && activeTab === 'for_audit' && (
+                          hasPermission('finance:liquidation:audit') && activeTab === 'for_audit' && (
                             <button
                               onClick={() => setAuditReq(req)}
                               className="bg-teal-600 text-white px-3 py-1 rounded text-xs hover:bg-teal-700 font-medium flex items-center gap-1 border border-teal-500/50 shadow-sm"

@@ -97,8 +97,8 @@ service cloud.firestore {
     
     function canReadRequisition(resource) {
       return isSuperAdminOrAdmin() ||
-        hasPermission('requisition:view:all') ||
-        hasPermission('bank_recon:enrich') ||
+        hasPermission('procurement:burf:view:all') ||
+        hasPermission('finance:bank_recon:enrich') ||
         resource.data.requesterId == request.auth.uid ||
         belongsToSameBU(resource);
     }
@@ -276,19 +276,19 @@ service cloud.firestore {
       // Allow if user has MANAGER, GENERAL_MANAGER role, or has the explicit permission
       return role == 'MANAGER' || 
              role == 'GENERAL_MANAGER' || 
-             hasPermission('approval:manager:burf');
+             hasPermission('procurement:burf:approve:manager');
     }
     
     function canApproveAsCIC() {
       let role = getUserRole();
-      return role == 'CIC' || hasPermission('approval:cic:burf');
+      return role == 'CIC' || hasPermission('procurement:burf:approve:cic');
     }
     
     function canApprovePRF() {
       let role = getUserRole();
       return role == 'MANAGER' || 
              role == 'GENERAL_MANAGER' || 
-             hasPermission('approval:manager:prf');
+             hasPermission('procurement:prf:approve:manager');
     }
     
     function canApproveFinanceHeadBR() {
@@ -297,15 +297,15 @@ service cloud.firestore {
       // GENERAL_MANAGER can also approve as they have oversight
       return role == 'FINANCE_HEAD' || 
              role == 'GENERAL_MANAGER' || 
-             hasPermission('approval:finance_head:br');
+             hasPermission('finance:budget_request:approve:finance_head');
     }
     
     function canApproveCFO() {
-      return hasPermission('approval:cfo');
+      return hasPermission('finance:budget_request:approve:cfo');
     }
     
     function canApproveBOD() {
-      return hasPermission('approval:bod');
+      return hasPermission('finance:budget_request:approve:bod');
     }
     
     // =====================================================
@@ -357,14 +357,14 @@ service cloud.firestore {
           // FIX: Allow if user has requisition:prepare:prf permission (regardless of preparedBy)
           (request.resource.data.parentBurfId is string &&
            request.resource.data.status == 'PRF_PENDING_MANAGER' &&
-           hasPermission('requisition:prepare:prf'))
+           hasPermission('procurement:prf:create:from_burf'))
           ||
           // PCF Replenishment: Manager with approval permission can create PRF
           // Supports both legacy (APPROVED_FOR_PAYMENT) and new BR workflow (PENDING_FINANCE_HEAD_BR_APPROVAL)
           (request.resource.data.description.matches('.*\\[PCF_REPLENISHMENT\\].*') &&
            (request.resource.data.status == 'APPROVED_FOR_PAYMENT' ||
             request.resource.data.status == 'PENDING_FINANCE_HEAD_BR_APPROVAL') &&
-           hasPermission('pcf:approve'))
+           hasPermission('finance:pcf:approve'))
         );
       
       allow update: if isSignedIn() && (
@@ -377,7 +377,7 @@ service cloud.firestore {
         // CANCEL: Owner or anyone with requisition:cancel permission
         (
           request.resource.data.status == 'CANCELLED' && 
-          (isOwner(resource) || hasPermission('requisition:cancel'))
+          (isOwner(resource) || hasPermission('procurement:burf:cancel'))
         ) ||
         
         // FIX BUG 9: REFILE - Owner OR PRF Preparer, from REJECTED to PENDING
@@ -415,7 +415,7 @@ service cloud.firestore {
           (request.resource.data.status == 'READY_FOR_PRF' || 
            request.resource.data.status == 'BURF_PARTIALLY_PROCESSED' || 
            request.resource.data.status == 'BURF_COMPLETED') &&
-          (belongsToSameBU(resource) || hasPermission('requisition:prepare:prf')) &&
+          (belongsToSameBU(resource) || hasPermission('procurement:prf:create:from_burf')) &&
            // FIX C1: Restrict updates to only allow system logic changes (items, status, etc.)
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(
             ['items', 'totalAmount', 'status', 'history', 'updatedAt', 'batchCounter', 'convertedItemIds']
@@ -472,7 +472,7 @@ service cloud.firestore {
         (
           resource.data.status == 'FOR_CHECK_PREPARATION' &&
           request.resource.data.status == 'PENDING_CHECK_AUTH_BOD' &&
-          hasPermission('finance:upload_check') &&
+          hasPermission('finance:cheque:upload') &&
           isValidCheckPrepUpdate()
         ) ||
         
@@ -488,7 +488,7 @@ service cloud.firestore {
         (
           resource.data.status == 'FOR_FUND_RELEASE' &&
           request.resource.data.status == 'FUNDS_RELEASED' &&
-          hasPermission('finance:release_funds') &&
+          hasPermission('finance:cheque:release') &&
           isValidFundReleaseUpdate()
         ) ||
         
@@ -497,7 +497,7 @@ service cloud.firestore {
         (
           resource.data.status == 'FOR_FUND_RELEASE' &&
           request.resource.data.status == 'AUDITED_CLEARED' &&
-          hasPermission('finance:release_funds') &&
+          hasPermission('finance:cheque:release') &&
           isValidFundReleaseUpdate()
         ) ||
         
@@ -524,7 +524,7 @@ service cloud.firestore {
           request.resource.data.status == 'REJECTED' &&
           (canApproveAsManager() || canApproveAsCIC() || canApprovePRF() || 
            canApproveFinanceHeadBR() || canApproveCFO() || canApproveBOD() ||
-           hasPermission('finance:upload_check')) &&
+           hasPermission('finance:cheque:upload')) &&
           belongsToSameBU(resource) &&
           isValidWorkflowUpdate()
         ) ||
@@ -532,30 +532,30 @@ service cloud.firestore {
         // Finance: Release Funds - Permission-based
         (
           request.resource.data.status == 'FUNDS_RELEASED' &&
-          hasPermission('finance:release_funds')
+          hasPermission('finance:cheque:release')
         ) ||
         
         // Liquidation: File - Permission-based
         (
           resource.data.status == 'FUNDS_RELEASED' &&
           request.resource.data.status == 'LIQUIDATION_FILED' &&
-          (hasPermission('liquidation:file:all') || 
-           (hasPermission('liquidation:file:own') && isOwner(resource)))
+          (hasPermission('finance:liquidation:create:all') || 
+           (hasPermission('finance:liquidation:create:own') && isOwner(resource)))
         ) ||
         
         // Liquidation: Refile after rejection - Permission-based
         (
           resource.data.status == 'LIQUIDATION_REJECTED' &&
           request.resource.data.status == 'LIQUIDATION_FILED' &&
-          (hasPermission('liquidation:file:all') || 
-           (hasPermission('liquidation:file:own') && isOwner(resource)))
+          (hasPermission('finance:liquidation:create:all') || 
+           (hasPermission('finance:liquidation:create:own') && isOwner(resource)))
         ) ||
         
         // Liquidation: Audit - Permission-based
         (
           resource.data.status == 'LIQUIDATION_FILED' &&
           (request.resource.data.status == 'AUDITED_CLEARED' || request.resource.data.status == 'LIQUIDATION_REJECTED') &&
-          hasPermission('liquidation:audit')
+          hasPermission('finance:liquidation:audit')
         )
       );
     }
@@ -568,7 +568,7 @@ service cloud.firestore {
       
       // Self-update or admin:manage:users permission
       allow update: if isSignedIn() && 
-        (request.auth.uid == userId || hasPermission('admin:manage:users'));
+        (request.auth.uid == userId || hasPermission('admin:user:edit'));
       
       // Create: Allow self-registration OR admin:manage:users permission
       // Self-registration requires:
@@ -583,11 +583,11 @@ service cloud.firestore {
           request.resource.data.status == 'PENDING_APPROVAL' &&
           request.resource.data.email == request.auth.token.email
         ) ||
-        hasPermission('admin:manage:users')
+        hasPermission('admin:user:edit')
       );
       
       // Delete requires admin:manage:users permission
-      allow delete: if isSignedIn() && hasPermission('admin:manage:users');
+      allow delete: if isSignedIn() && hasPermission('admin:user:edit');
     }
     
     // =====================================================
@@ -597,7 +597,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       
       // Permission-based business management
-      allow create, update, delete: if isSignedIn() && hasPermission('admin:manage:businesses');
+      allow create, update, delete: if isSignedIn() && hasPermission('admin:business:edit');
     }
     
     // =====================================================
@@ -639,9 +639,9 @@ service cloud.firestore {
       allow read: if isSignedIn();
       
       // Permission-based supplier management
-      allow create: if isSignedIn() && hasPermission('supplier:create');
-      allow update: if isSignedIn() && hasPermission('supplier:edit');
-      allow delete: if isSignedIn() && hasPermission('supplier:delete');
+      allow create: if isSignedIn() && hasPermission('master_data:supplier:create');
+      allow update: if isSignedIn() && hasPermission('master_data:supplier:edit');
+      allow delete: if isSignedIn() && hasPermission('master_data:supplier:delete');
     }
     
     // =====================================================
@@ -651,7 +651,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       
       // Only permission management requires admin:manage:permissions
-      allow write: if isSignedIn() && hasPermission('admin:manage:permissions');
+      allow write: if isSignedIn() && hasPermission('admin:permission:edit');
     }
     
     // =====================================================
@@ -686,7 +686,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       
       // Permission-based UOM management
-      allow create, update, delete: if isSignedIn() && hasPermission('inventory:manage:uom');
+      allow create, update, delete: if isSignedIn() && hasPermission('inventory:uom:edit');
     }
     
     // =====================================================
@@ -698,10 +698,10 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
         isSuperAdminOrAdmin() ||
-        hasPermission('pcf:approve') ||
-        hasPermission('pcf:view:all') ||
+        hasPermission('finance:pcf:approve') ||
+        hasPermission('finance:pcf:view:all') ||
         hasPermission('pcf:view') ||
-        hasPermission('pcf:audit_review')
+        hasPermission('finance:pcf:audit')
       );
       
       // Users can create liquidations for themselves (DRAFT, PENDING_APPROVAL, or AUDIT_REVIEW)
@@ -725,25 +725,25 @@ service cloud.firestore {
          resource.data.status == 'REJECTED' && 
          (request.resource.data.status == 'PENDING_APPROVAL' || request.resource.data.status == 'AUDIT_REVIEW')) ||
         // Manager/Approver approving/rejecting PCF
-        (hasPermission('pcf:approve') && 
+        (hasPermission('finance:pcf:approve') && 
          resource.data.status == 'PENDING_APPROVAL' &&
          (request.resource.data.status == 'APPROVED' || 
           request.resource.data.status == 'APPROVED_WAITING_RELEASE' || 
           request.resource.data.status == 'REJECTED')) ||
         // SuperAdmin or users with pcf:cancel permission: Cancel PCF liquidation
         // FIX: Added pcf:cancel permission check to match frontend
-        ((isSuperAdmin() || hasPermission('pcf:cancel')) && 
+        ((isSuperAdmin() || hasPermission('finance:pcf:cancel')) && 
          (resource.data.status == 'PENDING_APPROVAL' || resource.data.status == 'APPROVED_WAITING_RELEASE') &&
          request.resource.data.status == 'CANCELLED') ||
         // Finance marking as REPLENISHED when releasing funds
         // Allow from both APPROVED and APPROVED_WAITING_RELEASE statuses
         // PCF Replenishment PRFs update the linked PCF to REPLENISHED during fund release
-        (hasPermission('finance:release_funds') && 
+        (hasPermission('finance:cheque:release') && 
          (resource.data.status == 'APPROVED_WAITING_RELEASE' || resource.data.status == 'APPROVED') && 
          request.resource.data.status == 'REPLENISHED') ||
         // SuperAdmin or audit reviewer can update PCF liquidations
         isSuperAdminOrAdmin() ||
-        hasPermission('pcf:audit_review')
+        hasPermission('finance:pcf:audit')
       );
       
       // No deletion allowed - audit trail required
@@ -783,13 +783,13 @@ service cloud.firestore {
       
       // Create: Requires inventory:manage:items permission
       // This prevents unauthorized data manipulation via direct API calls
-      allow create: if isSignedIn() && hasPermission('inventory:manage:items');
+      allow create: if isSignedIn() && hasPermission('inventory:item:edit');
       
       // Update: Requires inventory:manage:items OR specific system-level updates
       // Allow POS/Event Import module to update stock fields (currentStock, theoreticalStock) and updatedAt
       allow update: if isSignedIn() && (
-        hasPermission('inventory:manage:items') ||
-        (hasPermission('module:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentStock', 'theoreticalStock', 'updatedAt']))
+        hasPermission('inventory:item:edit') ||
+        (hasPermission('ui:module_access:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentStock', 'theoreticalStock', 'updatedAt']))
       );
       
       // Delete: Admin only (to prevent accidental data loss)
@@ -905,14 +905,14 @@ service cloud.firestore {
       // Create: Only FINANCE_HEAD or SUPER_ADMIN can create budget limits
       allow create: if isSignedIn() && (
         isSuperAdmin() || 
-        hasPermission('budget:manage')
+        hasPermission('master_data:budget:edit')
       );
       
       // Update: Authenticated users can update reserved field (for reservations during approval)
       // Full budget limit updates require FINANCE_HEAD permission
       allow update: if isSignedIn() && (
         isSuperAdmin() || 
-        hasPermission('budget:manage') ||
+        hasPermission('master_data:budget:edit') ||
         // Allow any authenticated user to update reserved/updatedAt fields only (for reservations)
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reserved', 'updatedAt'])
       );

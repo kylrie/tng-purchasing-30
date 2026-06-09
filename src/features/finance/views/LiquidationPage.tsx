@@ -425,7 +425,7 @@ const LiquidationPage: React.FC = () => {
     // Security Check: Ensure user has permission to view this specific liquidation
     // If user only has "file own" permission, they must be the requester
     if (currentUser && requisition.requesterId !== currentUser.id) {
-        if (!hasPermission('liquidation:view') && !hasPermission('liquidation:file:all')) {
+        if (!hasPermission('finance:liquidation:view:all') && !hasPermission('finance:liquidation:create:all')) {
             return (
                 <div className="max-w-4xl mx-auto py-12 text-center">
                     <div className="bg-white dark:bg-slate-800/50 rounded-xl p-8 border border-slate-200 dark:border-slate-700">

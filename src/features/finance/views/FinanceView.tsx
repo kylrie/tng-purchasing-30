@@ -102,7 +102,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
         e.stopPropagation();
         // BOD users skip signature modal — approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             try {
                 await RequisitionService.approveRequisition(
                     req.id, currentUser.id, currentUser.name, undefined, undefined
@@ -189,7 +189,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
 
     // Load PCF liquidations for PCF tabs
     useEffect(() => {
-        if ((activeTab === 'pcf_pending' || activeTab === 'pcf_released') && hasPermission('module:view:pcf')) {
+        if ((activeTab === 'pcf_pending' || activeTab === 'pcf_released') && hasPermission('ui:module_access:view:pcf')) {
             const loadPcfData = async () => {
                 const data = await PCFService.getAllLiquidations();
                 // Filter to show approved/replenished PCF liquidations
@@ -353,7 +353,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         }
     };
 
-    const canView = hasPermission('module:view:finance');
+    const canView = hasPermission('ui:module_access:view:finance');
 
     if (!canView) {
         return (
@@ -412,7 +412,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         </button>
                     </div>
                     {/* 2. Check Preparation Section - Step 6 (Finance uploads check) */}
-                    {hasPermission('finance:upload_check') && (
+                    {hasPermission('finance:cheque:upload') && (
                         <div className="flex items-center gap-1 border-r border-slate-300 dark:border-slate-600 pr-2 mr-2">
                             <span className="text-xs text-slate-500 dark:text-slate-400 px-2"><FileText size={12} className="inline mr-1" />Check Prep</span>
                             <button
@@ -440,7 +440,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         </button>
                     </div>
                     {/* 3. PCF Section */}
-                    {hasPermission('module:view:pcf') && (
+                    {hasPermission('ui:module_access:view:pcf') && (
                         <div className="flex items-center gap-1 border-r border-slate-300 dark:border-slate-600 pr-2 mr-2">
                             <span className="text-xs text-slate-500 dark:text-slate-400 px-2"><Wallet size={12} className="inline mr-1" />PCF</span>
                             <button
@@ -552,7 +552,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                     >
                                                         <Printer size={16} />
                                                     </button>
-                                                    {activeTab === 'prf_pending' && hasPermission('finance:release_funds') && (
+                                                    {activeTab === 'prf_pending' && hasPermission('finance:cheque:release') && (
                                                         <button
                                                             onClick={() => handleRelease(req)}
                                                             className="bg-purple-600 text-white px-3 py-1 rounded text-xs hover:bg-purple-700 font-medium"
@@ -644,7 +644,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                             (linkedPrf.status === RequisitionStatus.FOR_FUND_RELEASE ||
                                                                 linkedPrf.status === RequisitionStatus.APPROVED_FOR_PAYMENT);
 
-                                                        if (hasPermission('finance:release_funds') && isReadyForRelease) {
+                                                        if (hasPermission('finance:cheque:release') && isReadyForRelease) {
                                                             return (
                                                                 <button
                                                                     onClick={() => handleRelease(linkedPrf!)}
@@ -814,7 +814,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                     const canApproveThisStatus =
                                                         // Finance Head: Check if assigned for this BU
                                                         (req.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
-                                                            hasPermission('approval:finance_head:br') &&
+                                                            hasPermission('finance:budget_request:approve:finance_head') &&
                                                             approverAssignments.financeHeads?.some(fh =>
                                                                 fh.userId === currentUser.id &&
                                                                 fh.businessUnitIds.includes(req.businessId)
@@ -822,17 +822,17 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                         ) ||
                                                         // GM: Check if assigned as GM
                                                         (req.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
-                                                            hasPermission('approval:gm:br') &&
+                                                            hasPermission('finance:budget_request:approve:gm') &&
                                                             currentUser.id === approverAssignments.gmUid
                                                         ) ||
                                                         // BOD: Check if assigned as BOD approver
                                                         (req.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
-                                                            hasPermission('approval:bod') &&
+                                                            hasPermission('finance:budget_request:approve:bod') &&
                                                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                                                         ) ||
                                                         // CFO: Check if assigned as CFO
                                                         (req.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
-                                                            hasPermission('approval:cfo') &&
+                                                            hasPermission('finance:budget_request:approve:cfo') &&
                                                             currentUser.id === approverAssignments.cfoUid
                                                         ) ||
                                                         // SuperAdmin can always approve
@@ -942,7 +942,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                                 {getStatusBadge(req.status)}
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                {hasPermission('finance:upload_check') ? (
+                                                {hasPermission('finance:cheque:upload') ? (
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -1099,13 +1099,13 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     }
                 }}
                 canReleaseFund={
-                    hasPermission('finance:release_funds') &&
+                    hasPermission('finance:cheque:release') &&
                     (activeTab === 'prf_pending' || activeTab === 'pcf_pending')
                 }
                 onApprove={async () => {
                     if (drawerReq) {
                         // BOD users skip signature modal — approve directly
-                        if (hasPermission('approval:skip_signature')) {
+                        if (hasPermission('procurement:approval:approve:skip_signature')) {
                             try {
                                 await RequisitionService.approveRequisition(
                                     drawerReq.id, currentUser.id, currentUser.name, undefined, undefined
@@ -1152,7 +1152,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     !!drawerReq && (
                         // Finance Head: Check if assigned for this BU
                         (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
-                            hasPermission('approval:finance_head:br') &&
+                            hasPermission('finance:budget_request:approve:finance_head') &&
                             approverAssignments.financeHeads?.some(fh =>
                                 fh.userId === currentUser.id &&
                                 fh.businessUnitIds.includes(drawerReq.businessId)
@@ -1160,22 +1160,22 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         ) ||
                         // GM: Check if assigned as GM
                         (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
-                            hasPermission('approval:gm:br') &&
+                            hasPermission('finance:budget_request:approve:gm') &&
                             currentUser.id === approverAssignments.gmUid
                         ) ||
                         // CFO: Check if assigned as CFO
                         (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
-                            hasPermission('approval:cfo') &&
+                            hasPermission('finance:budget_request:approve:cfo') &&
                             currentUser.id === approverAssignments.cfoUid
                         ) ||
                         // BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
-                            hasPermission('approval:bod') &&
+                            hasPermission('finance:budget_request:approve:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // Check Auth BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
-                            hasPermission('approval:bod') &&
+                            hasPermission('finance:budget_request:approve:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // SuperAdmin can always approve
@@ -1186,7 +1186,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                     !!drawerReq && (
                         // Finance Head: Check if assigned for this BU
                         (drawerReq.status === RequisitionStatus.PENDING_FINANCE_HEAD_BR_APPROVAL &&
-                            hasPermission('approval:finance_head:br') &&
+                            hasPermission('finance:budget_request:approve:finance_head') &&
                             approverAssignments.financeHeads?.some(fh =>
                                 fh.userId === currentUser.id &&
                                 fh.businessUnitIds.includes(drawerReq.businessId)
@@ -1194,22 +1194,22 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         ) ||
                         // GM: Check if assigned as GM
                         (drawerReq.status === RequisitionStatus.PENDING_GM_BR_APPROVAL &&
-                            hasPermission('approval:gm:br') &&
+                            hasPermission('finance:budget_request:approve:gm') &&
                             currentUser.id === approverAssignments.gmUid
                         ) ||
                         // CFO: Check if assigned as CFO
                         (drawerReq.status === RequisitionStatus.PENDING_CFO_APPROVAL &&
-                            hasPermission('approval:cfo') &&
+                            hasPermission('finance:budget_request:approve:cfo') &&
                             currentUser.id === approverAssignments.cfoUid
                         ) ||
                         // BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_BOD_APPROVAL &&
-                            hasPermission('approval:bod') &&
+                            hasPermission('finance:budget_request:approve:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // Check Auth BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
-                            hasPermission('approval:bod') &&
+                            hasPermission('finance:budget_request:approve:bod') &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // SuperAdmin can always reject

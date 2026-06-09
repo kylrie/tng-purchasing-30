@@ -101,7 +101,7 @@ export const BudgetConfigPanel: React.FC<BudgetConfigPanelProps> = ({ businesses
     });
 
     // Check if user can manage budgets
-    const canManageBudgets = hasPermission('budget:manage');
+    const canManageBudgets = hasPermission('master_data:budget:edit');
 
     // Filter budgets by selected BU
     const filteredBudgets = useMemo(() => {

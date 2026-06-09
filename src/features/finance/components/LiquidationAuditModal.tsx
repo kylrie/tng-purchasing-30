@@ -27,7 +27,7 @@ const LiquidationAuditModal: React.FC<LiquidationAuditModalProps> = ({
     const [error, setError] = useState<string | null>(null);
 
     // Permission Check
-    const canAudit = hasPermission('liquidation:audit');
+    const canAudit = hasPermission('finance:liquidation:audit');
 
     // Data Validation
     const liquidation = requisition.liquidationDetails;

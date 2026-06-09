@@ -840,7 +840,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
     const handleDrawerApprove = async () => {
         if (!selectedReq) return;
         // BOD users skip signature modal — approve directly
-        if (hasPermission('approval:skip_signature')) {
+        if (hasPermission('procurement:approval:approve:skip_signature')) {
             setSignatureLoading(true);
             try {
                 await RequisitionService.approveRequisition(
@@ -923,7 +923,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // Check if current user can submit liquidation
     const canSubmitLiquidation = selectedReq && (
         selectedReq.status === RequisitionStatus.FUNDS_RELEASED &&
-        (selectedReq.requesterId === currentUser.id || hasPermission('requisition:view:all'))
+        (selectedReq.requesterId === currentUser.id || hasPermission('procurement:burf:view:all'))
     );
 
     // Handle liquidation submission from drawer
@@ -1196,7 +1196,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                             onFilterChange={(start, end) => setDateRange({ start, end })}
                         />
 
-                        {hasPermission('requisition:create:prf') && (
+                        {hasPermission('procurement:prf:create:direct') && (
                             <button onClick={() => setIsDirectOpen(true)} className="bg-purple-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-purple-700 font-medium">
                                 <Plus size={16} /> Create PRF
                             </button>
@@ -1314,7 +1314,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                 const preparedByName = req.prfDetails?.preparedByName
                                     || allUsers.find(u => u.id === req.prfDetails?.preparedBy)?.name
                                     || (req.prfDetails?.preparedBy ? 'Unknown' : '-');
-                                const isOwner = req.prfDetails?.preparedBy === currentUser.id || req.requesterId === currentUser.id || hasPermission('requisition:view:all');
+                                const isOwner = req.prfDetails?.preparedBy === currentUser.id || req.requesterId === currentUser.id || hasPermission('procurement:burf:view:all');
                                 // Allow editing for DRAFT (owner) or REJECTED (owner/preparer)
                                 const canEdit = (req.status === RequisitionStatus.DRAFT || req.status === RequisitionStatus.REJECTED) && isOwner;
 
@@ -1442,7 +1442,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2 items-center">
                                                 {/* Cancel Button for Admin/Super Admin */}
-                                                {hasPermission('requisition:cancel') &&
+                                                {hasPermission('procurement:burf:cancel') &&
                                                     req.status !== RequisitionStatus.CANCELLED &&
                                                     req.status !== RequisitionStatus.REJECTED &&
                                                     !req.fundReleaseDate && (
@@ -1465,7 +1465,7 @@ export const PrfView: React.FC<PrfViewProps> = ({
                                                     </button>
                                                 )}
 
-                                                {(req.status === RequisitionStatus.READY_FOR_PRF || req.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED) && hasPermission('requisition:prepare:prf') && (
+                                                {(req.status === RequisitionStatus.READY_FOR_PRF || req.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED) && hasPermission('procurement:prf:create:from_burf') && (
                                                     <button onClick={() => setPreparePRFReq(req)} className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 font-medium">Prepare PRF</button>
                                                 )}
 

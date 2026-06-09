@@ -36,7 +36,7 @@ export const ApprovedView: React.FC<ApprovedViewProps> = ({
     ];
 
     // Use permission instead of role-based check
-    const hasGlobalAccess = hasPermission('requisition:view:all');
+    const hasGlobalAccess = hasPermission('procurement:burf:view:all');
 
     const filteredRequisitions = useMemo(() => {
         return requisitions.filter(req => {

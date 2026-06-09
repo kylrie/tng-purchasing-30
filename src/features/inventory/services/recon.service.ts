@@ -130,9 +130,13 @@ export class ReconService {
                 const posSales = posSalesMap.get(item.id) || 0;
                 const eventSales = eventSalesMap.get(item.id) || 0;
 
-                // Beginning inventory = theoreticalStock (or currentStock as fallback)
-                // This represents the last known physical count
-                let beginningInventory = item.theoreticalStock ?? item.currentStock ?? 0;
+                // Beginning inventory = currentStock (the last verified physical count / manual entry).
+                // We intentionally do NOT use theoreticalStock here because it is a running
+                // deduction tracker (decremented by POS sales & production) and can drift deeply
+                // negative over time, producing impossible opening balances.
+                // currentStock always reflects the last physical or manually-set value shown
+                // in the Inventory Items view — so both screens will agree.
+                let beginningInventory = item.currentStock ?? 0;
                 if (Number.isNaN(beginningInventory)) beginningInventory = 0;
 
                 // Calculated columns

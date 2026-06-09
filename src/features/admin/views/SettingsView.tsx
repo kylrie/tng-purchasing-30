@@ -458,7 +458,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     </>
                 )}
                 {/* Inventory Tab - Uses permission check (supports dynamic roles) */}
-                {hasPermission('inventory:manage:uom') && (
+                {hasPermission('inventory:uom:edit') && (
                     <button onClick={() => setActiveTab('inventory')} className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'inventory' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>Inventory</button>
                 )}
             </div >
@@ -610,7 +610,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }
 
                 {
-                    activeTab === 'business' && hasPermission('admin:manage:businesses') && (
+                    activeTab === 'business' && hasPermission('admin:business:edit') && (
                         <div className={cardClass}>
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Building2 size={20} className="text-purple-400" /> Business Unit Management</h3>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -662,10 +662,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }
 
                 {
-                    activeTab === 'users' && hasPermission('admin:manage:users') && (
+                    activeTab === 'users' && hasPermission('admin:user:edit') && (
                         <div className="space-y-6">
                             {/* Pending Users... */}
-                            {hasPermission('admin:view:user_approvals') && pendingUsers.length > 0 && (
+                            {hasPermission('admin:user:view:pending') && pendingUsers.length > 0 && (
                                 <div className={`${cardClass} border-orange-500/30`}>
                                     <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white">
                                         <Shield size={20} className="text-orange-400" /> Pending User Approvals
@@ -727,13 +727,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                                     <label className="flex items-center gap-3 cursor-pointer select-none">
                                                         <input
                                                             type="checkbox"
-                                                            checked={(newUser.permissions || []).includes('pcf:view:history:all')}
+                                                            checked={(newUser.permissions || []).includes('finance:pcf:view:history')}
                                                             onChange={(e) => {
                                                                 const currentPerms = newUser.permissions || [];
                                                                 if (e.target.checked) {
-                                                                    setNewUser({ ...newUser, permissions: [...currentPerms, 'pcf:view:history:all'] });
+                                                                    setNewUser({ ...newUser, permissions: [...currentPerms, 'finance:pcf:view:history'] });
                                                                 } else {
-                                                                    setNewUser({ ...newUser, permissions: currentPerms.filter(p => p !== 'pcf:view:history:all') });
+                                                                    setNewUser({ ...newUser, permissions: currentPerms.filter(p => p !== 'finance:pcf:view:history') });
                                                                 }
                                                             }}
                                                             className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-purple-600 focus:ring-purple-500"
@@ -847,7 +847,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
                 {/* New Approvers Configuration Tab */}
                 {
-                    activeTab === 'approvers' && hasPermission('admin:manage:users') && (
+                    activeTab === 'approvers' && hasPermission('admin:user:edit') && (
                         <div className="space-y-6">
                             {/* Workflow Role Assignments Section */}
                             <div className={cardClass}>
@@ -1095,7 +1095,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }
 
                 {
-                    activeTab === 'permissions' && hasPermission('admin:manage:permissions') && (
+                    activeTab === 'permissions' && hasPermission('admin:permission:edit') && (
                         <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
                             {/* We don't add padding here to let the matrix control its scroll area */}
                             <PermissionsMatrix onSave={handlePermissionsSave} />
@@ -1104,7 +1104,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }
 
                 {
-                    activeTab === 'inventory' && hasPermission('inventory:manage:uom') && (
+                    activeTab === 'inventory' && hasPermission('inventory:uom:edit') && (
                         <div className={cardClass}>
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white">
                                 <Sliders size={20} className="text-green-400" /> Inventory Settings

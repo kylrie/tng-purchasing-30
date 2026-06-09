@@ -251,19 +251,19 @@ const Layout: React.FC<LayoutProps> = ({
             icon: Briefcase,
             canView: true,
             children: [
-                { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: hasPermission('module:view:burf') },
-                { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('module:view:prf') },
-                { path: '/procurement/liquidation', label: 'My Liquidation', icon: Receipt, canView: hasPermission('liquidation:file:own') },
-                { path: '/prf-tracker', label: 'PRF Tracker', icon: ListChecks, canView: hasPermission('module:view:prf_tracker') }
+                { path: '/burf', label: 'BURF Management', icon: ClipboardList, canView: hasPermission('ui:module_access:view:burf') },
+                { path: '/prf', label: 'PRF Management', icon: ShoppingCart, canView: hasPermission('ui:module_access:view:prf') },
+                { path: '/procurement/liquidation', label: 'My Liquidation', icon: Receipt, canView: hasPermission('finance:liquidation:create:own') },
+                { path: '/prf-tracker', label: 'PRF Tracker', icon: ListChecks, canView: hasPermission('ui:module_access:view:prf_tracker') }
             ]
         },
         {
             label: 'Action Center',
             icon: GitBranch,
-            canView: hasPermission('module:view:approvals') || hasPermission('pcf:approve'),
+            canView: hasPermission('ui:module_access:view:approvals') || hasPermission('finance:pcf:approve'),
             children: [
-                { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('module:view:approvals') },
-                { path: '/pcf-approvals', label: 'PCF Approvals', icon: Wallet, canView: hasPermission('pcf:approve') }
+                { path: '/procurement-approvals', label: 'Approvals', icon: CheckSquare, canView: hasPermission('ui:module_access:view:approvals') },
+                { path: '/pcf-approvals', label: 'PCF Approvals', icon: Wallet, canView: hasPermission('finance:pcf:approve') }
             ]
         },
         // ============================================================
@@ -272,13 +272,13 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Audit Team',
             icon: ShieldCheck,
-            canView: hasPermission('pcf:audit_review') || hasPermission('liquidation:audit'),
+            canView: hasPermission('finance:pcf:audit') || hasPermission('finance:liquidation:audit'),
             children: [
                 // Income Audit sub-group (placeholder for future)
                 {
                     label: 'Income Audit',
                     icon: Search,
-                    canView: hasPermission('liquidation:audit'), // TODO: add dedicated income audit permission
+                    canView: hasPermission('finance:liquidation:audit'), // TODO: add dedicated income audit permission
                     children: [
                         // Placeholder - Coming soon
                     ]
@@ -287,10 +287,10 @@ const Layout: React.FC<LayoutProps> = ({
                 {
                     label: 'Expense Audit',
                     icon: ClipboardCheck,
-                    canView: hasPermission('pcf:audit_review') || hasPermission('liquidation:audit'),
+                    canView: hasPermission('finance:pcf:audit') || hasPermission('finance:liquidation:audit'),
                     children: [
-                        { path: '/pcf-audit-review', label: 'PCF Audit Review', icon: Wallet, canView: hasPermission('pcf:audit_review') },
-                        { path: '/liquidation', label: 'Liquidation Audit', icon: CreditCard, canView: hasPermission('liquidation:audit') }
+                        { path: '/pcf-audit-review', label: 'PCF Audit Review', icon: Wallet, canView: hasPermission('finance:pcf:audit') },
+                        { path: '/liquidation', label: 'Liquidation Audit', icon: CreditCard, canView: hasPermission('finance:liquidation:audit') }
                     ]
                 }
             ]
@@ -301,70 +301,70 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Finance',
             icon: Wallet,
-            canView: hasPermission('module:view:finance') || hasPermission('module:view:liquidation'),
+            canView: hasPermission('ui:module_access:view:finance') || hasPermission('ui:module_access:view:liquidation'),
             children: [
                 // Overview - Generic Finance Dashboard (placeholder)
-                { path: '/finance/overview', label: 'Overview', icon: LayoutDashboard, canView: hasPermission('module:view:finance') },
+                { path: '/finance/overview', label: 'Overview', icon: LayoutDashboard, canView: hasPermission('ui:module_access:view:finance') },
                 // Income sub-group (Level 2 with Level 3 children)
                 {
                     label: 'Income',
                     icon: TrendingUp,
-                    canView: hasPermission('module:view:finance'),
+                    canView: hasPermission('ui:module_access:view:finance'),
                     children: [
-                        { path: '/finance/income/sales', label: 'Sales', icon: Receipt, canView: hasPermission('module:view:finance') },
-                        { path: '/finance/income/event-sales', label: 'Event Sales', icon: Calendar, canView: hasPermission('module:view:finance') },
-                        { path: '/finance/income/invoices', label: 'Invoices', icon: FileSpreadsheet, canView: hasPermission('module:view:finance') }
+                        { path: '/finance/income/sales', label: 'Sales', icon: Receipt, canView: hasPermission('ui:module_access:view:finance') },
+                        { path: '/finance/income/event-sales', label: 'Event Sales', icon: Calendar, canView: hasPermission('ui:module_access:view:finance') },
+                        { path: '/finance/income/invoices', label: 'Invoices', icon: FileSpreadsheet, canView: hasPermission('ui:module_access:view:finance') }
                     ]
                 },
                 // Expenses sub-group (Level 2 with Level 3 children)
                 {
                     label: 'Expenses',
                     icon: TrendingDown,
-                    canView: hasPermission('module:view:finance') || hasPermission('module:view:pcf'),
+                    canView: hasPermission('ui:module_access:view:finance') || hasPermission('ui:module_access:view:pcf'),
                     children: [
                         // BR Flow - This is the existing FinanceView with Fund Release/Check Prep
-                        { path: '/finance/expenses/br-flow', label: 'BR Flow', icon: Scale, canView: hasPermission('module:view:finance') },
-                        { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: hasPermission('module:view:pcf') }
+                        { path: '/finance/expenses/br-flow', label: 'BR Flow', icon: Scale, canView: hasPermission('ui:module_access:view:finance') },
+                        { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: hasPermission('ui:module_access:view:pcf') }
                     ]
                 },
                 // Bank Reconciliation
-                { path: '/finance/bank-recon', label: 'Bank Recon', icon: Landmark, canView: hasPermission('module:view:bank_recon') }
+                { path: '/finance/bank-recon', label: 'Bank Recon', icon: Landmark, canView: hasPermission('ui:module_access:view:bank_recon') }
             ]
         },
         {
             label: 'Inventory',
             icon: Warehouse,
-            canView: hasPermission('module:view:inventory'),
+            canView: hasPermission('ui:module_access:view:inventory'),
             children: [
                 { path: '/inventory', label: 'Dashboard', icon: ShieldCheck, canView: currentUser.role === UserRole.OWNER || currentUser.role === UserRole.GM || currentUser.role === UserRole.SUPER_ADMIN },
                 {
                     label: 'Stock Management',
                     icon: Boxes,
-                    canView: hasPermission('inventory:view:items'),
+                    canView: hasPermission('inventory:item:view:all'),
                     children: [
-                        { path: '/inventory/items', label: 'All Items', icon: Package, canView: hasPermission('inventory:view:items') },
-                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:view:items') },
-                        { path: '/inventory/wastage', label: 'Wastage', icon: Trash2, canView: hasPermission('inventory:manage:items') }
+                        { path: '/inventory/items', label: 'All Items', icon: Package, canView: hasPermission('inventory:item:view:all') },
+                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:item:view:all') },
+                        { path: '/inventory/wastage', label: 'Wastage', icon: Trash2, canView: hasPermission('inventory:item:edit') }
                     ]
                 },
-                { path: '/inventory/fixed-assets', label: 'Fixed Assets', icon: Monitor, canView: hasPermission('inventory:manage:assets') },
-                { path: '/inventory/receiving', label: 'Receiving', icon: Truck, canView: hasPermission('inventory:manage:items') },
+                { path: '/inventory/fixed-assets', label: 'Fixed Assets', icon: Monitor, canView: hasPermission('inventory:asset:edit') },
+                { path: '/inventory/receiving', label: 'Receiving', icon: Truck, canView: hasPermission('inventory:item:edit') },
                 {
                     label: 'Menu Engineering',
                     icon: ChefHat,
-                    canView: hasPermission('inventory:manage:items'),
+                    canView: hasPermission('ui:module_access:view:menu'),
                     children: [
-                        { path: '/menu/finished-goods', label: 'Finished Goods', icon: ShoppingBag, canView: hasPermission('inventory:manage:items') },
-                        { path: '/menu/production-recipes', label: 'Production Recipes', icon: Factory, canView: hasPermission('inventory:manage:items') }
+                        { path: '/menu/finished-goods', label: 'Finished Goods', icon: ShoppingBag, canView: hasPermission('menu:finished_goods:view:all') },
+                        { path: '/menu/production-recipes', label: 'Production Recipes', icon: Factory, canView: hasPermission('menu:recipe:view:all') }
                     ]
                 },
                 {
                     label: 'Reports',
                     icon: BarChart3,
-                    canView: hasPermission('inventory:view:reports'),
+                    canView: hasPermission('inventory:report:view:all'),
                     children: [
-                        { path: '/inventory/variance', label: 'Variance Report', icon: BarChart3, canView: hasPermission('inventory:view:reports') },
-                        { path: '/inventory/recon', label: 'Inventory Recon', icon: ClipboardCheck, canView: hasPermission('inventory:view:reports') }
+                        { path: '/inventory/variance', label: 'Variance Report', icon: BarChart3, canView: hasPermission('inventory:report:view:all') },
+                        { path: '/inventory/recon', label: 'Inventory Recon', icon: ClipboardCheck, canView: hasPermission('inventory:report:view:all') }
                     ]
                 }
             ]
@@ -379,19 +379,19 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Master Data',
             icon: Database,
-            canView: hasPermission('module:view:suppliers') || hasPermission('module:view:coa') || hasPermission('budget:manage'),
+            canView: hasPermission('ui:module_access:view:suppliers') || hasPermission('ui:module_access:view:coa') || hasPermission('master_data:budget:edit'),
             children: [
-                { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('module:view:suppliers') },
-                { path: '/chart-of-accounts', label: 'Chart of Accounts', icon: FileSpreadsheet, canView: hasPermission('module:view:coa') },
-                { path: '/budgets', label: 'Budget Configuration', icon: PiggyBank, canView: hasPermission('budget:manage') }
+                { path: '/suppliers', label: 'Suppliers', icon: Users, canView: hasPermission('ui:module_access:view:suppliers') },
+                { path: '/chart-of-accounts', label: 'Chart of Accounts', icon: FileSpreadsheet, canView: hasPermission('ui:module_access:view:coa') },
+                { path: '/budgets', label: 'Budget Configuration', icon: PiggyBank, canView: hasPermission('master_data:budget:edit') }
             ]
         },
         {
             label: 'Settings',
             icon: Settings,
-            canView: hasPermission('module:view:settings') || currentUser.role === UserRole.SUPER_ADMIN,
+            canView: hasPermission('ui:module_access:view:settings') || currentUser.role === UserRole.SUPER_ADMIN,
             children: [
-                { path: '/settings', label: 'System Settings', icon: Settings, canView: hasPermission('module:view:settings') },
+                { path: '/settings', label: 'System Settings', icon: Settings, canView: hasPermission('ui:module_access:view:settings') },
                 { path: '/activity-log', label: 'Activity Log', icon: Activity, canView: currentUser.role === UserRole.SUPER_ADMIN }
             ]
         }
@@ -593,7 +593,7 @@ const Layout: React.FC<LayoutProps> = ({
                     
                     {/* Centered Business Unit Selector */}
                     <div className="flex-1 flex justify-center items-center">
-                        {businesses && businesses.length > 0 && (hasPermission('requisition:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
+                        {businesses && businesses.length > 0 && (hasPermission('procurement:burf:view:all') || (currentUser.businessUnitIds && currentUser.businessUnitIds.length > 1)) && (
                             <div className="flex items-center gap-2 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm p-1.5 rounded-lg border border-slate-200 dark:border-slate-700/50 shadow-sm">
                                 <span className="text-xs font-medium text-slate-500 dark:text-slate-400 hidden sm:block px-2">Business Unit:</span>
                                 <select
@@ -602,9 +602,9 @@ const Layout: React.FC<LayoutProps> = ({
                                     className="bg-transparent text-sm font-semibold text-slate-800 dark:text-white border-none focus:ring-0 cursor-pointer pr-8 py-1 outline-none"
                                 >
                                     <option value="all" className="text-slate-800 dark:text-white bg-white dark:bg-slate-800">
-                                        {hasPermission('requisition:view:all') ? 'All Business Units' : 'All My Business Units'}
+                                        {hasPermission('procurement:burf:view:all') ? 'All Business Units' : 'All My Business Units'}
                                     </option>
-                                    {hasPermission('requisition:view:all') ? (
+                                    {hasPermission('procurement:burf:view:all') ? (
                                         businesses.map(business => (
                                             <option key={business.id} value={business.id} className="text-slate-800 dark:text-white bg-white dark:bg-slate-800">{business.name}</option>
                                         ))

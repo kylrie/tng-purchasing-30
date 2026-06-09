@@ -98,7 +98,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
     };
 
     const filteredRequisitions = useMemo(() => {
-        const userHasGlobalAccess = hasPermission('requisition:view:all');
+        const userHasGlobalAccess = hasPermission('procurement:burf:view:all');
 
         const filtered = visibleRequisitions
             .filter(req => {
