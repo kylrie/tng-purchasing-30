@@ -931,20 +931,26 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             const csvText = XLSX.utils.sheet_to_csv(worksheet);
 
             // Pass to Gemini
-            const availableItems = items.map(i => ({ id: i.id, name: i.name }));
+            const availableItems = items.map(i => ({ 
+                id: i.id, 
+                name: i.name,
+                recipeUnit: i.units.recipeUnit,
+                buyUnit: i.units.buyUnit,
+                conversion: i.units.conversion || 1
+            }));
             const extractedCounts = await GeminiVisionService.extractManualCounts(csvText, availableItems);
 
             // Update count states (Overwrite strategy)
             setCountStates(prev => {
                 const next = new Map(prev);
-                for (const [itemId, count] of Object.entries(extractedCounts)) {
-                    if (typeof count === 'number' && !isNaN(count)) {
+                for (const [itemId, countVal] of Object.entries(extractedCounts)) {
+                    if (typeof countVal === 'number' && !isNaN(countVal)) {
                         const item = items.find(i => i.id === itemId);
                         if (item) {
                             next.set(itemId, {
                                 itemId,
-                                count,
-                                partialCount: 0,
+                                count: Math.floor(countVal),
+                                partialCount: Number((countVal % 1).toFixed(3)),
                                 unit: item.units.recipeUnit
                             });
                         }

@@ -290,7 +290,7 @@ Do not return any markdown code block wrappers or other text. ONLY the raw JSON 
     /**
      * Parse unstructured raw text from a manual count sheet and match it to inventory IDs.
      */
-    static async extractManualCounts(fileText: string, availableItems: {id: string, name: string}[]): Promise<Record<string, number>> {
+    static async extractManualCounts(fileText: string, availableItems: {id: string, name: string, recipeUnit: string, buyUnit: string, conversion: number}[]): Promise<Record<string, number>> {
         if (!fileText || availableItems.length === 0) return {};
 
         const client = this.getClient();
@@ -302,24 +302,28 @@ Do not return any markdown code block wrappers or other text. ONLY the raw JSON 
         const prompt = `You are an expert inventory data entry assistant.
 I have an unstructured text report (like a CSV or Excel dump) of manual inventory counts, and I have a list of my exact inventory items in the database.
 
-Your task is to extract the quantities for each item found in the report and match them to the EXACT 'id' of my database items.
+Your task is to extract the quantities for each item found in the report, match them to the EXACT 'id' of my database items, and CONVERT the counted quantity into the item's FULL 'buyUnit' if necessary.
 
-Here is the list of my database items:
+Here is the list of my database items with their units:
 ${JSON.stringify(availableItems)}
 
 Here is the unstructured manual count report:
 ${trimmedText}
 
 Instructions:
-1. Carefully read the report and look for item names and their counted quantities. Often, the quantity is under a column like "IN", "TOTAL COUNT", "BEG", or just a number next to the item name.
-2. For every item you find in the report, try to fuzzy-match its name to the closest matching "name" in my database items list.
-3. If you find a solid match, extract the counted quantity as a number.
-4. Return ONLY a JSON object where the key is the database item "id" and the value is the numeric counted quantity.
+1. Carefully read the report and look for item names and their counted quantities. Often, the quantity is under a column like "IN", "TOTAL COUNT", "BEG", or just a number next to the item name. The report may also specify the Unit of Measure (UM) used for the count (e.g. "G", "KG", "PCS").
+2. For every item you find in the report, fuzzy-match its name to the closest matching "name" in my database items list.
+3. If you find a solid match, extract the counted quantity as a number, AND note the unit it was counted in from the report.
+4. IMPORTANT: You MUST convert the counted quantity into the item's 'buyUnit'. 
+   - If the report's counted unit matches the 'buyUnit' (e.g. both are KG, or both are PCS), no conversion is needed.
+   - If the report's counted unit matches the 'recipeUnit' (e.g. counted in G, but buyUnit is KG), you MUST divide the counted quantity by the 'conversion' factor to get the quantity in 'buyUnit'. (For example, if they counted 170 G, and conversion is 1000, return 0.17).
+   - If no unit is specified in the report, assume they counted in the item's 'buyUnit'.
+5. Return ONLY a JSON object where the key is the database item "id" and the value is the final converted numeric quantity in the 'buyUnit'.
 
 Example Output:
 {
   "item_id_123": 45.5,
-  "item_id_456": 12
+  "item_id_456": 0.17
 }
 
 Do not return any markdown code block wrappers or other text. ONLY the raw JSON object.`;
