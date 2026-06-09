@@ -328,6 +328,7 @@ Example Output:
 
 Do not return any markdown code block wrappers or other text. ONLY the raw JSON object.`;
 
+        let rawText = '';
         try {
             const response = await client.models.generateContent({
                 model: 'gemini-3.5-flash',
@@ -338,17 +339,16 @@ Do not return any markdown code block wrappers or other text. ONLY the raw JSON 
                 contents: [{ role: 'user', parts: [{ text: prompt }] }]
             });
 
-            const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+            rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
             
-            const jsonText = rawText
-                .replace(/^```json\s*/i, '')
-                .replace(/^```\s*/i, '')
-                .replace(/\s*```$/i, '')
-                .trim();
+            // Robustly extract the JSON object from anywhere in the text
+            const match = rawText.match(/\{[\s\S]*\}/);
+            const jsonText = match ? match[0] : '{}';
                 
             return JSON.parse(jsonText);
         } catch (error) {
             console.error('[GeminiVisionService] Failed to extract manual counts:', error);
+            console.error('Raw Gemini Response:', rawText);
             return {};
         }
     }
