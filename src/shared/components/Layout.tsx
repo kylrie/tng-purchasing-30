@@ -336,7 +336,7 @@ const Layout: React.FC<LayoutProps> = ({
             icon: Warehouse,
             canView: hasPermission('ui:module_access:view:inventory'),
             children: [
-                { path: '/inventory', label: 'Dashboard', icon: ShieldCheck, canView: currentUser.role === UserRole.OWNER || currentUser.role === UserRole.GM || currentUser.role === UserRole.SUPER_ADMIN },
+                { path: '/inventory', label: 'Dashboard', icon: ShieldCheck, canView: currentUser.role === UserRole.GENERAL_MANAGER || currentUser.role === UserRole.SUPER_ADMIN },
                 {
                     label: 'Stock Management',
                     icon: Boxes,

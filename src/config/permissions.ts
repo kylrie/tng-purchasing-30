@@ -238,6 +238,10 @@ export const ALL_PERMISSIONS = [
   'ui:section:view:gm_br',
   'ui:section:view:bod_br',
   'ui:section:view:check_auth',
+  'ui:section:view:pending_list',
+  'ui:section:view:ready_for_prf_list',
+  'ui:section:view:pending_fund_release',
+  'ui:section:view:pending_audit_list',
 
 ] as const;
 
@@ -477,10 +481,14 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   'ui:widget:view:avg_processing':      { label: 'Avg Processing Widget',     category: 'Dashboard' },
   'ui:widget:view:completed_month':     { label: 'Completed This Month',      category: 'Dashboard' },
   'ui:widget:view:top_requesters':      { label: 'Top Requesters Widget',     category: 'Dashboard' },
-  'ui:section:view:finance_head_br':    { label: 'Finance Head BR Section',   category: 'Dashboard' },
-  'ui:section:view:gm_br':              { label: 'GM Budget Review Section',  category: 'Dashboard' },
-  'ui:section:view:bod_br':             { label: 'BOD Budget Review Section', category: 'Dashboard' },
-  'ui:section:view:check_auth':         { label: 'Check Auth Section',        category: 'Dashboard' },
+  'ui:section:view:finance_head_br':      { label: 'Finance Head BR Section',     category: 'Dashboard' },
+  'ui:section:view:gm_br':                { label: 'GM Budget Review Section',    category: 'Dashboard' },
+  'ui:section:view:bod_br':               { label: 'BOD Budget Review Section',   category: 'Dashboard' },
+  'ui:section:view:check_auth':           { label: 'Check Auth Section',          category: 'Dashboard' },
+  'ui:section:view:pending_list':         { label: 'Pending List Section',         category: 'Dashboard' },
+  'ui:section:view:ready_for_prf_list':   { label: 'Ready for PRF List Section',  category: 'Dashboard' },
+  'ui:section:view:pending_fund_release': { label: 'Pending Fund Release Section', category: 'Dashboard' },
+  'ui:section:view:pending_audit_list':   { label: 'Pending Audit List Section',   category: 'Dashboard' },
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
