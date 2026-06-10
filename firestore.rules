@@ -295,17 +295,18 @@ service cloud.firestore {
       let role = getUserRole();
       // FINANCE_HEAD role can always approve their BR step
       // GENERAL_MANAGER can also approve as they have oversight
-      return role == 'FINANCE_HEAD' || 
+      return isSuperAdminOrAdmin() || 
+             role == 'FINANCE_HEAD' || 
              role == 'GENERAL_MANAGER' || 
              hasPermission('finance:budget_request:approve:finance_head');
     }
     
     function canApproveCFO() {
-      return hasPermission('finance:budget_request:approve:cfo');
+      return isSuperAdminOrAdmin() || hasPermission('finance:budget_request:approve:cfo');
     }
     
     function canApproveBOD() {
-      return hasPermission('finance:budget_request:approve:bod');
+      return isSuperAdminOrAdmin() || hasPermission('finance:budget_request:approve:bod');
     }
     
     // =====================================================
