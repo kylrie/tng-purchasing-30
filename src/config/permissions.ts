@@ -703,7 +703,7 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
   },
   {
     id: 'fund_release',
-    resource: 'Fund Release',
+    resource: 'Cheque Authorization',
     category: 'Finance',
     read:   { permission: 'finance:cheque:view:all' },
     create: { permission: 'finance:cheque:view:all' },
