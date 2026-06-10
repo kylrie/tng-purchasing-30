@@ -1004,6 +1004,14 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
     edit:   { permission: 'pos:import:view:all' },
     delete: { permission: 'pos:import:delete' },
   },
+
+  // ─── DASHBOARD & UI ───────────────────────────────────────────────────
+  {
+    id: 'dashboard_check_auth',
+    resource: 'Check Authorization',
+    category: 'Dashboard',
+    read: { permission: 'ui:section:view:check_auth' },
+  },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
