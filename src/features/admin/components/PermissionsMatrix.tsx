@@ -224,27 +224,34 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
         <div className="flex flex-col gap-1.5 items-start mx-auto w-fit">
           {cell.variants.map(v => {
             const isChecked = isSuperAdmin || rolePerms.includes(v.permission as Permission);
+            const meta = PERMISSION_REGISTRY[v.permission as Permission];
             return (
-              <label
-                key={v.permission}
-                onClick={() => !isSuperAdmin && handlePermissionChange(role as UserRole, v.permission)}
-                className={`flex items-center gap-2 ${isSuperAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-              >
-                <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
-                  isSuperAdmin
-                    ? 'bg-slate-700/50 border-slate-600'
-                    : isChecked
-                      ? 'bg-purple-600 border-purple-500'
-                      : 'border-slate-600 hover:border-purple-400 bg-slate-800'
-                }`}>
-                  {isChecked && (
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  )}
-                </div>
-                <span className={`text-xs ${isChecked ? 'text-slate-300' : 'text-slate-500'}`}>{v.label}</span>
-              </label>
+              <div key={v.permission} className="relative group/tooltip">
+                <label
+                  onClick={() => !isSuperAdmin && handlePermissionChange(role as UserRole, v.permission)}
+                  className={`flex items-center gap-2 ${isSuperAdmin ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                  <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                    isSuperAdmin
+                      ? 'bg-slate-700/50 border-slate-600'
+                      : isChecked
+                        ? 'bg-purple-600 border-purple-500'
+                        : 'border-slate-600 hover:border-purple-400 bg-slate-800'
+                  }`}>
+                    {isChecked && (
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                        <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    )}
+                  </div>
+                  <span className={`text-xs ${isChecked ? 'text-slate-300' : 'text-slate-500'}`}>{v.label}</span>
+                </label>
+                {meta?.description && (
+                  <div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-slate-800 border border-slate-600 rounded shadow-xl text-xs text-slate-200 z-[100] pointer-events-none">
+                    {meta.description}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -253,21 +260,30 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
 
     if (cell.permission) {
       const isChecked = isSuperAdmin || rolePerms.includes(cell.permission as Permission);
+      const meta = PERMISSION_REGISTRY[cell.permission as Permission];
       return (
-        <div
-          onClick={() => !isSuperAdmin && handlePermissionChange(role as UserRole, cell.permission!)}
-          className={`w-5 h-5 rounded border mx-auto flex items-center justify-center transition-all ${
-            isSuperAdmin
-              ? 'bg-slate-700/50 border-slate-600 cursor-not-allowed'
-              : isChecked
-                ? 'bg-purple-600 border-purple-500 cursor-pointer'
-                : 'border-slate-600 hover:border-purple-400 bg-slate-800 cursor-pointer'
-          }`}
-        >
-          {isChecked && (
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2.5 6l2.5 2.5 4.5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+        <div className="relative group/tooltip flex justify-center w-full">
+          <div
+            onClick={() => !isSuperAdmin && handlePermissionChange(role as UserRole, cell.permission!)}
+            className={`w-5 h-5 rounded border mx-auto flex items-center justify-center transition-all ${
+              isSuperAdmin
+                ? 'bg-slate-700/50 border-slate-600 cursor-not-allowed'
+                : isChecked
+                  ? 'bg-purple-600 border-purple-500 cursor-pointer'
+                  : 'border-slate-600 hover:border-purple-400 bg-slate-800 cursor-pointer'
+            }`}
+          >
+            {isChecked && (
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2.5 6l2.5 2.5 4.5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            )}
+          </div>
+          {meta?.description && (
+            <div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-slate-800 border border-slate-600 rounded shadow-xl text-xs text-slate-200 z-[100] pointer-events-none">
+              <strong className="block text-white mb-1">{meta.label}</strong>
+              {meta.description}
+            </div>
           )}
         </div>
       );
@@ -642,26 +658,31 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
                                                 const isChecked = isSuperAdmin || rolePerms.includes(action as Permission);
                                                 const meta = PERMISSION_REGISTRY[action as Permission];
                                                 return (
-                                                  <button
-                                                    key={action}
-                                                    onClick={() => !isSuperAdmin && handlePermissionChange(selectedRoleForPivot as UserRole, action)}
-                                                    disabled={isSuperAdmin}
-                                                    title={meta?.description}
-                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                                                      isSuperAdmin
-                                                        ? 'bg-slate-700/30 border-slate-600 text-slate-500 cursor-not-allowed'
-                                                        : isChecked
-                                                          ? 'bg-purple-600/30 border-purple-500 text-purple-300 hover:bg-purple-600/40'
-                                                          : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-purple-500/50 hover:text-slate-300'
-                                                    }`}
-                                                  >
-                                                    {isChecked && !isSuperAdmin && (
-                                                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                                        <path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                                      </svg>
+                                                  <div key={action} className="relative group/tooltip">
+                                                    <button
+                                                      onClick={() => !isSuperAdmin && handlePermissionChange(selectedRoleForPivot as UserRole, action)}
+                                                      disabled={isSuperAdmin}
+                                                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                                                        isSuperAdmin
+                                                          ? 'bg-slate-700/30 border-slate-600 text-slate-500 cursor-not-allowed'
+                                                          : isChecked
+                                                            ? 'bg-purple-600/30 border-purple-500 text-purple-300 hover:bg-purple-600/40'
+                                                            : 'bg-slate-800 border-slate-600 text-slate-400 hover:border-purple-500/50 hover:text-slate-300'
+                                                      }`}
+                                                    >
+                                                      {isChecked && !isSuperAdmin && (
+                                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                          <path d="M2 5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                                        </svg>
+                                                      )}
+                                                      {meta?.label ?? action}
+                                                    </button>
+                                                    {meta?.description && (
+                                                      <div className="hidden group-hover/tooltip:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs p-2 bg-slate-800 border border-slate-600 rounded shadow-xl text-xs text-slate-200 z-[100] pointer-events-none">
+                                                        {meta.description}
+                                                      </div>
                                                     )}
-                                                    {meta?.label ?? action}
-                                                  </button>
+                                                  </div>
                                                 );
                                               })}
                                             </div>

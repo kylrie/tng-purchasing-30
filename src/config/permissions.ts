@@ -91,12 +91,33 @@ export const ALL_PERMISSIONS = [
   'finance:bank_recon:upload',
   'finance:bank_recon:audit',
 
+  // ─── AUDIT MODULE ─────────────────────────────────────────────────────
+  'audit:income:view:own',
+  'audit:income:view:bu',
+  'audit:income:view:all',
+  'audit:income:approve',
+  'audit:income:reject',
+  
+  'audit:pcf:view:own',
+  'audit:pcf:view:bu',
+  'audit:pcf:view:all',
+  'audit:pcf:approve',
+  'audit:pcf:reject',
+  
+  'audit:liquidation:view:own',
+  'audit:liquidation:view:bu',
+  'audit:liquidation:view:all',
+  'audit:liquidation:approve',
+  'audit:liquidation:reject',
   // ─── ADMIN: USERS ─────────────────────────────────────────────────────
   'admin:user:view:all',
   'admin:user:view:pending',
   'admin:user:create',
   'admin:user:edit',
   'admin:user:delete',
+  'admin:user:reset_password',
+  'admin:user:impersonate',
+  'admin:user:deactivate',
 
   // ─── ADMIN: BUSINESS UNITS ────────────────────────────────────────────
   'admin:business:view:all',
@@ -123,15 +144,19 @@ export const ALL_PERMISSIONS = [
 
   // ─── INVENTORY: ITEMS ─────────────────────────────────────────────────
   'inventory:item:view:all',
+  'inventory:item:view:bu',
   'inventory:item:create',
   'inventory:item:edit',
   'inventory:item:delete',
 
   // ─── INVENTORY: STOCK TAKE ────────────────────────────────────────────
   'inventory:stock_take:view:all',
+  'inventory:stock_take:view:bu',
   'inventory:stock_take:create',
   'inventory:stock_take:edit',
   'inventory:stock_take:delete',
+  'inventory:stock_take:approve_adjustment',
+  'inventory:stock_take:freeze',
 
   // ─── INVENTORY: GOODS RECEIVING ───────────────────────────────────────
   'inventory:receiving:view:all',
@@ -141,6 +166,7 @@ export const ALL_PERMISSIONS = [
 
   // ─── INVENTORY: WASTAGE ───────────────────────────────────────────────
   'inventory:wastage:view:all',
+  'inventory:wastage:view:bu',
   'inventory:wastage:create',
   'inventory:wastage:edit',
   'inventory:wastage:delete',
@@ -224,6 +250,7 @@ export const ALL_PERMISSIONS = [
   'ui:module_access:view:inventory',
   'ui:module_access:view:pos',
   'ui:module_access:view:menu',
+  'ui:module_access:view:audit',
   'ui:module_access:view:activity_log',
   'ui:module_access:view:budget_request',
 
@@ -338,12 +365,33 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   'finance:bank_recon:upload':          { label: 'Upload Bank Statement',     category: 'Finance: Bank Recon',   description: 'Upload bank statement files.' },
   'finance:bank_recon:audit':           { label: 'Audit Bank Recon',          category: 'Finance: Bank Recon',   description: 'Approve or reject bank statement transactions.' },
 
+  // ─── AUDIT MODULE ─────────────────────────────────────────────────────
+  'audit:income:view:own':              { label: 'View Own Income Audit',       category: 'Audit', description: 'View own income audit records.' },
+  'audit:income:view:bu':               { label: 'View BU Income Audit',        category: 'Audit', description: 'View BU income audit records.' },
+  'audit:income:view:all':              { label: 'View All Income Audit',       category: 'Audit', description: 'View all income audit records.' },
+  'audit:income:approve':               { label: 'Approve Income Audit',        category: 'Audit', description: 'Approve income audit records.' },
+  'audit:income:reject':                { label: 'Reject Income Audit',         category: 'Audit', description: 'Reject income audit records.' },
+
+  'audit:pcf:view:own':                 { label: 'View Own PCF Audit',          category: 'Audit', description: 'View own PCF audit requests.' },
+  'audit:pcf:view:bu':                  { label: 'View BU PCF Audit',           category: 'Audit', description: 'View BU PCF audit requests.' },
+  'audit:pcf:view:all':                 { label: 'View All PCF Audit',          category: 'Audit', description: 'View all PCF audit requests.' },
+  'audit:pcf:approve':                  { label: 'Approve PCF',                 category: 'Audit', description: 'Approve PCF requests.' },
+  'audit:pcf:reject':                   { label: 'Reject PCF',                  category: 'Audit', description: 'Reject PCF requests.' },
+
+  'audit:liquidation:view:own':         { label: 'View Own Liquidation Audit',  category: 'Audit', description: 'View own liquidation audit requests.' },
+  'audit:liquidation:view:bu':          { label: 'View BU Liquidation Audit',   category: 'Audit', description: 'View BU liquidation audit requests.' },
+  'audit:liquidation:view:all':         { label: 'View All Liquidation Audit',  category: 'Audit', description: 'View all liquidation audit requests.' },
+  'audit:liquidation:approve':          { label: 'Approve Liquidation',         category: 'Audit', description: 'Approve liquidation requests.' },
+  'audit:liquidation:reject':           { label: 'Reject Liquidation',          category: 'Audit', description: 'Reject liquidation requests.' },
   // ─── ADMIN: USERS ─────────────────────────────────────────────────────
   'admin:user:view:all':                { label: 'View All Users',            category: 'System Admin',          description: 'View all user accounts.' },
   'admin:user:view:pending':            { label: 'View Pending Users',        category: 'System Admin',          description: 'View pending user registration approvals.' },
   'admin:user:create':                  { label: 'Create User',               category: 'System Admin',          description: 'Create new user accounts.' },
   'admin:user:edit':                    { label: 'Edit User',                 category: 'System Admin',          description: 'Edit user accounts and assign roles.' },
   'admin:user:delete':                  { label: 'Delete User',               category: 'System Admin',          description: 'Delete user accounts.' },
+  'admin:user:reset_password':          { label: 'Reset Password',            category: 'System Admin',          description: 'Force a password reset for a user.' },
+  'admin:user:impersonate':             { label: 'Impersonate User',          category: 'System Admin',          description: 'Log in as another user for troubleshooting.' },
+  'admin:user:deactivate':              { label: 'Deactivate User',           category: 'System Admin',          description: 'Temporarily disable a user account.' },
 
   // ─── ADMIN: BUSINESS UNITS ────────────────────────────────────────────
   'admin:business:view:all':            { label: 'View Business Units',       category: 'System Admin',          description: 'View all business unit records.' },
@@ -373,24 +421,32 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   'inventory:item:create':              { label: 'Create Item',               category: 'Inventory',             description: 'Add new inventory items.' },
   'inventory:item:edit':                { label: 'Edit Item',                 category: 'Inventory',             description: 'Edit existing inventory items.' },
   'inventory:item:delete':              { label: 'Delete Item',               category: 'Inventory',             description: 'Delete inventory items.' },
+  'inventory:item:view:bu':             { label: 'View BU Items',             category: 'Inventory',             description: 'View items scoped to assigned Business Units.' },
 
   // ─── INVENTORY: STOCK TAKE ────────────────────────────────────────────
   'inventory:stock_take:view:all':      { label: 'View Stock Takes',          category: 'Inventory',             description: 'View stock take records.' },
   'inventory:stock_take:create':        { label: 'Create Stock Take',         category: 'Inventory',             description: 'Record a new stock take.' },
   'inventory:stock_take:edit':          { label: 'Edit Stock Take',           category: 'Inventory',             description: 'Edit stock take entries.' },
   'inventory:stock_take:delete':        { label: 'Delete Stock Take',         category: 'Inventory',             description: 'Delete stock take records.' },
+  'inventory:stock_take:view:bu':       { label: 'View BU Stock Take',        category: 'Inventory',             description: 'View stock takes for assigned BUs.' },
+  'inventory:stock_take:approve_adjustment': { label: 'Approve Adjustments',  category: 'Inventory',             description: 'Approve variance adjustments after stock take.' },
+  'inventory:stock_take:freeze':        { label: 'Freeze Stock',              category: 'Inventory',             description: 'Lock inventory movements during stock take.' },
 
   // ─── INVENTORY: GOODS RECEIVING ───────────────────────────────────────
   'inventory:receiving:view:all':       { label: 'View Goods Receiving',      category: 'Inventory',             description: 'View goods receiving records.' },
   'inventory:receiving:create':         { label: 'Create Receiving Entry',    category: 'Inventory',             description: 'Record new goods received.' },
   'inventory:receiving:edit':           { label: 'Edit Receiving Entry',      category: 'Inventory',             description: 'Edit goods receiving records.' },
   'inventory:receiving:delete':         { label: 'Delete Receiving Entry',    category: 'Inventory',             description: 'Delete goods receiving records.' },
+  'inventory:receiving:view:bu':        { label: 'View BU Receiving',         category: 'Inventory',             description: 'View receiving logs for assigned BUs.' },
+  'inventory:receiving:reject':         { label: 'Reject Delivery',           category: 'Inventory',             description: 'Reject incoming deliveries or specific items.' },
+  'inventory:receiving:print_barcode':  { label: 'Print Barcodes',            category: 'Inventory',             description: 'Print barcode labels for received items.' },
 
   // ─── INVENTORY: WASTAGE ───────────────────────────────────────────────
   'inventory:wastage:view:all':         { label: 'View Wastage',              category: 'Inventory',             description: 'View wastage records.' },
   'inventory:wastage:create':           { label: 'Create Wastage Entry',      category: 'Inventory',             description: 'Record new wastage.' },
   'inventory:wastage:edit':             { label: 'Edit Wastage Entry',        category: 'Inventory',             description: 'Edit wastage records.' },
   'inventory:wastage:delete':           { label: 'Delete Wastage Entry',      category: 'Inventory',             description: 'Delete wastage records.' },
+  'inventory:wastage:view:bu':          { label: 'View BU Wastage',           category: 'Inventory',             description: 'View wastage logs for assigned BUs.' },
 
   // ─── INVENTORY: VARIANCE ──────────────────────────────────────────────
   'inventory:variance:view:all':        { label: 'View Variance Reports',     category: 'Inventory',             description: 'View inventory variance reports.' },
@@ -471,6 +527,7 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   'ui:module_access:view:inventory':    { label: 'Inventory Module',          category: 'Module Access' },
   'ui:module_access:view:pos':          { label: 'POS Module',                category: 'Module Access' },
   'ui:module_access:view:menu':         { label: 'Menu & Kitchen Module',     category: 'Module Access' },
+  'ui:module_access:view:audit':        { label: 'Audit Module',              category: 'Module Access' },
   'ui:module_access:view:activity_log': { label: 'Activity Log Module',       category: 'Module Access' },
   'ui:module_access:view:budget_request': { label: 'Budget Request Module',   category: 'Module Access' },
 
@@ -677,16 +734,61 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
     actions: ['finance:bank_recon:upload', 'finance:bank_recon:audit'],
   },
 
+  // ─── AUDIT ────────────────────────────────────────────────────────────
+  {
+    id: 'audit_income',
+    resource: 'Income Audit',
+    category: 'Audit',
+    read: {
+      variants: [
+        { label: 'All', permission: 'audit:income:view:all' },
+        { label: 'BU', permission: 'audit:income:view:bu' },
+        { label: 'Own', permission: 'audit:income:view:own' },
+      ],
+    },
+    actions: ['audit:income:approve', 'audit:income:reject'],
+  },
+  {
+    id: 'audit_pcf',
+    resource: 'PCF Audit Review',
+    category: 'Audit',
+    read: {
+      variants: [
+        { label: 'All', permission: 'audit:pcf:view:all' },
+        { label: 'BU', permission: 'audit:pcf:view:bu' },
+        { label: 'Own', permission: 'audit:pcf:view:own' },
+      ],
+    },
+    actions: ['audit:pcf:approve', 'audit:pcf:reject'],
+  },
+  {
+    id: 'audit_liquidation',
+    resource: 'Liquidation Audit',
+    category: 'Audit',
+    read: {
+      variants: [
+        { label: 'All', permission: 'audit:liquidation:view:all' },
+        { label: 'BU', permission: 'audit:liquidation:view:bu' },
+        { label: 'Own', permission: 'audit:liquidation:view:own' },
+      ],
+    },
+    actions: ['audit:liquidation:approve', 'audit:liquidation:reject'],
+  },
   // ─── ADMIN ────────────────────────────────────────────────────────────
   {
     id: 'admin_users',
     resource: 'Users',
     category: 'Admin',
-    read:   { permission: 'admin:user:view:all' },
+    read: {
+      variants: [
+        { label: 'All', permission: 'admin:user:view:all' },
+        { label: 'Pending', permission: 'admin:user:view:pending' },
+      ],
+    },
     create: { permission: 'admin:user:create' },
     edit:   { permission: 'admin:user:edit' },
     delete: { permission: 'admin:user:delete' },
-    actions: ['admin:user:view:pending'],
+    actions: ['admin:user:reset_password', 'admin:user:impersonate', 'admin:user:deactivate'],
   },
   {
     id: 'admin_businesses',
@@ -739,7 +841,12 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
     id: 'inventory_items',
     resource: 'Inventory Items',
     category: 'Inventory',
-    read:   { permission: 'inventory:item:view:all' },
+    read: {
+      variants: [
+        { label: 'All', permission: 'inventory:item:view:all' },
+        { label: 'BU', permission: 'inventory:item:view:bu' }
+      ]
+    },
     create: { permission: 'inventory:item:create' },
     edit:   { permission: 'inventory:item:edit' },
     delete: { permission: 'inventory:item:delete' },
@@ -748,25 +855,42 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
     id: 'inventory_stock_take',
     resource: 'Stock Take',
     category: 'Inventory',
-    read:   { permission: 'inventory:stock_take:view:all' },
+    read: {
+      variants: [
+        { label: 'All', permission: 'inventory:stock_take:view:all' },
+        { label: 'BU', permission: 'inventory:stock_take:view:bu' }
+      ]
+    },
     create: { permission: 'inventory:stock_take:create' },
     edit:   { permission: 'inventory:stock_take:edit' },
     delete: { permission: 'inventory:stock_take:delete' },
+    actions: ['inventory:stock_take:approve_adjustment', 'inventory:stock_take:freeze'],
   },
   {
     id: 'inventory_receiving',
     resource: 'Goods Receiving',
     category: 'Inventory',
-    read:   { permission: 'inventory:receiving:view:all' },
+    read: {
+      variants: [
+        { label: 'All', permission: 'inventory:receiving:view:all' },
+        { label: 'BU', permission: 'inventory:receiving:view:bu' }
+      ]
+    },
     create: { permission: 'inventory:receiving:create' },
     edit:   { permission: 'inventory:receiving:edit' },
     delete: { permission: 'inventory:receiving:delete' },
+    actions: ['inventory:receiving:reject', 'inventory:receiving:print_barcode'],
   },
   {
     id: 'inventory_wastage',
     resource: 'Wastage',
     category: 'Inventory',
-    read:   { permission: 'inventory:wastage:view:all' },
+    read: {
+      variants: [
+        { label: 'All', permission: 'inventory:wastage:view:all' },
+        { label: 'BU', permission: 'inventory:wastage:view:bu' }
+      ]
+    },
     create: { permission: 'inventory:wastage:create' },
     edit:   { permission: 'inventory:wastage:edit' },
     delete: { permission: 'inventory:wastage:delete' },
@@ -911,6 +1035,8 @@ export const ROLES_TO_PERMISSIONS: Record<string, Permission[]> = {
     'admin:user:create',
     'admin:user:edit',
     'admin:user:delete',
+    'admin:user:reset_password',
+    'admin:user:deactivate',
     'admin:business:view:all',
     'admin:business:create',
     'admin:business:edit',
@@ -1180,6 +1306,17 @@ export const ROLES_TO_PERMISSIONS: Record<string, Permission[]> = {
     'finance:liquidation:audit',
     'finance:pcf:audit',
     'finance:bank_recon:audit',
+    // Audit Module
+    'ui:module_access:view:audit',
+    'audit:income:view:all',
+    'audit:income:approve',
+    'audit:income:reject',
+    'audit:pcf:view:all',
+    'audit:pcf:approve',
+    'audit:pcf:reject',
+    'audit:liquidation:view:all',
+    'audit:liquidation:approve',
+    'audit:liquidation:reject',
     // Module Access
     'ui:module_access:view:burf',
     'ui:module_access:view:prf',
@@ -1238,10 +1375,14 @@ export const ROLES_TO_PERMISSIONS: Record<string, Permission[]> = {
     'inventory:stock_take:create',
     'inventory:stock_take:edit',
     'inventory:stock_take:delete',
+    'inventory:stock_take:approve_adjustment',
+    'inventory:stock_take:freeze',
     'inventory:receiving:view:all',
     'inventory:receiving:create',
     'inventory:receiving:edit',
     'inventory:receiving:delete',
+    'inventory:receiving:reject',
+    'inventory:receiving:print_barcode',
     'inventory:wastage:view:all',
     'inventory:wastage:create',
     'inventory:wastage:edit',

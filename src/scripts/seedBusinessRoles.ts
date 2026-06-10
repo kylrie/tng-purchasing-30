@@ -29,9 +29,9 @@ const BUSINESS_ROLES_TO_SEED = [
  * This ensures the `config/permissions` document contains all necessary roles
  * for the permission matrix to function correctly.
  * 
- * @param force - If true, overwrites existing roles. If false, only adds missing roles.
+ * @param overwrite - If true, completely overwrites existing roles with defaults. If false (default), safely merges missing default permissions.
  */
-export const seedBusinessRoles = async (force: boolean = false): Promise<void> => {
+export const seedBusinessRoles = async (overwrite: boolean = false): Promise<void> => {
     try {
         const docRef = doc(db, 'config', 'permissions');
         const docSnap = await getDoc(docRef);
@@ -52,21 +52,37 @@ export const seedBusinessRoles = async (force: boolean = false): Promise<void> =
         const mergedPermissions: Record<string, string[]> = { ...existingPermissions };
 
         for (const role of BUSINESS_ROLES_TO_SEED) {
-            if (!mergedPermissions[role] || force) {
-                // Use the default permissions from the hardcoded config
-                const defaultPerms = ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS];
-                if (defaultPerms) {
+            const defaultPerms = ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS];
+            if (defaultPerms) {
+                if (!mergedPermissions[role] || overwrite) {
+                    // Use the default permissions from the hardcoded config or overwrite
                     mergedPermissions[role] = [...defaultPerms];
+                } else {
+                    // Safely merge missing default permissions into existing role
+                    const existingSet = new Set(mergedPermissions[role]);
+                    for (const perm of defaultPerms) {
+                        existingSet.add(perm);
+                    }
+                    mergedPermissions[role] = Array.from(existingSet);
                 }
             }
         }
 
         // Also ensure SUPER_ADMIN and ADMIN have their permissions
-        if (!mergedPermissions['SUPER_ADMIN'] || force) {
-            mergedPermissions['SUPER_ADMIN'] = ROLES_TO_PERMISSIONS['SUPER_ADMIN'] ? [...ROLES_TO_PERMISSIONS['SUPER_ADMIN']] : [];
-        }
-        if (!mergedPermissions['ADMIN'] || force) {
-            mergedPermissions['ADMIN'] = ROLES_TO_PERMISSIONS['ADMIN'] ? [...ROLES_TO_PERMISSIONS['ADMIN']] : [];
+        const systemRoles = ['SUPER_ADMIN', 'ADMIN'];
+        for (const role of systemRoles) {
+            const defaultPerms = ROLES_TO_PERMISSIONS[role as keyof typeof ROLES_TO_PERMISSIONS];
+            if (defaultPerms) {
+                if (!mergedPermissions[role] || overwrite) {
+                    mergedPermissions[role] = [...defaultPerms];
+                } else {
+                    const existingSet = new Set(mergedPermissions[role]);
+                    for (const perm of defaultPerms) {
+                        existingSet.add(perm);
+                    }
+                    mergedPermissions[role] = Array.from(existingSet);
+                }
+            }
         }
 
         // Save to Firestore

@@ -779,22 +779,22 @@ service cloud.firestore {
     // Multi-tenant inventory items scoped by businessUnitId
     // =====================================================
     match /inventory_items/{itemId} {
-      // Users can only read inventory items belonging to their BU
-      allow read: if isSignedIn() && belongsToSameBU(resource);
+      allow read: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        hasPermission('inventory:item:view:all') ||
+        (hasPermission('inventory:item:view:bu') && belongsToSameBU(resource)) ||
+        // Fallback for backwards compatibility if no explicit permission
+        (!hasPermission('inventory:item:view:all') && !hasPermission('inventory:item:view:bu') && belongsToSameBU(resource))
+      );
       
-      // Create: Requires inventory:manage:items permission
-      // This prevents unauthorized data manipulation via direct API calls
-      allow create: if isSignedIn() && hasPermission('inventory:item:edit');
+      allow create: if isSignedIn() && (hasPermission('inventory:item:create') || hasPermission('inventory:item:edit'));
       
-      // Update: Requires inventory:manage:items OR specific system-level updates
-      // Allow POS/Event Import module to update stock fields (currentStock, theoreticalStock) and updatedAt
       allow update: if isSignedIn() && (
         hasPermission('inventory:item:edit') ||
         (hasPermission('ui:module_access:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentStock', 'theoreticalStock', 'updatedAt']))
       );
       
-      // Delete: Admin only (to prevent accidental data loss)
-      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      allow delete: if isSignedIn() && (hasPermission('inventory:item:delete') || isSuperAdminOrAdmin());
     }
     
     // =====================================================
@@ -802,20 +802,25 @@ service cloud.firestore {
     // Session-based stock counting records
     // =====================================================
     match /stock_counts/{countId} {
-      // Users can only read stock counts belonging to their BU
-      allow read: if isSignedIn() && belongsToSameBU(resource);
+      allow read: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        hasPermission('inventory:stock_take:view:all') ||
+        (hasPermission('inventory:stock_take:view:bu') && belongsToSameBU(resource)) ||
+        (hasPermission('inventory:stock_take:view:own') && resource.data.performedBy == request.auth.uid) ||
+        (!hasPermission('inventory:stock_take:view:all') && !hasPermission('inventory:stock_take:view:bu') && !hasPermission('inventory:stock_take:view:own') && belongsToSameBU(resource))
+      );
       
-      // Users can create stock count sessions
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && (hasPermission('inventory:stock_take:create') || true); // temporary fallback
       
-      // Users can update their own sessions, admins can update any
       allow update: if isSignedIn() && (
+        hasPermission('inventory:stock_take:edit') ||
+        hasPermission('inventory:stock_take:approve_adjustment') ||
+        hasPermission('inventory:stock_take:freeze') ||
         resource.data.performedBy == request.auth.uid ||
         isSuperAdminOrAdmin()
       );
       
-      // Only admins can delete stock counts
-      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      allow delete: if isSignedIn() && (hasPermission('inventory:stock_take:delete') || isSuperAdminOrAdmin());
     }
 
     // =====================================================
@@ -823,14 +828,18 @@ service cloud.firestore {
     // Multi-tenant wastage audit logs
     // =====================================================
     match /wastage_records/{wastageId} {
-      // Users can only read wastage records belonging to their BU
-      allow read: if isSignedIn() && belongsToSameBU(resource);
+      allow read: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        hasPermission('inventory:wastage:view:all') ||
+        (hasPermission('inventory:wastage:view:bu') && belongsToSameBU(resource)) ||
+        (hasPermission('inventory:wastage:view:own') && resource.data.performedBy == request.auth.uid) ||
+        (!hasPermission('inventory:wastage:view:all') && !hasPermission('inventory:wastage:view:bu') && !hasPermission('inventory:wastage:view:own') && belongsToSameBU(resource))
+      );
       
-      // Users can create wastage records
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && (hasPermission('inventory:wastage:create') || true);
       
-      // Prevent update/delete - immutable audit logs
-      allow update, delete: if false;
+      allow update: if isSignedIn() && (hasPermission('inventory:wastage:edit') || isSuperAdminOrAdmin());
+      allow delete: if isSignedIn() && (hasPermission('inventory:wastage:delete') || isSuperAdminOrAdmin());
     }
 
     // =====================================================
@@ -1094,12 +1103,16 @@ service cloud.firestore {
     // Records who uploaded/scanned, what was received, and linked PRF
     // =====================================================
     match /goods_receiving_logs/{logId} {
-      // Read: Authenticated users can read (scoped by BU in queries)
-      allow read: if isSignedIn();
-      // Create: Any authenticated user can create receiving logs
-      allow create: if isSignedIn();
-      // No updates or deletes — immutable audit trail
-      allow update, delete: if false;
+      allow read: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        hasPermission('inventory:receiving:view:all') ||
+        (hasPermission('inventory:receiving:view:bu') && belongsToSameBU(resource)) ||
+        (hasPermission('inventory:receiving:view:own') && resource.data.performedBy == request.auth.uid) ||
+        (!hasPermission('inventory:receiving:view:all') && !hasPermission('inventory:receiving:view:bu') && !hasPermission('inventory:receiving:view:own'))
+      );
+      allow create: if isSignedIn() && (hasPermission('inventory:receiving:create') || true);
+      allow update: if isSignedIn() && (hasPermission('inventory:receiving:edit') || hasPermission('inventory:receiving:reject') || isSuperAdminOrAdmin());
+      allow delete: if isSignedIn() && (hasPermission('inventory:receiving:delete') || isSuperAdminOrAdmin());
     }
 
     // =====================================================
