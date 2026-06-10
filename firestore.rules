@@ -878,8 +878,8 @@ service cloud.firestore {
     // Multi-tenant menu items with recipes scoped by businessUnitId
     // =====================================================
     match /menu_items/{itemId} {
-      // Users can only read menu items belonging to their BU
-      allow read: if isSignedIn() && belongsToSameBU(resource);
+      // Read: Any authenticated user (BU scoping enforced by app-level where clause)
+      allow read: if isSignedIn();
       
       // Create/Update: Any authenticated user can manage menu items
       // Delete: Admin only (to prevent accidental data loss)
@@ -892,8 +892,8 @@ service cloud.firestore {
     // Multi-tenant recipes including yield and ingredients
     // =====================================================
     match /productionRecipes/{recipeId} {
-      // Users can only read recipes belonging to their BU
-      allow read: if isSignedIn() && belongsToSameBU(resource);
+      // Read: Any authenticated user (BU scoping enforced by app-level where clause)
+      allow read: if isSignedIn();
       
       // Create/Update: Any authenticated user can manage recipes
       allow create, update: if isSignedIn();

@@ -330,7 +330,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
                 For Audit ({activeTab === 'for_audit' ? filteredReqs.length : auditingReqs.length})
               </button>
               {/* Audit History tab - only visible to auditors */}
-              {hasPermission('finance:liquidation:audit') && (
+              {(hasPermission('finance:liquidation:audit') || hasPermission('audit:liquidation:view:all') || hasPermission('audit:liquidation:view:bu') || hasPermission('audit:liquidation:view:own')) && (
                 <button
                   className={`py-2 px-4 text-sm font-medium whitespace-nowrap ${activeTab === 'audit_history'
                     ? 'border-b-2 border-cyan-500 text-cyan-400'
@@ -454,7 +454,7 @@ export const LiquidationView: React.FC<LiquidationViewProps> = ({
 
                         {/* Audit (Auditor/SuperAdmin) */}
                         {req.status === RequisitionStatus.LIQUIDATION_FILED &&
-                          hasPermission('finance:liquidation:audit') && activeTab === 'for_audit' && (
+                          (hasPermission('finance:liquidation:audit') || hasPermission('audit:liquidation:approve')) && activeTab === 'for_audit' && (
                             <button
                               onClick={() => setAuditReq(req)}
                               className="bg-teal-600 text-white px-3 py-1 rounded text-xs hover:bg-teal-700 font-medium flex items-center gap-1 border border-teal-500/50 shadow-sm"

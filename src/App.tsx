@@ -198,7 +198,10 @@ function ProtectedApp() {
   const accessibleBusinesses = React.useMemo(() => {
     if (!currentUser) return [];
     if (currentUser.role === UserRole.SUPER_ADMIN) return businesses;
-    return businesses.filter(b => currentUser.businessUnitIds?.includes(b.id));
+    return businesses.filter(b => 
+      b.id === currentUser.businessId || 
+      currentUser.businessUnitIds?.includes(b.id)
+    );
   }, [businesses, currentUser]);
   if (loading) {
     return <div>Loading...</div>;
@@ -382,7 +385,12 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/liquidation" element={
-                  <ProtectedRoute permission="finance:liquidation:audit">
+                  <ProtectedRoute permission={[
+                    'finance:liquidation:audit',
+                    'audit:liquidation:view:all',
+                    'audit:liquidation:view:bu',
+                    'audit:liquidation:view:own'
+                  ]}>
                     <LiquidationView
                       currentUser={currentUser}
                       requisitions={requisitions}
@@ -425,7 +433,12 @@ function ProtectedApp() {
                 } />
 
                 <Route path="/pcf-audit-review" element={
-                  <ProtectedRoute permission="finance:pcf:audit">
+                  <ProtectedRoute permission={[
+                    'finance:pcf:audit',
+                    'audit:pcf:view:all',
+                    'audit:pcf:view:bu',
+                    'audit:pcf:view:own'
+                  ]}>
                     <PCFAuditReviewView
                       currentUser={currentUser}
                       businesses={accessibleBusinesses}

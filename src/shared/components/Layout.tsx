@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -230,6 +230,13 @@ const Layout: React.FC<LayoutProps> = ({
     const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
+    // Auto-select the first accessible business if the user only has 1 business unit
+    useEffect(() => {
+        if (selectedBusinessUnit === 'all' && businesses && businesses.length === 1 && !hasPermission('procurement:burf:view:all')) {
+            setSelectedBusinessUnit(businesses[0].id);
+        }
+    }, [selectedBusinessUnit, businesses, hasPermission, setSelectedBusinessUnit]);
+
     const handleMouseMove = (e: React.MouseEvent) => {
         // Optimization: Only run expensive smooth animation calculations on desktop
         if (window.innerWidth < 1024) return;
@@ -287,10 +294,12 @@ const Layout: React.FC<LayoutProps> = ({
                 {
                     label: 'Expense Audit',
                     icon: ClipboardCheck,
-                    canView: hasPermission('finance:pcf:audit') || hasPermission('finance:liquidation:audit'),
+                    canView: hasPermission('finance:pcf:audit') || hasPermission('finance:liquidation:audit') || 
+                             hasPermission('audit:pcf:view:all') || hasPermission('audit:pcf:view:bu') || hasPermission('audit:pcf:view:own') ||
+                             hasPermission('audit:liquidation:view:all') || hasPermission('audit:liquidation:view:bu') || hasPermission('audit:liquidation:view:own'),
                     children: [
-                        { path: '/pcf-audit-review', label: 'PCF Audit Review', icon: Wallet, canView: hasPermission('finance:pcf:audit') },
-                        { path: '/liquidation', label: 'Liquidation Audit', icon: CreditCard, canView: hasPermission('finance:liquidation:audit') }
+                        { path: '/pcf-audit-review', label: 'PCF Audit Review', icon: Wallet, canView: hasPermission('finance:pcf:audit') || hasPermission('audit:pcf:view:all') || hasPermission('audit:pcf:view:bu') || hasPermission('audit:pcf:view:own') },
+                        { path: '/liquidation', label: 'Liquidation Audit', icon: CreditCard, canView: hasPermission('finance:liquidation:audit') || hasPermission('audit:liquidation:view:all') || hasPermission('audit:liquidation:view:bu') || hasPermission('audit:liquidation:view:own') }
                     ]
                 }
             ]
