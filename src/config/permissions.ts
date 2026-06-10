@@ -160,9 +160,12 @@ export const ALL_PERMISSIONS = [
 
   // ─── INVENTORY: GOODS RECEIVING ───────────────────────────────────────
   'inventory:receiving:view:all',
+  'inventory:receiving:view:bu',
   'inventory:receiving:create',
   'inventory:receiving:edit',
   'inventory:receiving:delete',
+  'inventory:receiving:reject',
+  'inventory:receiving:print_barcode',
 
   // ─── INVENTORY: WASTAGE ───────────────────────────────────────────────
   'inventory:wastage:view:all',
