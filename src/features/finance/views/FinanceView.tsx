@@ -1039,7 +1039,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                             </td>
                                             <td className="px-6 py-4">
                                                 {/* BOD Check Authorization - must be assigned BOD approver */}
-                                                {(approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id) || isSuperAdmin(currentUser.role)) ? (
+                                                {(hasPermission('finance:budget_request:approve:bod') || hasPermission('finance:cheque:authorize') || approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id) || isSuperAdmin(currentUser.role)) ? (
                                                     <div className="flex items-center justify-center gap-2">
                                                         <button
                                                             onClick={(e) => handleApprove(req, e)}
@@ -1175,7 +1175,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         ) ||
                         // Check Auth BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
-                            hasPermission('finance:budget_request:approve:bod') &&
+                            (hasPermission('finance:budget_request:approve:bod') || hasPermission('finance:cheque:authorize')) &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // SuperAdmin can always approve
@@ -1209,7 +1209,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                         ) ||
                         // Check Auth BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
-                            hasPermission('finance:budget_request:approve:bod') &&
+                            (hasPermission('finance:budget_request:approve:bod') || hasPermission('finance:cheque:authorize')) &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // SuperAdmin can always reject

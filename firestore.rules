@@ -481,7 +481,7 @@ service cloud.firestore {
         (
           resource.data.status == 'PENDING_CHECK_AUTH_BOD' &&
           request.resource.data.status == 'FOR_FUND_RELEASE' &&
-          canApproveBOD() &&
+          (canApproveBOD() || hasPermission('finance:cheque:authorize')) &&
           isValidWorkflowUpdate()
         ) ||
         

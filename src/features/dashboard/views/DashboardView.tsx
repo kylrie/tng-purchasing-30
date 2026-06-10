@@ -402,8 +402,8 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
             if (isAssignedBOD) return true;
         }
 
-        // Option 2: Fallback - if user has BOD approval permission
-        if (hasPermission('finance:budget_request:approve:bod')) return true;
+        // Option 2: Fallback - if user has BOD approval permission or Cheque Authorize permission
+        if (hasPermission('finance:budget_request:approve:bod') || hasPermission('finance:cheque:authorize')) return true;
 
         return false;
     }).sort((a, b) => new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime());
@@ -413,7 +413,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
         if (r.status !== RequisitionStatus.PENDING_CHECK_AUTH_BOD) return false;
 
         // SuperAdmins and users with BOD approval permission can always see
-        if (hasPermission('finance:budget_request:approve:bod')) return true;
+        if (hasPermission('finance:budget_request:approve:bod') || hasPermission('finance:cheque:authorize')) return true;
 
         // BOD approvers assigned in settings can approve check authorization
         const bodApprovers = approverAssignments.bodApprovers;
@@ -978,7 +978,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         )}
 
                         {/* BOD Approval Card */}
-                        {(hasPermission('finance:budget_request:approve:bod') || approverAssignments.bodApprovers?.some(b => b.userId === currentUser.id)) && checkAuthApprovals.length > 0 && (
+                        {(hasPermission('finance:budget_request:approve:bod') || hasPermission('finance:cheque:authorize') || approverAssignments.bodApprovers?.some(b => b.userId === currentUser.id)) && checkAuthApprovals.length > 0 && (
                             <DashboardCard
                                 id="bod-approval"
                                 label="BOD Auth"
@@ -2188,7 +2188,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         ) ||
                         // Check Auth BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
-                            hasPermission('finance:budget_request:approve:bod') &&
+                            (hasPermission('finance:budget_request:approve:bod') || hasPermission('finance:cheque:authorize')) &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // SuperAdmin can always approve (except READY_FOR_PRF which needs Prepare PRF action)
@@ -2235,7 +2235,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
                         ) ||
                         // Check Auth BOD: Check if assigned as BOD approver
                         (drawerReq.status === RequisitionStatus.PENDING_CHECK_AUTH_BOD &&
-                            hasPermission('finance:budget_request:approve:bod') &&
+                            (hasPermission('finance:budget_request:approve:bod') || hasPermission('finance:cheque:authorize')) &&
                             approverAssignments.bodApprovers?.some(bod => bod.userId === currentUser.id)
                         ) ||
                         // SuperAdmin can always reject (except READY_FOR_PRF which needs Prepare PRF action)

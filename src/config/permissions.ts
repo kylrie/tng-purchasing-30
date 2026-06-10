@@ -72,6 +72,7 @@ export const ALL_PERMISSIONS = [
   'finance:cheque:view:all',
   'finance:cheque:release',
   'finance:cheque:upload',
+  'finance:cheque:authorize',
   'finance:cheque:delete',
 
   // ─── FINANCE: BUDGET REQUEST ──────────────────────────────────────────
@@ -349,6 +350,7 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   'finance:cheque:view:all':            { label: 'View Fund Releases',        category: 'Finance: Fund Release', description: 'View cheque and fund release records.' },
   'finance:cheque:release':             { label: 'Release Funds',             category: 'Finance: Fund Release', description: 'Release approved funds via cheque.' },
   'finance:cheque:upload':              { label: 'Upload Cheque Reference',   category: 'Finance: Fund Release', description: 'Upload bank reference number for check preparation.' },
+  'finance:cheque:authorize':           { label: 'Authorize Cheque',          category: 'Finance: Fund Release', description: 'Authorize checks for fund release.' },
   'finance:cheque:delete':              { label: 'Delete Fund Release',       category: 'Finance: Fund Release', description: 'Delete a fund release record.' },
 
   // ─── FINANCE: BUDGET REQUEST ──────────────────────────────────────────
@@ -709,7 +711,7 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
     create: { permission: 'finance:cheque:view:all' },
     edit:   { permission: 'finance:cheque:view:all' },
     delete: { permission: 'finance:cheque:delete' },
-    actions: ['finance:cheque:release', 'finance:cheque:upload'],
+    actions: ['finance:cheque:release', 'finance:cheque:upload', 'finance:cheque:authorize'],
   },
   {
     id: 'budget_request',
