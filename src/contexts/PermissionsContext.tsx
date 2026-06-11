@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot, deleteField } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { ROLES_TO_PERMISSIONS } from '../config/permissions';
 import type { Permission } from '../config/permissions';
@@ -182,6 +182,14 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     // Preserve it exactly as-is.
                     mergedPermissions[serverRole] = serverPermissions[serverRole];
                 }
+            }
+
+            // Explicitly delete removed roles from Firestore since `{ merge: true }` ignores missing object keys
+            if (deletedRoles && deletedRoles.length > 0) {
+                deletedRoles.forEach(role => {
+                    // @ts-ignore - deleteField() is the correct Firebase method, despite TS types for mergedPermissions
+                    mergedPermissions[role] = deleteField();
+                });
             }
 
             // Single atomic write — both roles and permissions in one setDoc call

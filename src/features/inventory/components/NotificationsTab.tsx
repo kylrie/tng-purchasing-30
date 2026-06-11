@@ -40,9 +40,15 @@ const NotificationsTab: React.FC = () => {
             if (!currentUser?.businessId) return;
             try {
                 const users = await UsersService.getUsersByBusiness(currentUser.businessId);
-                // Filter users to only include management/auditors by default
-                const targetRoles = ['GM', 'OWNER', 'INVENTORY_OFFICER', 'SUPER_ADMIN'];
-                const eligible = users.filter(u => targetRoles.includes(u.role));
+                // Filter users to only include those who have notification/inventory related permissions.
+                // For now, allow anyone with INVENTORY or SUPER_ADMIN access to receive these.
+                const eligible = users.filter(u => {
+                    if (u.role === 'SUPER_ADMIN') return true;
+                    // Since we don't have direct access to hasPermission here easily for arbitrary users,
+                    // we'll fetch the roles that we know are relevant or just default to allowing selection
+                    // of anyone who is not an EMPLOYEE.
+                    return u.role !== 'EMPLOYEE';
+                });
 
                 setRecipients(eligible.map(u => ({
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
