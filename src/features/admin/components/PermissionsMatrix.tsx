@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ALL_PERMISSIONS, PERMISSION_REGISTRY, PERMISSION_GROUPS } from '../../../config/permissions';
 import type { Permission, CrudCell, ResourceGroup } from '../../../config/permissions';
 import { UserRole, SystemRole, DEFAULT_BUSINESS_ROLES } from '../../procurement/types';
@@ -68,19 +68,29 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
   const [selectedRoleForPivot, setSelectedRoleForPivot] = useState<string>('EMPLOYEE');
   const [isDirty, setIsDirty] = useState(false);
   const [expandedActions, setExpandedActions] = useState<Record<string, boolean>>({});
-  // Only sync from context once — after Firestore has finished loading
-  const isInitialized = useRef(false);
+  // Track whether we've received at least one Firestore snapshot
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
-    // Wait until Firestore is done loading before locking in the initial state.
-    // This prevents the hardcoded defaults (set before the snapshot arrives)
-    // from being treated as the "real" data on fresh page load.
-    if (!isInitialized.current && !loading && Object.keys(contextPermissions).length > 0) {
-      setPermissions(contextPermissions);
-      setRoles(contextRoles);
-      isInitialized.current = true;
+    // Keep local state in sync with Firestore real-time updates,
+    // BUT only when the user doesn't have unsaved edits.
+    // This prevents two bugs:
+    //   1. Stale-state overwrite: if another admin adds a role, we'll see it.
+    //   2. Edit disruption: if the user is actively editing, we won't yank
+    //      their in-progress changes out from under them.
+    if (!loading && Object.keys(contextPermissions).length > 0) {
+      if (!hasLoaded) {
+        // First load — always accept Firestore data
+        setPermissions(contextPermissions);
+        setRoles(contextRoles);
+        setHasLoaded(true);
+      } else if (!isDirty) {
+        // Subsequent updates — only sync if user has no unsaved changes
+        setPermissions(contextPermissions);
+        setRoles(contextRoles);
+      }
     }
-  }, [contextPermissions, contextRoles, loading]);
+  }, [contextPermissions, contextRoles, loading, isDirty, hasLoaded]);
 
   // Browser-level warning for unsaved changes
   useEffect(() => {
@@ -369,7 +379,7 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
   };
 
   // Show a loading state while waiting for Firestore data
-  if (loading || !isInitialized.current) {
+  if (loading || !hasLoaded) {
     return (
       <Card className="!p-0 border-0 overflow-hidden flex flex-col">
         <div className="flex flex-col items-center justify-center py-24 gap-4 text-slate-400">
