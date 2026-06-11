@@ -26,7 +26,8 @@ interface PermissionsContextType {
      */
     savePermissionsAndRoles: (
         newPermissions: Record<string, Permission[]>,
-        newRoles: string[]
+        newRoles: string[],
+        deletedRoles?: string[]
     ) => Promise<void>;
     loading: boolean;
     error: string | null;
