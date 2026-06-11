@@ -635,13 +635,9 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
   },
   {
     id: 'approvals',
-    resource: 'Approval Workflow',
+    resource: 'Action Center',
     category: 'Procurement',
-    read:   { permission: 'procurement:approval:view:history' },
-    create: { permission: 'procurement:approval:view:history' },
-    edit:   { permission: 'procurement:approval:view:history' },
-    delete: { permission: 'procurement:approval:view:history' },
-    actions: ['procurement:approval:approve:skip_signature'],
+    actions: ['procurement:approval:view:history', 'procurement:approval:approve:skip_signature'],
   },
 
   // ─── FINANCE ──────────────────────────────────────────────────────────
