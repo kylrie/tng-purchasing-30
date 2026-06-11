@@ -75,7 +75,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
                         const uniqueRoles = Array.from(new Set([...DEFAULT_ROLES, ...data.roles]));
                         setRoles(uniqueRoles);
                     }
-                } else if (!hasInitialized.current) {
+                } else if (!hasInitialized.current && !docSnap.metadata.fromCache) {
                     // Only initialize the document if it truly doesn't exist and we've
                     // never seen it before. This prevents accidental overwrites if the
                     // snapshot temporarily reports !exists() due to cache/network issues.

@@ -1119,8 +1119,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 }
 
                 {
-                    activeTab === 'permissions' && hasPermission('admin:permission:edit') && (
-                        <div className="bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg border border-slate-700 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                    hasPermission('admin:permission:edit') && (
+                        <div className={`bg-slate-800/50 backdrop-blur-xl rounded-xl shadow-lg border border-slate-700 overflow-hidden ${activeTab === 'permissions' ? 'block animate-in fade-in zoom-in-95 duration-200' : 'hidden'}`}>
                             {/* We don't add padding here to let the matrix control its scroll area */}
                             <PermissionsMatrix onSave={handlePermissionsSave} />
                         </div>
