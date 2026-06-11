@@ -21,7 +21,6 @@ export enum SystemRole {
  * New business roles can be added via the Permission Matrix without code changes.
  */
 export const DEFAULT_BUSINESS_ROLES = [
-  'INVENTORY_OFFICER', // Inventory Management
   'MANAGER',           // Business Unit Manager (BUM)
   'EMPLOYEE',          // Requestor
   'CIC',               // Corporate Inventory Controller
@@ -49,7 +48,6 @@ export type UserRole = RoleType;
 export const UserRole = {
   ...SystemRole,
   // Business roles as string constants (not enum) for backward compatibility
-  INVENTORY_OFFICER: 'INVENTORY_OFFICER' as const,
   MANAGER: 'MANAGER' as const,
   EMPLOYEE: 'EMPLOYEE' as const,
   CIC: 'CIC' as const,
