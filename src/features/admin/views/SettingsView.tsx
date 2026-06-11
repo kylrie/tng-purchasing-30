@@ -10,7 +10,7 @@ import { useRoleOptions } from '../../../hooks/useRoleOptions';
 import { usePermissions } from '../../../hooks/usePermissions';
 
 // Import Layout Components
-import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search, Loader2, Calendar } from 'lucide-react';
+import { Building2, Shield, User as UserIcon, Lock, Database, Mail, Briefcase, Check, X, Edit2, Trash2, Plus, Sliders, Search, Loader2, Calendar, UserX, UserCheck } from 'lucide-react';
 import { AuthService } from '../../../shared/services/auth.service';
 import { SettingsService, type PCFSettings, type ApproverAssignments, type FoodCostSettings } from '../../../shared/services/settings.service';
 import ExpenseSharingSettings from '../components/ExpenseSharingSettings';
@@ -190,6 +190,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const handleEditUserClick = (user: User) => {
         setNewUser(user);
         setEditingUserId(user.id);
+    };
+
+    const handleToggleUserStatus = async (user: User) => {
+        const newStatus = user.status === UserStatus.ACTIVE ? UserStatus.INACTIVE : UserStatus.ACTIVE;
+        const action = newStatus === UserStatus.INACTIVE ? 'Deactivate' : 'Activate';
+        if (confirm(`Are you sure you want to ${action.toLowerCase()} user "${user.name}"?`)) {
+            try {
+                updateUser({ ...user, status: newStatus });
+                alert(`User ${newStatus === UserStatus.INACTIVE ? 'deactivated' : 'activated'} successfully.`);
+            } catch (error) {
+                console.error(`Error updating user status:`, error);
+                alert('Failed to update user status.');
+            }
+        }
     };
 
     const resetUserForm = () => {
@@ -834,7 +848,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                                         <td className="p-3 text-slate-400" title={user.businessUnitIds?.map(id => businesses.find(b => b.id === id)?.name).join(', ')}>
                                                             {primaryBiz} <span className="text-xs text-slate-500">{otherBizText}</span>
                                                         </td>
-                                                        <td className="p-3 text-right"><div className="flex items-center justify-end gap-2"><button onClick={() => handleEditUserClick(user)} className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit User"><Edit2 size={16} /></button>{/* Delete button removed - user deletion handled via Firebase Console */}</div></td>
+                                                        <td className="p-3 text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <button onClick={() => handleEditUserClick(user)} className="p-1.5 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors" title="Edit User">
+                                                                    <Edit2 size={16} />
+                                                                </button>
+                                                                <button onClick={() => handleToggleUserStatus(user)} className={`p-1.5 rounded-lg transition-colors ${user.status === UserStatus.INACTIVE ? 'text-green-400 hover:bg-green-500/10' : 'text-orange-400 hover:bg-orange-500/10'}`} title={user.status === UserStatus.INACTIVE ? 'Reactivate User' : 'Deactivate User'}>
+                                                                    {user.status === UserStatus.INACTIVE ? <UserCheck size={16} /> : <UserX size={16} />}
+                                                                </button>
+                                                            </div>
+                                                        </td>
                                                     </tr>
                                                 );
                                             })}
