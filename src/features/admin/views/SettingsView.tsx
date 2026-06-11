@@ -260,10 +260,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         }
     };
 
-    const handlePermissionsSave = async ({ permissions, roles }: { permissions: Record<UserRole, Permission[]>, roles: UserRole[] }): Promise<void> => {
+    const handlePermissionsSave = async ({ permissions, roles, deletedRoles }: { permissions: Record<UserRole, Permission[]>, roles: UserRole[], deletedRoles?: string[] }): Promise<void> => {
         // Use atomic save to prevent race conditions where separate updatePermissions
         // and updateRoles calls could cause roles added by other admins to be lost.
-        await savePermissionsAndRoles(permissions, roles);
+        await savePermissionsAndRoles(permissions, roles, deletedRoles);
     };
 
     // Handler for saving workflow approver assignments

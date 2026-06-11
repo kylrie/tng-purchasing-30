@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 
 interface PermissionsMatrixProps {
-  onSave: (data: { permissions: Record<string, Permission[]>, roles: string[] }) => Promise<void>;
+  onSave: (data: { permissions: Record<string, Permission[]>, roles: string[], deletedRoles?: string[] }) => Promise<void>;
 }
 
 // 1. Data Transformation & Configuration
@@ -359,7 +359,7 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
       setRoles(newRoles);
       setPermissions(updated);
       try {
-        await onSave({ permissions: updated, roles: newRoles });
+        await onSave({ permissions: updated, roles: newRoles, deletedRoles: [roleToDelete] });
         setIsDirty(false);
         alert('Role deleted and permissions saved.');
       } catch (error) {

@@ -137,7 +137,8 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const savePermissionsAndRoles = useCallback(async (
         newPermissions: Record<string, Permission[]>,
-        newRoles: string[]
+        newRoles: string[],
+        deletedRoles?: string[]
     ) => {
         const previousPermissions = permissions;
         const previousRoles = roles;
@@ -163,7 +164,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const mergedRoles = Array.from(new Set([
                 ...DEFAULT_ROLES,
                 ...newRoles,
-                ...serverRoles,
+                ...serverRoles.filter(r => !(deletedRoles || []).includes(r)),
             ]));
 
             // --- Merge permissions ---
@@ -175,8 +176,8 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const mergedPermissions: Record<string, Permission[]> = { ...newPermissions };
 
             for (const serverRole of Object.keys(serverPermissions)) {
-                if (!(serverRole in mergedPermissions)) {
-                    // This role exists on the server but the current admin didn't have it.
+                if (!(serverRole in mergedPermissions) && !(deletedRoles || []).includes(serverRole)) {
+                    // This role exists on the server but the current admin didn't have it, and it was NOT explicitly deleted.
                     // Preserve it exactly as-is.
                     mergedPermissions[serverRole] = serverPermissions[serverRole];
                 }
