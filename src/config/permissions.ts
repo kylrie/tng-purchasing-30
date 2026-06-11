@@ -1377,37 +1377,4 @@ export const ROLES_TO_PERMISSIONS: Record<string, Permission[]> = {
     'ui:section:view:check_auth',
   ],
 
-  // ─── INVENTORY OFFICER ────────────────────────────────────────────────
-  INVENTORY_OFFICER: [
-    // Inventory
-    'inventory:item:view:all',
-    'inventory:item:create',
-    'inventory:item:edit',
-    'inventory:item:delete',
-    'inventory:stock_take:view:all',
-    'inventory:stock_take:create',
-    'inventory:stock_take:edit',
-    'inventory:stock_take:delete',
-    'inventory:stock_take:approve_adjustment',
-    'inventory:stock_take:freeze',
-    'inventory:receiving:view:all',
-    'inventory:receiving:create',
-    'inventory:receiving:edit',
-    'inventory:receiving:delete',
-    'inventory:receiving:reject',
-    'inventory:receiving:print_barcode',
-    'inventory:wastage:view:all',
-    'inventory:wastage:create',
-    'inventory:wastage:edit',
-    'inventory:wastage:delete',
-    'inventory:asset:view:all',
-    'inventory:asset:edit',
-    'inventory:uom:view:all',
-    'inventory:uom:edit',
-    'inventory:report:view:all',
-    // Module Access
-    'ui:module_access:view:inventory',
-    'ui:module_access:view:burf',
-    'ui:module_access:view:prf_tracker',
-  ],
 };
