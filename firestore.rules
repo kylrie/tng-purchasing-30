@@ -652,8 +652,8 @@ service cloud.firestore {
     match /config/{document} {
       allow read: if isSignedIn();
       
-      // Temporary: allow any signed in user to update the permission matrix to fix the issue
-      allow write: if isSignedIn();
+      // Only admins or users with specific permission can update config documents
+      allow write: if isSignedIn() && (isSuperAdmin() || hasPermission('admin:permission:edit'));
     }
     
     // =====================================================
