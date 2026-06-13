@@ -310,7 +310,7 @@ const Layout: React.FC<LayoutProps> = ({
         {
             label: 'Finance',
             icon: Wallet,
-            canView: hasPermission('ui:module_access:view:finance') || hasPermission('ui:module_access:view:liquidation'),
+            canView: hasPermission('ui:module_access:view:finance') || hasPermission('ui:module_access:view:liquidation') || hasPermission('ui:module_access:view:br') || hasPermission('ui:module_access:view:pcf') || hasPermission('ui:module_access:view:bank_recon'),
             children: [
                 // Overview - Generic Finance Dashboard (placeholder)
                 { path: '/finance/overview', label: 'Overview', icon: LayoutDashboard, canView: hasPermission('ui:module_access:view:finance') },
@@ -329,10 +329,10 @@ const Layout: React.FC<LayoutProps> = ({
                 {
                     label: 'Expenses',
                     icon: TrendingDown,
-                    canView: hasPermission('ui:module_access:view:finance') || hasPermission('ui:module_access:view:pcf'),
+                    canView: hasPermission('ui:module_access:view:finance') || hasPermission('ui:module_access:view:br') || hasPermission('ui:module_access:view:pcf'),
                     children: [
                         // BR Flow - This is the existing FinanceView with Fund Release/Check Prep
-                        { path: '/finance/expenses/br-flow', label: 'BR Flow', icon: Scale, canView: hasPermission('ui:module_access:view:finance') },
+                        { path: '/finance/expenses/br-flow', label: 'BR Flow', icon: Scale, canView: hasPermission('ui:module_access:view:br') },
                         { path: '/pcf', label: 'Petty Cash Fund', icon: Wallet, canView: hasPermission('ui:module_access:view:pcf') }
                     ]
                 },

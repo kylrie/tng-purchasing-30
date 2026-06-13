@@ -333,7 +333,7 @@ function ProtectedApp() {
 
                 {/* BR Flow - Existing FinanceView with Fund Release/Check Prep */}
                 <Route path="/finance/expenses/br-flow" element={
-                  <ProtectedRoute permission="ui:module_access:view:finance">
+                  <ProtectedRoute permission="ui:module_access:view:br">
                     <FinanceView
                       currentUser={currentUser}
                       requisitions={requisitions}

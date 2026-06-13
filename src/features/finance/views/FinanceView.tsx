@@ -353,7 +353,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         }
     };
 
-    const canView = hasPermission('ui:module_access:view:finance');
+    const canView = hasPermission('ui:module_access:view:br');
 
     if (!canView) {
         return (
