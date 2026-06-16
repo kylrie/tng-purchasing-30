@@ -284,9 +284,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
                 setCogsReport(cogs);
                 setStockTrends(trends);
 
-                const totalValue = items.reduce((sum, item) =>
-                    sum + (item.currentStock * item.costPerUnit), 0
-                );
+
                 setCurrentStockValue(totalValue);
                 setItemCount(items.length);
 
