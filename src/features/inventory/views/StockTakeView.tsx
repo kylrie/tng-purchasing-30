@@ -211,6 +211,66 @@ const CalculatorPopup: React.FC<{
 };
 
 // ============================================================
+// REVIEW UPLOAD MODAL
+// ============================================================
+
+const ReviewUploadModal: React.FC<{
+    isOpen: boolean;
+    pendingCounts: { itemId: string; name: string; count: number; partialCount: number; unit: string }[] | null;
+    onConfirm: () => void;
+    onCancel: () => void;
+}> = ({ isOpen, pendingCounts, onConfirm, onCancel }) => {
+    if (!isOpen || !pendingCounts) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg">
+                            <Upload size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-slate-900 dark:text-white">Review Uploaded Counts</h3>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Found {pendingCounts.length} items</p>
+                        </div>
+                    </div>
+                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                        <X size={20} className="text-slate-400" />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    {pendingCounts.map((pc, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900/30 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                            <div>
+                                <p className="font-medium text-slate-900 dark:text-white">{pc.name}</p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">ID: {pc.itemId}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-lg font-bold text-slate-900 dark:text-white">
+                                    {pc.count}{pc.partialCount > 0 ? `.${pc.partialCount.toString().split('.')[1] || pc.partialCount}` : ''}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-400">{pc.unit}s</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-end gap-3">
+                    <button onClick={onCancel} className="px-5 py-2.5 rounded-xl font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                        Cancel
+                    </button>
+                    <button onClick={onConfirm} className="px-5 py-2.5 rounded-xl font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center gap-2">
+                        <Check size={18} /> Apply Counts
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ============================================================
 // STOCKTAKE LOGS PANEL — Grouped accordion by session
 // ============================================================
 
@@ -645,6 +705,8 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
     const [isImporting, setIsImporting] = useState(false);
     const [isUploadingCountSheet, setIsUploadingCountSheet] = useState(false);
+    const [pendingCounts, setPendingCounts] = useState<{ itemId: string; name: string; count: number; partialCount: number; unit: string }[] | null>(null);
+    const [showUncountedOnly, setShowUncountedOnly] = useState(false);
     const [importResult, setImportResult] = useState<ImportResult | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const countSheetInputRef = useRef<HTMLInputElement>(null);
@@ -723,7 +785,8 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             item.category === activeCategoryFilter;
         const matchesDepartment = activeDepartmentTab === 'ALL' ||
             (item.department || 'Unassigned') === activeDepartmentTab;
-        return matchesSearch && matchesStorageArea && matchesCategory && matchesDepartment;
+        const matchesUncounted = !showUncountedOnly || !countStates.has(item.id);
+        return matchesSearch && matchesStorageArea && matchesCategory && matchesDepartment && matchesUncounted;
     });
 
     // Session handlers
@@ -918,6 +981,44 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
         }
     };
 
+    const handleDownloadCountSheetTemplate = () => {
+        const deptFilter = activeDepartmentTab === 'ALL' ? undefined : activeDepartmentTab;
+        const countableItems = items.filter(i => {
+            if (i.type === 'FINISHED_GOOD') return false;
+            if (deptFilter && (i.department || 'Unassigned') !== deptFilter) return false;
+            return true;
+        });
+
+        if (countableItems.length === 0) {
+            setError('No items available for this department.');
+            setTimeout(() => setError(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
+            return;
+        }
+
+        const data = countableItems.map(item => ({
+            'Item ID': item.id,
+            'Item Name': item.name,
+            'Department': item.department || 'Unassigned',
+            'Category': item.category,
+            'Unit': item.units.recipeUnit,
+            'Count (Whole Units)': '',
+            'Count (Partial/Decimals)': ''
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        ws['!autofilter'] = { ref: `A1:G${data.length + 1}` };
+        
+        const colWidths = [
+            { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 15 }, 
+            { wch: 10 }, { wch: 20 }, { wch: 25 }
+        ];
+        ws['!cols'] = colWidths;
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Count Sheet');
+        XLSX.writeFile(wb, `Count_Sheet_${activeDepartmentTab}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
     const handleUploadCountSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file || !session) return;
@@ -940,26 +1041,28 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             }));
             const extractedCounts = await GeminiVisionService.extractManualCounts(csvText, availableItems);
 
-            // Update count states (Overwrite strategy)
-            setCountStates(prev => {
-                const next = new Map(prev);
-                for (const [itemId, countVal] of Object.entries(extractedCounts)) {
-                    if (typeof countVal === 'number' && !isNaN(countVal)) {
-                        const item = items.find(i => i.id === itemId);
-                        if (item) {
-                            next.set(itemId, {
-                                itemId,
-                                count: Math.floor(countVal),
-                                partialCount: Number((countVal % 1).toFixed(3)),
-                                unit: item.units.recipeUnit
-                            });
-                        }
+            const newPending: { itemId: string; name: string; count: number; partialCount: number; unit: string }[] = [];
+            for (const [itemId, countVal] of Object.entries(extractedCounts)) {
+                if (typeof countVal === 'number' && !isNaN(countVal)) {
+                    const item = items.find(i => i.id === itemId);
+                    if (item) {
+                        newPending.push({
+                            itemId,
+                            name: item.name,
+                            count: Math.floor(countVal),
+                            partialCount: Number((countVal % 1).toFixed(3)),
+                            unit: item.units.recipeUnit
+                        });
                     }
                 }
-                return next;
-            });
+            }
 
-            alert(`Successfully extracted and matched ${Object.keys(extractedCounts).length} items from the count sheet! Please review the counts.`);
+            if (newPending.length > 0) {
+                setPendingCounts(newPending);
+            } else {
+                setError('No valid counts could be extracted from the file.');
+                setTimeout(() => setError(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
+            }
         } catch (err) {
             console.error('Failed to parse count sheet:', err);
             setError('Failed to process count sheet');
@@ -968,6 +1071,23 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             setIsUploadingCountSheet(false);
             if (countSheetInputRef.current) countSheetInputRef.current.value = '';
         }
+    };
+
+    const confirmPendingCounts = () => {
+        if (!pendingCounts) return;
+        setCountStates(prev => {
+            const next = new Map(prev);
+            pendingCounts.forEach(pc => {
+                next.set(pc.itemId, {
+                    itemId: pc.itemId,
+                    count: pc.count,
+                    partialCount: pc.partialCount,
+                    unit: pc.unit
+                });
+            });
+            return next;
+        });
+        setPendingCounts(null);
     };
 
     const currentBusiness = businesses.find(b => b.id === selectedBusinessUnit);
@@ -1076,16 +1196,23 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                                         className="hidden"
                                     />
                                     <button
+                                        onClick={handleDownloadCountSheetTemplate}
+                                        className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center gap-2 transition-colors"
+                                    >
+                                        <Download size={16} />
+                                        Download Template
+                                    </button>
+                                    <button
                                         onClick={() => countSheetInputRef.current?.click()}
                                         disabled={isUploadingCountSheet}
-                                        className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center gap-2 disabled:opacity-50"
+                                        className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center gap-2 disabled:opacity-50 transition-colors"
                                     >
                                         {isUploadingCountSheet ? (
                                             <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
                                         ) : (
                                             <Upload size={16} />
                                         )}
-                                        Upload Count Sheet
+                                        Upload Counts
                                     </button>
                                 </div>
                             )}
@@ -1212,9 +1339,20 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                     {session ? (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             <div className="lg:col-span-2 space-y-4">
-                                <div className="relative">
-                                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
-                                    <input type="text" placeholder="Search items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-purple-500" />
+                                <div className="flex flex-col sm:flex-row items-center gap-4">
+                                    <div className="relative flex-1 w-full">
+                                        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
+                                        <input type="text" placeholder="Search items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 transition-colors" />
+                                    </div>
+                                    <label className="flex items-center gap-2 cursor-pointer w-full sm:w-auto bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 px-4 py-3 rounded-xl transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={showUncountedOnly} 
+                                            onChange={(e) => setShowUncountedOnly(e.target.checked)}
+                                            className="w-5 h-5 rounded border-slate-300 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-0 bg-slate-100 dark:bg-slate-900"
+                                        />
+                                        <span className="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">Show Uncounted Only</span>
+                                    </label>
                                 </div>
                                 <div className="space-y-4">
                                     {filteredItems.length === 0 ? (
@@ -1294,6 +1432,21 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                 storageAreas={storageAreas}
                 uomOptions={uomOptions}
             />
+
+            <ReviewUploadModal 
+                isOpen={!!pendingCounts} 
+                pendingCounts={pendingCounts} 
+                onConfirm={confirmPendingCounts} 
+                onCancel={() => setPendingCounts(null)} 
+            />
+
+            {/* ERROR TOAST */}
+            {error && (
+                <div className="fixed bottom-4 right-4 bg-red-600 text-white px-6 py-3 rounded-xl shadow-lg flex items-center gap-2 z-50 animate-bounce-short">
+                    <AlertTriangle size={20} />
+                    {error}
+                </div>
+            )}
         </div>
     );
 };
