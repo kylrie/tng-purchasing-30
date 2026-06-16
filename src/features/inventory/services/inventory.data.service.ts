@@ -5,6 +5,7 @@ import type {
     InventoryCategory,
     CreateInventoryItemInput
 } from '../types/InventoryItem';
+import { resolveItemCostPerUnit } from '../utils/inventory.utils';
 
 // ============================================================
 // TYPES
@@ -88,7 +89,7 @@ export async function exportInventoryToCSV(
             'Buy Unit': item.units.buyUnit,
             'Conversion Rate': item.units.conversion.toString(),
             'Par Level': (item.units.conversion > 0 ? item.parLevel / item.units.conversion : item.parLevel).toString(),
-            'Cost': item.costPerUnit.toString(),
+            'Cost': resolveItemCostPerUnit(item).toString(),
             'SKU': item.sku || '',
             'Supplier': item.supplier || '',
             'Notes': item.notes || ''

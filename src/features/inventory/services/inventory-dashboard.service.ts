@@ -4,6 +4,7 @@ import type { PosSaleRecord } from '../../pos/types/pos-import.types';
 import type { InventoryItem } from '../types/InventoryItem';
 import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
 import type { User } from '../../procurement/types';
+import { resolveItemCostPerUnit } from '../utils/inventory.utils';
 
 const COL = {
     POS_SALES: 'pos_sales',
@@ -114,7 +115,7 @@ export class InventoryDashboardService {
         fieldName: string
     ): QueryConstraint[] {
         return typeof userOrBuId === 'string'
-            ? [where(fieldName, '==', userOrBuId)]
+            ? (userOrBuId === 'ALL' ? [] : [where(fieldName, '==', userOrBuId)])
             : getTenantConstraints(userOrBuId, fieldName);
     }
 
@@ -190,7 +191,7 @@ export class InventoryDashboardService {
             for (const d of itemsSnap.docs) {
                 const data = d.data() as InventoryItem;
                 costMap.set(d.id, {
-                    costPerUnit: data.costPerUnit || 0,
+                    costPerUnit: resolveItemCostPerUnit(data),
                     name: data.name || 'Unknown',
                     category: data.category || 'Other',
                     type: data.type || 'Other',

@@ -509,10 +509,17 @@ export class InventoryService {
 
     /**
      * Calculate COGS for a business unit (excludes Assets)
+     *
+     * @param periodStart  - Start of the reporting period
+     * @param periodEnd    - End of the reporting period
+     * @param beginningInventoryValue - Total inventory value at periodStart
+     *        (source from a recon_history snapshot for the start of the period)
+     * @param purchasesValue - Total value of goods received during the period
      */
     static async calculateCOGS(
         periodStart: Date,
         periodEnd: Date,
+        beginningInventoryValue: number,
         purchasesValue: number = 0
     ): Promise<COGSReport> {
         try {
@@ -524,8 +531,7 @@ export class InventoryService {
                 sum + (item.currentStock * item.costPerUnit), 0
             );
 
-            // Estimate beginning inventory as ending + purchases (simplified)
-            const beginningInventoryValue = endingInventoryValue;
+            // COGS = Beginning Inventory + Purchases − Ending Inventory
             const cogs = beginningInventoryValue + purchasesValue - endingInventoryValue;
 
             return {

@@ -15,6 +15,24 @@
             ]
         },
         {
+            "collectionGroup": "stock_transactions",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "type",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "timestamp",
+                    "order": "ASCENDING"
+                }
+            ]
+        },
+        {
             "collectionGroup": "pos_sales",
             "queryScope": "COLLECTION",
             "fields": [

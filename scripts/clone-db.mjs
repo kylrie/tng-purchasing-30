@@ -44,7 +44,7 @@ async function cloneCollection(sourceDb, targetDb, collectionName) {
     }
 
     let count = 0;
-    const batch = targetDb.batch();
+    let batch = targetDb.batch();
 
     for (const doc of snapshot.docs) {
         batch.set(targetRef.doc(doc.id), doc.data());
@@ -53,6 +53,7 @@ async function cloneCollection(sourceDb, targetDb, collectionName) {
         // Firestore batch limit is 500
         if (count % 500 === 0) {
             await batch.commit();
+            batch = targetDb.batch();
             console.log(`   ✓ Committed ${count} documents...`);
         }
     }

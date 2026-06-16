@@ -1098,5 +1098,34 @@ service cloud.firestore {
       // No updates or deletes — immutable audit trail
       allow update, delete: if false;
     }
+
+    // =====================================================
+    // INVENTORY INVESTIGATIONS COLLECTION
+    // Case management for flagged inventory variances
+    // =====================================================
+    match /inventory_investigations/{caseId} {
+      allow read: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        hasPermission('inventory:variance:view:all') ||
+        (hasPermission('inventory:variance:view:bu') && belongsToSameBU(resource)) ||
+        // Fallback: any signed-in user in the same BU can view investigations
+        (!hasPermission('inventory:variance:view:all') && !hasPermission('inventory:variance:view:bu') && belongsToSameBU(resource))
+      );
+      allow create: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        hasPermission('inventory:variance:create') ||
+        hasPermission('inventory:variance:assign')
+      );
+      // Allow update for resolving and appending timeline events
+      allow update: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        hasPermission('inventory:variance:resolve') ||
+        hasPermission('inventory:variance:edit') ||
+        // Any signed-in user can append timeline notes (controlled in app)
+        isSignedIn()
+      );
+      // Investigations are preserved as audit records — no deletion
+      allow delete: if false;
+    }
   }
 }

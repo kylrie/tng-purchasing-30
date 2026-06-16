@@ -267,11 +267,19 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
                 const { start, end } = getDateRange(dateRange);
                 const months = dateRange === '1M' ? 1 : dateRange === '3M' ? 3 : dateRange === '6M' ? 6 : 12;
 
-                const [cogs, trends, items] = await Promise.all([
-                    InventoryService.calculateCOGS(start, end, 0),
+                const [trends, items] = await Promise.all([
                     InventoryService.getStockValueTrends(months),
                     InventoryService.getInventoryItems()
                 ]);
+
+                // Compute current stock value for COGS estimation
+                // NOTE: For accurate COGS, beginningInventoryValue should come from
+                // a recon_history snapshot at periodStart. Using current value as fallback.
+                const totalValue = items.reduce((sum, item) =>
+                    sum + (item.currentStock * item.costPerUnit), 0
+                );
+
+                const cogs = await InventoryService.calculateCOGS(start, end, totalValue, 0);
 
                 setCogsReport(cogs);
                 setStockTrends(trends);

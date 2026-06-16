@@ -1,4 +1,5 @@
 import { db } from '../../../config/firebase';
+import { resolveItemCostPerUnit } from '../utils/inventory.utils';
 import { ActivityLogService } from '../../../shared/services/activityLog.service';
 import {
     collection,
@@ -159,7 +160,7 @@ export class ReconService {
                     endingSystem,
                     endingActual: null,
                     variance: null,
-                    costPerUnit: item.costPerUnit,
+                    costPerUnit: resolveItemCostPerUnit(item),
                 };
             })
             .sort((a, b) => a.itemName.localeCompare(b.itemName));
@@ -253,6 +254,8 @@ export class ReconService {
                 currentStock: actualCount,
                 theoreticalStock: actualCount, // Reset theoretical to match physical
                 updatedAt: Timestamp.now(),
+                lastReconAt: Timestamp.now(), // Sentinel: POS import should skip deductions for
+                                               // transactions timestamped before this value
             });
             updatedItems++;
 

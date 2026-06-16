@@ -9,7 +9,9 @@ import {
     onSnapshot,
     serverTimestamp,
     Timestamp,
-    getDocs
+    getDocs,
+    getDoc,
+    runTransaction
 } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
@@ -123,51 +125,53 @@ export class InvestigationsService {
     static async resolveInvestigation(caseId: string, resolverName: string, resolutionNote: string = 'Case resolved') {
         const docRef = doc(db, 'inventory_investigations', caseId);
 
-        const resolveEvent: TimelineEvent = {
-            id: crypto.randomUUID(),
-            action: resolutionNote,
-            actor: resolverName,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            createdAt: new Date()
-        };
+        await runTransaction(db, async (transaction) => {
+            const snap = await transaction.get(docRef);
+            if (!snap.exists()) throw new Error(`Investigation case ${caseId} not found`);
 
-        // Since we can't easily arrayUnion with complex nested objects that include Dates in frontend easily without reading first,
-        // and we want to update status anyway, we'll just do a targeted update. In a real app we might read-modify-write if not using transaction
+            const existing = snap.data();
 
-        // We need to fetch current timeline to append to it
-        const caseParams = await getDocs(query(collection(db, 'inventory_investigations'), where('__name__', '==', caseId)));
-        if (caseParams.empty) return;
+            const resolveEvent: TimelineEvent = {
+                id: crypto.randomUUID(),
+                action: resolutionNote,
+                actor: resolverName,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                createdAt: new Date()
+            };
 
-        const docData = caseParams.docs[0].data();
-        const newTimeline = [...(docData.timeline || []), resolveEvent];
+            const newTimeline = [...(existing.timeline || []), resolveEvent];
 
-        await updateDoc(docRef, {
-            status: 'resolved',
-            resolvedAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }),
-            resolvedBy: resolverName,
-            timeline: newTimeline
+            transaction.update(docRef, {
+                status: 'resolved',
+                resolvedAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }),
+                resolvedBy: resolverName,
+                timeline: newTimeline
+            });
         });
     }
 
     static async addTimelineEvent(caseId: string, action: string, actor: string) {
         const docRef = doc(db, 'inventory_investigations', caseId);
 
-        const newEvent: TimelineEvent = {
-            id: crypto.randomUUID(),
-            action,
-            actor,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            createdAt: new Date()
-        };
+        await runTransaction(db, async (transaction) => {
+            const snap = await transaction.get(docRef);
+            if (!snap.exists()) throw new Error(`Investigation case ${caseId} not found`);
 
-        const caseParams = await getDocs(query(collection(db, 'inventory_investigations'), where('__name__', '==', caseId)));
-        if (caseParams.empty) return;
+            const existing = snap.data();
 
-        const docData = caseParams.docs[0].data();
-        const newTimeline = [...(docData.timeline || []), newEvent];
+            const newEvent: TimelineEvent = {
+                id: crypto.randomUUID(),
+                action,
+                actor,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                createdAt: new Date()
+            };
 
-        await updateDoc(docRef, {
-            timeline: newTimeline
+            const newTimeline = [...(existing.timeline || []), newEvent];
+
+            transaction.update(docRef, {
+                timeline: newTimeline
+            });
         });
     }
 }
