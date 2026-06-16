@@ -2,11 +2,13 @@
     "firestore": [
         {
             "database": "(default)",
-            "rules": "firestore.rules"
+            "rules": "firestore.rules",
+            "indexes": "firestore.indexes.json"
         },
         {
             "database": "tng-systems",
-            "rules": "firestore.rules"
+            "rules": "firestore.rules",
+            "indexes": "firestore.indexes.json"
         }
     ],
     "functions": {
