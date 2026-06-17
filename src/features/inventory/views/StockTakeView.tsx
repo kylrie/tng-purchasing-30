@@ -938,25 +938,21 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
             return;
         }
 
-        const header = 'SKU,Name,Current Stock,Counted Stock,Unit,Discrepancy';
-        const rows = countableItems.map(item => 
-            `"${item.sku || ''}","${item.name.replace(/"/g, '""')}","${item.currentStock}","","${item.units.recipeUnit}",""`
-        );
-        const csvContent = [header, ...rows].join('\n');
+        const rows = countableItems.map(item => ({
+            SKU: item.sku || '',
+            Name: item.name,
+            'Current Stock': item.currentStock,
+            'Counted Stock': '',
+            Unit: item.units.recipeUnit,
+            Discrepancy: ''
+        }));
+        
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Count Sheet');
 
         const deptName = targetDept === 'ALL' ? 'All_Departments' : targetDept;
-        const filename = `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.csv`;
-
-        // Use Data URI instead of Blob to completely bypass Chrome's UUID fallback bug
-        const BOM = '\uFEFF';
-        const uri = `data:text/csv;charset=utf-8,${encodeURIComponent(BOM + csvContent)}`;
-        
-        const link = document.createElement('a');
-        link.href = uri;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        XLSX.writeFile(wb, `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     const handleUploadCountSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1148,15 +1144,21 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
                                         {showDownloadMenu && (
                                             <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50">
                                                 <button
-                                                    onClick={() => { handleDownloadCountSheetTemplate('ALL'); setShowDownloadMenu(false); }}
-                                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300"
+                                                    onClick={() => { 
+                                                        handleDownloadCountSheetTemplate('ALL'); 
+                                                        setTimeout(() => setShowDownloadMenu(false), 100); 
+                                                    }}
+                                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 border-b border-slate-100 dark:border-slate-700/50"
                                                 >
                                                     All Departments
                                                 </button>
                                                 {DEPARTMENT_TABS.filter(tab => tab.key !== 'ALL').map(tab => (
                                                     <button
                                                         key={tab.key}
-                                                        onClick={() => { handleDownloadCountSheetTemplate(tab.key); setShowDownloadMenu(false); }}
+                                                        onClick={() => { 
+                                                            handleDownloadCountSheetTemplate(tab.key); 
+                                                            setTimeout(() => setShowDownloadMenu(false), 100); 
+                                                        }}
                                                         className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300"
                                                     >
                                                         {tab.label}
