@@ -938,30 +938,22 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
             return;
         }
 
-        const data = countableItems.map(item => ({
-            'Item ID': item.id,
-            'Item Name': item.name,
-            'Department': item.department || 'Unassigned',
-            'Category': item.category,
-            'Unit': item.units.recipeUnit,
-            'Count (Whole Units)': '',
-            'Count (Partial/Decimals)': ''
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(data);
-        ws['!autofilter'] = { ref: `A1:G${data.length + 1}` };
-        
-        const colWidths = [
-            { wch: 25 }, { wch: 40 }, { wch: 15 }, { wch: 15 }, 
-            { wch: 10 }, { wch: 20 }, { wch: 25 }
-        ];
-        ws['!cols'] = colWidths;
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Count Sheet');
-
         const deptName = targetDept === 'ALL' ? 'All_Departments' : targetDept;
-        XLSX.writeFile(wb, `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.xlsx`);
+        const filename = `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.csv`;
+
+        const header = 'SKU,Name,Current Stock,Counted Stock,Unit,Discrepancy';
+        const rows = countableItems.map(item => 
+            `"${item.sku || ''}","${item.name.replace(/"/g, '""')}","${item.currentStock}","","${item.units.recipeUnit}",""`
+        );
+        const template = [header, ...rows].join('\n');
+
+        const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
     const handleUploadCountSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
