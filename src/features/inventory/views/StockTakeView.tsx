@@ -700,6 +700,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
     const [isUploadingCountSheet, setIsUploadingCountSheet] = useState(false);
     const [pendingCounts, setPendingCounts] = useState<{ itemId: string; name: string; count: number; partialCount: number; unit: string }[] | null>(null);
     const [showUncountedOnly, setShowUncountedOnly] = useState(false);
+    const [showDownloadMenu, setShowDownloadMenu] = useState(false);
 
     const countSheetInputRef = useRef<HTMLInputElement>(null);
 
@@ -923,8 +924,8 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
         setCalculatorItem(null);
     };
 
-    const handleDownloadCountSheetTemplate = () => {
-        const deptFilter = activeDepartmentTab === 'ALL' ? undefined : activeDepartmentTab;
+    const handleDownloadCountSheetTemplate = (targetDept: InventoryDepartment | 'ALL' = activeDepartmentTab) => {
+        const deptFilter = targetDept === 'ALL' ? undefined : targetDept;
         const countableItems = items.filter(i => {
             if (i.type === 'FINISHED_GOOD') return false;
             if (deptFilter && (i.department || 'Unassigned') !== deptFilter) return false;
@@ -1137,13 +1138,36 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
                                         accept=".csv, .xlsx, .xls"
                                         className="hidden"
                                     />
-                                    <button
-                                        onClick={handleDownloadCountSheetTemplate}
-                                        className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center gap-2 transition-colors"
-                                    >
-                                        <Download size={16} />
-                                        Download Template
-                                    </button>
+                                    <div className="relative">
+                                        <button
+                                            onClick={() => setShowDownloadMenu(!showDownloadMenu)}
+                                            onBlur={() => setTimeout(() => setShowDownloadMenu(false), 200)}
+                                            className="px-4 py-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 flex items-center gap-2 transition-colors"
+                                        >
+                                            <Download size={16} />
+                                            Download Template
+                                            <ChevronDown size={14} className="ml-1" />
+                                        </button>
+                                        {showDownloadMenu && (
+                                            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden z-50">
+                                                <button
+                                                    onClick={() => { handleDownloadCountSheetTemplate('ALL'); setShowDownloadMenu(false); }}
+                                                    className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300"
+                                                >
+                                                    All Departments
+                                                </button>
+                                                {DEPARTMENT_TABS.filter(tab => tab.key !== 'ALL').map(tab => (
+                                                    <button
+                                                        key={tab.key}
+                                                        onClick={() => { handleDownloadCountSheetTemplate(tab.key); setShowDownloadMenu(false); }}
+                                                        className="w-full text-left px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300"
+                                                    >
+                                                        {tab.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <button
                                         onClick={() => countSheetInputRef.current?.click()}
                                         disabled={isUploadingCountSheet}
