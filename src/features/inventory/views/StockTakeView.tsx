@@ -939,21 +939,25 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
             return;
         }
 
-        const deptName = targetDept === 'ALL' ? 'All_Departments' : targetDept;
-        const filename = `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}`;
-
-        exportToCSV(
-            countableItems,
-            [
-                { header: 'SKU', accessor: (item) => item.sku || '' },
-                { header: 'Name', accessor: (item) => item.name },
-                { header: 'Current Stock', accessor: (item) => item.currentStock },
-                { header: 'Counted Stock', accessor: () => '' },
-                { header: 'Unit', accessor: (item) => item.units.recipeUnit },
-                { header: 'Discrepancy', accessor: () => '' }
-            ],
-            filename
+        const header = 'SKU,Name,Current Stock,Counted Stock,Unit,Discrepancy';
+        const rows = countableItems.map(item => 
+            `"${item.sku || ''}","${item.name.replace(/"/g, '""')}","${item.currentStock}","","${item.units.recipeUnit}",""`
         );
+        const csvContent = [header, ...rows].join('\n');
+
+        const deptName = targetDept === 'ALL' ? 'All_Departments' : targetDept;
+        const filename = `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.csv`;
+
+        // Use Data URI instead of Blob to completely bypass Chrome's UUID fallback bug
+        const BOM = '\uFEFF';
+        const uri = `data:text/csv;charset=utf-8,${encodeURIComponent(BOM + csvContent)}`;
+        
+        const link = document.createElement('a');
+        link.href = uri;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleUploadCountSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
