@@ -969,8 +969,11 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
         a.download = `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.xlsx`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 500);
     };
 
     const handleUploadCountSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
