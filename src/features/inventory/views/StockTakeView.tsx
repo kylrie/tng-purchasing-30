@@ -38,6 +38,7 @@ import { UI_CONSTANTS } from '../../../config/constants';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
+import { exportToCSV } from '../../../shared/utils/exportUtils';
 
 // ============================================================
 // PROPS
@@ -939,21 +940,20 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
         }
 
         const deptName = targetDept === 'ALL' ? 'All_Departments' : targetDept;
-        const filename = `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.csv`;
+        const filename = `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}`;
 
-        const header = 'SKU,Name,Current Stock,Counted Stock,Unit,Discrepancy';
-        const rows = countableItems.map(item => 
-            `"${item.sku || ''}","${item.name.replace(/"/g, '""')}","${item.currentStock}","","${item.units.recipeUnit}",""`
+        exportToCSV(
+            countableItems,
+            [
+                { header: 'SKU', accessor: (item) => item.sku || '' },
+                { header: 'Name', accessor: (item) => item.name },
+                { header: 'Current Stock', accessor: (item) => item.currentStock },
+                { header: 'Counted Stock', accessor: () => '' },
+                { header: 'Unit', accessor: (item) => item.units.recipeUnit },
+                { header: 'Discrepancy', accessor: () => '' }
+            ],
+            filename
         );
-        const template = [header, ...rows].join('\n');
-
-        const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
     };
 
     const handleUploadCountSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
