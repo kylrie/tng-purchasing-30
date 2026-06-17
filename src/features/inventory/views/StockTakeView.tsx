@@ -38,7 +38,6 @@ import { UI_CONSTANTS } from '../../../config/constants';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
-import { exportToCSV } from '../../../shared/utils/exportUtils';
 
 // ============================================================
 // PROPS
