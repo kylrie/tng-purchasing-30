@@ -29,13 +29,10 @@ import {
     LayoutGrid,
     Briefcase
 } from 'lucide-react';
-import type { InventoryItem, InventoryItemType, InventoryDepartment, StockCountSession, CreateInventoryItemInput, StocktakeAuditLog } from '../types/InventoryItem';
+import type { InventoryItem, InventoryItemType, InventoryDepartment, StockCountSession, StocktakeAuditLog } from '../types/InventoryItem';
 import { InventoryService } from '../services/inventory.service';
-import { exportInventoryToCSV, importInventoryBatch, parseCSVFile, downloadSampleCSV } from '../services/inventory.data.service';
 import * as XLSX from 'xlsx';
-import type { ImportResult } from '../services/inventory.data.service';
 import VisualCountRow from '../components/VisualCountRow';
-import InventoryItemModal from '../components/InventoryItemModal';
 import type { User, Business } from '../../procurement/types';
 import { UI_CONSTANTS } from '../../../config/constants';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
@@ -700,15 +697,11 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
     const [isSavingDraft, setIsSavingDraft] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Modal & Import/Export state
-    const [showItemModal, setShowItemModal] = useState(false);
-    const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
-    const [isImporting, setIsImporting] = useState(false);
+    // Import/Export state
     const [isUploadingCountSheet, setIsUploadingCountSheet] = useState(false);
     const [pendingCounts, setPendingCounts] = useState<{ itemId: string; name: string; count: number; partialCount: number; unit: string }[] | null>(null);
     const [showUncountedOnly, setShowUncountedOnly] = useState(false);
-    const [importResult, setImportResult] = useState<ImportResult | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+
     const countSheetInputRef = useRef<HTMLInputElement>(null);
 
     // Load inventory when BU or type changes
@@ -929,56 +922,6 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
             );
         }
         setCalculatorItem(null);
-    };
-
-    // Add/Edit/Import/Export handlers
-    const handleAddItem = () => {
-        setEditingItem(null);
-        setShowItemModal(true);
-    };
-
-    const handleSaveItem = async (itemData: CreateInventoryItemInput) => {
-        if (editingItem) {
-            await InventoryService.updateInventoryItem(editingItem.id, itemData);
-        } else {
-            await InventoryService.createInventoryItem(itemData);
-        }
-        const typeFilter = activeTypeTab === 'ALL' ? undefined : activeTypeTab;
-        const refreshedItems = await InventoryService.getInventory(selectedBusinessUnit, typeFilter);
-        setItems(refreshedItems);
-        setShowItemModal(false);
-    };
-
-    const handleExport = async () => {
-        try {
-            await exportInventoryToCSV(selectedBusinessUnit, currentBusiness?.name);
-        } catch {
-            setError('Failed to export inventory');
-            setTimeout(() => setError(null), UI_CONSTANTS.TOAST_DURATION_SHORT);
-        }
-    };
-
-    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !selectedBusinessUnit) return;
-        setIsImporting(true);
-        setImportResult(null);
-        try {
-            const csvData = await parseCSVFile(file);
-            const result = await importInventoryBatch(csvData, selectedBusinessUnit);
-            setImportResult(result);
-            const typeFilter = activeTypeTab === 'ALL' ? undefined : activeTypeTab;
-            const refreshedItems = await InventoryService.getInventory(selectedBusinessUnit, typeFilter);
-            setItems(refreshedItems);
-        } catch (err) {
-            setImportResult({
-                success: false, imported: 0, skipped: 0, failed: 0,
-                errors: [`Import failed: ${err}`]
-            });
-        } finally {
-            setIsImporting(false);
-            if (fileInputRef.current) fileInputRef.current.value = '';
-        }
     };
 
     const handleDownloadCountSheetTemplate = () => {
@@ -1219,27 +1162,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                         </div>
                     )}
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2">
-                    {hasPermission('inventory:item:create') && (
-                        <>
-                            <button onClick={handleAddItem} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors">
-                                <Plus size={16} />Add Item
-                            </button>
-                            <label className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors cursor-pointer">
-                                <Upload size={16} />
-                                {isImporting ? 'Importing...' : 'Import Items'}
-                                <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} disabled={isImporting} className="hidden" />
-                            </label>
-                        </>
-                    )}
-                    <button onClick={handleExport} disabled={items.length === 0} className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-white rounded-lg flex items-center gap-2 text-sm font-medium transition-colors disabled:opacity-50">
-                        <Download size={16} />Export
-                    </button>
-                    <button onClick={downloadSampleCSV} className="px-3 py-2 bg-purple-800 hover:bg-purple-700 text-purple-200 rounded-lg text-sm transition-colors flex items-center gap-1" title="Download Inventory Items Template">
-                        <Download size={14} /><span className="text-xs">Items</span>
-                    </button>
-                </div>
+
                 </div>
             </div>
 
@@ -1285,24 +1208,6 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                             );
                         })}
                     </div>
-
-                    {importResult && (
-                        <div className={`p-4 rounded-lg border flex items-start gap-3 ${importResult.success ? 'bg-green-900/30 border-green-700/50' : 'bg-amber-900/30 border-amber-700/50'}`}>
-                            {importResult.success ? <Check size={20} className="text-green-400 mt-0.5 flex-shrink-0" /> : <AlertTriangle size={20} className="text-amber-400 mt-0.5 flex-shrink-0" />}
-                            <div className="flex-1">
-                                <p className={importResult.success ? 'text-green-300' : 'text-amber-300'}>
-                                    Imported: {importResult.imported} | Skipped: {importResult.skipped} | Failed: {importResult.failed}
-                                </p>
-                                {importResult.errors.length > 0 && (
-                                    <ul className="text-xs text-slate-400 mt-2 max-h-24 overflow-auto">
-                                        {importResult.errors.slice(0, 5).map((err, i) => <li key={i}>• {err}</li>)}
-                                        {importResult.errors.length > 5 && <li className="text-slate-500">...and {importResult.errors.length - 5} more</li>}
-                                    </ul>
-                                )}
-                            </div>
-                            <button onClick={() => setImportResult(null)} className="text-slate-400 hover:text-white">×</button>
-                        </div>
-                    )}
 
                     {storageAreas.length > 0 && (
                         <div className="flex items-center gap-2 overflow-x-auto pb-2">
@@ -1423,15 +1328,6 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, 
                 />
             )}
 
-            <InventoryItemModal
-                isOpen={showItemModal}
-                onClose={() => setShowItemModal(false)}
-                onSave={handleSaveItem}
-                item={editingItem}
-                businessUnitId={selectedBusinessUnit}
-                storageAreas={storageAreas}
-                uomOptions={uomOptions}
-            />
 
             <ReviewUploadModal 
                 isOpen={!!pendingCounts} 
