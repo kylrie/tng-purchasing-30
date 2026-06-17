@@ -960,20 +960,8 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Count Sheet');
 
-        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([excelBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
         const deptName = targetDept === 'ALL' ? 'All_Departments' : targetDept;
-        a.download = `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 500);
+        XLSX.writeFile(wb, `Count_Sheet_${deptName}_${new Date().toISOString().split('T')[0]}.xlsx`);
     };
 
     const handleUploadCountSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
