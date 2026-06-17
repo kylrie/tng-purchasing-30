@@ -10,7 +10,7 @@ import {
     Factory,
     Wrench,
     MapPin,
-    Plus,
+
     Upload,
     Download,
     ClipboardList,
@@ -46,7 +46,6 @@ import { GeminiVisionService } from '../../../shared/services/gemini-vision.serv
 interface StockTakeViewProps {
     currentUser: User;
     businesses: Business[];
-    uomOptions: string[];
 }
 
 interface CountItemState {
@@ -659,7 +658,7 @@ const LOGS_ALLOWED_ROLES = ['SUPER_ADMIN', 'ADMIN', 'BOARD_OF_DIRECTOR'];
 // MAIN COMPONENT
 // ============================================================
 
-const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses, uomOptions }) => {
+const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }) => {
     // Business unit selection
     const { selectedBusinessUnit } = useBusinessUnit();
     const { hasPermission } = usePermissions();

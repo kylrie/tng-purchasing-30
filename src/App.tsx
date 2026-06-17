@@ -494,7 +494,7 @@ function ProtectedApp() {
                   <InventoryIntegrityMonitor />
                 } />
                 <Route path="/inventory/stock-take" element={
-                  <StockTakeView currentUser={currentUser} businesses={accessibleBusinesses} uomOptions={uomOptions} />
+                  <StockTakeView currentUser={currentUser} businesses={accessibleBusinesses} />
                 } />
                 <Route path="/inventory/reports" element={
                   <InventoryReports currentUser={currentUser} />
