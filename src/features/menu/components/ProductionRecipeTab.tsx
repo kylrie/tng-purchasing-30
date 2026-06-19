@@ -22,7 +22,7 @@ import type { Business, User } from '../../procurement/types';
 import type { InventoryItem, ServiceType } from '../../inventory/types/InventoryItem';
 import { SERVICE_TYPES } from '../../inventory/types/InventoryItem';
 import { InventoryService } from '../../inventory/services/inventory.service';
-import ProductionLogsView from './ProductionLogsView';
+import ProductionLogsView from '../views/ProductionLogsView';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { usePermissions } from '../../../hooks/usePermissions';
 
@@ -30,7 +30,7 @@ import { usePermissions } from '../../../hooks/usePermissions';
 // PROPS
 // ============================================================
 
-interface ProductionRecipeViewProps {
+interface ProductionRecipeTabProps {
     businesses: Business[];
     currentUser?: User;
 }
@@ -305,7 +305,7 @@ const RecipeList: React.FC<{
 // MAIN COMPONENT
 // ============================================================
 
-const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses, currentUser }) => {
+const ProductionRecipeTab: React.FC<ProductionRecipeTabProps> = ({ businesses, currentUser }) => {
     // State
     const [activeTab, setActiveTab] = useState<'recipes' | 'logs'>('recipes');
     const { selectedBusinessUnit } = useBusinessUnit();
@@ -486,19 +486,35 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
 
     return (
         <div className="space-y-6">
-            {/* Page Header */}
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-                        <Factory className="text-amber-500 dark:text-amber-400" />
-                        Production
-                    </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">
-                        Manage recipes and view production run history
-                    </p>
-                </div>
 
-                {/* Right: BU selector + New Recipe (only on recipes tab) */}
+            {/* Tabs & Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl p-1 w-fit">
+                    <button
+                        onClick={() => setActiveTab('recipes')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                            activeTab === 'recipes'
+                                ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
+                        }`}
+                    >
+                        <Factory size={16} />
+                        Recipes
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('logs')}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                            activeTab === 'logs'
+                                ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
+                        }`}
+                    >
+                        <ClipboardList size={16} />
+                        Production Logs
+                    </button>
+                </div>
+                
+                {/* Right: New Recipe (only on recipes tab) */}
                 <div className="flex flex-wrap items-center gap-3">
                     {activeTab === 'recipes' && hasPermission('menu:recipe:create') && (
                         <button
@@ -511,33 +527,6 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
                     )}
                 </div>
             </div>
-
-            {/* Tabs */}
-            <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl p-1 w-fit">
-                <button
-                    onClick={() => setActiveTab('recipes')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                        activeTab === 'recipes'
-                            ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
-                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
-                    }`}
-                >
-                    <Factory size={16} />
-                    Recipes
-                </button>
-                <button
-                    onClick={() => setActiveTab('logs')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                        activeTab === 'logs'
-                            ? 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 shadow-sm'
-                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white'
-                    }`}
-                >
-                    <ClipboardList size={16} />
-                    Production Logs
-                </button>
-            </div>
-
             {/* ── LOGS TAB ─────────────────────────────────────────── */}
             {activeTab === 'logs' && (
                 <ProductionLogsView businesses={businesses} defaultBusinessUnitId={selectedBusinessUnit} embedded />
@@ -834,4 +823,4 @@ const ProductionRecipeView: React.FC<ProductionRecipeViewProps> = ({ businesses,
     );
 };
 
-export default ProductionRecipeView;
+export default ProductionRecipeTab;

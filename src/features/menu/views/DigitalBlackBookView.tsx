@@ -1,21 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Plus, Loader2 } from 'lucide-react';
+import { BookOpen, Plus, Loader2, Search, Image as ImageIcon } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { User, Business } from '../../procurement/types';
-import type { BlackBookRecipe, QualityCheckItem } from '../types/blackbook.types';
+import type { BlackBookRecipe } from '../types/blackbook.types';
 import { BlackBookService } from '../services/blackbook.service';
 import { usePermissions } from '../../../hooks/usePermissions';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
-import BlackBookSidebar from '../components/BlackBookSidebar';
-import BlackBookRecipeCard from '../components/BlackBookRecipeCard';
-import BlackBookMediaSection from '../components/BlackBookMediaSection';
-import BlackBookQualityControls from '../components/BlackBookQualityControls';
-import BlackBookFooter from '../components/BlackBookFooter';
 import CreateBlackBookModal from '../components/CreateBlackBookModal';
 
 // ============================================================
 // DIGITAL BLACK BOOK VIEW
 // Main orchestrator view for the Digital Black Book module.
-// Renders sidebar + detail panels. Respects RBAC permissions.
+// Renders a grid of recipes.
 // ============================================================
 
 interface DigitalBlackBookViewProps {
@@ -24,63 +20,45 @@ interface DigitalBlackBookViewProps {
 }
 
 const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
-    businesses,
-    currentUser
+    businesses
 }) => {
     const { hasPermission } = usePermissions();
     const { selectedBusinessUnit } = useBusinessUnit();
+    const navigate = useNavigate();
 
     // RBAC: Admin can edit, non-admin is view-only
     const isAdmin = hasPermission('menu:black_book:edit') || hasPermission('menu:black_book:create');
 
     const [recipes, setRecipes] = useState<BlackBookRecipe[]>([]);
-    const [selectedRecipe, setSelectedRecipe] = useState<BlackBookRecipe | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
     
     // Modal states
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Fetch recipes for the selected business unit
     const loadRecipes = useCallback(async () => {
-        if (selectedBusinessUnit === 'all') {
-            // Load recipes from all accessible business units
-            setLoading(true);
-            setError(null);
-            try {
-                const allRecipes: BlackBookRecipe[] = [];
+        setLoading(true);
+        setError(null);
+        try {
+            let allRecipes: BlackBookRecipe[] = [];
+            if (selectedBusinessUnit === 'all') {
                 for (const bu of businesses) {
                     const buRecipes = await BlackBookService.getRecipes(bu.id);
                     allRecipes.push(...buRecipes);
                 }
-                // Sort alphabetically
-                allRecipes.sort((a, b) => a.name.localeCompare(b.name));
-                setRecipes(allRecipes);
-                // Auto-select first recipe if nothing selected
-                if (allRecipes.length > 0 && !selectedRecipe) {
-                    setSelectedRecipe(allRecipes[0]);
-                }
-            } catch (err) {
-                console.error('Error loading Black Book recipes:', err);
-                setError('Failed to load recipes. Please try again.');
-            } finally {
-                setLoading(false);
+            } else {
+                allRecipes = await BlackBookService.getRecipes(selectedBusinessUnit);
             }
-        } else {
-            setLoading(true);
-            setError(null);
-            try {
-                const buRecipes = await BlackBookService.getRecipes(selectedBusinessUnit);
-                setRecipes(buRecipes);
-                if (buRecipes.length > 0 && !selectedRecipe) {
-                    setSelectedRecipe(buRecipes[0]);
-                }
-            } catch (err) {
-                console.error('Error loading Black Book recipes:', err);
-                setError('Failed to load recipes. Please try again.');
-            } finally {
-                setLoading(false);
-            }
+            // Sort alphabetically
+            allRecipes.sort((a, b) => a.name.localeCompare(b.name));
+            setRecipes(allRecipes);
+        } catch (err) {
+            console.error('Error loading Black Book recipes:', err);
+            setError('Failed to load recipes. Please try again.');
+        } finally {
+            setLoading(false);
         }
     }, [selectedBusinessUnit, businesses]);
 
@@ -88,58 +66,10 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
         loadRecipes();
     }, [loadRecipes]);
 
-    // Handle recipe selection
-    const handleSelectRecipe = (recipe: BlackBookRecipe) => {
-        setSelectedRecipe(recipe);
-    };
-
-    // Handle checklist changes (kitchen staff can interact with checklist)
-    const handleChecklistChange = (updatedChecklist: QualityCheckItem[]) => {
-        if (!selectedRecipe) return;
-        setSelectedRecipe({
-            ...selectedRecipe,
-            qualityChecklist: updatedChecklist
-        });
-    };
-
-    // Print station copy (PDF generation placeholder)
-    const handlePrintStationCopy = () => {
-        if (!selectedRecipe) return;
-        // TODO: Integrate PDF generation
-        window.print();
-    };
-
-    // Open TES Training Checklist
-    const handleOpenTESChecklist = () => {
-        window.alert('TES Training Checklist feature is coming soon!');
-    };
-
-    // Update Video URL
-    const handleUpdateVideoUrl = async () => {
-        if (!isAdmin || !selectedRecipe) return;
-        const newUrl = window.prompt('Enter new video URL (YouTube or Google Drive):', selectedRecipe.youtubeVideoUrl || selectedRecipe.trainingVideoUrl || '');
-        if (newUrl !== null) {
-            try {
-                // Determine if it's YouTube or Google Drive based on the URL
-                const isYouTube = newUrl.includes('youtube.com') || newUrl.includes('youtu.be');
-                const isDrive = newUrl.includes('drive.google.com');
-
-                await BlackBookService.updateRecipe(
-                    selectedRecipe.id,
-                    { 
-                        youtubeVideoUrl: isYouTube ? newUrl : (isDrive ? '' : newUrl), // Default to YouTube if unknown
-                        trainingVideoUrl: isDrive ? newUrl : '' // Reset the other to avoid conflicts
-                    },
-                    'Updated training video link',
-                    currentUser.name
-                );
-                loadRecipes();
-            } catch (err) {
-                console.error('Failed to update video URL:', err);
-                window.alert('Failed to update video URL. Please try again.');
-            }
-        }
-    };
+    const filteredRecipes = recipes.filter(r =>
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.prepStation.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     // Loading state
     if (loading) {
@@ -171,79 +101,128 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
     }
 
     return (
-        <div className="flex flex-col h-full -m-4 md:-m-6 lg:-m-8 print:m-0 print:h-auto">
+        <div className="flex flex-col h-full -m-4 md:-m-6 lg:-m-8">
             {/* Page Header */}
-            <div className="print:hidden flex items-center justify-between px-6 py-4 border-b border-[#e8e0d4] dark:border-slate-700 bg-[#faf8f5]/80 dark:bg-slate-900/80 backdrop-blur-sm">
+            <div className="flex items-center justify-between px-6 py-6 border-b border-[#e8e0d4] dark:border-slate-700 bg-[#faf8f5]/80 dark:bg-slate-900/80 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-                        <BookOpen size={20} className="text-white" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                        <BookOpen size={24} className="text-white" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Digital Black Book</h1>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Digital Black Book</h1>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                             Standardized Recipe Operations · {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                    <div className="relative hidden md:block w-64">
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Search recipes..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-amber-500 dark:focus:border-amber-500 transition-colors"
+                        />
+                    </div>
                     {isAdmin && (
                         <button
-                            className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-600 to-orange-500 text-white rounded-lg text-sm font-semibold hover:from-amber-700 hover:to-orange-600 transition-all shadow-lg shadow-amber-500/20"
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-600 to-orange-500 text-white rounded-xl text-sm font-semibold hover:from-amber-700 hover:to-orange-600 transition-all shadow-lg shadow-amber-500/20"
                             onClick={() => setIsCreateModalOpen(true)}
                         >
-                            <Plus size={16} />
+                            <Plus size={18} />
                             New Recipe
                         </button>
                     )}
                 </div>
             </div>
-
-            {/* Main Content: Sidebar + Detail */}
-            <div className="flex flex-1 overflow-hidden print:overflow-visible">
-                {/* Sidebar */}
-                <div className="print:hidden h-full flex flex-shrink-0">
-                    <BlackBookSidebar
-                        recipes={recipes}
-                        selectedRecipeId={selectedRecipe?.id ?? null}
-                        onSelectRecipe={handleSelectRecipe}
+            
+            {/* Mobile Search */}
+            <div className="md:hidden px-6 py-3 bg-[#faf8f5] dark:bg-slate-900 border-b border-[#e8e0d4] dark:border-slate-700">
+                <div className="relative">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="Search recipes..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-amber-500"
                     />
                 </div>
+            </div>
 
-                {/* Detail Panel */}
-                <div className="flex-1 overflow-y-auto print:overflow-visible bg-[#faf8f5] dark:bg-slate-900 p-6 print:p-0 space-y-6">
-                    {selectedRecipe ? (
-                        <>
-                            <BlackBookRecipeCard
-                                recipe={selectedRecipe}
-                                isAdmin={isAdmin}
-                            />
-                            <BlackBookMediaSection
-                                recipe={selectedRecipe}
-                                onUpdateVideoUrl={isAdmin ? handleUpdateVideoUrl : undefined}
-                            />
-                            <BlackBookQualityControls
-                                recipe={selectedRecipe}
-                                onChecklistChange={handleChecklistChange}
-                            />
-                            <BlackBookFooter
-                                recipe={selectedRecipe}
-                                onPrintStationCopy={handlePrintStationCopy}
-                                onOpenTESChecklist={handleOpenTESChecklist}
-                            />
-                        </>
+            {/* Grid Content */}
+            <div className="flex-1 overflow-y-auto bg-[#faf8f5] dark:bg-slate-900 p-6">
+                <div className="max-w-7xl mx-auto">
+                    {filteredRecipes.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {filteredRecipes.map(recipe => (
+                                <button
+                                    key={recipe.id}
+                                    onClick={() => navigate(`/menu/digital-black-book/${recipe.id}`)}
+                                    className="group flex flex-col bg-white dark:bg-slate-800 rounded-2xl border border-[#e8e0d4] dark:border-slate-700 overflow-hidden hover:shadow-xl hover:shadow-amber-500/10 hover:border-amber-300 dark:hover:border-amber-700 transition-all text-left"
+                                >
+                                    {/* Image Section */}
+                                    <div className="w-full aspect-[4/3] bg-slate-100 dark:bg-slate-700/50 relative overflow-hidden">
+                                        {recipe.platingPhotoUrl ? (
+                                            <img 
+                                                src={recipe.platingPhotoUrl} 
+                                                alt={recipe.name} 
+                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            />
+                                        ) : (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                                                <ImageIcon size={32} className="mb-2 opacity-50" />
+                                                <span className="text-xs font-medium">No Photo</span>
+                                            </div>
+                                        )}
+                                        {/* Station Badge */}
+                                        <div className="absolute top-3 right-3 px-2.5 py-1 bg-black/60 backdrop-blur-md text-white text-xs font-medium rounded-lg">
+                                            {recipe.prepStation}
+                                        </div>
+                                    </div>
+                                    
+                                    {/* Text Section */}
+                                    <div className="p-4 flex flex-col flex-1 justify-between">
+                                        <div>
+                                            <h3 className="font-bold text-slate-900 dark:text-white text-lg leading-tight group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors line-clamp-2">
+                                                {recipe.name}
+                                            </h3>
+                                        </div>
+                                        <div className="flex items-center justify-between mt-4">
+                                            <span className="text-xs font-medium px-2 py-1 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded text-center">
+                                                {recipe.recipeId}
+                                            </span>
+                                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                                v{recipe.version.replace('v', '')}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-center">
+                        <div className="flex flex-col items-center justify-center py-20 text-center">
                             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-amber-100 to-orange-50 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mb-4">
                                 <BookOpen size={32} className="text-amber-500 dark:text-amber-400" />
                             </div>
-                            <h2 className="text-lg font-bold text-slate-800 dark:text-white mb-1">
-                                {recipes.length === 0 ? 'No Recipes Yet' : 'Select a Recipe'}
+                            <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
+                                {searchQuery ? 'No recipes found' : 'No Recipes Yet'}
                             </h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm">
-                                {recipes.length === 0
-                                    ? 'Create your first Digital Black Book recipe to start standardizing your kitchen operations.'
-                                    : 'Choose a recipe from the sidebar to view its complete operational specification.'}
+                                {searchQuery
+                                    ? `We couldn't find any recipes matching "${searchQuery}".`
+                                    : 'Create your first Digital Black Book recipe to start standardizing your kitchen operations.'}
                             </p>
+                            {!searchQuery && isAdmin && (
+                                <button
+                                    onClick={() => setIsCreateModalOpen(true)}
+                                    className="mt-6 px-6 py-2.5 bg-amber-600 text-white rounded-xl font-semibold hover:bg-amber-700 transition-colors shadow-lg shadow-amber-500/20"
+                                >
+                                    Create First Recipe
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
