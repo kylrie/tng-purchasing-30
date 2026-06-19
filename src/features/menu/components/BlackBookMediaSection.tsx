@@ -57,10 +57,10 @@ const BlackBookMediaSection: React.FC<BlackBookMediaSectionProps> = ({ recipe, o
                             <img
                                 src={recipe.platingPhotoUrl}
                                 alt={`${recipe.name} plating`}
-                                className="w-full h-80 object-cover rounded-xl border border-[#e8e0d4] dark:border-slate-600"
+                                className="w-full h-[400px] object-cover rounded-xl border border-[#e8e0d4] dark:border-slate-600"
                             />
                         ) : (
-                            <div className="w-full h-80 bg-gradient-to-br from-amber-100 to-orange-50 dark:from-slate-700 dark:to-slate-600 rounded-xl border border-[#e8e0d4] dark:border-slate-600 flex flex-col items-center justify-center">
+                            <div className="w-full h-[400px] bg-gradient-to-br from-amber-100 to-orange-50 dark:from-slate-700 dark:to-slate-600 rounded-xl border border-[#e8e0d4] dark:border-slate-600 flex flex-col items-center justify-center">
                                 <ImageIcon size={32} className="text-amber-400 dark:text-slate-400 mb-2" />
                                 <p className="text-sm font-medium text-amber-700 dark:text-slate-400">Final plate photo placeholder</p>
                                 <p className="text-xs text-amber-500 dark:text-slate-500 mt-1">Required: top view + 45° angle + portion guide</p>
@@ -79,7 +79,7 @@ const BlackBookMediaSection: React.FC<BlackBookMediaSectionProps> = ({ recipe, o
                     </div>
                     <div className="p-6">
                         {embedUrl ? (
-                            <div className="relative w-full h-80 rounded-xl overflow-hidden border border-[#e8e0d4] dark:border-slate-600">
+                            <div className="relative w-full h-[400px] rounded-xl overflow-hidden border border-[#e8e0d4] dark:border-slate-600">
                                 <iframe
                                     src={embedUrl}
                                     title={`${recipe.name} training video`}
@@ -92,7 +92,7 @@ const BlackBookMediaSection: React.FC<BlackBookMediaSectionProps> = ({ recipe, o
                         ) : (
                             <div 
                                 onClick={onUpdateVideoUrl}
-                                className={`w-full h-80 bg-gradient-to-br from-stone-600 to-stone-800 dark:from-slate-700 dark:to-slate-600 rounded-xl border border-[#e8e0d4] dark:border-slate-600 flex flex-col items-center justify-center ${onUpdateVideoUrl ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+                                className={`w-full h-[400px] bg-gradient-to-br from-stone-600 to-stone-800 dark:from-slate-700 dark:to-slate-600 rounded-xl border border-[#e8e0d4] dark:border-slate-600 flex flex-col items-center justify-center ${onUpdateVideoUrl ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
                             >
                                 <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mb-3">
                                     <Play size={24} className="text-white ml-0.5" />
