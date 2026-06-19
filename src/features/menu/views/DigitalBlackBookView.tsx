@@ -110,8 +110,30 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
 
     // Open TES Training Checklist
     const handleOpenTESChecklist = () => {
-        // Placeholder - could link to an external system or internal checklist
-        console.log('Open TES Training Checklist for:', selectedRecipe?.name);
+        window.alert('TES Training Checklist feature is coming soon!');
+    };
+
+    // Update Video URL
+    const handleUpdateVideoUrl = async () => {
+        if (!isAdmin || !selectedRecipe) return;
+        const newUrl = window.prompt('Enter new video URL (YouTube or Google Drive):', selectedRecipe.youtubeVideoUrl || selectedRecipe.trainingVideoUrl || '');
+        if (newUrl !== null) {
+            try {
+                await BlackBookService.updateRecipe(
+                    selectedRecipe.id,
+                    { 
+                        youtubeVideoUrl: newUrl, 
+                        trainingVideoUrl: '' // Reset the other to avoid conflicts
+                    },
+                    'Updated training video link',
+                    currentUser.name
+                );
+                loadRecipes();
+            } catch (err) {
+                console.error('Failed to update video URL:', err);
+                window.alert('Failed to update video URL. Please try again.');
+            }
+        }
     };
 
     // Loading state
@@ -192,6 +214,7 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
                             />
                             <BlackBookMediaSection
                                 recipe={selectedRecipe}
+                                onUpdateVideoUrl={isAdmin ? handleUpdateVideoUrl : undefined}
                             />
                             <BlackBookQualityControls
                                 recipe={selectedRecipe}

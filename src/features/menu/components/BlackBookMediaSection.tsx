@@ -5,9 +5,10 @@ import { getDriveEmbedUrl, getYouTubeEmbedUrl } from '../../../shared/utils/vide
 
 interface BlackBookMediaSectionProps {
     recipe: BlackBookRecipe;
+    onUpdateVideoUrl?: () => void;
 }
 
-const BlackBookMediaSection: React.FC<BlackBookMediaSectionProps> = ({ recipe }) => {
+const BlackBookMediaSection: React.FC<BlackBookMediaSectionProps> = ({ recipe, onUpdateVideoUrl }) => {
     const driveEmbedUrl = recipe.trainingVideoUrl ? getDriveEmbedUrl(recipe.trainingVideoUrl) : null;
     const ytEmbedUrl = recipe.youtubeVideoUrl ? getYouTubeEmbedUrl(recipe.youtubeVideoUrl) : null;
     const embedUrl = ytEmbedUrl || driveEmbedUrl;
@@ -89,12 +90,17 @@ const BlackBookMediaSection: React.FC<BlackBookMediaSectionProps> = ({ recipe })
                                 />
                             </div>
                         ) : (
-                            <div className="w-full h-56 bg-gradient-to-br from-stone-600 to-stone-800 dark:from-slate-700 dark:to-slate-600 rounded-xl border border-[#e8e0d4] dark:border-slate-600 flex flex-col items-center justify-center">
+                            <div 
+                                onClick={onUpdateVideoUrl}
+                                className={`w-full h-56 bg-gradient-to-br from-stone-600 to-stone-800 dark:from-slate-700 dark:to-slate-600 rounded-xl border border-[#e8e0d4] dark:border-slate-600 flex flex-col items-center justify-center ${onUpdateVideoUrl ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+                            >
                                 <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mb-3">
                                     <Play size={24} className="text-white ml-0.5" />
                                 </div>
                                 <p className="text-sm font-medium text-white">Embedded private YouTube/Vimeo/TES video</p>
-                                <p className="text-xs text-white/70 mt-1">Staff must watch and pass checklist before station access</p>
+                                <p className="text-xs text-white/70 mt-1">
+                                    {onUpdateVideoUrl ? 'Click here to add a video link' : 'Staff must watch and pass checklist before station access'}
+                                </p>
                             </div>
                         )}
                     </div>
