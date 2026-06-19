@@ -120,7 +120,7 @@ const DigitalBlackBookDetailsView: React.FC<DigitalBlackBookDetailsViewProps> = 
     }
 
     return (
-        <div className="max-w-5xl mx-auto space-y-6 print:m-0 print:space-y-0 pb-12">
+        <div className="max-w-[1600px] mx-auto space-y-6 print:m-0 print:space-y-0 pb-12 px-4 sm:px-6 lg:px-8">
             {/* Top Navigation */}
             <div className="print:hidden">
                 <button 

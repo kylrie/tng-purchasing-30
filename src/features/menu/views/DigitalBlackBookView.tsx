@@ -154,7 +154,7 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
 
             {/* Grid Content */}
             <div className="flex-1 overflow-y-auto bg-[#faf8f5] dark:bg-slate-900 p-6">
-                <div className="max-w-7xl mx-auto">
+                <div className="max-w-[1600px] mx-auto">
                     {filteredRecipes.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {filteredRecipes.map(recipe => (
