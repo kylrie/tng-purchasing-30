@@ -94,6 +94,7 @@ export class BlackBookService {
             mistakesFixes: input.mistakesFixes,
             qualityChecklist: input.qualityChecklist,
             versionHistory: [initialVersion],
+            youtubeVideoUrl: input.youtubeVideoUrl ?? null,
             createdAt: now,
             updatedAt: now
         };

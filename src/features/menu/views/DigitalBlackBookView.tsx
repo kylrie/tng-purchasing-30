@@ -120,11 +120,15 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
         const newUrl = window.prompt('Enter new video URL (YouTube or Google Drive):', selectedRecipe.youtubeVideoUrl || selectedRecipe.trainingVideoUrl || '');
         if (newUrl !== null) {
             try {
+                // Determine if it's YouTube or Google Drive based on the URL
+                const isYouTube = newUrl.includes('youtube.com') || newUrl.includes('youtu.be');
+                const isDrive = newUrl.includes('drive.google.com');
+
                 await BlackBookService.updateRecipe(
                     selectedRecipe.id,
                     { 
-                        youtubeVideoUrl: newUrl, 
-                        trainingVideoUrl: '' // Reset the other to avoid conflicts
+                        youtubeVideoUrl: isYouTube ? newUrl : (isDrive ? '' : newUrl), // Default to YouTube if unknown
+                        trainingVideoUrl: isDrive ? newUrl : '' // Reset the other to avoid conflicts
                     },
                     'Updated training video link',
                     currentUser.name
