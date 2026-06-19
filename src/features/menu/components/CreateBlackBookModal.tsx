@@ -67,9 +67,11 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
         loadData();
     }, [isOpen, selectedBusinessUnit]);
 
+    const [sourceType, setSourceType] = useState<'production' | 'finished'>('production');
+
     // Handle Production Recipe Selection -> Auto-fill ingredients
     const handleProductionRecipeChange = (recipeId: string) => {
-        setFormData(prev => ({ ...prev, productionRecipeId: recipeId }));
+        setFormData(prev => ({ ...prev, productionRecipeId: recipeId, menuItemId: '' }));
         
         const recipe = productionRecipes.find(r => r.id === recipeId);
         if (recipe) {
@@ -81,6 +83,33 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
             
             // Auto-populate ingredients
             const blackBookIngredients: BlackBookIngredient[] = recipe.ingredients.map(ing => ({
+                ...ing,
+                specStandard: '',
+                allowedSubstitute: ''
+            }));
+            
+            setFormData(prev => ({ 
+                ...prev, 
+                ...updates,
+                ingredients: blackBookIngredients 
+            }));
+        }
+    };
+
+    // Handle Menu Item Selection -> Auto-fill ingredients
+    const handleMenuItemChange = (menuId: string) => {
+        setFormData(prev => ({ ...prev, menuItemId: menuId, productionRecipeId: '' }));
+        
+        const item = menuItems.find(m => m.id === menuId);
+        if (item) {
+            // Pre-fill Name if empty
+            const updates: Partial<CreateBlackBookRecipeInput> = {};
+            if (!formData.name) updates.name = item.name;
+            if (!formData.batchYield) updates.batchYield = `1 portion`;
+            if (!formData.costPerServing && item.calculatedCost) updates.costPerServing = `₱${item.calculatedCost.toFixed(2)}`;
+            
+            // Auto-populate ingredients
+            const blackBookIngredients: BlackBookIngredient[] = (item.ingredients || []).map(ing => ({
                 ...ing,
                 specStandard: '',
                 allowedSubstitute: ''
@@ -195,32 +224,63 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
                                     ))}
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Link to Production Recipe</label>
-                                <select
-                                    value={formData.productionRecipeId}
-                                    onChange={e => handleProductionRecipeChange(e.target.value)}
-                                    className="w-full px-3 py-2 bg-[#faf8f5] dark:bg-slate-900 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500/50 outline-none"
-                                >
-                                    <option value="">-- No linked production recipe --</option>
-                                    {productionRecipes.map(r => (
-                                        <option key={r.id} value={r.id}>{r.name} ({r.yieldQuantity} {r.yieldUnit})</option>
-                                    ))}
-                                </select>
+                            <div className="col-span-2">
+                                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">Recipe Source Type</label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input 
+                                            type="radio" 
+                                            name="sourceType" 
+                                            checked={sourceType === 'production'} 
+                                            onChange={() => setSourceType('production')} 
+                                            className="text-amber-500 focus:ring-amber-500"
+                                        />
+                                        <span className="text-sm text-slate-700 dark:text-slate-300">Production Recipe</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input 
+                                            type="radio" 
+                                            name="sourceType" 
+                                            checked={sourceType === 'finished'} 
+                                            onChange={() => setSourceType('finished')} 
+                                            className="text-amber-500 focus:ring-amber-500"
+                                        />
+                                        <span className="text-sm text-slate-700 dark:text-slate-300">Finished Good (Menu Item)</span>
+                                    </label>
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Link to Menu Item (POS)</label>
-                                <select
-                                    value={formData.menuItemId}
-                                    onChange={e => setFormData(prev => ({ ...prev, menuItemId: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-[#faf8f5] dark:bg-slate-900 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500/50 outline-none"
-                                >
-                                    <option value="">-- No linked menu item --</option>
-                                    {menuItems.map(m => (
-                                        <option key={m.id} value={m.id}>{m.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            
+                            {sourceType === 'production' && (
+                                <div className="col-span-2">
+                                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Select Production Recipe</label>
+                                    <select
+                                        value={formData.productionRecipeId}
+                                        onChange={e => handleProductionRecipeChange(e.target.value)}
+                                        className="w-full px-3 py-2 bg-[#faf8f5] dark:bg-slate-900 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500/50 outline-none"
+                                    >
+                                        <option value="">-- Select Production Recipe --</option>
+                                        {productionRecipes.map(r => (
+                                            <option key={r.id} value={r.id}>{r.name} ({r.yieldQuantity} {r.yieldUnit})</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                            
+                            {sourceType === 'finished' && (
+                                <div className="col-span-2">
+                                    <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Select Menu Item (Finished Good)</label>
+                                    <select
+                                        value={formData.menuItemId}
+                                        onChange={e => handleMenuItemChange(e.target.value)}
+                                        className="w-full px-3 py-2 bg-[#faf8f5] dark:bg-slate-900 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500/50 outline-none"
+                                    >
+                                        <option value="">-- Select Menu Item --</option>
+                                        {menuItems.map(m => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     </section>
 
@@ -265,12 +325,14 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
                     <section className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-[#e8e0d4] dark:border-slate-700 shadow-sm space-y-4">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-sm font-bold text-slate-800 dark:text-white uppercase tracking-wider">Ingredients & Standards</h3>
-                            <span className="text-xs text-amber-600 font-medium bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">Auto-filled from Production</span>
+                            <span className="text-xs text-amber-600 font-medium bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded">
+                                Auto-filled from {sourceType === 'production' ? 'Production' : 'Menu Item'}
+                            </span>
                         </div>
                         
                         {formData.ingredients.length === 0 ? (
                             <div className="text-center py-6 bg-[#faf8f5] dark:bg-slate-900 rounded-lg border border-dashed border-[#e8e0d4] dark:border-slate-700 text-slate-500 text-sm">
-                                Select a Production Recipe above to populate ingredients, or add them manually.
+                                Select a {sourceType === 'production' ? 'Production Recipe' : 'Menu Item'} above to populate ingredients, or add them manually.
                             </div>
                         ) : (
                             <div className="space-y-3">
