@@ -1,14 +1,16 @@
 import React from 'react';
 import { Play, Image as ImageIcon, GraduationCap } from 'lucide-react';
 import type { BlackBookRecipe } from '../types/blackbook.types';
-import { getDriveEmbedUrl } from '../../../shared/utils/video-embed';
+import { getDriveEmbedUrl, getYouTubeEmbedUrl } from '../../../shared/utils/video-embed';
 
 interface BlackBookMediaSectionProps {
     recipe: BlackBookRecipe;
 }
 
 const BlackBookMediaSection: React.FC<BlackBookMediaSectionProps> = ({ recipe }) => {
-    const embedUrl = recipe.trainingVideoUrl ? getDriveEmbedUrl(recipe.trainingVideoUrl) : null;
+    const driveEmbedUrl = recipe.trainingVideoUrl ? getDriveEmbedUrl(recipe.trainingVideoUrl) : null;
+    const ytEmbedUrl = recipe.youtubeVideoUrl ? getYouTubeEmbedUrl(recipe.youtubeVideoUrl) : null;
+    const embedUrl = ytEmbedUrl || driveEmbedUrl;
 
     return (
         <div className="space-y-6">

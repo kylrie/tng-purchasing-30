@@ -90,6 +90,7 @@ export interface BlackBookRecipe {
     // Media
     platingPhotoUrl?: string;
     trainingVideoUrl?: string;      // Google Drive sharing link (raw input)
+    youtubeVideoUrl?: string;       // YouTube link
     // Quality controls
     mistakesFixes: MistakeFix[];
     qualityChecklist: QualityCheckItem[];
@@ -114,6 +115,7 @@ export interface CreateBlackBookRecipeInput {
     methodSteps: MethodStep[];
     platingPhotoUrl?: string;
     trainingVideoUrl?: string;
+    youtubeVideoUrl?: string;
     mistakesFixes: MistakeFix[];
     qualityChecklist: QualityCheckItem[];
 }

@@ -37,3 +37,22 @@ export function getDriveEmbedUrl(url: string): string | null {
 export function isGoogleDriveUrl(url: string): boolean {
     return getDriveEmbedUrl(url) !== null;
 }
+
+/**
+ * Extracts the VIDEO_ID from a YouTube link and returns an embeddable URL.
+ * Supports formats:
+ *   - https://www.youtube.com/watch?v=VIDEO_ID
+ *   - https://youtu.be/VIDEO_ID
+ */
+export function getYouTubeEmbedUrl(url: string): string | null {
+    if (!url || typeof url !== 'string') return null;
+
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+
+    if (match && match[2].length === 11) {
+        return `https://www.youtube.com/embed/${match[2]}`;
+    }
+
+    return null;
+}

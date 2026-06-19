@@ -32,7 +32,8 @@ const INITIAL_FORM: CreateBlackBookRecipeInput = {
     mistakesFixes: [],
     qualityChecklist: [],
     platingPhotoUrl: '',
-    trainingVideoUrl: ''
+    trainingVideoUrl: '',
+    youtubeVideoUrl: ''
 };
 
 const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onClose, onRecipeCreated }) => {
@@ -503,8 +504,16 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
                                     type="text"
                                     value={formData.trainingVideoUrl}
                                     onChange={e => setFormData(prev => ({ ...prev, trainingVideoUrl: e.target.value }))}
-                                    className="w-full px-3 py-2 bg-[#faf8f5] dark:bg-slate-900 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500/50 outline-none"
+                                    className="w-full px-3 py-2 bg-[#faf8f5] dark:bg-slate-900 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500/50 outline-none mb-3"
                                     placeholder="https://drive.google.com/file/d/..."
+                                />
+                                <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Training Video (YouTube Link)</label>
+                                <input
+                                    type="text"
+                                    value={formData.youtubeVideoUrl}
+                                    onChange={e => setFormData(prev => ({ ...prev, youtubeVideoUrl: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-[#faf8f5] dark:bg-slate-900 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-slate-800 dark:text-white focus:ring-2 focus:ring-amber-500/50 outline-none"
+                                    placeholder="https://youtube.com/watch?v=..."
                                 />
                             </div>
                         </div>
