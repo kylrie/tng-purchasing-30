@@ -141,6 +141,7 @@ export const COLLECTIONS = {
   STOCK_TRANSACTIONS: 'stock_transactions',
   INVENTORY_ITEMS: 'inventory_items',
   GOODS_RECEIVING_LOGS: 'goods_receiving_logs',
+  BLACK_BOOK_RECIPES: 'blackBookRecipes',
 } as const;
 
 // Query constraints type

@@ -221,6 +221,14 @@ export const ALL_PERMISSIONS = [
   'menu:production_log:edit',
   'menu:production_log:delete',
 
+  // ─── MENU & KITCHEN: DIGITAL BLACK BOOK ────────────────────────────
+  'menu:black_book:view:all',
+  'menu:black_book:create',
+  'menu:black_book:edit',
+  'menu:black_book:delete',
+  'menu:black_book:approve',
+  'menu:black_book:print',
+
   // ─── MENU & KITCHEN: FINISHED GOODS ──────────────────────────────────
   'menu:finished_goods:view:all',
   'menu:finished_goods:create',
@@ -255,6 +263,7 @@ export const ALL_PERMISSIONS = [
   'ui:module_access:view:inventory',
   'ui:module_access:view:pos',
   'ui:module_access:view:menu',
+  'ui:module_access:view:black_book',
   'ui:module_access:view:audit',
   'ui:module_access:view:activity_log',
   'ui:module_access:view:budget_request',
@@ -500,6 +509,14 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   'menu:production_log:edit':           { label: 'Edit Production Log',       category: 'Menu & Kitchen',        description: 'Edit production log entries.' },
   'menu:production_log:delete':         { label: 'Delete Production Log',     category: 'Menu & Kitchen',        description: 'Delete production log records.' },
 
+  // ─── MENU & KITCHEN: DIGITAL BLACK BOOK ────────────────────────────
+  'menu:black_book:view:all':           { label: 'View Black Book',           category: 'Menu & Kitchen',        description: 'View Digital Black Book recipes.' },
+  'menu:black_book:create':             { label: 'Create Black Book Entry',   category: 'Menu & Kitchen',        description: 'Create new Black Book recipe entries.' },
+  'menu:black_book:edit':               { label: 'Edit Black Book Entry',     category: 'Menu & Kitchen',        description: 'Edit Black Book recipe entries.' },
+  'menu:black_book:delete':             { label: 'Delete Black Book Entry',   category: 'Menu & Kitchen',        description: 'Delete Black Book recipe entries.' },
+  'menu:black_book:approve':            { label: 'Approve Black Book',        category: 'Menu & Kitchen',        description: 'Approve Black Book recipe versions.' },
+  'menu:black_book:print':              { label: 'Print Station Copy',        category: 'Menu & Kitchen',        description: 'Print PDF station copies of Black Book recipes.' },
+
   // ─── MENU & KITCHEN: FINISHED GOODS ──────────────────────────────────
   'menu:finished_goods:view:all':       { label: 'View Finished Goods',       category: 'Menu & Kitchen',        description: 'View finished goods inventory.' },
   'menu:finished_goods:create':         { label: 'Create Finished Good',      category: 'Menu & Kitchen',        description: 'Add new finished goods entries.' },
@@ -534,6 +551,7 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   'ui:module_access:view:inventory':    { label: 'Inventory Module',          category: 'Module Access' },
   'ui:module_access:view:pos':          { label: 'POS Module',                category: 'Module Access' },
   'ui:module_access:view:menu':         { label: 'Menu & Kitchen Module',     category: 'Module Access' },
+  'ui:module_access:view:black_book':   { label: 'Digital Black Book',        category: 'Module Access' },
   'ui:module_access:view:audit':        { label: 'Audit Module',              category: 'Module Access' },
   'ui:module_access:view:activity_log': { label: 'Activity Log Module',       category: 'Module Access' },
   'ui:module_access:view:budget_request': { label: 'Budget Request Module',   category: 'Module Access' },
@@ -983,6 +1001,16 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
     create: { permission: 'menu:finished_goods:create' },
     edit:   { permission: 'menu:finished_goods:edit' },
     delete: { permission: 'menu:finished_goods:delete' },
+  },
+  {
+    id: 'menu_black_book',
+    resource: 'Digital Black Book',
+    category: 'Menu & Kitchen',
+    read:   { permission: 'menu:black_book:view:all' },
+    create: { permission: 'menu:black_book:create' },
+    edit:   { permission: 'menu:black_book:edit' },
+    delete: { permission: 'menu:black_book:delete' },
+    actions: ['menu:black_book:approve', 'menu:black_book:print'],
   },
 
   // ─── POINT OF SALE ────────────────────────────────────────────────────

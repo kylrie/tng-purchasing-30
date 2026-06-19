@@ -872,6 +872,21 @@ service cloud.firestore {
     }
     
     // =====================================================
+    // BLACK BOOK RECIPES COLLECTION (Menu Engineering)
+    // Multi-tenant operational recipes scoped by businessUnitId
+    // =====================================================
+    match /blackBookRecipes/{recipeId} {
+      // Read: Any authenticated user (BU scoping enforced by app-level where clause)
+      allow read: if isSignedIn();
+      
+      // Create/Update: Any authenticated user can manage black book recipes
+      allow create, update: if isSignedIn();
+      
+      // Delete: Admin only
+      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+    
+    // =====================================================
     // BUDGETS COLLECTION
     // Budget limits per Business Unit + COA + Fiscal Year
     // Read: All authenticated users can view budget limits

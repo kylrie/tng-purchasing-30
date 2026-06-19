@@ -40,7 +40,8 @@ import {
     Landmark,
     Store,
     Trash2,
-    Calendar
+    Calendar,
+    BookOpen
 } from 'lucide-react';
 import type { User, Business } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -364,7 +365,8 @@ const Layout: React.FC<LayoutProps> = ({
                     canView: hasPermission('ui:module_access:view:menu'),
                     children: [
                         { path: '/menu/finished-goods', label: 'Finished Goods', icon: ShoppingBag, canView: hasPermission('menu:finished_goods:view:all') },
-                        { path: '/menu/production-recipes', label: 'Production Recipes', icon: Factory, canView: hasPermission('menu:recipe:view:all') }
+                        { path: '/menu/production-recipes', label: 'Production Recipes', icon: Factory, canView: hasPermission('menu:recipe:view:all') },
+                        { path: '/menu/digital-black-book', label: 'Digital Black Book', icon: BookOpen, canView: hasPermission('ui:module_access:view:black_book') || hasPermission('menu:black_book:view:all') }
                     ]
                 },
                 {

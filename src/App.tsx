@@ -52,6 +52,7 @@ const StockTakeView = React.lazy(() => import('./features/inventory/views/StockT
 const InventoryIntegrityMonitor = React.lazy(() => import('./features/inventory/views/InventoryIntegrityMonitor'));
 const MenuDashboard = React.lazy(() => import('./features/menu/views/MenuDashboard'));
 const ProductionRecipeView = React.lazy(() => import('./features/menu/views/ProductionRecipeView'));
+const DigitalBlackBookView = React.lazy(() => import('./features/menu/views/DigitalBlackBookView'));
 const ChartOfAccountsView = React.lazy(() => import('./features/admin/views/ChartOfAccountsView'));
 const BudgetConfigPanel = React.lazy(() => import('./features/finance/components/BudgetConfigPanel').then(module => ({ default: module.BudgetConfigPanel })));
 const SettingsView = React.lazy(() => import('./features/admin/views/SettingsView').then(module => ({ default: module.SettingsView })));
@@ -527,6 +528,11 @@ function ProtectedApp() {
                 } />
                 <Route path="/menu/production-recipes" element={
                   <ProductionRecipeView businesses={accessibleBusinesses} currentUser={currentUser} />
+                } />
+                <Route path="/menu/digital-black-book" element={
+                  <ProtectedRoute permission={['ui:module_access:view:black_book', 'menu:black_book:view:all']}>
+                    <DigitalBlackBookView businesses={accessibleBusinesses} currentUser={currentUser} />
+                  </ProtectedRoute>
                 } />
 
 
