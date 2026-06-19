@@ -1,15 +1,23 @@
 import React from 'react';
-import { Printer, ExternalLink, Lock } from 'lucide-react';
+import { Printer, ExternalLink, Lock, CheckCircle2, FileEdit } from 'lucide-react';
 import type { BlackBookRecipe } from '../types/blackbook.types';
 
 interface BlackBookFooterProps {
     recipe: BlackBookRecipe;
+    canApprove: boolean;
+    canEdit: boolean;
+    onApprove: () => void;
+    onUpdateVersion: () => void;
     onPrintStationCopy: () => void;
     onOpenTESChecklist: () => void;
 }
 
 const BlackBookFooter: React.FC<BlackBookFooterProps> = ({
     recipe,
+    canApprove,
+    canEdit,
+    onApprove,
+    onUpdateVersion,
     onPrintStationCopy,
     onOpenTESChecklist
 }) => {
@@ -61,24 +69,47 @@ const BlackBookFooter: React.FC<BlackBookFooterProps> = ({
             </div>
 
             {/* Sticky Footer Actions */}
-            <div className="sticky bottom-0 bg-[#faf8f5]/90 dark:bg-slate-900/90 backdrop-blur-sm border-t border-[#e8e0d4] dark:border-slate-700 px-6 py-4 -mx-6 -mb-6 flex items-center justify-end gap-3">
-                <button
-                    onClick={onPrintStationCopy}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
-                >
-                    <Printer size={16} />
-                    Print Station Copy
-                </button>
-                <button
-                    onClick={onOpenTESChecklist}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2c2520] dark:bg-amber-600 rounded-lg text-sm font-semibold text-white hover:bg-[#3d3530] dark:hover:bg-amber-700 transition-colors shadow-sm"
-                >
-                    <ExternalLink size={16} />
-                    Open TES Training Checklist
-                </button>
+            <div className="sticky bottom-0 bg-[#faf8f5]/90 dark:bg-slate-900/90 backdrop-blur-sm border-t border-[#e8e0d4] dark:border-slate-700 px-6 py-4 -mx-6 -mb-6 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    {canApprove && (recipe.approvalStatus === 'Draft' || recipe.approvalStatus === 'Pending') && (
+                        <button
+                            onClick={onApprove}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 rounded-lg text-sm font-semibold text-white hover:bg-emerald-700 transition-colors shadow-sm"
+                        >
+                            <CheckCircle2 size={16} />
+                            Approve Recipe
+                        </button>
+                    )}
+                    {canEdit && (
+                        <button
+                            onClick={onUpdateVersion}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-500 border border-amber-300 dark:border-amber-700/50 rounded-lg text-sm font-semibold hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors shadow-sm"
+                        >
+                            <FileEdit size={16} />
+                            Update Version (Edit)
+                        </button>
+                    )}
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={onPrintStationCopy}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
+                    >
+                        <Printer size={16} />
+                        Print Station Copy
+                    </button>
+                    <button
+                        onClick={onOpenTESChecklist}
+                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#2c2520] dark:bg-amber-600 rounded-lg text-sm font-semibold text-white hover:bg-[#3d3530] dark:hover:bg-amber-700 transition-colors shadow-sm"
+                    >
+                        <ExternalLink size={16} />
+                        Open TES Training Checklist
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
 
 export default BlackBookFooter;
+

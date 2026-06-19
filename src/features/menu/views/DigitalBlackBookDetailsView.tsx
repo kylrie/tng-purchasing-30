@@ -9,6 +9,7 @@ import BlackBookRecipeCard from '../components/BlackBookRecipeCard';
 import BlackBookMediaSection from '../components/BlackBookMediaSection';
 import BlackBookQualityControls from '../components/BlackBookQualityControls';
 import BlackBookFooter from '../components/BlackBookFooter';
+import UpdateBlackBookVersionModal from '../components/UpdateBlackBookVersionModal';
 
 interface DigitalBlackBookDetailsViewProps {
     businesses: Business[];
@@ -22,11 +23,14 @@ const DigitalBlackBookDetailsView: React.FC<DigitalBlackBookDetailsViewProps> = 
     const navigate = useNavigate();
     const { hasPermission } = usePermissions();
 
-    const isAdmin = hasPermission('menu:black_book:edit') || hasPermission('menu:black_book:create');
+    const canApprove = hasPermission('menu:black_book:approve');
+    const canEdit = hasPermission('menu:black_book:edit');
+    const isAdmin = canEdit || hasPermission('menu:black_book:create');
 
     const [selectedRecipe, setSelectedRecipe] = useState<BlackBookRecipe | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
 
     const loadRecipe = useCallback(async () => {
         if (!id) return;
@@ -57,6 +61,20 @@ const DigitalBlackBookDetailsView: React.FC<DigitalBlackBookDetailsViewProps> = 
             ...selectedRecipe,
             qualityChecklist: updatedChecklist
         });
+    };
+
+    const handleApprove = async () => {
+        if (!selectedRecipe || !canApprove) return;
+        
+        if (window.confirm(`Are you sure you want to approve version ${selectedRecipe.version}?`)) {
+            try {
+                await BlackBookService.approveRecipe(selectedRecipe.id, currentUser.name);
+                await loadRecipe();
+            } catch (err) {
+                console.error('Failed to approve recipe:', err);
+                window.alert('Failed to approve recipe. Please try again.');
+            }
+        }
     };
 
     const handlePrintStationCopy = () => {
@@ -148,10 +166,24 @@ const DigitalBlackBookDetailsView: React.FC<DigitalBlackBookDetailsViewProps> = 
                 />
                 <BlackBookFooter
                     recipe={selectedRecipe}
+                    canApprove={canApprove}
+                    canEdit={canEdit}
+                    onApprove={handleApprove}
+                    onUpdateVersion={() => setIsUpdateModalOpen(true)}
                     onPrintStationCopy={handlePrintStationCopy}
                     onOpenTESChecklist={handleOpenTESChecklist}
                 />
             </div>
+
+            {isUpdateModalOpen && selectedRecipe && (
+                <UpdateBlackBookVersionModal
+                    isOpen={isUpdateModalOpen}
+                    onClose={() => setIsUpdateModalOpen(false)}
+                    onRecipeUpdated={loadRecipe}
+                    recipe={selectedRecipe}
+                    currentUser={currentUser}
+                />
+            )}
         </div>
     );
 };
