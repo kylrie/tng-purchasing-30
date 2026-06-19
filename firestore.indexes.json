@@ -45,6 +45,20 @@
                     "order": "DESCENDING"
                 }
             ]
+        },
+        {
+            "collectionGroup": "blackBookRecipes",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "name",
+                    "order": "ASCENDING"
+                }
+            ]
         }
     ],
     "fieldOverrides": []
