@@ -103,7 +103,7 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
     return (
         <div className="flex flex-col h-full -m-4 md:-m-6 lg:-m-8">
             {/* Page Header */}
-            <div className="flex items-center justify-between px-6 py-6 border-b border-[#e8e0d4] dark:border-slate-700 bg-[#faf8f5]/80 dark:bg-slate-900/80 backdrop-blur-sm">
+            <div className="flex items-center justify-between px-6 py-6 border-b border-[#e8e0d4] dark:border-slate-700 bg-transparent">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
                         <BookOpen size={24} className="text-white" />
