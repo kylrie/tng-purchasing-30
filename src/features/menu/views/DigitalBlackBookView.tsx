@@ -139,7 +139,7 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
             </div>
             
             {/* Mobile Search */}
-            <div className="md:hidden px-6 py-3 bg-[#faf8f5] dark:bg-slate-900 border-b border-[#e8e0d4] dark:border-slate-700">
+            <div className="md:hidden px-6 py-3 bg-transparent border-b border-[#e8e0d4] dark:border-slate-700">
                 <div className="relative">
                     <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
@@ -153,7 +153,7 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
             </div>
 
             {/* Grid Content */}
-            <div className="flex-1 overflow-y-auto bg-[#faf8f5] dark:bg-slate-900 p-6">
+            <div className="flex-1 overflow-y-auto bg-transparent p-6">
                 <div className="max-w-[1600px] mx-auto">
                     {filteredRecipes.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
