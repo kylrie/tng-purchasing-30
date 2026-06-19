@@ -24,7 +24,8 @@ interface DigitalBlackBookViewProps {
 }
 
 const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
-    businesses
+    businesses,
+    currentUser
 }) => {
     const { hasPermission } = usePermissions();
     const { selectedBusinessUnit } = useBusinessUnit();
