@@ -33,6 +33,7 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [activeTab, setActiveTab] = useState<'production' | 'finished'>('production');
     
     // Modal states
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -66,10 +67,12 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
         loadRecipes();
     }, [loadRecipes]);
 
-    const filteredRecipes = recipes.filter(r =>
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.prepStation.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredRecipes = recipes.filter(r => {
+        const matchesSearch = r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              r.prepStation.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesTab = activeTab === 'production' ? !!r.productionRecipeId : !!r.menuItemId;
+        return matchesSearch && matchesTab;
+    });
 
     // Loading state
     if (loading) {
@@ -150,6 +153,30 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
                         className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-[#e8e0d4] dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-amber-500"
                     />
                 </div>
+            </div>
+
+            {/* Sub Tabs */}
+            <div className="px-6 py-2 border-b border-[#e8e0d4] dark:border-slate-700 bg-transparent flex gap-4">
+                <button
+                    onClick={() => setActiveTab('production')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeTab === 'production' 
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                    }`}
+                >
+                    Production Recipes
+                </button>
+                <button
+                    onClick={() => setActiveTab('finished')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeTab === 'finished' 
+                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
+                    }`}
+                >
+                    Finished Goods
+                </button>
             </div>
 
             {/* Grid Content */}
