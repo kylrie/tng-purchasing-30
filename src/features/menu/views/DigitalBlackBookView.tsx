@@ -10,6 +10,7 @@ import BlackBookRecipeCard from '../components/BlackBookRecipeCard';
 import BlackBookMediaSection from '../components/BlackBookMediaSection';
 import BlackBookQualityControls from '../components/BlackBookQualityControls';
 import BlackBookFooter from '../components/BlackBookFooter';
+import CreateBlackBookModal from '../components/CreateBlackBookModal';
 
 // ============================================================
 // DIGITAL BLACK BOOK VIEW
@@ -35,6 +36,9 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
     const [selectedRecipe, setSelectedRecipe] = useState<BlackBookRecipe | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    
+    // Modal states
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Fetch recipes for the selected business unit
     const loadRecipes = useCallback(async () => {
@@ -158,10 +162,7 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
                     {isAdmin && (
                         <button
                             className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-600 to-orange-500 text-white rounded-lg text-sm font-semibold hover:from-amber-700 hover:to-orange-600 transition-all shadow-lg shadow-amber-500/20"
-                            onClick={() => {
-                                // TODO: Open create recipe modal
-                                console.log('Create new Black Book recipe');
-                            }}
+                            onClick={() => setIsCreateModalOpen(true)}
                         >
                             <Plus size={16} />
                             New Recipe
@@ -219,6 +220,12 @@ const DigitalBlackBookView: React.FC<DigitalBlackBookViewProps> = ({
                     )}
                 </div>
             </div>
+
+            <CreateBlackBookModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                onRecipeCreated={loadRecipes}
+            />
         </div>
     );
 };
