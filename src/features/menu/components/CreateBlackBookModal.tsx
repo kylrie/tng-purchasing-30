@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, ChefHat, AlertTriangle, CheckSquare, Search } from 'lucide-react';
+import { X, Plus, Trash2, ChefHat, AlertTriangle, CheckSquare } from 'lucide-react';
 import type { 
     CreateBlackBookRecipeInput, 
     BlackBookIngredient, 
-    MethodStep, 
-    MistakeFix, 
-    QualityCheckItem, 
     PrepStation 
 } from '../types/blackbook.types';
 import { PREP_STATIONS } from '../types/blackbook.types';
@@ -44,7 +41,6 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
     
     const [productionRecipes, setProductionRecipes] = useState<ProductionRecipe[]>([]);
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-    const [loadingData, setLoadingData] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +49,6 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
         if (!isOpen || !selectedBusinessUnit || selectedBusinessUnit === 'all') return;
         
         const loadData = async () => {
-            setLoadingData(true);
             try {
                 const [recipes, items] = await Promise.all([
                     ProductionRecipeService.getRecipes(selectedBusinessUnit),
@@ -65,8 +60,6 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
             } catch (err) {
                 console.error("Failed to load linked data:", err);
                 setError("Failed to load production recipes and menu items.");
-            } finally {
-                setLoadingData(false);
             }
         };
         
@@ -284,7 +277,7 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
                                     <div key={idx} className="p-3 bg-[#faf8f5] dark:bg-slate-900 rounded-lg border border-[#e8e0d4] dark:border-slate-700 grid grid-cols-12 gap-3 items-start">
                                         <div className="col-span-3">
                                             <p className="text-sm font-semibold text-slate-800 dark:text-white">{ing.inventoryItemName}</p>
-                                            <p className="text-xs text-slate-500">{ing.baseQuantity} {ing.baseUnit}</p>
+                                            <p className="text-xs text-slate-500">{ing.baseQuantity} {ing.unit}</p>
                                         </div>
                                         <div className="col-span-4">
                                             <input
