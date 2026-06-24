@@ -122,8 +122,9 @@ export function calculateIngredientCost(
     recipeUnit: string,
     inventoryItem: InventoryItem
 ): { baseQuantity: number; totalCost: number } {
-    // Convert recipe quantity to inventory base unit
-    const baseQuantity = convertUnits(quantity, recipeUnit, inventoryItem.units.recipeUnit);
+    // Convert recipe quantity to inventory base unit (fallback for legacy items)
+    const inventoryBaseUnit = inventoryItem.units?.recipeUnit || (inventoryItem.units as any)?.countUnit || 'EA';
+    const baseQuantity = convertUnits(quantity, recipeUnit, inventoryBaseUnit);
 
     // Use baseCost (cost per base/recipe unit) if available.
     // If baseCost is missing (legacy items), derive it from buyCost/conversion.
@@ -160,11 +161,12 @@ function convertToBomIngredients(
         })
         .map(ri => {
             const inv = itemMap.get(ri.inventoryItemId)!;
+            const inventoryBaseUnit = inv.units?.recipeUnit || (inv.units as any)?.countUnit || 'EA';
             return {
                 ingredientId: ri.inventoryItemId,
                 ingredientName: ri.inventoryItemName,
                 quantityUsed: ri.baseQuantity,        // Already in base unit
-                unit: inv.units.recipeUnit,              // Base unit from inventory
+                unit: inventoryBaseUnit,              // Base unit from inventory
             };
         });
 }

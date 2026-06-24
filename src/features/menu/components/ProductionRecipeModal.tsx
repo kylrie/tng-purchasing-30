@@ -92,8 +92,9 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                             : item.costPerUnit ?? 0);
                     // Always recalculate baseQuantity from the stored quantity + unit
                     let baseQuantity = ing.quantity;
-                    if (ing.unit && ing.unit !== item.units.recipeUnit) {
-                        baseQuantity = convertUnits(ing.quantity, ing.unit, item.units.recipeUnit);
+                    const inventoryBaseUnit = item.units?.recipeUnit || (item.units as any)?.countUnit || 'EA';
+                    if (ing.unit && ing.unit !== inventoryBaseUnit) {
+                        baseQuantity = convertUnits(ing.quantity, ing.unit, inventoryBaseUnit);
                     }
                     const totalCost = baseQuantity * costPerBaseUnit;
                     return { ...ing, costPerBaseUnit, baseQuantity, totalCost };
@@ -177,8 +178,9 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             // Calculate base quantity based on unit conversion
             let baseQuantity = quantity;
             const item = inventoryItems.find(it => it.id === ing.inventoryItemId);
-            if (item && unit !== item.units.recipeUnit) {
-                baseQuantity = convertUnits(quantity, unit, item.units.recipeUnit);
+            const inventoryBaseUnit = item?.units?.recipeUnit || (item?.units as any)?.countUnit || 'EA';
+            if (item && unit !== inventoryBaseUnit) {
+                baseQuantity = convertUnits(quantity, unit, inventoryBaseUnit);
             }
 
             const totalCost = baseQuantity * ing.costPerBaseUnit;
@@ -236,16 +238,16 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                             ? matchedInvItem.buyCost / matchedInvItem.units.conversion
                             : matchedInvItem.costPerUnit ?? 0);
 
-                    // Map unit if possible
-                    let matchedUnit = UOM_CODES.find(u => u.toLowerCase() === extractedIng.unit.toLowerCase()) || matchedInvItem.units.recipeUnit;
-
+                    const inventoryBaseUnit = matchedInvItem.units?.recipeUnit || (matchedInvItem.units as any)?.countUnit || 'EA';
+                    let matchedUnit = UOM_CODES.find(u => u.toLowerCase() === extractedIng.unit.toLowerCase()) || inventoryBaseUnit;
+                    
                     let baseQuantity = extractedIng.quantity;
-                    if (matchedUnit !== matchedInvItem.units.recipeUnit) {
+                    if (matchedUnit !== inventoryBaseUnit) {
                         try {
-                            baseQuantity = convertUnits(extractedIng.quantity, matchedUnit, matchedInvItem.units.recipeUnit);
+                            baseQuantity = convertUnits(extractedIng.quantity, matchedUnit, inventoryBaseUnit);
                         } catch (e) {
-                            // If conversion fails, fallback to recipeUnit and ignore the extracted unit
-                            matchedUnit = matchedInvItem.units.recipeUnit;
+                            // If conversion fails, use base unit and keep original quantity
+                            matchedUnit = inventoryBaseUnit;
                         }
                     }
 
