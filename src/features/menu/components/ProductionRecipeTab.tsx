@@ -432,6 +432,29 @@ const ProductionRecipeTab: React.FC<ProductionRecipeTabProps> = ({ businesses, c
         setEditingRecipe(null);
     };
 
+    // Handle bulk delete (Super Admin only)
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const handleBulkDelete = async () => {
+        const confirm1 = confirm('🚨 CRITICAL WARNING: You are about to PERMANENTLY DELETE ALL Production Recipes and their automatically generated finished goods for this business unit. This action CANNOT be undone.\n\nAre you absolutely sure?');
+        if (!confirm1) return;
+
+        const confirm2 = confirm('🚨 FINAL WARNING: Please click OK to confirm the permanent deletion of ALL production recipes for the current business unit.');
+        if (!confirm2) return;
+
+        setIsBulkDeleting(true);
+        try {
+            const count = await ProductionRecipeService.bulkDeleteRecipes(selectedBusinessUnit);
+            alert(`Successfully deleted ${count} production recipes and their linked finished goods.`);
+            const fetchedRecipes = await ProductionRecipeService.getRecipes(selectedBusinessUnit);
+            setRecipes(fetchedRecipes);
+        } catch (error: any) {
+            console.error('Error during bulk deletion:', error);
+            alert('Error during bulk deletion: ' + error.message);
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
     // Production Yield handlers
     const handleOpenYieldModal = (recipe: ProductionRecipe) => {
         setYieldModalRecipe(recipe);
@@ -516,6 +539,19 @@ const ProductionRecipeTab: React.FC<ProductionRecipeTabProps> = ({ businesses, c
                 
                 {/* Right: New Recipe (only on recipes tab) */}
                 <div className="flex flex-wrap items-center gap-3">
+                    {/* Bulk Delete Button (Super Admin Only) */}
+                    {activeTab === 'recipes' && currentUser?.role === 'SUPER_ADMIN' && (
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={isBulkDeleting || recipes.length === 0}
+                            className="px-4 py-2 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 text-red-700 dark:text-red-400 rounded-xl flex items-center gap-2 text-sm transition-colors disabled:opacity-50 font-semibold"
+                            title="Hard delete all production recipes for this business unit"
+                        >
+                            <Trash2 size={16} className={isBulkDeleting ? 'animate-spin' : ''} />
+                            Bulk Delete All
+                        </button>
+                    )}
+
                     {activeTab === 'recipes' && hasPermission('menu:recipe:create') && (
                         <button
                             onClick={handleAddNew}

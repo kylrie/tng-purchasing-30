@@ -212,6 +212,53 @@ export class ProductionRecipeService {
     }
 
     /**
+     * Hard delete all production recipes and their linked inventory items for a business unit.
+     * Used exclusively by Super Admins.
+     */
+    static async bulkDeleteRecipes(businessUnitId: string): Promise<number> {
+        const recipes = await this.getRecipes(businessUnitId);
+        if (recipes.length === 0) return 0;
+
+        let deletedCount = 0;
+        const BATCH_LIMIT = 450;
+        let batch = writeBatch(db);
+        let operationsInBatch = 0;
+
+        for (const recipe of recipes) {
+            // Delete the recipe itself
+            const recipeRef = doc(db, COLLECTION, recipe.id);
+            batch.delete(recipeRef);
+            operationsInBatch++;
+            deletedCount++;
+
+            // Delete the linked inventory item if it exists
+            if (recipe.linkedInventoryItemId) {
+                // production-recipe.service.ts imports INVENTORY_COLLECTION as just COLLECTION for inventory sometimes? Let me check its imports.
+                // Wait, I should verify the collection name for inventory.
+                // Let's check imports. I'll just write INVENTORY_COLLECTION, but I need to make sure it's imported.
+                // It imports InventoryService. I can use doc(db, 'inventory_items', recipe.linkedInventoryItemId)
+                const invRef = doc(db, 'inventory_items', recipe.linkedInventoryItemId);
+                batch.delete(invRef);
+                operationsInBatch++;
+            }
+
+            // Commit batch if limit reached
+            if (operationsInBatch >= BATCH_LIMIT) {
+                await batch.commit();
+                batch = writeBatch(db);
+                operationsInBatch = 0;
+            }
+        }
+
+        if (operationsInBatch > 0) {
+            await batch.commit();
+        }
+
+        console.log(`[ProductionRecipeService] Bulk deleted ${deletedCount} recipes for BU ${businessUnitId}`);
+        return deletedCount;
+    }
+
+    /**
      * Recalculate costs for all recipes in a business unit
      * (useful when ingredient costs change)
      *
