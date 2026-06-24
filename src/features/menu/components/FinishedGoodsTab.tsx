@@ -212,7 +212,8 @@ const MenuItemList: React.FC<{
 // ============================================================
 
 const FinishedGoodsTab: React.FC<FinishedGoodsTabProps> = ({
-    businesses
+    businesses,
+    currentUser
 }) => {
     // Data state
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
