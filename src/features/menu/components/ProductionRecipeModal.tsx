@@ -17,7 +17,7 @@ import type {
     CreateProductionRecipeInput
 } from '../types/menu.types';
 import { PRODUCTION_CATEGORIES } from '../types/menu.types';
-import { convertUnits } from '../services/recipes.service';
+import { convertUnits, getAvailableUnits } from '../services/recipes.service';
 import { UOM_CODES } from '../../../shared/constants/uom.constants';
 import { ProductionRecipeService } from '../services/production-recipe.service';
 import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
@@ -81,7 +81,8 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             setYieldUnit(recipe.yieldUnit);
 
             // Refresh ingredient costs from current inventory data
-            // so the modal matches the card's recalculated values
+            // and RECALCULATE baseQuantity from stored quantity+unit
+            // to fix any stale/incorrect baseQuantity values in the DB
             const refreshedIngredients = recipe.ingredients.map(ing => {
                 const item = inventoryItems.find(it => it.id === ing.inventoryItemId);
                 if (item) {
@@ -89,8 +90,13 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                         ?? (item.buyCost != null && item.units?.conversion > 0
                             ? item.buyCost / item.units.conversion
                             : item.costPerUnit ?? 0);
-                    const totalCost = ing.baseQuantity * costPerBaseUnit;
-                    return { ...ing, costPerBaseUnit, totalCost };
+                    // Always recalculate baseQuantity from the stored quantity + unit
+                    let baseQuantity = ing.quantity;
+                    if (ing.unit && ing.unit !== item.units.recipeUnit) {
+                        baseQuantity = convertUnits(ing.quantity, ing.unit, item.units.recipeUnit);
+                    }
+                    const totalCost = baseQuantity * costPerBaseUnit;
+                    return { ...ing, costPerBaseUnit, baseQuantity, totalCost };
                 }
                 return ing; // Keep stored values if item not found
             });
@@ -603,9 +609,13 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                             onChange={(e) => updateIngredient(index, ing.quantity, e.target.value)}
                                             className="w-24 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded text-slate-900 dark:text-white text-sm focus:outline-none focus:border-amber-500"
                                         >
-                                            {UOM_CODES.map(code => (
-                                                <option key={code} value={code}>{code}</option>
-                                            ))}
+                                            {(() => {
+                                                const item = inventoryItems.find(it => it.id === ing.inventoryItemId);
+                                                const compatible = item ? getAvailableUnits(item.units.recipeUnit) : UOM_CODES;
+                                                return compatible.map(code => (
+                                                    <option key={code} value={code}>{code}</option>
+                                                ));
+                                            })()}
                                         </select>
                                         {/* Wastage % */}
                                         {showWastage && (

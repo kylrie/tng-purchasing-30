@@ -19,6 +19,7 @@ import type {
     RecipeIngredient
 } from '../types/menu.types';
 import { InventoryService } from '../../inventory/services/inventory.service';
+import { convertUnits } from './recipes.service';
 
 const COLLECTION = 'productionRecipes';
 
@@ -290,6 +291,7 @@ export class ProductionRecipeService {
                 const item = itemMap.get(ing.inventoryItemId);
                 let costPerBaseUnit = ing.costPerBaseUnit;
                 let baseIngCost = ing.totalCost;
+                let correctedBaseQuantity = ing.baseQuantity;
 
                 if (item) {
                     // Use baseCost (per recipe-unit) when available.
@@ -299,7 +301,12 @@ export class ProductionRecipeService {
                         ?? (item.buyCost != null && item.units?.conversion > 0
                             ? item.buyCost / item.units.conversion
                             : item.costPerUnit ?? 0);
-                    baseIngCost = ing.baseQuantity * costPerBaseUnit;
+                    // Recalculate baseQuantity from quantity + unit to fix stale values
+                    correctedBaseQuantity = ing.quantity;
+                    if (ing.unit && ing.unit !== item.units.recipeUnit) {
+                        correctedBaseQuantity = convertUnits(ing.quantity, ing.unit, item.units.recipeUnit);
+                    }
+                    baseIngCost = correctedBaseQuantity * costPerBaseUnit;
                 }
 
                 const wPct = ing.wastagePercent ?? 0;
@@ -312,7 +319,7 @@ export class ProductionRecipeService {
                     inventoryItemName: ing.inventoryItemName,
                     quantity: ing.quantity,
                     unit: ing.unit,
-                    baseQuantity: ing.baseQuantity,
+                    baseQuantity: correctedBaseQuantity,
                     costPerBaseUnit,
                     totalCost: baseIngCost,
                 };
