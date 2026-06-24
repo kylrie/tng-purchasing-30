@@ -536,6 +536,49 @@ export async function deleteMenuItem(id: string): Promise<void> {
 }
 
 /**
+ * Hard delete all menu items and their linked inventory items for a business unit.
+ * Used exclusively by Super Admins.
+ */
+export async function bulkDeleteMenuItems(businessUnitId: string): Promise<number> {
+    const menuItems = await getMenuItems(businessUnitId);
+    if (menuItems.length === 0) return 0;
+
+    let deletedCount = 0;
+    const BATCH_LIMIT = 450;
+    let batch = writeBatch(db);
+    let operationsInBatch = 0;
+
+    for (const item of menuItems) {
+        // Delete the menu item itself
+        const menuRef = doc(db, COLLECTION, item.id);
+        batch.delete(menuRef);
+        operationsInBatch++;
+        deletedCount++;
+
+        // Delete the linked inventory item if it exists
+        if (item.linkedInventoryItemId) {
+            const invRef = doc(db, INVENTORY_COLLECTION, item.linkedInventoryItemId);
+            batch.delete(invRef);
+            operationsInBatch++;
+        }
+
+        // Commit batch if limit reached
+        if (operationsInBatch >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            operationsInBatch = 0;
+        }
+    }
+
+    if (operationsInBatch > 0) {
+        await batch.commit();
+    }
+
+    console.log(`[RecipesService] Bulk deleted ${deletedCount} menu items for BU ${businessUnitId}`);
+    return deletedCount;
+}
+
+/**
  * Recalculate costs for all menu items (useful when inventory prices change)
  *
  * OPTIMIZED: Fetches inventory ONCE, computes all costs in-memory,
@@ -650,6 +693,7 @@ export const RecipesService = {
     createMenuItem,
     updateMenuItem,
     deleteMenuItem,
+    bulkDeleteMenuItems,
     calculateRecipeCost,
     calculateMargins,
     recalculateAllCosts,

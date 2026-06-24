@@ -327,6 +327,28 @@ const FinishedGoodsTab: React.FC<FinishedGoodsTabProps> = ({
         }
     };
 
+    // Handle bulk delete (Super Admin only)
+    const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+    const handleBulkDelete = async () => {
+        const confirm1 = confirm('🚨 CRITICAL WARNING: You are about to PERMANENTLY DELETE ALL Menu Engineering items and their automatically generated finished goods for this business unit. This action CANNOT be undone.\n\nAre you absolutely sure?');
+        if (!confirm1) return;
+
+        const confirm2 = confirm('🚨 FINAL WARNING: Please click OK to confirm the permanent deletion of ALL menu items for the current business unit.');
+        if (!confirm2) return;
+
+        setIsBulkDeleting(true);
+        try {
+            const count = await RecipesService.bulkDeleteMenuItems(selectedBusinessUnit);
+            alert(`Successfully deleted ${count} menu items and their linked finished goods.`);
+            await loadMenuItems();
+        } catch (error: any) {
+            console.error('Error during bulk deletion:', error);
+            alert('Error during bulk deletion: ' + error.message);
+        } finally {
+            setIsBulkDeleting(false);
+        }
+    };
+
     // Stats
     const totalItems = menuItems.length;
     const avgFoodCost = totalItems > 0
@@ -364,6 +386,19 @@ const FinishedGoodsTab: React.FC<FinishedGoodsTabProps> = ({
                         <ShieldAlert size={16} className={isMigrating ? 'animate-spin' : ''} />
                         Sync Legacy Recipes
                     </button>
+
+                    {/* Bulk Delete Button (Super Admin Only) */}
+                    {currentUser?.role === 'SUPER_ADMIN' && (
+                        <button
+                            onClick={handleBulkDelete}
+                            disabled={isBulkDeleting || menuItems.length === 0}
+                            className="px-4 py-2 bg-red-100 dark:bg-red-500/20 hover:bg-red-200 dark:hover:bg-red-500/30 text-red-700 dark:text-red-400 rounded-xl flex items-center gap-2 text-sm transition-colors disabled:opacity-50 font-semibold"
+                            title="Hard delete all menu items for this business unit"
+                        >
+                            <Trash2 size={16} className={isBulkDeleting ? 'animate-spin' : ''} />
+                            Bulk Delete All
+                        </button>
+                    )}
                 </div>
                 
                 <div className="flex items-center gap-3">
