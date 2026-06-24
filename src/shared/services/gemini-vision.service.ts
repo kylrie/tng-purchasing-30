@@ -23,6 +23,21 @@ export interface ExtractionResult {
     rawResponse?: string;
 }
 
+export interface ExtractedRecipeIngredient {
+    name: string;
+    quantity: number;
+    unit: string;
+}
+
+export interface ExtractedRecipeResult {
+    name: string;
+    category: string;
+    yieldQuantity: number;
+    yieldUnit: string;
+    procedure: string;
+    ingredients: ExtractedRecipeIngredient[];
+}
+
 // ============================================================
 // FILE HELPERS
 // ============================================================
@@ -288,7 +303,84 @@ Do not return any markdown code block wrappers or other text. ONLY the raw JSON 
     }
 
     /**
-     * Parse unstructured raw text from a manual count sheet and match it to inventory IDs.
+     * Extract recipe details from a document (PDF or Image).
+     * Used for Smart Reading Recipes.
+     */
+    static async extractRecipeFromDocument(file: File): Promise<ExtractedRecipeResult> {
+        const client = this.getClient();
+
+        // Validate file type
+        const supportedTypes = [
+            'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+            'image/gif', 'application/pdf'
+        ];
+        if (!supportedTypes.includes(file.type)) {
+            throw new Error(`Unsupported file type: ${file.type}. Please upload an image (JPG, PNG, WEBP) or PDF.`);
+        }
+
+        // Convert file to base64
+        const base64Data = await fileToBase64(file);
+        const mimeType = file.type as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif' | 'application/pdf';
+
+        const prompt = `You are an expert at reading culinary recipes for a restaurant system.
+Analyze this recipe document and extract the relevant details.
+
+Return ONLY a valid JSON object with this exact structure:
+
+{
+  "name": "Recipe Name",
+  "category": "Main Course", // Guess a category if not explicitly stated, like Appetizer, Main Course, Dessert, Beverage, Condiment, Other
+  "yieldQuantity": 30, // The numerical yield amount
+  "yieldUnit": "orders", // The unit of the yield
+  "procedure": "1. Step one...\\n2. Step two...", // Combine all steps into a single string with newlines
+  "ingredients": [
+    {
+      "name": "Exact ingredient name",
+      "quantity": 1.5,
+      "unit": "unit (e.g. kg, g, liter, ml, pcs, tbsp, tsp, cup)"
+    }
+  ]
+}
+
+Only output valid JSON. Do not use markdown blocks like \`\`\`json.`;
+
+        try {
+            const response = await client.models.generateContent({
+                model: 'gemini-3.5-flash',
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
+                            { text: prompt },
+                            { inlineData: { data: base64Data, mimeType } }
+                        ]
+                    }
+                ]
+            });
+
+            let rawText = response.text || '';
+            
+            // Clean up markdown code blocks if Gemini accidentally included them
+            rawText = rawText.replace(/```json/gi, '').replace(/```/g, '').trim();
+
+            try {
+                const parsed = JSON.parse(rawText) as ExtractedRecipeResult;
+                return parsed;
+            } catch (parseError) {
+                console.error('[GeminiVisionService] Failed to parse recipe JSON:', rawText);
+                throw new Error('Could not understand the AI response. Please try again or use a clearer document.');
+            }
+
+        } catch (error: any) {
+            console.error('[GeminiVisionService] Error extracting recipe:', error);
+            throw new Error('Failed to analyze the recipe document. Ensure your API key is valid and the file is legible.');
+        }
+    }
+
+    /**
+     * Extracts physical counts from a CSV or raw text string 
+     * by matching names to the provided inventory items.
+     * Returns a map of inventoryItemId -> newCount.
      */
     static async extractManualCounts(fileText: string, availableItems: {id: string, name: string, recipeUnit: string, buyUnit: string, conversion: number}[]): Promise<Record<string, number>> {
         if (!fileText || availableItems.length === 0) return {};

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
     X, Save, Plus, Trash2, Loader2, ChefHat,
-    TrendingUp, Search, AlertTriangle, Package
+    TrendingUp, Search, AlertTriangle, Package, Sparkles
 } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
+import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 import { InventoryService } from '../../inventory/services/inventory.service';
 import type { MenuItem, MenuCategory } from '../types/menu.types';
@@ -196,6 +197,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
     businessUnitId
 }) => {
     // Form state
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [name, setName] = useState('');
     const [category, setCategory] = useState<MenuCategory>('Mains');
     const [serviceType, setServiceType] = useState<ServiceType | ''>('');
@@ -207,7 +209,9 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
     const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isImporting, setIsImporting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [importWarning, setImportWarning] = useState<string | null>(null);
 
     // Search state for adding ingredients
     const [searchQuery, setSearchQuery] = useState('');
@@ -370,6 +374,96 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
         setIngredients(prev => prev.filter(ing => ing.id !== id));
     };
 
+    // Smart Import logic
+    const handleSmartImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsImporting(true);
+        setError(null);
+        setImportWarning(null);
+
+        try {
+            const extracted = await GeminiVisionService.extractRecipeFromDocument(file);
+            
+            setName(extracted.name || '');
+            if (extracted.category && MENU_CATEGORIES.includes(extracted.category as MenuCategory)) {
+                setCategory(extracted.category as MenuCategory);
+            }
+            if (extracted.procedure) {
+                setDescription(extracted.procedure);
+            }
+
+            // Match ingredients
+            let matchedCount = 0;
+            const newIngredients: IngredientFormData[] = [];
+
+            for (const extractedIng of extracted.ingredients) {
+                // Try to find a match in inventory
+                const searchLower = extractedIng.name.toLowerCase();
+                const matchedInvItem = inventoryItems.find(i => 
+                    i.name.toLowerCase().includes(searchLower) || searchLower.includes(i.name.toLowerCase())
+                );
+
+                if (matchedInvItem) {
+                    matchedCount++;
+                    const recipeUnit = getItemRecipeUnit(matchedInvItem);
+                    const availableUnits = getAvailableUnits(recipeUnit);
+                    
+                    // Try to match the unit if possible, else use default
+                    let matchedUnit = availableUnits.find(u => u.toLowerCase() === extractedIng.unit.toLowerCase());
+                    if (!matchedUnit) {
+                        matchedUnit = availableUnits.includes('G') ? 'G' :
+                                      availableUnits.includes('ML') ? 'ML' : recipeUnit;
+                    }
+
+                    const perBaseUnit = matchedInvItem.baseCost
+                        ?? (matchedInvItem.buyCost != null && matchedInvItem.units?.conversion > 0
+                            ? matchedInvItem.buyCost / matchedInvItem.units.conversion
+                            : matchedInvItem.costPerUnit ?? 0);
+
+                    newIngredients.push({
+                        id: `import-${Date.now()}-${Math.random()}`,
+                        inventoryItemId: matchedInvItem.id,
+                        inventoryItemName: matchedInvItem.name,
+                        quantity: extractedIng.quantity,
+                        unit: matchedUnit,
+                        availableUnits,
+                        costPerUnit: perBaseUnit,
+                        totalCost: 0 // Will be calculated on save or update
+                    });
+                }
+            }
+
+            // Recalculate costs
+            const ingredientsWithCosts = newIngredients.map(ing => {
+                const invItem = inventoryItems.find(i => i.id === ing.inventoryItemId);
+                if (invItem) {
+                    const { totalCost } = calculateIngredientCost(ing.quantity, ing.unit, invItem);
+                    return { ...ing, totalCost };
+                }
+                return ing;
+            });
+
+            // Append to existing or replace? Let's append
+            setIngredients(prev => [...prev, ...ingredientsWithCosts]);
+
+            if (matchedCount < extracted.ingredients.length) {
+                setImportWarning(`Imported recipe but only matched ${matchedCount} out of ${extracted.ingredients.length} ingredients. Please add the missing ones manually.`);
+            } else {
+                setImportWarning(`Successfully imported ${matchedCount} ingredients!`);
+            }
+
+        } catch (err: any) {
+            console.error('Smart import error:', err);
+            setError(err.message || 'Failed to import recipe');
+        } finally {
+            setIsImporting(false);
+            // Reset input so the same file can be selected again if needed
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     // Handle save
     const handleSave = async () => {
         if (!name.trim()) {
@@ -455,12 +549,29 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                             <ChefHat size={20} className="text-purple-600 dark:text-purple-400" />
                             {isEditing ? 'Edit Recipe' : 'Create New Recipe'}
                         </h3>
-                        <button
-                            onClick={onClose}
-                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="file" 
+                                ref={fileInputRef}
+                                className="hidden" 
+                                accept="image/*,application/pdf"
+                                onChange={handleSmartImport}
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isImporting}
+                                className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                            >
+                                {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                                Smart Import
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Content */}
@@ -478,6 +589,14 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                         <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-red-300 text-sm flex items-center gap-2">
                                             <AlertTriangle size={16} />
                                             {error}
+                                        </div>
+                                    )}
+
+                                    {/* Warning Display */}
+                                    {importWarning && (
+                                        <div className="p-3 bg-indigo-900/30 border border-indigo-700/50 rounded-lg text-indigo-300 text-sm flex items-center gap-2">
+                                            <Sparkles size={16} />
+                                            {importWarning}
                                         </div>
                                     )}
 
@@ -587,7 +706,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                             </div>
 
                                             {/* Service type filter notice */}
-                                            {serviceType && serviceType !== 'Retail' && (
+                                            {serviceType && (
                                                 <div className="flex items-center gap-2 px-2 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-lg">
                                                     <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
                                                         serviceType === 'Alacarte'
@@ -595,7 +714,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                                                             : 'bg-teal-500/20 text-teal-400'
                                                     }`}>{serviceType}</span>
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                        Showing <span className="font-medium text-slate-700 dark:text-slate-300">{serviceType}</span> &amp; Retail items only
+                                                        Showing <span className="font-medium text-slate-700 dark:text-slate-300">{serviceType}</span> & Retail items only
                                                     </p>
                                                 </div>
                                             )}

@@ -4,7 +4,10 @@ import {
     Factory,
     Plus,
     Trash2,
-    Search
+    Search,
+    Loader2,
+    Sparkles,
+    AlertTriangle
 } from 'lucide-react';
 import PesoSign from '../../../shared/components/PesoSign';
 import type {
@@ -17,6 +20,7 @@ import { PRODUCTION_CATEGORIES } from '../types/menu.types';
 import { convertUnits } from '../services/recipes.service';
 import { UOM_CODES } from '../../../shared/constants/uom.constants';
 import { ProductionRecipeService } from '../services/production-recipe.service';
+import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
 import type { InventoryItem, ServiceType } from '../../inventory/types/InventoryItem';
 import { SERVICE_TYPES } from '../../inventory/types/InventoryItem';
 
@@ -46,6 +50,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
     inventoryItems
 }) => {
     // Form state
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [name, setName] = useState('');
     const [category, setCategory] = useState<ProductionCategory>('Other');
     const [serviceType, setServiceType] = useState<ServiceType | ''>('');
@@ -58,6 +63,8 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
     // FIX: Replace alert() with inline error state
     const [validationError, setValidationError] = useState<string | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
+    const [isImporting, setIsImporting] = useState(false);
+    const [importWarning, setImportWarning] = useState<string | null>(null);
 
     // Ingredient search
     const [searchQuery, setSearchQuery] = useState('');
@@ -178,6 +185,94 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
         setIngredients(prev => prev.filter((_, i) => i !== index));
     };
 
+    // Smart Import logic
+    const handleSmartImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsImporting(true);
+        setValidationError(null);
+        setSaveError(null);
+        setImportWarning(null);
+
+        try {
+            const extracted = await GeminiVisionService.extractRecipeFromDocument(file);
+            
+            setName(extracted.name || '');
+            if (extracted.category && PRODUCTION_CATEGORIES.includes(extracted.category as ProductionCategory)) {
+                setCategory(extracted.category as ProductionCategory);
+            }
+            if (extracted.procedure) {
+                setDescription(extracted.procedure);
+            }
+            if (extracted.yieldQuantity) {
+                setYieldQuantity(extracted.yieldQuantity);
+            }
+            if (extracted.yieldUnit && UOM_CODES.includes(extracted.yieldUnit)) {
+                setYieldUnit(extracted.yieldUnit);
+            }
+
+            // Match ingredients
+            let matchedCount = 0;
+            const newIngredients: RecipeIngredient[] = [];
+
+            for (const extractedIng of extracted.ingredients) {
+                // Try to find a match in inventory
+                const searchLower = extractedIng.name.toLowerCase();
+                const matchedInvItem = inventoryItems.find(i => 
+                    i.name.toLowerCase().includes(searchLower) || searchLower.includes(i.name.toLowerCase())
+                );
+
+                if (matchedInvItem) {
+                    matchedCount++;
+                    const perBaseUnit = matchedInvItem.baseCost
+                        ?? (matchedInvItem.buyCost != null && matchedInvItem.units?.conversion > 0
+                            ? matchedInvItem.buyCost / matchedInvItem.units.conversion
+                            : matchedInvItem.costPerUnit ?? 0);
+
+                    // Map unit if possible
+                    let matchedUnit = UOM_CODES.find(u => u.toLowerCase() === extractedIng.unit.toLowerCase()) || matchedInvItem.units.recipeUnit;
+
+                    let baseQuantity = extractedIng.quantity;
+                    if (matchedUnit !== matchedInvItem.units.recipeUnit) {
+                        try {
+                            baseQuantity = convertUnits(extractedIng.quantity, matchedUnit, matchedInvItem.units.recipeUnit);
+                        } catch (e) {
+                            // If conversion fails, fallback to recipeUnit and ignore the extracted unit
+                            matchedUnit = matchedInvItem.units.recipeUnit;
+                        }
+                    }
+
+                    newIngredients.push({
+                        inventoryItemId: matchedInvItem.id,
+                        inventoryItemName: matchedInvItem.name,
+                        quantity: extractedIng.quantity,
+                        unit: matchedUnit,
+                        baseQuantity,
+                        costPerBaseUnit: perBaseUnit,
+                        totalCost: baseQuantity * perBaseUnit,
+                        wastagePercent: undefined
+                    });
+                }
+            }
+
+            setIngredients(prev => [...prev, ...newIngredients]);
+
+            if (matchedCount < extracted.ingredients.length) {
+                setImportWarning(`Imported recipe but only matched ${matchedCount} out of ${extracted.ingredients.length} ingredients. Please add the missing ones manually.`);
+            } else {
+                setImportWarning(`Successfully imported ${matchedCount} ingredients!`);
+            }
+
+        } catch (err: any) {
+            console.error('Smart import error:', err);
+            setSaveError(err.message || 'Failed to import recipe');
+        } finally {
+            setIsImporting(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
     // Save recipe
     const handleSave = async () => {
         // FIX: Replace alert() with inline validation
@@ -254,12 +349,30 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                             </p>
                         </div>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                    >
-                        <X size={20} />
-                    </button>
+                    
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            className="hidden" 
+                            accept="image/*,application/pdf"
+                            onChange={handleSmartImport}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isImporting}
+                            className="px-3 py-1.5 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                        >
+                            {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                            Smart Import
+                        </button>
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -267,8 +380,19 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                     {/* Error Display */}
                     {(validationError || saveError) && (
                         <div className="p-3 bg-red-500/20 border border-red-500/40 rounded-lg text-red-300 text-sm flex items-center justify-between">
-                            <span>{validationError || saveError}</span>
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle size={16} />
+                                <span>{validationError || saveError}</span>
+                            </div>
                             <button onClick={() => { setValidationError(null); setSaveError(null); }} className="text-red-400 hover:text-red-300 ml-2">&times;</button>
+                        </div>
+                    )}
+                    
+                    {/* Warning Display */}
+                    {importWarning && (
+                        <div className="p-3 bg-indigo-900/30 border border-indigo-700/50 rounded-lg text-indigo-300 text-sm flex items-center gap-2">
+                            <Sparkles size={16} />
+                            {importWarning}
                         </div>
                     )}
                     {/* Basic Info */}
