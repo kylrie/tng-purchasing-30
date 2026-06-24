@@ -611,7 +611,8 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                                         >
                                             {(() => {
                                                 const item = inventoryItems.find(it => it.id === ing.inventoryItemId);
-                                                const compatible = item ? getAvailableUnits(item.units.recipeUnit) : UOM_CODES;
+                                                const baseUnit = item?.units?.recipeUnit || ing.unit;
+                                                const compatible = getAvailableUnits(baseUnit);
                                                 return compatible.map(code => (
                                                     <option key={code} value={code}>{code}</option>
                                                 ));

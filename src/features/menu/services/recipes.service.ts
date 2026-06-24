@@ -8,7 +8,7 @@ import type {
     RecipeIngredientInput
 } from '../types/menu.types';
 import { UNIT_CONVERSIONS } from '../types/menu.types';
-import { UOM_CONVERSIONS, UOM_CATEGORY_MAP } from '../../../shared/constants/uom.constants';
+import { UOM_CONVERSIONS, UOM_CATEGORY_MAP, UOM_CODES } from '../../../shared/constants/uom.constants';
 import {
     collection, doc, writeBatch, getDocs
 } from 'firebase/firestore';
@@ -91,7 +91,7 @@ export function convertUnits(
  * Uses the canonical UOM_CONVERSIONS table (uppercase keys).
  */
 export function getAvailableUnits(baseUnit: string | undefined | null): string[] {
-    if (!baseUnit) return ['EA'];
+    if (!baseUnit) return UOM_CODES;
     const baseUpper = baseUnit.toUpperCase();
     const available = new Set<string>([baseUpper]);
 
