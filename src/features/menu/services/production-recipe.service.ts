@@ -203,13 +203,30 @@ export class ProductionRecipeService {
     }
 
     /**
-     * Delete a production recipe (soft delete)
+     * Delete a production recipe (soft delete) and its linked inventory item
      */
     static async deleteRecipe(recipeId: string): Promise<void> {
+        // Fetch the recipe to get linkedInventoryItemId before deactivating
+        const recipe = await this.getRecipe(recipeId);
+
+        // Soft-delete the production recipe
         await updateDoc(doc(db, COLLECTION, recipeId), {
             isActive: false,
             updatedAt: Timestamp.now()
         });
+
+        // Also deactivate the linked inventory item so it no longer appears in Inventory Items
+        if (recipe?.linkedInventoryItemId) {
+            try {
+                await updateDoc(doc(db, 'inventory_items', recipe.linkedInventoryItemId), {
+                    isActive: false,
+                    updatedAt: Timestamp.now()
+                });
+                console.log(`[ProductionRecipeService] Deactivated linked inventory item ${recipe.linkedInventoryItemId} for recipe ${recipeId}`);
+            } catch (err) {
+                console.warn('[ProductionRecipeService] Could not deactivate linked inventory item:', err);
+            }
+        }
     }
 
     /**

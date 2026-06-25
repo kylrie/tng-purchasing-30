@@ -531,10 +531,26 @@ export async function migrateExistingRecipes(businessUnitId: string): Promise<st
 }
 
 /**
- * Delete (deactivate) a menu item
+ * Delete (deactivate) a menu item and its linked inventory item
  */
 export async function deleteMenuItem(id: string): Promise<void> {
+    // Fetch the menu item to get linkedInventoryItemId before deactivating
+    const menuItem = await getMenuItem(id);
+
+    // Soft-delete the menu item
     await FirestoreService.updateDocument(COLLECTION, id, { isActive: false });
+
+    // Also deactivate the linked inventory item so it no longer appears in Inventory Items
+    if (menuItem?.linkedInventoryItemId) {
+        try {
+            await FirestoreService.updateDocument(INVENTORY_COLLECTION, menuItem.linkedInventoryItemId, {
+                isActive: false
+            });
+            console.log(`[RecipesService] Deactivated linked inventory item ${menuItem.linkedInventoryItemId} for menu item ${id}`);
+        } catch (err) {
+            console.warn('[RecipesService] Could not deactivate linked inventory item:', err);
+        }
+    }
 }
 
 /**
