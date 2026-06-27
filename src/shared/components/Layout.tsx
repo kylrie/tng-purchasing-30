@@ -348,15 +348,15 @@ const Layout: React.FC<LayoutProps> = ({
                 {
                     label: 'Stock Management',
                     icon: Boxes,
-                    canView: hasPermission('inventory:item:view:all'),
+                    canView: hasPermission('inventory:item:view:all') || hasPermission('inventory:item:view:bu') || hasPermission('inventory:stock_take:view:all') || hasPermission('inventory:stock_take:view:bu') || hasPermission('inventory:wastage:view:all') || hasPermission('inventory:wastage:view:bu'),
                     children: [
-                        { path: '/inventory/items', label: 'All Items', icon: Package, canView: hasPermission('inventory:item:view:all') },
-                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:item:view:all') },
-                        { path: '/inventory/wastage', label: 'Wastage', icon: Trash2, canView: hasPermission('inventory:item:edit') }
+                        { path: '/inventory/items', label: 'All Items', icon: Package, canView: hasPermission('inventory:item:view:all') || hasPermission('inventory:item:view:bu') },
+                        { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:stock_take:view:all') || hasPermission('inventory:stock_take:view:bu') },
+                        { path: '/inventory/wastage', label: 'Wastage', icon: Trash2, canView: hasPermission('inventory:wastage:view:all') || hasPermission('inventory:wastage:view:bu') }
                     ]
                 },
-                { path: '/inventory/fixed-assets', label: 'Fixed Assets', icon: Monitor, canView: hasPermission('inventory:asset:edit') },
-                { path: '/inventory/receiving', label: 'Receiving', icon: Truck, canView: hasPermission('inventory:item:edit') },
+                { path: '/inventory/fixed-assets', label: 'Fixed Assets', icon: Monitor, canView: hasPermission('inventory:asset:view:all') },
+                { path: '/inventory/receiving', label: 'Receiving', icon: Truck, canView: hasPermission('inventory:receiving:view:all') || hasPermission('inventory:receiving:view:bu') },
                 {
                     label: 'Menu Engineering',
                     icon: ChefHat,
