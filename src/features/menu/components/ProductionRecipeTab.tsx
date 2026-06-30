@@ -44,8 +44,9 @@ const RecipeCard: React.FC<{
     productionStock: number | null;   // live currentStock from inventory
     onEdit: (recipe: ProductionRecipe) => void;
     onDelete: (recipe: ProductionRecipe) => void;
-    onRecordYield: (recipe: ProductionRecipe) => void;
-}> = ({ recipe, productionStock, onEdit, onDelete, onRecordYield }) => {
+    onRecordYield: (recipe: ProductionRecipe, initialQty?: number) => void;
+    todayStats: { soldToday: number; productionRecordedToday: number } | null;
+}> = ({ recipe, productionStock, onEdit, onDelete, onRecordYield, todayStats }) => {
     const { hasPermission } = usePermissions();
 
     return (
@@ -102,6 +103,41 @@ const RecipeCard: React.FC<{
                     )}
                 </div>
             </div>
+
+            {/* Missing Production Alert */}
+            {todayStats && (todayStats.soldToday > 0 && todayStats.productionRecordedToday < todayStats.soldToday) && (
+                <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-3 mb-3">
+                    <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-bold text-sm mb-2">
+                        <span className="text-lg">⚠️</span> Missing Production Alert
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                        <div className="bg-white/50 dark:bg-slate-900/50 p-2 rounded">
+                            <p className="text-slate-500">Sold today</p>
+                            <p className="font-bold text-red-600 dark:text-red-400">{todayStats.soldToday.toLocaleString()} {recipe.yieldUnit}</p>
+                        </div>
+                        <div className="bg-white/50 dark:bg-slate-900/50 p-2 rounded">
+                            <p className="text-slate-500">Produced</p>
+                            <p className="font-bold text-slate-700 dark:text-slate-300">{todayStats.productionRecordedToday.toLocaleString()} {recipe.yieldUnit}</p>
+                        </div>
+                        <div className="bg-white/50 dark:bg-slate-900/50 p-2 rounded">
+                            <p className="text-slate-500">Expected Stock</p>
+                            <p className={`font-bold ${productionStock !== null && productionStock < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                {productionStock === null ? '—' : productionStock.toLocaleString()} {recipe.yieldUnit}
+                            </p>
+                        </div>
+                    </div>
+                    <p className="text-xs text-red-600/80 dark:text-red-400/80 mb-3">
+                        The POS shows sales, but production was not fully encoded.
+                    </p>
+                    <button
+                        onClick={() => onRecordYield(recipe, todayStats.soldToday - todayStats.productionRecordedToday)}
+                        className="w-full py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
+                    >
+                        <Play size={14} />
+                        Encode missed production
+                    </button>
+                </div>
+            )}
 
             {/* Yield Info */}
             <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 mb-3">
@@ -180,8 +216,9 @@ const RecipeList: React.FC<{
     productionStockMap: Map<string, number>;
     onEdit: (recipe: ProductionRecipe) => void;
     onDelete: (recipe: ProductionRecipe) => void;
-    onRecordYield: (recipe: ProductionRecipe) => void;
-}> = ({ recipes, productionStockMap, onEdit, onDelete, onRecordYield }) => {
+    onRecordYield: (recipe: ProductionRecipe, initialQty?: number) => void;
+    todayStatsMap: Map<string, { soldToday: number; productionRecordedToday: number }>;
+}> = ({ recipes, productionStockMap, onEdit, onDelete, onRecordYield, todayStatsMap }) => {
     const { hasPermission } = usePermissions();
 
     return (
@@ -239,17 +276,30 @@ const RecipeList: React.FC<{
                                         {recipe.yieldQuantity} {recipe.yieldUnit}
                                     </td>
                                     <td className="p-4 text-sm text-center">
-                                        {productionStock === null ? (
-                                            <span className="text-slate-400">—</span>
-                                        ) : (
-                                            <span className={`font-bold ${
-                                                productionStock <= 0
-                                                    ? 'text-red-600 dark:text-red-400'
-                                                    : 'text-green-600 dark:text-green-400'
-                                            }`}>
-                                                {productionStock.toLocaleString()} {recipe.yieldUnit}
-                                            </span>
-                                        )}
+                                        <div className="flex flex-col items-center gap-1">
+                                            {productionStock === null ? (
+                                                <span className="text-slate-400">—</span>
+                                            ) : (
+                                                <span className={`font-bold ${
+                                                    productionStock <= 0
+                                                        ? 'text-red-600 dark:text-red-400'
+                                                        : 'text-green-600 dark:text-green-400'
+                                                }`}>
+                                                    {productionStock.toLocaleString()} {recipe.yieldUnit}
+                                                </span>
+                                            )}
+                                            {recipe.linkedInventoryItemId && (() => {
+                                                const stats = todayStatsMap.get(recipe.linkedInventoryItemId);
+                                                if (stats && stats.soldToday > 0 && stats.productionRecordedToday < stats.soldToday) {
+                                                    return (
+                                                        <span className="text-[10px] bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400 px-2 py-0.5 rounded-full font-bold">
+                                                            ⚠️ Missing Production
+                                                        </span>
+                                                    );
+                                                }
+                                                return null;
+                                            })()}
+                                        </div>
                                     </td>
                                     <td className="p-4 text-sm text-right font-medium text-amber-500 dark:text-amber-400">
                                         ₱{recipe.costPerUnit.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
@@ -319,6 +369,7 @@ const ProductionRecipeTab: React.FC<ProductionRecipeTabProps> = ({ businesses, c
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [showModal, setShowModal] = useState(false);
     const [editingRecipe, setEditingRecipe] = useState<ProductionRecipe | null>(null);
+    const [todayStatsMap, setTodayStatsMap] = useState<Map<string, { soldToday: number; productionRecordedToday: number }>>(new Map());
 
     // Production Yield modal state
     const [yieldModalRecipe, setYieldModalRecipe] = useState<ProductionRecipe | null>(null);
@@ -377,6 +428,14 @@ const ProductionRecipeTab: React.FC<ProductionRecipeTabProps> = ({ businesses, c
                     setProductionItems(fetchedProd);
                 } catch (prodErr) {
                     console.error('Error loading production inventory:', prodErr);
+                }
+
+                // Fetch Today's Production Stats
+                try {
+                    const stats = await ProductionRecipeService.getTodayProductionStats(selectedBusinessUnit);
+                    setTodayStatsMap(stats);
+                } catch (statsErr) {
+                    console.error('Error loading today production stats:', statsErr);
                 }
 
             } catch (err) {
@@ -456,9 +515,9 @@ const ProductionRecipeTab: React.FC<ProductionRecipeTabProps> = ({ businesses, c
     };
 
     // Production Yield handlers
-    const handleOpenYieldModal = (recipe: ProductionRecipe) => {
+    const handleOpenYieldModal = (recipe: ProductionRecipe, initialQty?: number) => {
         setYieldModalRecipe(recipe);
-        setYieldQuantity('');
+        setYieldQuantity(initialQty ? initialQty.toString() : '');
         setYieldMessage(null);
     };
 
@@ -700,6 +759,11 @@ const ProductionRecipeTab: React.FC<ProductionRecipeTabProps> = ({ businesses, c
                             onEdit={handleEdit}
                             onDelete={handleDelete}
                             onRecordYield={handleOpenYieldModal}
+                            todayStats={
+                                recipe.linkedInventoryItemId
+                                    ? (todayStatsMap.get(recipe.linkedInventoryItemId) ?? null)
+                                    : null
+                            }
                         />
                     ))}
                 </div>
@@ -710,6 +774,7 @@ const ProductionRecipeTab: React.FC<ProductionRecipeTabProps> = ({ businesses, c
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onRecordYield={handleOpenYieldModal}
+                    todayStatsMap={todayStatsMap}
                 />
             )}
 

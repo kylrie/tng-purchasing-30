@@ -564,4 +564,55 @@ export class ProductionRecipeService {
             throw new Error(`Failed to record production run. No stock was modified. Error: ${err instanceof Error ? err.message : String(err)}`);
         }
     }
+    // ================================================================
+    // PRODUCTION STATS (Missing Production Alert)
+    // ================================================================
+
+    /**
+     * Get exact "Sold today" and "Production recorded today" for all production items.
+     * Uses today's stock_transactions (local midnight to local midnight).
+     */
+    static async getTodayProductionStats(businessUnitId: string): Promise<Map<string, { soldToday: number; productionRecordedToday: number }>> {
+        const stats = new Map<string, { soldToday: number; productionRecordedToday: number }>();
+
+        // Get local midnight today and tomorrow
+        const now = new Date();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+        const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        const startTs = Timestamp.fromDate(startOfDay);
+        const endTs = Timestamp.fromDate(endOfDay);
+
+        // We need transactions from today for this BU
+        const txQuery = query(
+            collection(db, 'stock_transactions'),
+            where('businessUnitId', '==', businessUnitId),
+            where('timestamp', '>=', startTs),
+            where('timestamp', '<=', endTs)
+        );
+
+        try {
+            const txSnap = await getDocs(txQuery);
+            txSnap.docs.forEach(doc => {
+                const data = doc.data();
+                const itemId = data.itemId;
+                const type = data.type; // 'THEORETICAL_USAGE' (pos sale deduction) or 'PRODUCTION_YIELD'
+                const qty = typeof data.quantity === 'number' ? data.quantity : 0;
+
+                if (!stats.has(itemId)) {
+                    stats.set(itemId, { soldToday: 0, productionRecordedToday: 0 });
+                }
+
+                const itemStats = stats.get(itemId)!;
+                if (type === 'THEORETICAL_USAGE' || type === 'POS_SALE') {
+                    itemStats.soldToday += qty;
+                } else if (type === 'PRODUCTION_YIELD') {
+                    itemStats.productionRecordedToday += qty;
+                }
+            });
+        } catch (err) {
+            console.error('[ProductionRecipeService] Error fetching today\'s production stats:', err);
+        }
+
+        return stats;
+    }
 }
