@@ -1029,7 +1029,6 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
     category: 'Point of Sale',
     read:   { permission: 'pos:import:view:all' },
     create: { permission: 'pos:import:create' },
-    edit:   { permission: 'pos:import:view:all' },
     delete: { permission: 'pos:import:delete' },
   },
 
