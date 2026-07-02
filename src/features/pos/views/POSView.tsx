@@ -44,6 +44,23 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
         fetchSuperAdminPin();
     }, []);
 
+    // Ensure selectedBusinessUnit is valid for the active cashier
+    useEffect(() => {
+        if (activeCashier) {
+            const cashierBusinesses = businesses.filter(b => 
+                b.id === activeCashier.businessId || 
+                activeCashier.businessUnitIds?.includes(b.id)
+            );
+            
+            if (cashierBusinesses.length > 0) {
+                const isValid = cashierBusinesses.some(b => b.id === selectedBusinessUnit);
+                if (!isValid) {
+                    setSelectedBusinessUnit(cashierBusinesses[0].id);
+                }
+            }
+        }
+    }, [activeCashier, businesses, selectedBusinessUnit]);
+
     const { menuItems, isLoading, sellableStockMap } = usePOSMenu(selectedBusinessUnit);
     const { 
         cartItems,
