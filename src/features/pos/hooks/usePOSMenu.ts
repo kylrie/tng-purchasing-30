@@ -28,8 +28,17 @@ export function usePOSMenu(businessUnitId: string) {
                     RecipesService.getMenuItems(businessUnitId),
                     InventoryService.getInventory(businessUnitId) // ALL items, no type filter
                 ]);
-                // In POS, we typically only want active items that can be sold
-                const activeItems = items.filter(item => item.isActive !== false);
+                const invMap = new Map<string, InventoryItem>();
+                allInvItems.forEach(item => invMap.set(item.id, item));
+
+                // In POS, we only want active items that can be sold AND are strictly linked to a BU's Finished Good or Production sub-assembly
+                const activeItems = items.filter(item => {
+                    if (item.isActive === false) return false;
+                    if (!item.linkedInventoryItemId) return false;
+                    const linkedInv = invMap.get(item.linkedInventoryItemId);
+                    return linkedInv && (linkedInv.type === 'FINISHED_GOOD' || linkedInv.type === 'PRODUCTION');
+                });
+                
                 setMenuItems(activeItems);
                 setInventoryItems(allInvItems);
             } catch (err) {

@@ -24,7 +24,7 @@ interface POSViewProps {
 const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     const { currentUser } = useAuth();
     const defaultBusinessId = currentUser?.businessUnitIds?.[0] || businesses[0]?.id || '';
-    const [selectedBusinessUnit] = useState<string>(defaultBusinessId);
+    const [selectedBusinessUnit, setSelectedBusinessUnit] = useState<string>(defaultBusinessId);
     const [activeCashier, setActiveCashier] = useState<User | null>(null);
     const [superAdminPin, setSuperAdminPin] = useState<string>('');
 
@@ -130,10 +130,28 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
             <div className="h-16 flex items-center justify-between px-6 bg-slate-800 border-b border-slate-700 z-10 shrink-0">
                 <div className="flex items-center">
                     <h1 className="text-xl font-bold text-white">Point of Sale</h1>
-                    {businesses.find(b => b.id === selectedBusinessUnit) && (
-                        <span className="ml-4 px-3 py-1 bg-slate-700 rounded-full text-sm font-medium text-slate-300">
-                            {businesses.find(b => b.id === selectedBusinessUnit)?.name}
-                        </span>
+                    {businesses.length > 1 ? (
+                        <select
+                            value={selectedBusinessUnit}
+                            onChange={(e) => {
+                                setSelectedBusinessUnit(e.target.value);
+                                clearCart();
+                            }}
+                            className="ml-4 px-3 py-1 bg-slate-700/50 border border-slate-600 rounded-full text-sm font-medium text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
+                            style={{ backgroundImage: 'url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3E%3Cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'m6 8 4 4 4-4\'/%3E%3C/svg%3E")', backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2rem' }}
+                        >
+                            {businesses.map(b => (
+                                <option key={b.id} value={b.id}>
+                                    {b.name}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        businesses.find(b => b.id === selectedBusinessUnit) && (
+                            <span className="ml-4 px-3 py-1 bg-slate-700 rounded-full text-sm font-medium text-slate-300">
+                                {businesses.find(b => b.id === selectedBusinessUnit)?.name}
+                            </span>
+                        )
                     )}
                 </div>
 
