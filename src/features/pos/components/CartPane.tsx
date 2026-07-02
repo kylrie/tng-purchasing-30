@@ -17,7 +17,7 @@ interface CartPaneProps {
     total: number;
     onUpdateQuantity: (index: number, qty: number) => void;
     onRemoveItem: (index: number) => void;
-    onToggleDiscount: (index: number) => void;
+    onSetItemDiscountRate: (index: number, rate: number) => void;
     onClearCart: () => void;
     onCheckout: () => void;
 }
@@ -34,7 +34,7 @@ const CartPane: React.FC<CartPaneProps> = ({
     total,
     onUpdateQuantity,
     onRemoveItem,
-    onToggleDiscount,
+    onSetItemDiscountRate,
     globalDiscountRate = 0,
     setGlobalDiscountRate,
     globalDiscountAmount = 0,
@@ -84,17 +84,17 @@ const CartPane: React.FC<CartPaneProps> = ({
                             <div className="flex justify-between items-start relative z-10">
                                 <div className="font-semibold text-slate-300 pr-3 leading-snug text-sm flex-1 group-hover:text-white transition-colors duration-300">
                                     {item.productName}
-                                    {item.isDiscounted && (
+                                    {(item.discountRate || 0) > 0 && (
                                         <span className="ml-2 text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
-                                            SC/PWD
+                                            {item.discountRate}% DISC
                                         </span>
                                     )}
                                 </div>
                                 <div className="font-bold text-white whitespace-nowrap text-base tracking-tight text-right">
-                                    <div className={item.isDiscounted ? "text-slate-400 line-through text-xs" : ""}>
+                                    <div className={(item.discountRate || 0) > 0 ? "text-slate-400 line-through text-xs" : ""}>
                                         ₱{(item.unitPrice * item.quantity).toFixed(2)}
                                     </div>
-                                    {item.isDiscounted && (
+                                    {(item.discountRate || 0) > 0 && (
                                         <div className="text-amber-400">
                                             ₱{item.subtotal.toFixed(2)}
                                         </div>
@@ -121,17 +121,22 @@ const CartPane: React.FC<CartPaneProps> = ({
                                     </button>
                                 </div>
                                 <div className="flex gap-2">
-                                    <button
-                                        onClick={() => onToggleDiscount(index)}
-                                        className={`p-2.5 rounded-xl transition-all duration-300 text-xs font-bold uppercase tracking-wider border ${
-                                            item.isDiscounted 
-                                                ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' 
-                                                : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-white'
-                                        }`}
-                                        aria-label="Toggle Discount"
-                                    >
-                                        % Disc
-                                    </button>
+                                    <div className={`flex items-center gap-1 rounded-xl transition-all duration-300 border px-2 py-1.5 ${
+                                        (item.discountRate || 0) > 0
+                                            ? 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+                                            : 'bg-white/5 border-white/10 text-slate-400 focus-within:bg-white/10'
+                                    }`}>
+                                        <input
+                                            type="number"
+                                            value={item.discountRate || ''}
+                                            onChange={(e) => onSetItemDiscountRate(index, parseFloat(e.target.value) || 0)}
+                                            placeholder="0"
+                                            className="w-8 bg-transparent text-right text-xs font-bold focus:outline-none placeholder-slate-600"
+                                            min="0"
+                                            max="100"
+                                        />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">% DISC</span>
+                                    </div>
                                     <button
                                         onClick={() => onRemoveItem(index)}
                                         className="p-2.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-300 opacity-60 group-hover:opacity-100"

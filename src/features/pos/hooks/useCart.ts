@@ -39,7 +39,7 @@ export function useCart() {
                 subtotal: quantity * menuItem.sellingPrice,
                 category: menuItem.category,
                 notes,
-                isDiscounted: false,
+                discountRate: 0,
                 vatAmount: 0,
                 discountAmount: 0,
                 vatExemptAmount: 0,
@@ -49,12 +49,12 @@ export function useCart() {
         });
     }, []);
 
-    const toggleDiscount = useCallback((index: number) => {
+    const setItemDiscountRate = useCallback((index: number, rate: number) => {
         setCartItems(prev => {
             const newItems = [...prev];
             newItems[index] = {
                 ...newItems[index],
-                isDiscounted: !newItems[index].isDiscounted
+                discountRate: rate
             };
             return newItems;
         });
@@ -106,11 +106,11 @@ export function useCart() {
             let itemVatExempt = 0;
             let itemFinalSubtotal = rawSubtotal;
 
-            if (item.isDiscounted) {
+            if ((item.discountRate || 0) > 0) {
                 // Remove VAT
                 itemVatExempt = rawSubtotal / (1 + vatRate);
-                // Apply 20% discount on the VAT-exempt amount
-                itemDiscount = itemVatExempt * 0.20;
+                // Apply custom discount on the VAT-exempt amount
+                itemDiscount = itemVatExempt * ((item.discountRate || 0) / 100);
                 itemFinalSubtotal = itemVatExempt - itemDiscount;
                 totalVatExemptSales += itemFinalSubtotal;
             } else {
@@ -167,7 +167,7 @@ export function useCart() {
         updateQuantity,
         removeFromCart,
         clearCart,
-        toggleDiscount,
+        setItemDiscountRate,
         globalDiscountRate,
         setGlobalDiscountRate,
         subtotal: calculations.finalSubtotal,

@@ -19,7 +19,7 @@
         ]
     },
     "hosting": {
-        "site": "tng-systems-staging",
+        "site": "tng-systems",
         "public": "dist",
         "ignore": [
             "firebase.json",

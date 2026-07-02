@@ -50,7 +50,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
         updateQuantity,
         removeFromCart,
         clearCart,
-        toggleDiscount,
+        setItemDiscountRate,
         globalDiscountRate,
         setGlobalDiscountRate,
         globalDiscountAmount,
@@ -96,7 +96,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     subtotal: item.subtotal,
                     category: item.category,
                     notes: item.notes,
-                    isDiscounted: item.isDiscounted,
+                    discountRate: item.discountRate,
                     vatAmount: item.vatAmount,
                     discountAmount: item.discountAmount,
                     vatExemptAmount: item.vatExemptAmount
@@ -210,9 +210,9 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     total={total}
                     onUpdateQuantity={updateQuantity}
                     onRemoveItem={removeFromCart}
-                    onToggleDiscount={toggleDiscount}
-                    onClearCart={clearCart}
+                    onSetItemDiscountRate={setItemDiscountRate}
                     onCheckout={handleCheckout}
+                    onClearCart={clearCart}
                 />
             </div>
 
