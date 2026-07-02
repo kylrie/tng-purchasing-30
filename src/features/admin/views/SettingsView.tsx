@@ -67,7 +67,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
 
     // Business State
-    const [newBiz, setNewBiz] = useState<Partial<Business>>({ name: '', tin: '', address: '', currency: 'PHP' });
+    const [newBiz, setNewBiz] = useState<Partial<Business>>({ name: '', tin: '', address: '', currency: 'PHP', hasTableManagement: false });
     const [editingBizId, setEditingBizId] = useState<string | null>(null);
 
     // User Search
@@ -235,7 +235,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     };
 
     const handleCancelEditBusiness = () => {
-        setNewBiz({ name: '', tin: '', address: '', currency: 'PHP' });
+        setNewBiz({ name: '', tin: '', address: '', currency: 'PHP', hasTableManagement: false });
         setEditingBizId(null);
     };
 
@@ -628,10 +628,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     activeTab === 'business' && hasPermission('admin:business:edit') && (
                         <div className={cardClass}>
                             <h3 className="font-bold text-lg mb-6 flex items-center gap-2 text-white"><Building2 size={20} className="text-purple-400" /> Business Unit Management</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                                 <input className={inputClass} placeholder="Business Name" value={newBiz.name} onChange={e => setNewBiz({ ...newBiz, name: e.target.value })} />
                                 <input className={inputClass} placeholder="TIN" value={newBiz.tin} onChange={e => setNewBiz({ ...newBiz, tin: e.target.value })} />
                                 <input className={inputClass} placeholder="Address" value={newBiz.address} onChange={e => setNewBiz({ ...newBiz, address: e.target.value })} />
+                                <div className="flex items-center gap-2 px-2">
+                                    <input 
+                                        type="checkbox" 
+                                        id="hasTableManagement" 
+                                        checked={newBiz.hasTableManagement || false} 
+                                        onChange={e => setNewBiz({ ...newBiz, hasTableManagement: e.target.checked })} 
+                                        className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-purple-600 focus:ring-purple-500"
+                                    />
+                                    <label htmlFor="hasTableManagement" className="text-sm font-medium text-slate-300">Table Management</label>
+                                </div>
                                 <button
                                     onClick={handleSaveBusiness}
                                     className={`py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2
@@ -650,7 +660,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 {businesses.map(b => (
                                     <div key={b.id} className="p-3 border border-slate-700 rounded-lg bg-slate-900/30 text-sm flex justify-between items-center hover:bg-slate-800/50 transition-colors group">
                                         <div>
-                                            <div className="font-medium text-slate-200">{b.name}</div>
+                                            <div className="font-medium text-slate-200">{b.name} {b.hasTableManagement && <span className="text-xs bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-full ml-2">Tables Enabled</span>}</div>
                                             <div className="text-slate-500 font-mono text-xs">{b.tin}</div>
                                         </div>
                                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

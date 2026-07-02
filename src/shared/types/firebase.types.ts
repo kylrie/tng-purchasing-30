@@ -31,6 +31,7 @@ export interface FirestoreBusiness extends FirestoreDocument {
   currency: string;
   address: string;
   tin: string;
+  hasTableManagement?: boolean;
 }
 
 // Requisition Item

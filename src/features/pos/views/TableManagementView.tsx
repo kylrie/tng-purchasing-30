@@ -9,9 +9,10 @@ import { useNavigate } from 'react-router-dom';
 
 interface TableManagementViewProps {
     businesses: any[];
+    onClose?: () => void;
 }
 
-export const TableManagementView: React.FC<TableManagementViewProps> = ({ businesses }) => {
+export const TableManagementView: React.FC<TableManagementViewProps> = ({ businesses, onClose }) => {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
     const [tables, setTables] = useState<POSTable[]>([]);
@@ -105,7 +106,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({ busine
             <div className="h-16 flex items-center justify-between px-6 bg-slate-800 border-b border-slate-700 z-10 shrink-0">
                 <div className="flex items-center gap-4">
                     <button 
-                        onClick={() => navigate('/pos')}
+                        onClick={() => onClose ? onClose() : navigate('/pos')}
                         className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
                     >
                         <ArrowLeft size={20} />

@@ -6,7 +6,7 @@ import { POSService } from '../services/pos.service';
 import type { POSOrder, PaymentMethod, POSOrderCreateInput } from '../types/pos.types';
 import type { User } from '../../../shared/types';
 import type { MenuItem } from '../../menu/types/menu.types';
-import { LogOut, Settings, BarChart3 } from 'lucide-react';
+import { LogOut, Settings, BarChart3, LayoutDashboard } from 'lucide-react';
 import { SettingsService } from '../../../shared/services/settings.service';
 
 import ProductGrid from '../components/ProductGrid';
@@ -16,6 +16,7 @@ import ReceiptModal from '../components/ReceiptModal';
 import POSLogin from '../components/POSLogin';
 import POSSettingsModal from '../components/POSSettingsModal';
 import POSReportsModal from '../components/POSReportsModal';
+import { TableManagementView } from './TableManagementView';
 
 interface POSViewProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,6 +91,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     const [isReceiptModalOpen, setReceiptModalOpen] = useState(false);
     const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
     const [isReportsModalOpen, setReportsModalOpen] = useState(false);
+    const [isTableManagementOpen, setIsTableManagementOpen] = useState(false);
     const [completedOrder, setCompletedOrder] = useState<POSOrder | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -174,9 +176,10 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
         activeCashier.businessUnitIds?.includes(b.id)
     );
     const displayBusinesses = cashierBusinesses.length > 0 ? cashierBusinesses : businesses;
+    const currentBusiness = displayBusinesses.find(b => b.id === selectedBusinessUnit);
 
     return (
-        <div className="flex flex-col h-screen w-screen bg-slate-900 overflow-hidden">
+        <div className="flex flex-col h-screen w-screen bg-slate-900 overflow-hidden relative">
             {/* Fixed Header */}
             <div className="h-16 flex items-center justify-between px-6 bg-slate-800 border-b border-slate-700 z-10 shrink-0">
                 <div className="flex items-center">
@@ -211,6 +214,15 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                         <div className="font-medium text-white">{activeCashier.name}</div>
                         <div className="text-slate-400 capitalize">{activeCashier.role.replace(/_/g, ' ').toLowerCase()}</div>
                     </div>
+                    {currentBusiness?.hasTableManagement && (
+                        <button
+                            onClick={() => setIsTableManagementOpen(true)}
+                            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                            title="Table Management"
+                        >
+                            <LayoutDashboard className="w-5 h-5" />
+                        </button>
+                    )}
                     <button
                         onClick={() => setReportsModalOpen(true)}
                         className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
@@ -297,6 +309,15 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 onClose={() => setReportsModalOpen(false)}
                 activeCashierName={activeCashier?.name}
             />
+            {/* Full Screen Table Management Overlay */}
+            {isTableManagementOpen && (
+                <div className="absolute inset-0 z-50 bg-slate-900">
+                    <TableManagementView 
+                        businesses={displayBusinesses}
+                        onClose={() => setIsTableManagementOpen(false)}
+                    />
+                </div>
+            )}
         </div>
     );
 };

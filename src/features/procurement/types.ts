@@ -143,6 +143,7 @@ export interface Business {
   currency: string;
   address?: string;
   tin?: string;
+  hasTableManagement?: boolean;
 }
 
 export interface User {
