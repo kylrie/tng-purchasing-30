@@ -39,7 +39,9 @@ export function useCart() {
                 subtotal: quantity * menuItem.sellingPrice,
                 category: menuItem.category,
                 notes,
+                isDiscounted: false,
                 discountRate: 0,
+                discountReason: '',
                 vatAmount: 0,
                 discountAmount: 0,
                 vatExemptAmount: 0,
@@ -49,12 +51,24 @@ export function useCart() {
         });
     }, []);
 
-    const setItemDiscountRate = useCallback((index: number, rate: number) => {
+    const toggleDiscount = useCallback((index: number) => {
         setCartItems(prev => {
             const newItems = [...prev];
             newItems[index] = {
                 ...newItems[index],
-                discountRate: rate
+                isDiscounted: !newItems[index].isDiscounted
+            };
+            return newItems;
+        });
+    }, []);
+
+    const setItemDiscountRate = useCallback((index: number, rate: number, reason: string = '') => {
+        setCartItems(prev => {
+            const newItems = [...prev];
+            newItems[index] = {
+                ...newItems[index],
+                discountRate: rate,
+                discountReason: reason || newItems[index].discountReason
             };
             return newItems;
         });
@@ -106,13 +120,20 @@ export function useCart() {
             let itemVatExempt = 0;
             let itemFinalSubtotal = rawSubtotal;
 
-            if ((item.discountRate || 0) > 0) {
-                // Remove VAT
+            if (item.isDiscounted) {
+                // Remove VAT for SC/PWD
                 itemVatExempt = rawSubtotal / (1 + vatRate);
-                // Apply custom discount on the VAT-exempt amount
-                itemDiscount = itemVatExempt * ((item.discountRate || 0) / 100);
+                itemDiscount = itemVatExempt * 0.20;
                 itemFinalSubtotal = itemVatExempt - itemDiscount;
                 totalVatExemptSales += itemFinalSubtotal;
+            } else if ((item.discountRate || 0) > 0) {
+                // Apply custom discount on the gross amount
+                itemDiscount = rawSubtotal * ((item.discountRate || 0) / 100);
+                const discountedPrice = rawSubtotal - itemDiscount;
+                const vatableSales = discountedPrice / (1 + vatRate);
+                itemVat = discountedPrice - vatableSales;
+                itemFinalSubtotal = discountedPrice;
+                totalVatableSales += vatableSales;
             } else {
                 // Regular item: VAT is embedded in the price
                 // e.g. 112 -> 12 is VAT
@@ -167,6 +188,7 @@ export function useCart() {
         updateQuantity,
         removeFromCart,
         clearCart,
+        toggleDiscount,
         setItemDiscountRate,
         globalDiscountRate,
         setGlobalDiscountRate,
