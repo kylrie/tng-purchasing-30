@@ -13,6 +13,7 @@ import ProtectedRoute from './shared/components/ProtectedRoute';
 // import DashboardView from './features/dashboard/views/DashboardView';
 import { POSSettingsView } from './features/pos/views/POSSettingsView';
 import { TableManagementView } from './features/pos/views/TableManagementView';
+import { POSReportsView } from './features/pos/views/POSReportsView';
 
 import { Suspense } from 'react';
 import type { NotificationItem } from './shared/types';
@@ -255,6 +256,12 @@ function ProtectedApp() {
                 <Route path="/pos/tables" element={
                   <ProtectedRoute permission="ui:module_access:view:pos">
                     <TableManagementView />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/pos/reports" element={
+                  <ProtectedRoute permission="ui:module_access:view:pos">
+                    <POSReportsView />
                   </ProtectedRoute>
                 } />
 
