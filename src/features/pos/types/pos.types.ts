@@ -71,3 +71,20 @@ export interface POSOrderCreateInput {
     paymentMethod: PaymentMethod;
     notes?: string;
 }
+
+export interface POSTable {
+    id: string;
+    businessUnitId: string;
+    name: string;
+    position: {
+        x: number;
+        y: number;
+    };
+    shape: 'rectangle' | 'circle';
+    seats: number;
+    status: 'available' | 'occupied' | 'reserved';
+    qrEnabled: boolean;
+    qrUrl?: string;
+    createdAt?: Timestamp;
+    updatedAt?: Timestamp;
+}

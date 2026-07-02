@@ -255,7 +255,7 @@ function ProtectedApp() {
 
                 <Route path="/pos/tables" element={
                   <ProtectedRoute permission="ui:module_access:view:pos">
-                    <TableManagementView />
+                    <TableManagementView businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
 
