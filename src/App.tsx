@@ -12,7 +12,6 @@ import ProtectedRoute from './shared/components/ProtectedRoute';
 // import LoginView from './features/auth/views/LoginView';
 // import DashboardView from './features/dashboard/views/DashboardView';
 import { POSSettingsView } from './features/pos/views/POSSettingsView';
-import { TableManagementView } from './features/pos/views/TableManagementView';
 import { POSReportsView } from './features/pos/views/POSReportsView';
 
 import { Suspense } from 'react';
@@ -253,11 +252,6 @@ function ProtectedApp() {
                   </ProtectedRoute>
                 } />
 
-                <Route path="/pos/tables" element={
-                  <ProtectedRoute permission="ui:module_access:view:pos">
-                    <TableManagementView businesses={accessibleBusinesses} />
-                  </ProtectedRoute>
-                } />
 
                 <Route path="/pos/reports" element={
                   <ProtectedRoute permission="ui:module_access:view:pos">

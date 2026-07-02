@@ -383,7 +383,6 @@ const Layout: React.FC<LayoutProps> = ({
             canView: true,
             children: [
                 { path: '/pos', label: 'POS Terminal', icon: Store, canView: true, newTab: true },
-                { path: '/pos/tables', label: 'Table Management', icon: Store, canView: true },
                 { path: '/pos/reports', label: 'Shift & Reports', icon: BarChart3, canView: true },
                 { path: '/pos/settings', label: 'POS Settings', icon: Settings, canView: true }
             ]
