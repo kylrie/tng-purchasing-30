@@ -429,44 +429,21 @@ export class PosImportService {
                 ? runningStock.get(ingredientItem.id)!
                 : safeStock(ingredientItem.theoreticalStock) || safeStock(ingredientItem.currentStock);
 
-            if (ingredientItem.type === 'RAW_MATERIAL') {
+            if (ingredientItem.type === 'RAW_MATERIAL' || ingredientItem.type === 'PRODUCTION') {
                 const newStock = currentStock - totalDeduction;
                 runningStock.set(ingredientItem.id, newStock);
 
                 simulatedDeductions.push({
                     itemId: ingredientItem.id,
                     itemName: ingredientItem.name,
-                    type: 'RM',
+                    type: ingredientItem.type === 'PRODUCTION' ? 'PRODUCTION' : 'RM',
                     currentTheoreticalStock: currentStock,
                     deductionAmount: totalDeduction,
                     newTheoreticalStock: newStock,
                     parentItemId,
                     parentItemName,
                 });
-            } else if (ingredientItem.type === 'PRODUCTION') {
-                // PRODUCTION sub-assemblies are routing nodes — show them in the
-                // preview hierarchy but do NOT deduct their own stock.
-                simulatedDeductions.push({
-                    itemId: ingredientItem.id,
-                    itemName: ingredientItem.name,
-                    type: 'PRODUCTION',
-                    currentTheoreticalStock: currentStock,
-                    deductionAmount: totalDeduction,
-                    newTheoreticalStock: currentStock, // unchanged
-                    parentItemId,
-                    parentItemName,
-                });
-
-                // Recurse into the sub-assembly's own recipe
-                this.simulateRecursiveBOM(
-                    ingredientItem,
-                    totalDeduction,
-                    ingredientItem.id,
-                    ingredientItem.name,
-                    allItemsMap,
-                    runningStock,
-                    simulatedDeductions
-                );
+                // Note: We do NOT recurse into PRODUCTION items. They are deducted directly.
             }
         }
     }
@@ -555,15 +532,12 @@ export class PosImportService {
                 if (!iItem) continue;
                 const ded = ingredient.quantityUsed * multiplier;
 
-                if (iItem.type === 'RAW_MATERIAL') {
+                if (iItem.type === 'RAW_MATERIAL' || iItem.type === 'PRODUCTION') {
                     const prev = rmDeductionMap.get(ingredient.ingredientId);
                     rmDeductionMap.set(ingredient.ingredientId, {
                         totalQty: (prev?.totalQty ?? 0) + ded,
                         fgName: prev?.fgName ?? rootFgName, // keep first FG for single-item batches
                     });
-                } else if (iItem.type === 'PRODUCTION') {
-                    // Route through PRODUCTION — do not add to deduction map itself
-                    recursiveExplosion(iItem, ded, rootFgName);
                 }
                 // FINISHED_GOOD nested inside a recipe is unusual but handled the same way
             }

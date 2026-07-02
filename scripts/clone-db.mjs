@@ -27,7 +27,23 @@ const COLLECTIONS = [
     'pcf_liquidations',
     'inventory_items',
     'stock_counts',
-    'storage_areas'
+    'storage_areas',
+    'chart_of_accounts',
+    'budgets',
+    'budgetReservations',
+    'transactions',
+    'bankReconStatements',
+    'pos_orders',
+    'pos_sales',
+    'pos_sales_batches',
+    'stock_transactions',
+    'goods_receiving_logs',
+    'blackBookRecipes',
+    'notifications',
+    'menu_items',
+    'productionRecipes',
+    'system_activity_logs',
+    'stocktake_audit_logs'
 ];
 
 async function cloneCollection(sourceDb, targetDb, collectionName) {
