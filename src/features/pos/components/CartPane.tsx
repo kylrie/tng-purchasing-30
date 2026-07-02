@@ -7,6 +7,8 @@ interface CartPaneProps {
     subtotal: number;
     grossSubtotal: number;
     taxAmount: number;
+    vatableSales?: number;
+    vatExemptSales?: number;
     serviceChargeAmount: number;
     discountAmount: number;
     globalDiscountAmount?: number;
@@ -25,6 +27,8 @@ const CartPane: React.FC<CartPaneProps> = ({
     subtotal: _subtotal,
     grossSubtotal,
     taxAmount,
+    vatableSales = 0,
+    vatExemptSales = 0,
     serviceChargeAmount,
     discountAmount,
     total,
@@ -179,9 +183,21 @@ const CartPane: React.FC<CartPaneProps> = ({
                             <span>- ₱{discountAmount.toFixed(2)}</span>
                         </div>
                     )}
+                    {vatableSales > 0 && (
+                        <div className="flex justify-between text-slate-500 font-medium text-xs">
+                            <span>Vatable Sales</span>
+                            <span className="text-slate-400">₱{vatableSales.toFixed(2)}</span>
+                        </div>
+                    )}
+                    {vatExemptSales > 0 && (
+                        <div className="flex justify-between text-slate-500 font-medium text-xs">
+                            <span>VAT-Exempt Sales</span>
+                            <span className="text-slate-400">₱{vatExemptSales.toFixed(2)}</span>
+                        </div>
+                    )}
                     {taxAmount > 0 && (
                         <div className="flex justify-between text-slate-500 font-medium text-xs">
-                            <span>VAT Amount</span>
+                            <span>VAT Amount (12%)</span>
                             <span className="text-slate-400">₱{taxAmount.toFixed(2)}</span>
                         </div>
                     )}

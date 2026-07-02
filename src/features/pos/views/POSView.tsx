@@ -56,6 +56,8 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
         globalDiscountAmount,
         subtotal,
         grossSubtotal,
+        vatableSales,
+        vatExemptSales,
         taxAmount,
         serviceChargeAmount,
         discountAmount,
@@ -101,6 +103,8 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 })),
                 subtotal,
                 taxAmount,
+                vatableSales,
+                vatExemptSales,
                 serviceChargeAmount,
                 discountAmount: (discountAmount || 0) + (globalDiscountAmount || 0),
                 totalAmount: total,
@@ -195,6 +199,8 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     cartItems={cartItems}
                     subtotal={subtotal}
                     grossSubtotal={grossSubtotal}
+                    vatableSales={vatableSales}
+                    vatExemptSales={vatExemptSales}
                     taxAmount={taxAmount}
                     serviceChargeAmount={serviceChargeAmount}
                     discountAmount={discountAmount}

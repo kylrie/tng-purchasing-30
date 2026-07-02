@@ -155,9 +155,21 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                                         <span className="uppercase tracking-widest">Net Subtotal</span>
                                         <span>₱{order.subtotal.toFixed(2)}</span>
                                     </div>
+                                    {(order.vatableSales || 0) > 0 && (
+                                        <div className="flex justify-between text-xs font-bold text-[#666]">
+                                            <span className="uppercase tracking-widest">Vatable Sales</span>
+                                            <span>₱{order.vatableSales!.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    {(order.vatExemptSales || 0) > 0 && (
+                                        <div className="flex justify-between text-xs font-bold text-[#666]">
+                                            <span className="uppercase tracking-widest">VAT-Exempt Sales</span>
+                                            <span>₱{order.vatExemptSales!.toFixed(2)}</span>
+                                        </div>
+                                    )}
                                     {(order.taxAmount || 0) > 0 && (
                                         <div className="flex justify-between text-xs font-bold text-[#666]">
-                                            <span className="uppercase tracking-widest">VAT Amount</span>
+                                            <span className="uppercase tracking-widest">VAT Amount (12%)</span>
                                             <span>₱{order.taxAmount!.toFixed(2)}</span>
                                         </div>
                                     )}

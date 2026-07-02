@@ -92,6 +92,8 @@ export function useCart() {
         let grossSubtotal = 0;
         let totalVatAmount = 0;
         let totalDiscount = 0;
+        let totalVatableSales = 0;
+        let totalVatExemptSales = 0;
         let finalSubtotal = 0; // After discounts, before SC
 
         // We map and update the cartItems with calculated fields for display/saving
@@ -110,11 +112,14 @@ export function useCart() {
                 // Apply 20% discount on the VAT-exempt amount
                 itemDiscount = itemVatExempt * 0.20;
                 itemFinalSubtotal = itemVatExempt - itemDiscount;
+                totalVatExemptSales += itemFinalSubtotal;
             } else {
                 // Regular item: VAT is embedded in the price
                 // e.g. 112 -> 12 is VAT
-                itemVat = rawSubtotal - (rawSubtotal / (1 + vatRate));
+                const vatableSales = rawSubtotal / (1 + vatRate);
+                itemVat = rawSubtotal - vatableSales;
                 itemFinalSubtotal = rawSubtotal;
+                totalVatableSales += vatableSales;
             }
 
             totalVatAmount += itemVat;
@@ -147,6 +152,8 @@ export function useCart() {
             grossSubtotal,
             totalDiscount,
             globalDiscountAmount,
+            totalVatableSales,
+            totalVatExemptSales,
             totalVatAmount,
             finalSubtotal,
             serviceChargeAmount,
@@ -165,6 +172,8 @@ export function useCart() {
         setGlobalDiscountRate,
         subtotal: calculations.finalSubtotal,
         grossSubtotal: calculations.grossSubtotal,
+        vatableSales: calculations.totalVatableSales,
+        vatExemptSales: calculations.totalVatExemptSales,
         taxAmount: calculations.totalVatAmount,
         serviceChargeAmount: calculations.serviceChargeAmount,
         discountAmount: calculations.totalDiscount,

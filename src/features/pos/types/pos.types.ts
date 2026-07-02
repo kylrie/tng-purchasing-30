@@ -32,7 +32,9 @@ export interface POSOrder {
     cashierName: string;
     items: POSOrderItem[];
     subtotal: number;
-    taxAmount: number; // Sum of VAT portions
+    taxAmount?: number;
+    vatableSales?: number;
+    vatExemptSales?: number; // Sum of VAT portions
     serviceChargeAmount?: number; // Service Charge computed
     discountAmount?: number; // Total discount amount
     totalAmount: number;
@@ -51,7 +53,9 @@ export interface POSOrderCreateInput {
     cashierName: string;
     items: Omit<POSOrderItem, 'menuItemData'>[];
     subtotal: number;
-    taxAmount: number;
+    taxAmount?: number;
+    vatableSales?: number;
+    vatExemptSales?: number;
     serviceChargeAmount?: number;
     discountAmount?: number;
     totalAmount: number;
