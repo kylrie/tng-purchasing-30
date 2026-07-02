@@ -5,19 +5,29 @@ import type { POSOrderItem } from '../types/pos.types';
 interface CartPaneProps {
     cartItems: POSOrderItem[];
     subtotal: number;
+    grossSubtotal: number;
+    taxAmount: number;
+    serviceChargeAmount: number;
+    discountAmount: number;
     total: number;
     onUpdateQuantity: (index: number, qty: number) => void;
     onRemoveItem: (index: number) => void;
+    onToggleDiscount: (index: number) => void;
     onClearCart: () => void;
     onCheckout: () => void;
 }
 
 const CartPane: React.FC<CartPaneProps> = ({
     cartItems,
-    subtotal,
+    subtotal: _subtotal,
+    grossSubtotal,
+    taxAmount,
+    serviceChargeAmount,
+    discountAmount,
     total,
     onUpdateQuantity,
     onRemoveItem,
+    onToggleDiscount,
     onClearCart,
     onCheckout
 }) => {
@@ -64,9 +74,21 @@ const CartPane: React.FC<CartPaneProps> = ({
                             <div className="flex justify-between items-start relative z-10">
                                 <div className="font-semibold text-slate-300 pr-3 leading-snug text-sm flex-1 group-hover:text-white transition-colors duration-300">
                                     {item.productName}
+                                    {item.isDiscounted && (
+                                        <span className="ml-2 text-[10px] font-bold uppercase tracking-wider bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded">
+                                            SC/PWD
+                                        </span>
+                                    )}
                                 </div>
-                                <div className="font-bold text-white whitespace-nowrap text-base tracking-tight">
-                                    ₱{item.subtotal.toFixed(2)}
+                                <div className="font-bold text-white whitespace-nowrap text-base tracking-tight text-right">
+                                    <div className={item.isDiscounted ? "text-slate-400 line-through text-xs" : ""}>
+                                        ₱{(item.unitPrice * item.quantity).toFixed(2)}
+                                    </div>
+                                    {item.isDiscounted && (
+                                        <div className="text-amber-400">
+                                            ₱{item.subtotal.toFixed(2)}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -88,13 +110,26 @@ const CartPane: React.FC<CartPaneProps> = ({
                                         <Plus size={14} strokeWidth={2.5} />
                                     </button>
                                 </div>
-                                <button
-                                    onClick={() => onRemoveItem(index)}
-                                    className="p-2.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-300 opacity-60 group-hover:opacity-100"
-                                    aria-label="Remove item"
-                                >
-                                    <Trash2 size={16} strokeWidth={2} />
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => onToggleDiscount(index)}
+                                        className={`p-2.5 rounded-xl transition-all duration-300 text-xs font-bold uppercase tracking-wider border ${
+                                            item.isDiscounted 
+                                                ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' 
+                                                : 'bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                        aria-label="Toggle Discount"
+                                    >
+                                        % Disc
+                                    </button>
+                                    <button
+                                        onClick={() => onRemoveItem(index)}
+                                        className="p-2.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-300 opacity-60 group-hover:opacity-100"
+                                        aria-label="Remove item"
+                                    >
+                                        <Trash2 size={16} strokeWidth={2} />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))
@@ -104,11 +139,29 @@ const CartPane: React.FC<CartPaneProps> = ({
             {/* Totals & Checkout Button */}
             <div className="relative p-6 bg-[#0a0a0f]/95 backdrop-blur-2xl border-t border-white/[0.05] pb-safe shrink-0 shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.5)] z-20">
                 <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                <div className="space-y-4 mb-6 px-1">
+                <div className="space-y-2 mb-6 px-1">
                     <div className="flex justify-between text-slate-500 font-medium text-sm">
                         <span>Subtotal</span>
-                        <span className="text-slate-300">₱{subtotal.toFixed(2)}</span>
+                        <span className="text-slate-300">₱{grossSubtotal.toFixed(2)}</span>
                     </div>
+                    {discountAmount > 0 && (
+                        <div className="flex justify-between text-amber-400/80 font-medium text-sm">
+                            <span>SC/PWD Discount</span>
+                            <span>- ₱{discountAmount.toFixed(2)}</span>
+                        </div>
+                    )}
+                    {taxAmount > 0 && (
+                        <div className="flex justify-between text-slate-500 font-medium text-xs">
+                            <span>VAT Amount</span>
+                            <span className="text-slate-400">₱{taxAmount.toFixed(2)}</span>
+                        </div>
+                    )}
+                    {serviceChargeAmount > 0 && (
+                        <div className="flex justify-between text-slate-500 font-medium text-sm">
+                            <span>Service Charge</span>
+                            <span className="text-slate-300">₱{serviceChargeAmount.toFixed(2)}</span>
+                        </div>
+                    )}
                     <div className="flex justify-between items-end text-3xl font-black text-white pt-4 border-t border-white/[0.02] mt-4 relative">
                         <span className="tracking-tighter text-lg text-slate-400 font-bold mb-1 uppercase tracking-[0.1em]">Total</span>
                         <div className="tracking-tighter flex items-start">

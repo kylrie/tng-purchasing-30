@@ -27,6 +27,8 @@ const POS_CONFIG_DOC = 'pos_config';
 // =====================================================
 export interface POSSettings {
     superAdminPin?: string;
+    vatRate?: number;            // Default VAT percentage (e.g., 12)
+    serviceChargeRate?: number;  // Default Service Charge percentage (e.g., 10)
     lastUpdated?: string;
     updatedBy?: string;
     updatedByName?: string;
@@ -34,6 +36,8 @@ export interface POSSettings {
 
 const DEFAULT_POS_SETTINGS: POSSettings = {
     // Empty default PIN means the override is disabled
+    vatRate: 12,           // Standard Philippine VAT
+    serviceChargeRate: 0,  // Default to 0 unless configured
 };
 
 // =====================================================

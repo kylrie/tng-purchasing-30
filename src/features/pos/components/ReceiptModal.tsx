@@ -142,10 +142,32 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
                                 <div className="border-t-[1.5px] border-dashed border-[#ccc] pt-4 space-y-2">
                                     <div className="flex justify-between text-xs font-bold text-[#666]">
-                                        <span className="uppercase tracking-widest">Subtotal</span>
+                                        <span className="uppercase tracking-widest">Gross Subtotal</span>
+                                        <span>₱{(order.subtotal + (order.discountAmount || 0)).toFixed(2)}</span>
+                                    </div>
+                                    {(order.discountAmount || 0) > 0 && (
+                                        <div className="flex justify-between text-xs font-bold text-[#666]">
+                                            <span className="uppercase tracking-widest">SC/PWD Discount</span>
+                                            <span>- ₱{order.discountAmount!.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between text-xs font-bold text-[#666]">
+                                        <span className="uppercase tracking-widest">Net Subtotal</span>
                                         <span>₱{order.subtotal.toFixed(2)}</span>
                                     </div>
-                                    <div className="flex justify-between font-black text-xl items-center py-2">
+                                    {(order.taxAmount || 0) > 0 && (
+                                        <div className="flex justify-between text-xs font-bold text-[#666]">
+                                            <span className="uppercase tracking-widest">VAT Amount</span>
+                                            <span>₱{order.taxAmount!.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    {(order.serviceChargeAmount || 0) > 0 && (
+                                        <div className="flex justify-between text-xs font-bold text-[#666]">
+                                            <span className="uppercase tracking-widest">Service Charge</span>
+                                            <span>₱{order.serviceChargeAmount!.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between font-black text-xl items-center py-2 border-t-[1px] border-dashed border-[#ccc] mt-2 pt-2">
                                         <span className="uppercase tracking-widest">Total</span>
                                         <span>₱{order.totalAmount.toFixed(2)}</span>
                                     </div>

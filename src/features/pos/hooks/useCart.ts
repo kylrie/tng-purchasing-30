@@ -1,9 +1,17 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { MenuItem } from '../../menu/types/menu.types';
 import type { POSOrderItem } from '../types/pos.types';
+import { SettingsService, type POSSettings } from '../../../shared/services/settings.service';
 
 export function useCart() {
     const [cartItems, setCartItems] = useState<POSOrderItem[]>([]);
+    const [posSettings, setPosSettings] = useState<POSSettings>({ vatRate: 12, serviceChargeRate: 0 });
+
+    useEffect(() => {
+        SettingsService.getPOSSettings().then(settings => {
+            setPosSettings(settings);
+        });
+    }, []);
 
     const addToCart = useCallback((menuItem: MenuItem, quantity: number = 1, notes: string = '') => {
         setCartItems(prev => {
@@ -30,9 +38,24 @@ export function useCart() {
                 subtotal: quantity * menuItem.sellingPrice,
                 category: menuItem.category,
                 notes,
+                isDiscounted: false,
+                vatAmount: 0,
+                discountAmount: 0,
+                vatExemptAmount: 0,
                 menuItemData: menuItem
             };
             return [...prev, newItem];
+        });
+    }, []);
+
+    const toggleDiscount = useCallback((index: number) => {
+        setCartItems(prev => {
+            const newItems = [...prev];
+            newItems[index] = {
+                ...newItems[index],
+                isDiscounted: !newItems[index].isDiscounted
+            };
+            return newItems;
         });
     }, []);
 
@@ -59,24 +82,78 @@ export function useCart() {
         setCartItems([]);
     }, []);
 
-    const subtotal = useMemo(() => {
-        return cartItems.reduce((sum, item) => sum + item.subtotal, 0);
-    }, [cartItems]);
+    // Perform Calculations based on Philippine Law
+    const calculations = useMemo(() => {
+        const vatRate = (posSettings.vatRate || 12) / 100;
+        const scRate = (posSettings.serviceChargeRate || 0) / 100;
 
-    // Compute Tax (e.g. 12% VAT logic could be here, or structured per item)
-    // For now assuming inclusive or simple setup
-    const taxRate = 0; // Configurable if needed
-    const taxAmount = subtotal * taxRate;
-    const total = subtotal + taxAmount;
+        let grossSubtotal = 0;
+        let totalVatAmount = 0;
+        let totalDiscount = 0;
+        let finalSubtotal = 0; // After discounts, before SC
+
+        // We map and update the cartItems with calculated fields for display/saving
+        const computedItems = cartItems.map(item => {
+            const rawSubtotal = item.unitPrice * item.quantity;
+            grossSubtotal += rawSubtotal;
+
+            let itemVat = 0;
+            let itemDiscount = 0;
+            let itemVatExempt = 0;
+            let itemFinalSubtotal = rawSubtotal;
+
+            if (item.isDiscounted) {
+                // Remove VAT
+                itemVatExempt = rawSubtotal / (1 + vatRate);
+                // Apply 20% discount on the VAT-exempt amount
+                itemDiscount = itemVatExempt * 0.20;
+                itemFinalSubtotal = itemVatExempt - itemDiscount;
+            } else {
+                // Regular item: VAT is embedded in the price
+                // e.g. 112 -> 12 is VAT
+                itemVat = rawSubtotal - (rawSubtotal / (1 + vatRate));
+                itemFinalSubtotal = rawSubtotal;
+            }
+
+            totalVatAmount += itemVat;
+            totalDiscount += itemDiscount;
+            finalSubtotal += itemFinalSubtotal;
+
+            return {
+                ...item,
+                subtotal: itemFinalSubtotal,
+                vatAmount: itemVat,
+                discountAmount: itemDiscount,
+                vatExemptAmount: itemVatExempt
+            };
+        });
+
+        const serviceChargeAmount = finalSubtotal * scRate;
+        const total = finalSubtotal + serviceChargeAmount;
+
+        return {
+            computedItems,
+            grossSubtotal,
+            totalDiscount,
+            totalVatAmount,
+            finalSubtotal,
+            serviceChargeAmount,
+            total
+        };
+    }, [cartItems, posSettings]);
 
     return {
-        cartItems,
+        cartItems: calculations.computedItems,
         addToCart,
         updateQuantity,
         removeFromCart,
         clearCart,
-        subtotal,
-        taxAmount,
-        total
+        toggleDiscount,
+        subtotal: calculations.finalSubtotal,
+        grossSubtotal: calculations.grossSubtotal,
+        taxAmount: calculations.totalVatAmount,
+        serviceChargeAmount: calculations.serviceChargeAmount,
+        discountAmount: calculations.totalDiscount,
+        total: calculations.total
     };
 }

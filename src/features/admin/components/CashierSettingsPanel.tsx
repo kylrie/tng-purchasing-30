@@ -23,13 +23,15 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
     const [selectedRole, setSelectedRole] = useState<'MANAGER' | 'EMPLOYEE'>('EMPLOYEE');
     const [selectedUserId, setSelectedUserId] = useState<string>('');
 
-    // Super Admin PIN State
+    // Global POS Settings State
     const [superAdminPin, setSuperAdminPin] = useState('');
     const [confirmSuperAdminPin, setConfirmSuperAdminPin] = useState('');
+    const [vatRate, setVatRate] = useState<number>(12);
+    const [serviceChargeRate, setServiceChargeRate] = useState<number>(0);
     const [showSuperAdminPin, setShowSuperAdminPin] = useState(false);
-    const [isSavingSuper, setIsSavingSuper] = useState(false);
-    const [saveSuperSuccess, setSaveSuperSuccess] = useState(false);
-    const [superError, setSuperError] = useState<string | null>(null);
+    const [isSavingGlobal, setIsSavingGlobal] = useState(false);
+    const [saveGlobalSuccess, setSaveGlobalSuccess] = useState(false);
+    const [globalError, setGlobalError] = useState<string | null>(null);
 
     // Internal pin state for the selected user
     const [pin, setPin] = useState('');
@@ -60,6 +62,12 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
             const settings = await SettingsService.getPOSSettings();
             if (settings.superAdminPin) {
                 setSuperAdminPin(settings.superAdminPin);
+            }
+            if (settings.vatRate !== undefined) {
+                setVatRate(settings.vatRate);
+            }
+            if (settings.serviceChargeRate !== undefined) {
+                setServiceChargeRate(settings.serviceChargeRate);
             }
         };
         loadSettings();
@@ -129,40 +137,56 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
         }
     };
 
-    const handleSaveSuperAdminPin = async (e: React.FormEvent) => {
+    const handleSaveGlobalSettings = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSuperError(null);
-        setSaveSuperSuccess(false);
+        setGlobalError(null);
+        setSaveGlobalSuccess(false);
 
-        // Validate PIN
-        if (superAdminPin.length !== 4 || !/^\d+$/.test(superAdminPin)) {
-            setSuperError('PIN must be exactly 4 digits');
+        // Validate PIN if provided
+        if (superAdminPin) {
+            if (superAdminPin.length !== 4 || !/^\d+$/.test(superAdminPin)) {
+                setGlobalError('PIN must be exactly 4 digits');
+                return;
+            }
+
+            if (superAdminPin !== confirmSuperAdminPin && confirmSuperAdminPin !== '') {
+                setGlobalError('PINs do not match');
+                return;
+            }
+        }
+
+        if (vatRate < 0 || vatRate > 100) {
+            setGlobalError('VAT rate must be between 0 and 100');
             return;
         }
 
-        if (superAdminPin !== confirmSuperAdminPin) {
-            setSuperError('PINs do not match');
+        if (serviceChargeRate < 0 || serviceChargeRate > 100) {
+            setGlobalError('Service Charge rate must be between 0 and 100');
             return;
         }
 
-        setIsSavingSuper(true);
+        setIsSavingGlobal(true);
         try {
             await SettingsService.updatePOSSettings(
-                { superAdminPin },
+                { 
+                    superAdminPin,
+                    vatRate,
+                    serviceChargeRate 
+                },
                 currentUser?.id,
                 currentUser?.name
             );
 
-            setSaveSuperSuccess(true);
+            setSaveGlobalSuccess(true);
             setConfirmSuperAdminPin(''); // Clear confirm pin on success
 
             // Clear success message after 3 seconds
-            setTimeout(() => setSaveSuperSuccess(false), 3000);
+            setTimeout(() => setSaveGlobalSuccess(false), 3000);
         } catch (err) {
-            console.error('Error updating Super Admin PIN:', err);
-            setSuperError('Failed to update PIN. Please try again.');
+            console.error('Error updating Global POS Settings:', err);
+            setGlobalError('Failed to update settings. Please try again.');
         } finally {
-            setIsSavingSuper(false);
+            setIsSavingGlobal(false);
         }
     };
 
@@ -181,9 +205,9 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
             </div>
 
             <div className="p-6">
-                {/* Super Admin Configuration */}
+                {/* Global POS Settings Configuration */}
                 <div className="mb-8 pb-8 border-b border-slate-200 dark:border-slate-700/50">
-                    <form onSubmit={handleSaveSuperAdminPin} className="max-w-md space-y-6">
+                    <form onSubmit={handleSaveGlobalSettings} className="max-w-2xl space-y-6">
                         <div className="space-y-4">
                             <div>
                                 <h4 className="text-md font-semibold text-slate-900 dark:text-white mb-1 flex items-center gap-2">
@@ -195,10 +219,10 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
                                 </p>
                             </div>
 
-                            {superError && (
+                            {globalError && (
                                 <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 dark:text-red-400 rounded-lg">
                                     <AlertCircle size={16} />
-                                    <p>{superError}</p>
+                                    <p>{globalError}</p>
                                 </div>
                             )}
 
@@ -246,22 +270,39 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
                                     />
                                 </div>
                             </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">VAT Rate (%)</label>
+                                    <input
+                                        type="number"
+                                        value={vatRate}
+                                        onChange={(e) => setVatRate(Number(e.target.value))}
+                                        className="w-full rounded-lg border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-purple-500 focus:border-purple-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Service Charge Rate (%)</label>
+                                    <input
+                                        type="number"
+                                        value={serviceChargeRate}
+                                        onChange={(e) => setServiceChargeRate(Number(e.target.value))}
+                                        className="w-full rounded-lg border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-purple-500 focus:border-purple-500"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-3">
                             <button
                                 type="submit"
-                                disabled={isSavingSuper || superAdminPin.length !== 4 || confirmSuperAdminPin.length !== 4}
-                                className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={isSavingGlobal}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg hover:bg-slate-800 dark:hover:bg-slate-100 transition-colors disabled:opacity-50"
                             >
-                                {isSavingSuper ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                                {isSavingSuper ? 'Saving...' : 'Save Master PIN'}
+                                {isSavingGlobal ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                                Save Global Settings
                             </button>
-
-                            {saveSuperSuccess && (
-                                <span className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                                    Master PIN updated successfully!
-                                </span>
+                            {saveGlobalSuccess && (
+                                <span className="text-sm text-green-600 dark:text-green-400">Settings saved successfully!</span>
                             )}
                         </div>
                     </form>

@@ -13,6 +13,13 @@ export interface POSOrderItem {
     subtotal: number;
     notes?: string;
     category: string;
+    
+    // Discount and Tax Fields
+    isDiscounted?: boolean;        // True if SC/PWD discount is applied
+    vatExemptAmount?: number;      // Amount exempted from VAT
+    discountAmount?: number;       // Actual discount amount applied (e.g., 20%)
+    vatAmount?: number;            // VAT portion of this item (0 if exempted)
+
     // Keeping a reference to the original menu item for metadata if needed
     menuItemData?: MenuItem;
 }
@@ -25,7 +32,9 @@ export interface POSOrder {
     cashierName: string;
     items: POSOrderItem[];
     subtotal: number;
-    taxAmount: number; // For future/potential tax support
+    taxAmount: number; // Sum of VAT portions
+    serviceChargeAmount?: number; // Service Charge computed
+    discountAmount?: number; // Total discount amount
     totalAmount: number;
     amountTendered?: number;
     changeAmount?: number;
@@ -43,6 +52,8 @@ export interface POSOrderCreateInput {
     items: Omit<POSOrderItem, 'menuItemData'>[];
     subtotal: number;
     taxAmount: number;
+    serviceChargeAmount?: number;
+    discountAmount?: number;
     totalAmount: number;
     amountTendered: number;
     changeAmount: number;
