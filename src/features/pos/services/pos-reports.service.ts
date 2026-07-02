@@ -46,67 +46,83 @@ export class POSReportsService {
     static async generateShiftReport(businessUnitId: string, startDate: Date, endDate: Date): Promise<ShiftReport> {
         const q = query(
             collection(db, 'pos_orders'),
-            where('businessUnitId', '==', businessUnitId),
-            where('status', '==', 'COMPLETED'),
-            where('createdAt', '>=', Timestamp.fromDate(startDate)),
-            where('createdAt', '<=', Timestamp.fromDate(endDate))
+            where('businessUnitId', '==', businessUnitId)
         );
 
         const snapshot = await getDocs(q);
-        const orders = snapshot.docs.map(doc => doc.data() as POSOrder);
+        
+        let grossSales = 0;
+        let netSales = 0;
+        let vatableSales = 0;
+        let vatAmount = 0;
+        let vatExemptSales = 0;
+        let zeroRatedSales = 0;
+        let serviceChargeTotal = 0;
+        let scPwdDiscountTotal = 0;
+        let manualDiscountTotal = 0;
+        let totalDiscounts = 0;
+        let cashTotal = 0;
+        let cardTotal = 0;
+        let eWalletTotal = 0;
+        let totalTransactions = 0;
 
-        const report: ShiftReport = {
+        snapshot.docs.forEach(doc => {
+            const order = doc.data() as POSOrder;
+            if (order.status !== 'COMPLETED') return;
+            
+            const orderDate = order.createdAt instanceof Timestamp ? order.createdAt.toDate() : new Date(order.createdAt);
+            if (orderDate < startDate || orderDate > endDate) return;
+
+            totalTransactions++;
+            grossSales += order.subtotal || 0;
+            netSales += order.totalAmount || 0;
+            
+            vatableSales += order.vatableSales || 0;
+            vatAmount += order.taxAmount || 0;
+            vatExemptSales += order.vatExemptSales || 0;
+            
+            serviceChargeTotal += order.serviceChargeAmount || 0;
+            
+            scPwdDiscountTotal += order.scPwdDiscountAmount || 0;
+            manualDiscountTotal += order.manualItemDiscountAmount || 0;
+            totalDiscounts += order.discountAmount || 0;
+
+            if (order.paymentMethod === 'CASH') {
+                cashTotal += order.totalAmount || 0;
+            } else if (order.paymentMethod === 'CARD') {
+                cardTotal += order.totalAmount || 0;
+            } else if (order.paymentMethod === 'E_WALLET') {
+                eWalletTotal += order.totalAmount || 0;
+            }
+        });
+
+        return {
             businessUnitId,
             shiftStart: startDate,
             shiftEnd: endDate,
-            totalTransactions: orders.length,
+            totalTransactions,
             
-            grossSales: 0,
-            netSales: 0,
+            grossSales,
+            netSales,
             
-            vatableSales: 0,
-            vatAmount: 0,
-            vatExemptSales: 0,
-            zeroRatedSales: 0,
+            vatableSales,
+            vatAmount,
+            vatExemptSales,
+            zeroRatedSales,
             
-            serviceChargeTotal: 0,
+            serviceChargeTotal,
             
-            scPwdDiscountTotal: 0,
-            manualDiscountTotal: 0,
-            totalDiscounts: 0,
+            scPwdDiscountTotal,
+            manualDiscountTotal,
+            totalDiscounts,
             
-            cashTotal: 0,
-            cardTotal: 0,
-            eWalletTotal: 0,
+            cashTotal,
+            cardTotal,
+            eWalletTotal,
             
             voidedTransactions: 0,
             voidedAmount: 0
         };
-
-        orders.forEach(order => {
-            report.grossSales += order.subtotal || 0;
-            report.netSales += order.totalAmount || 0;
-            
-            report.vatableSales += order.vatableSales || 0;
-            report.vatAmount += order.taxAmount || 0;
-            report.vatExemptSales += order.vatExemptSales || 0;
-            
-            report.serviceChargeTotal += order.serviceChargeAmount || 0;
-            
-            report.scPwdDiscountTotal += order.scPwdDiscountAmount || 0;
-            report.manualDiscountTotal += order.manualItemDiscountAmount || 0;
-            report.totalDiscounts += order.discountAmount || 0;
-
-            if (order.paymentMethod === 'CASH') {
-                report.cashTotal += order.totalAmount || 0;
-            } else if (order.paymentMethod === 'CARD') {
-                report.cardTotal += order.totalAmount || 0;
-            } else if (order.paymentMethod === 'E_WALLET') {
-                report.eWalletTotal += order.totalAmount || 0;
-            }
-        });
-
-        return report;
     }
 
     /**

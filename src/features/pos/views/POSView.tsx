@@ -6,7 +6,7 @@ import { POSService } from '../services/pos.service';
 import type { POSOrder, PaymentMethod, POSOrderCreateInput } from '../types/pos.types';
 import type { User } from '../../../shared/types';
 import type { MenuItem } from '../../menu/types/menu.types';
-import { LogOut, Settings } from 'lucide-react';
+import { LogOut, Settings, BarChart3 } from 'lucide-react';
 import { SettingsService } from '../../../shared/services/settings.service';
 
 import ProductGrid from '../components/ProductGrid';
@@ -15,6 +15,7 @@ import CheckoutModal from '../components/CheckoutModal';
 import ReceiptModal from '../components/ReceiptModal';
 import POSLogin from '../components/POSLogin';
 import POSSettingsModal from '../components/POSSettingsModal';
+import POSReportsModal from '../components/POSReportsModal';
 
 interface POSViewProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -88,6 +89,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     const [isCheckoutModalOpen, setCheckoutModalOpen] = useState(false);
     const [isReceiptModalOpen, setReceiptModalOpen] = useState(false);
     const [isSettingsModalOpen, setSettingsModalOpen] = useState(false);
+    const [isReportsModalOpen, setReportsModalOpen] = useState(false);
     const [completedOrder, setCompletedOrder] = useState<POSOrder | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -210,13 +212,22 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                         <div className="text-slate-400 capitalize">{activeCashier.role.replace(/_/g, ' ').toLowerCase()}</div>
                     </div>
                     {(activeCashier.role === 'SUPER_ADMIN' || activeCashier.role === 'MANAGER') && (
-                        <button
-                            onClick={() => setSettingsModalOpen(true)}
-                            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
-                            title="POS Settings"
-                        >
-                            <Settings className="w-5 h-5" />
-                        </button>
+                        <>
+                            <button
+                                onClick={() => setReportsModalOpen(true)}
+                                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                                title="Shift & Reports"
+                            >
+                                <BarChart3 className="w-5 h-5" />
+                            </button>
+                            <button
+                                onClick={() => setSettingsModalOpen(true)}
+                                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                                title="POS Settings"
+                            >
+                                <Settings className="w-5 h-5" />
+                            </button>
+                        </>
                     )}
                     <button
                         onClick={handleLockTerminal}
@@ -284,6 +295,11 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
             <POSSettingsModal
                 isOpen={isSettingsModalOpen}
                 onClose={() => setSettingsModalOpen(false)}
+            />
+            <POSReportsModal
+                isOpen={isReportsModalOpen}
+                onClose={() => setReportsModalOpen(false)}
+                activeCashierName={activeCashier?.name}
             />
         </div>
     );
