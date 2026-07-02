@@ -38,6 +38,7 @@ const SearchableItemSelect: React.FC<{
     }, [items, search]);
 
     // Reset highlight when filter changes
+    // eslint-disable-next-line
     useEffect(() => setHighlightIdx(0), [filtered]);
 
     // Click outside to close
@@ -139,7 +140,7 @@ const PosImportDashboard: React.FC<Props> = () => {
     const [viewState, setViewState] = useState<ViewState>('UPLOAD');
     const [file, setFile] = useState<File | null>(null);
     const [fileHash, setFileHash] = useState<string>('');
-    const [_parsedRows, setParsedRows] = useState<PosImportRow[]>([]);
+    const [, setParsedRows] = useState<PosImportRow[]>([]);
     const [hasAmountColumn, setHasAmountColumn] = useState<boolean>(true);
     const [mappedRows, setMappedRows] = useState<PosImportMappedRow[]>([]);
     const [rawRowCount, setRawRowCount] = useState<number>(0);

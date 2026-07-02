@@ -223,8 +223,8 @@ export class PosImportService {
         // Always pre-fetch menu items for accurate selling prices (SRP) and recipe costs
         // MenuItem.sellingPrice = the retail price (SRP)
         // MenuItem.calculatedCost = sum of all ingredient costs = the FG recipe cost per unit
-        let menuSellingPriceMap = new Map<string, number>();
-        let menuCostMap = new Map<string, number>();
+        const menuSellingPriceMap = new Map<string, number>();
+        const menuCostMap = new Map<string, number>();
         try {
             const menuQuery = query(
                 collection(db, 'menu_items'),

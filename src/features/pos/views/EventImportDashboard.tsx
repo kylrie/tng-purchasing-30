@@ -50,7 +50,7 @@ const EventImportDashboard: React.FC<Props> = () => {
             setMappedRows(mapped);
             setInventoryItems(inv);
             setViewState('PREVIEW');
-        } catch (err: any) { setError(err.message || 'Failed to parse file'); }
+        } catch (err: unknown) { setError(err instanceof Error ? err.message : 'Failed to parse file'); }
         setLoading(false);
     }, [selectedBU]);
 
@@ -64,7 +64,7 @@ const EventImportDashboard: React.FC<Props> = () => {
             const deds = await EventImportService.simulateEventImport(mappedRows.filter(r => !r.hasErrors), itemsMap);
             setSimDeductions(deds);
             setViewState('SIMULATION');
-        } catch (err: any) { setError(err.message); }
+        } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
         setLoading(false);
     };
 
@@ -79,7 +79,7 @@ const EventImportDashboard: React.FC<Props> = () => {
             });
             setSuccessId(batchId);
             setViewState('SUCCESS');
-        } catch (err: any) { setError(err.message); setViewState('SIMULATION'); }
+        } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); setViewState('SIMULATION'); }
     };
 
     const resetState = () => { setViewState('UPLOAD'); setFile(null); setMappedRows([]); setSimDeductions([]); setError(null); setSuccessId(null); };
