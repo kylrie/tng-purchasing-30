@@ -147,7 +147,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                                     </div>
                                     {(order.discountAmount || 0) > 0 && (
                                         <div className="flex justify-between text-xs font-bold text-[#666]">
-                                            <span className="uppercase tracking-widest">SC/PWD Discount</span>
+                                            <span className="uppercase tracking-widest">Total Discount</span>
                                             <span>- ₱{order.discountAmount!.toFixed(2)}</span>
                                         </div>
                                     )}

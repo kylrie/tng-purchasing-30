@@ -44,12 +44,16 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     }, []);
 
     const { menuItems, isLoading, sellableStockMap } = usePOSMenu(selectedBusinessUnit);
-        const { cartItems,
+    const { 
+        cartItems,
         addToCart,
         updateQuantity,
         removeFromCart,
         clearCart,
         toggleDiscount,
+        globalDiscountRate,
+        setGlobalDiscountRate,
+        globalDiscountAmount,
         subtotal,
         grossSubtotal,
         taxAmount,
@@ -98,7 +102,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 subtotal,
                 taxAmount,
                 serviceChargeAmount,
-                discountAmount,
+                discountAmount: (discountAmount || 0) + (globalDiscountAmount || 0),
                 totalAmount: total,
                 amountTendered,
                 changeAmount,
@@ -194,6 +198,9 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     taxAmount={taxAmount}
                     serviceChargeAmount={serviceChargeAmount}
                     discountAmount={discountAmount}
+                    globalDiscountRate={globalDiscountRate}
+                    setGlobalDiscountRate={setGlobalDiscountRate}
+                    globalDiscountAmount={globalDiscountAmount}
                     total={total}
                     onUpdateQuantity={updateQuantity}
                     onRemoveItem={removeFromCart}

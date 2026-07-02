@@ -6,6 +6,7 @@ import { SettingsService, type POSSettings } from '../../../shared/services/sett
 export function useCart() {
     const [cartItems, setCartItems] = useState<POSOrderItem[]>([]);
     const [posSettings, setPosSettings] = useState<POSSettings>({ vatRate: 12, serviceChargeRate: 0 });
+    const [globalDiscountRate, setGlobalDiscountRate] = useState<number>(0);
 
     useEffect(() => {
         SettingsService.getPOSSettings().then(settings => {
@@ -80,6 +81,7 @@ export function useCart() {
 
     const clearCart = useCallback(() => {
         setCartItems([]);
+        setGlobalDiscountRate(0);
     }, []);
 
     // Perform Calculations based on Philippine Law
@@ -128,6 +130,15 @@ export function useCart() {
             };
         });
 
+        // Apply global custom discount if any
+        let globalDiscountAmount = 0;
+        if (globalDiscountRate > 0) {
+            // Apply custom discount to the final subtotal (before SC)
+            globalDiscountAmount = finalSubtotal * (globalDiscountRate / 100);
+            finalSubtotal -= globalDiscountAmount;
+            totalDiscount += globalDiscountAmount;
+        }
+
         const serviceChargeAmount = finalSubtotal * scRate;
         const total = finalSubtotal + serviceChargeAmount;
 
@@ -135,12 +146,13 @@ export function useCart() {
             computedItems,
             grossSubtotal,
             totalDiscount,
+            globalDiscountAmount,
             totalVatAmount,
             finalSubtotal,
             serviceChargeAmount,
             total
         };
-    }, [cartItems, posSettings]);
+    }, [cartItems, posSettings, globalDiscountRate]);
 
     return {
         cartItems: calculations.computedItems,
@@ -149,11 +161,14 @@ export function useCart() {
         removeFromCart,
         clearCart,
         toggleDiscount,
+        globalDiscountRate,
+        setGlobalDiscountRate,
         subtotal: calculations.finalSubtotal,
         grossSubtotal: calculations.grossSubtotal,
         taxAmount: calculations.totalVatAmount,
         serviceChargeAmount: calculations.serviceChargeAmount,
         discountAmount: calculations.totalDiscount,
+        globalDiscountAmount: calculations.globalDiscountAmount,
         total: calculations.total
     };
 }

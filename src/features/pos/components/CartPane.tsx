@@ -9,6 +9,9 @@ interface CartPaneProps {
     taxAmount: number;
     serviceChargeAmount: number;
     discountAmount: number;
+    globalDiscountAmount?: number;
+    globalDiscountRate?: number;
+    setGlobalDiscountRate?: (rate: number) => void;
     total: number;
     onUpdateQuantity: (index: number, qty: number) => void;
     onRemoveItem: (index: number) => void;
@@ -28,6 +31,9 @@ const CartPane: React.FC<CartPaneProps> = ({
     onUpdateQuantity,
     onRemoveItem,
     onToggleDiscount,
+    globalDiscountRate = 0,
+    setGlobalDiscountRate,
+    globalDiscountAmount = 0,
     onClearCart,
     onCheckout
 }) => {
@@ -140,10 +146,33 @@ const CartPane: React.FC<CartPaneProps> = ({
             <div className="relative p-6 bg-[#0a0a0f]/95 backdrop-blur-2xl border-t border-white/[0.05] pb-safe shrink-0 shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.5)] z-20">
                 <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
                 <div className="space-y-2 mb-6 px-1">
-                    <div className="flex justify-between text-slate-500 font-medium text-sm">
+                    <div className="flex justify-between text-slate-500 font-medium text-sm items-center">
                         <span>Subtotal</span>
                         <span className="text-slate-300">₱{grossSubtotal.toFixed(2)}</span>
                     </div>
+                    {/* Manual Discount Input */}
+                    {setGlobalDiscountRate && (
+                        <div className="flex justify-between text-slate-500 font-medium text-sm items-center mt-2">
+                            <span>Manual Discount (%)</span>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={globalDiscountRate || ''}
+                                    onChange={(e) => setGlobalDiscountRate(Number(e.target.value))}
+                                    className="w-16 bg-white/[0.05] border border-white/[0.1] rounded text-white text-right px-2 py-1 focus:outline-none focus:border-indigo-500 transition-colors"
+                                    placeholder="0"
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {globalDiscountAmount > 0 && (
+                        <div className="flex justify-between text-emerald-400/80 font-medium text-sm">
+                            <span>Custom Discount</span>
+                            <span>- ₱{globalDiscountAmount.toFixed(2)}</span>
+                        </div>
+                    )}
                     {discountAmount > 0 && (
                         <div className="flex justify-between text-amber-400/80 font-medium text-sm">
                             <span>SC/PWD Discount</span>
