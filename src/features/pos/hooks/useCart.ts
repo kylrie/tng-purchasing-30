@@ -62,13 +62,13 @@ export function useCart() {
         });
     }, []);
 
-    const setItemDiscountRate = useCallback((index: number, rate: number, reason: string = '') => {
+    const setItemDiscountRate = useCallback((index: number, rate: number, reason?: string) => {
         setCartItems(prev => {
             const newItems = [...prev];
             newItems[index] = {
                 ...newItems[index],
                 discountRate: rate,
-                discountReason: reason || newItems[index].discountReason
+                discountReason: reason !== undefined ? reason : newItems[index].discountReason
             };
             return newItems;
         });
