@@ -26,8 +26,6 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
     // Global POS Settings State
     const [superAdminPin, setSuperAdminPin] = useState('');
     const [confirmSuperAdminPin, setConfirmSuperAdminPin] = useState('');
-    const [vatRate, setVatRate] = useState<number>(12);
-    const [serviceChargeRate, setServiceChargeRate] = useState<number>(0);
     const [showSuperAdminPin, setShowSuperAdminPin] = useState(false);
     const [isSavingGlobal, setIsSavingGlobal] = useState(false);
     const [saveGlobalSuccess, setSaveGlobalSuccess] = useState(false);
@@ -62,12 +60,6 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
             const settings = await SettingsService.getPOSSettings();
             if (settings.superAdminPin) {
                 setSuperAdminPin(settings.superAdminPin);
-            }
-            if (settings.vatRate !== undefined) {
-                setVatRate(settings.vatRate);
-            }
-            if (settings.serviceChargeRate !== undefined) {
-                setServiceChargeRate(settings.serviceChargeRate);
             }
         };
         loadSettings();
@@ -142,7 +134,6 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
         setGlobalError(null);
         setSaveGlobalSuccess(false);
 
-        // Validate PIN if provided
         if (superAdminPin) {
             if (superAdminPin.length !== 4 || !/^\d+$/.test(superAdminPin)) {
                 setGlobalError('PIN must be exactly 4 digits');
@@ -155,23 +146,11 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
             }
         }
 
-        if (vatRate < 0 || vatRate > 100) {
-            setGlobalError('VAT rate must be between 0 and 100');
-            return;
-        }
-
-        if (serviceChargeRate < 0 || serviceChargeRate > 100) {
-            setGlobalError('Service Charge rate must be between 0 and 100');
-            return;
-        }
-
         setIsSavingGlobal(true);
         try {
             await SettingsService.updatePOSSettings(
                 { 
-                    superAdminPin,
-                    vatRate,
-                    serviceChargeRate 
+                    superAdminPin
                 },
                 currentUser?.id,
                 currentUser?.name
@@ -267,26 +246,6 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
                                         onChange={(e) => setConfirmSuperAdminPin(e.target.value.replace(/\D/g, ''))}
                                         className="pl-10 w-full rounded-lg border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-amber-500 focus:border-amber-500"
                                         placeholder="0000"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">VAT Rate (%)</label>
-                                    <input
-                                        type="number"
-                                        value={vatRate}
-                                        onChange={(e) => setVatRate(Number(e.target.value))}
-                                        className="w-full rounded-lg border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-purple-500 focus:border-purple-500"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Service Charge Rate (%)</label>
-                                    <input
-                                        type="number"
-                                        value={serviceChargeRate}
-                                        onChange={(e) => setServiceChargeRate(Number(e.target.value))}
-                                        className="w-full rounded-lg border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:ring-purple-500 focus:border-purple-500"
                                     />
                                 </div>
                             </div>
