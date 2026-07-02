@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../../contexts/useAuth';
 import { POSTableService } from '../services/pos-table.service';
 import type { POSTable } from '../types/pos.types';
 import { TableCanvas } from '../components/TableCanvas';
@@ -8,18 +7,15 @@ import { Plus, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface TableManagementViewProps {
-    businesses: any[];
+    businessUnitId: string;
     onClose?: () => void;
 }
 
-export const TableManagementView: React.FC<TableManagementViewProps> = ({ businesses, onClose }) => {
-    const { currentUser } = useAuth();
+export const TableManagementView: React.FC<TableManagementViewProps> = ({ businessUnitId, onClose }) => {
     const navigate = useNavigate();
     const [tables, setTables] = useState<POSTable[]>([]);
     const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-
-    const businessUnitId = currentUser?.businessId || businesses?.[0]?.id;
 
     useEffect(() => {
         if (!businessUnitId) return;

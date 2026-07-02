@@ -437,7 +437,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
             {isTableManagementOpen && (
                 <div className="absolute inset-0 z-50 bg-slate-900">
                     <TableManagementView 
-                        businesses={displayBusinesses}
+                        businessUnitId={selectedBusinessUnit}
                         onClose={() => setIsTableManagementOpen(false)}
                     />
                 </div>
