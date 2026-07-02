@@ -16,7 +16,8 @@ export interface POSOrderItem {
     
     // Discount and Tax Fields
     isDiscounted?: boolean;        // True if SC/PWD discount is applied
-    discountRate?: number;         // Percentage of discount applied (e.g. 20)
+    discountType?: 'percentage' | 'amount'; // Type of manual discount
+    discountRate?: number;         // Value of discount applied (either % or exact amount)
     discountReason?: string;       // Reason for manual discount
     vatExemptAmount?: number;      // Amount exempted from VAT
     discountAmount?: number;       // Actual discount amount applied (e.g., 20%)

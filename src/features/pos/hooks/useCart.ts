@@ -40,6 +40,7 @@ export function useCart() {
                 category: menuItem.category,
                 notes,
                 isDiscounted: false,
+                discountType: 'percentage',
                 discountRate: 0,
                 discountReason: '',
                 vatAmount: 0,
@@ -62,13 +63,14 @@ export function useCart() {
         });
     }, []);
 
-    const setItemDiscountRate = useCallback((index: number, rate: number, reason?: string) => {
+    const setItemDiscountRate = useCallback((index: number, rate: number, reason?: string, type?: 'percentage' | 'amount') => {
         setCartItems(prev => {
             const newItems = [...prev];
             newItems[index] = {
                 ...newItems[index],
                 discountRate: rate,
-                discountReason: reason !== undefined ? reason : newItems[index].discountReason
+                discountReason: reason !== undefined ? reason : newItems[index].discountReason,
+                discountType: type !== undefined ? type : (newItems[index].discountType || 'percentage')
             };
             return newItems;
         });
@@ -131,8 +133,10 @@ export function useCart() {
                 totalScPwdDiscount += itemDiscount;
             } else if ((item.discountRate || 0) > 0) {
                 // Apply custom discount on the gross amount
-                itemDiscount = rawSubtotal * ((item.discountRate || 0) / 100);
-                const discountedPrice = rawSubtotal - itemDiscount;
+                const isAmount = item.discountType === 'amount';
+                itemDiscount = isAmount ? (item.discountRate || 0) : rawSubtotal * ((item.discountRate || 0) / 100);
+                const discountedPrice = Math.max(0, rawSubtotal - itemDiscount);
+                itemDiscount = rawSubtotal - discountedPrice; // ensure discount doesn't exceed price
                 const vatableSales = discountedPrice / (1 + vatRate);
                 itemVat = discountedPrice - vatableSales;
                 itemFinalSubtotal = discountedPrice;

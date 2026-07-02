@@ -19,7 +19,7 @@ interface CartPaneProps {
     onUpdateQuantity: (index: number, qty: number) => void;
     onRemoveItem: (index: number) => void;
     onToggleDiscount: (index: number) => void;
-    onSetItemDiscountRate: (index: number, rate: number, reason: string) => void;
+    onSetItemDiscountRate: (index: number, rate: number, reason: string, type?: 'percentage' | 'amount') => void;
     onClearCart: () => void;
     onCheckout: () => void;
 }
@@ -162,19 +162,25 @@ const CartPane: React.FC<CartPaneProps> = ({
                                             <input
                                                 type="number"
                                                 value={item.discountRate || ''}
-                                                onChange={(e) => onSetItemDiscountRate(index, parseFloat(e.target.value) || 0, item.discountReason || '')}
+                                                onChange={(e) => onSetItemDiscountRate(index, parseFloat(e.target.value) || 0, item.discountReason || '', item.discountType)}
                                                 placeholder="0"
-                                                className="w-8 bg-transparent text-right text-xs font-bold focus:outline-none placeholder-slate-600"
+                                                className={`bg-transparent text-right text-xs font-bold focus:outline-none placeholder-slate-600 ${item.discountType === 'amount' ? 'w-10' : 'w-8'}`}
                                                 min="0"
-                                                max="100"
+                                                max={item.discountType === 'amount' ? undefined : "100"}
                                                 disabled={item.isDiscounted}
                                             />
-                                            <span className="text-[10px] font-bold uppercase tracking-wider">% DISC</span>
+                                            <button 
+                                                onClick={() => onSetItemDiscountRate(index, item.discountRate || 0, item.discountReason || '', item.discountType === 'amount' ? 'percentage' : 'amount')}
+                                                disabled={item.isDiscounted}
+                                                className="text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors"
+                                            >
+                                                {item.discountType === 'amount' ? '₱ DISC' : '% DISC'}
+                                            </button>
                                         </div>
                                         <input
                                             type="text"
                                             value={item.discountReason || ''}
-                                            onChange={(e) => onSetItemDiscountRate(index, item.discountRate || 0, e.target.value)}
+                                            onChange={(e) => onSetItemDiscountRate(index, item.discountRate || 0, e.target.value, item.discountType)}
                                             placeholder="Reason"
                                             className="w-16 bg-transparent text-xs focus:outline-none placeholder-slate-600 border-t border-white/10 mt-1 pt-1"
                                             disabled={item.isDiscounted}
