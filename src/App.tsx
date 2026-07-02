@@ -11,6 +11,8 @@ import ProtectedRoute from './shared/components/ProtectedRoute';
 // Static imports removed for code splitting
 // import LoginView from './features/auth/views/LoginView';
 // import DashboardView from './features/dashboard/views/DashboardView';
+import { POSSettingsView } from './features/pos/views/POSSettingsView';
+import { TableManagementView } from './features/pos/views/TableManagementView';
 
 import { Suspense } from 'react';
 import type { NotificationItem } from './shared/types';
@@ -243,6 +245,18 @@ function ProtectedApp() {
               <Routes>
                 <Route path="/" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
                 <Route path="/dashboard" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
+                
+                <Route path="/pos/settings" element={
+                  <ProtectedRoute permission="ui:module_access:view:pos">
+                    <POSSettingsView />
+                  </ProtectedRoute>
+                } />
+
+                <Route path="/pos/tables" element={
+                  <ProtectedRoute permission="ui:module_access:view:pos">
+                    <TableManagementView />
+                  </ProtectedRoute>
+                } />
 
                 <Route path="/burf" element={
                   <ProtectedRoute permission="ui:module_access:view:burf">

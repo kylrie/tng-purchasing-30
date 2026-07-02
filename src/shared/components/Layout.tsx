@@ -378,11 +378,14 @@ const Layout: React.FC<LayoutProps> = ({
             ]
         },
         {
-            path: '/pos',
             label: 'Point of Sale',
             icon: Store,
             canView: true,
-            newTab: true
+            children: [
+                { path: '/pos', label: 'POS Terminal', icon: Store, canView: true, newTab: true },
+                { path: '/pos/tables', label: 'Table Management', icon: Store, canView: true },
+                { path: '/pos/settings', label: 'POS Settings', icon: Settings, canView: true }
+            ]
         },
         {
             label: 'Master Data',
