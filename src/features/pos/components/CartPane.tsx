@@ -21,7 +21,14 @@ interface CartPaneProps {
     onToggleDiscount: (index: number) => void;
     onSetItemDiscountRate: (index: number, rate: number, reason: string, type?: 'percentage' | 'amount') => void;
     onClearCart: () => void;
-    onCheckout: () => void;
+    onCheckout?: () => void; // Optional because table mode might not check out immediately
+    
+    // Table mode props
+    tableMode?: boolean;
+    tableName?: string;
+    onSendToKitchen?: () => void;
+    onBackToFloor?: () => void;
+    onRequireManagerAuth?: (action: () => void) => void;
 }
 
 const CartPane: React.FC<CartPaneProps> = ({
@@ -43,7 +50,12 @@ const CartPane: React.FC<CartPaneProps> = ({
     setGlobalDiscountRate,
     globalDiscountAmount = 0,
     onClearCart,
-    onCheckout
+    onCheckout,
+    tableMode,
+    tableName,
+    onSendToKitchen,
+    onBackToFloor,
+    onRequireManagerAuth
 }) => {
     const manualDiscountReasons = Array.from(new Set(
         cartItems
@@ -65,16 +77,26 @@ const CartPane: React.FC<CartPaneProps> = ({
                         <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
                         <ShoppingCart size={20} strokeWidth={2.5} className="relative z-10" />
                     </div>
-                    Current Order
+                    {tableMode ? `Bill - ${tableName}` : 'Current Order'}
                 </h2>
-                {cartItems.length > 0 && (
-                    <button
-                        onClick={onClearCart}
-                        className="text-xs font-bold text-red-500/80 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 px-4 py-2 rounded-lg transition-all duration-300 uppercase tracking-[0.2em] border border-red-500/10"
-                    >
-                        Clear
-                    </button>
-                )}
+                <div className="flex items-center gap-2">
+                    {tableMode && (
+                        <button
+                            onClick={onBackToFloor}
+                            className="text-xs font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-2 rounded-lg transition-all tracking-wider border border-indigo-500/20"
+                        >
+                            Floor
+                        </button>
+                    )}
+                    {cartItems.length > 0 && (
+                        <button
+                            onClick={onClearCart}
+                            className="text-xs font-bold text-red-500/80 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 px-3 py-2 rounded-lg transition-all duration-300 uppercase tracking-widest border border-red-500/10"
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Cart Items List */}
@@ -126,7 +148,14 @@ const CartPane: React.FC<CartPaneProps> = ({
                             <div className="flex justify-between items-center mt-1 relative z-10">
                                 <div className="flex items-center bg-black/40 rounded-xl border border-white/[0.05] p-1 backdrop-blur-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
                                     <button
-                                        onClick={() => onUpdateQuantity(index, item.quantity - 1)}
+                                        onClick={() => {
+                                            const decrease = () => onUpdateQuantity(index, item.quantity - 1);
+                                            if (item.isSentToKitchen && onRequireManagerAuth) {
+                                                onRequireManagerAuth(decrease);
+                                            } else {
+                                                decrease();
+                                            }
+                                        }}
                                         className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.1] transition-all duration-300 active:scale-95"
                                     >
                                         <Minus size={14} strokeWidth={2.5} />
@@ -187,7 +216,14 @@ const CartPane: React.FC<CartPaneProps> = ({
                                         />
                                     </div>
                                     <button
-                                        onClick={() => onRemoveItem(index)}
+                                        onClick={() => {
+                                            const remove = () => onRemoveItem(index);
+                                            if (item.isSentToKitchen && onRequireManagerAuth) {
+                                                onRequireManagerAuth(remove);
+                                            } else {
+                                                remove();
+                                            }
+                                        }}
                                         className="p-2.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all duration-300 opacity-60 group-hover:opacity-100 h-fit"
                                         aria-label="Remove item"
                                     >
@@ -276,26 +312,48 @@ const CartPane: React.FC<CartPaneProps> = ({
                     </div>
                 </div>
 
-                <button
-                    onClick={onCheckout}
-                    disabled={cartItems.length === 0}
-                    className="group relative w-full flex items-center justify-center p-4 disabled:bg-white/[0.02] bg-white/[0.05] disabled:border-white/[0.02] border border-white/[0.1] text-white disabled:text-slate-600 font-bold rounded-2xl transition-all duration-500 hover:shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)] overflow-hidden active:scale-[0.98]"
-                >
-                    {/* Glowing background */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[length:200%_auto] group-hover:animate-[cartGlow_3s_linear_infinite]"></div>
+                {tableMode ? (
+                    <div className="flex gap-3">
+                        <button
+                            onClick={onSendToKitchen}
+                            disabled={cartItems.length === 0}
+                            className="flex-1 p-3 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500/30 rounded-xl transition-all font-bold uppercase tracking-wider text-sm"
+                        >
+                            Send
+                        </button>
+                        <button
+                            onClick={onCheckout}
+                            disabled={cartItems.length === 0}
+                            className="flex-[2] relative flex items-center justify-center p-3 disabled:bg-white/[0.02] bg-white/[0.05] disabled:border-white/[0.02] border border-white/[0.1] text-white disabled:text-slate-600 font-bold rounded-xl transition-all duration-500 hover:shadow-[0_0_30px_-10px_rgba(34,197,94,0.5)] overflow-hidden active:scale-[0.98] group"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[length:200%_auto] group-hover:animate-[cartGlow_3s_linear_infinite]"></div>
+                            <span className="relative z-10 text-sm uppercase tracking-widest flex items-center gap-2">
+                                Settle Bill
+                            </span>
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={onCheckout}
+                        disabled={cartItems.length === 0}
+                        className="group relative w-full flex items-center justify-center p-4 disabled:bg-white/[0.02] bg-white/[0.05] disabled:border-white/[0.02] border border-white/[0.1] text-white disabled:text-slate-600 font-bold rounded-2xl transition-all duration-500 hover:shadow-[0_0_40px_-10px_rgba(99,102,241,0.5)] overflow-hidden active:scale-[0.98]"
+                    >
+                        {/* Glowing background */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[length:200%_auto] group-hover:animate-[cartGlow_3s_linear_infinite]"></div>
 
-                    {/* Top glass reflection */}
-                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-0 group-hover:opacity-100"></div>
+                        {/* Top glass reflection */}
+                        <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-0 group-hover:opacity-100"></div>
 
-                    <span className="relative z-10 text-sm uppercase tracking-widest flex items-center gap-3">
-                        {cartItems.length === 0 ? "Select Items" : "Initialize Payment"}
-                        {cartItems.length > 0 && (
-                            <svg className="w-4 h-4 transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] group-hover:translate-x-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                            </svg>
-                        )}
-                    </span>
-                </button>
+                        <span className="relative z-10 text-sm uppercase tracking-widest flex items-center gap-3">
+                            {cartItems.length === 0 ? "Select Items" : "Initialize Payment"}
+                            {cartItems.length > 0 && (
+                                <svg className="w-4 h-4 transition-transform duration-500 ease-[cubic-bezier(0.175,0.885,0.32,1.275)] group-hover:translate-x-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                                </svg>
+                            )}
+                        </span>
+                    </button>
+                )}
             </div>
 
             {/* Global animation for the cart glow effect */}

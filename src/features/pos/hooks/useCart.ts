@@ -212,6 +212,7 @@ export function useCart() {
         scPwdDiscountAmount: calculations.totalScPwdDiscount,
         manualItemDiscountAmount: calculations.totalManualDiscount,
         globalDiscountAmount: calculations.globalDiscountAmount,
-        total: calculations.total
+        total: calculations.total,
+        setCartItems
     };
 }

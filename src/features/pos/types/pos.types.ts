@@ -25,6 +25,9 @@ export interface POSOrderItem {
 
     // Keeping a reference to the original menu item for metadata if needed
     menuItemData?: MenuItem;
+    
+    // Status flag for table ordering
+    isSentToKitchen?: boolean;
 }
 
 export interface POSOrder {
@@ -50,6 +53,8 @@ export interface POSOrder {
     createdAt: Timestamp;
     updatedAt: Timestamp;
     notes?: string;
+    tableId?: string;
+    tableName?: string;
 }
 
 export interface POSOrderCreateInput {
@@ -70,6 +75,8 @@ export interface POSOrderCreateInput {
     changeAmount: number;
     paymentMethod: PaymentMethod;
     notes?: string;
+    tableId?: string;
+    tableName?: string;
 }
 
 export interface POSTable {
@@ -87,4 +94,28 @@ export interface POSTable {
     qrUrl?: string;
     createdAt?: Timestamp;
     updatedAt?: Timestamp;
+}
+
+export interface RunningBill {
+    id: string;
+    businessUnitId: string;
+    tableId: string;
+    tableName: string;
+    cashierId: string;
+    cashierName: string;
+    items: POSOrderItem[];
+    subtotal: number;
+    taxAmount?: number;
+    vatableSales?: number;
+    vatExemptSales?: number;
+    serviceChargeAmount?: number;
+    discountAmount?: number;
+    scPwdDiscountAmount?: number;
+    manualItemDiscountAmount?: number;
+    totalAmount: number;
+    guestCount?: number;
+    notes?: string;
+    status: 'open' | 'settled';
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
 }

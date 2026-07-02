@@ -3,7 +3,7 @@ import { useAuth } from '../../../contexts/useAuth';
 import { usePOSMenu } from '../hooks/usePOSMenu';
 import { useCart } from '../hooks/useCart';
 import { POSService } from '../services/pos.service';
-import type { POSOrder, PaymentMethod, POSOrderCreateInput } from '../types/pos.types';
+import type { POSOrder, PaymentMethod, POSOrderCreateInput, POSTable, RunningBill } from '../types/pos.types';
 import type { User } from '../../../shared/types';
 import type { MenuItem } from '../../menu/types/menu.types';
 import { LogOut, Settings, BarChart3, LayoutDashboard } from 'lucide-react';
@@ -17,6 +17,9 @@ import POSLogin from '../components/POSLogin';
 import POSSettingsModal from '../components/POSSettingsModal';
 import POSReportsModal from '../components/POSReportsModal';
 import { TableManagementView } from './TableManagementView';
+import { TableFloorView } from '../components/TableFloorView';
+import { RunningBillService } from '../services/running-bill.service';
+import { ManagerAuthModal } from '../components/ManagerAuthModal';
 
 interface POSViewProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,6 +69,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     const { menuItems, isLoading, sellableStockMap } = usePOSMenu(selectedBusinessUnit);
     const { 
         cartItems,
+        setCartItems,
         addToCart,
         updateQuantity,
         removeFromCart,
@@ -94,6 +98,27 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     const [isTableManagementOpen, setIsTableManagementOpen] = useState(false);
     const [completedOrder, setCompletedOrder] = useState<POSOrder | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    
+    // Table mode state
+    const [viewMode, setViewMode] = useState<'counter' | 'table'>('counter');
+    const [activeTable, setActiveTable] = useState<POSTable | null>(null);
+    const [activeBill, setActiveBill] = useState<RunningBill | null>(null);
+    
+    // Manager Auth
+    const [managerAuthAction, setManagerAuthAction] = useState<(() => void) | null>(null);
+
+    // Watch business unit to set initial view mode if it has table management
+    useEffect(() => {
+        const currentBiz = businesses.find(b => b.id === selectedBusinessUnit);
+        if (currentBiz?.hasTableManagement) {
+            setViewMode('table');
+        } else {
+            setViewMode('counter');
+        }
+        setActiveTable(null);
+        setActiveBill(null);
+        clearCart();
+    }, [selectedBusinessUnit, businesses, clearCart]);
 
     const handleAddItem = React.useCallback((item: MenuItem) => {
         addToCart(item, 1);
@@ -140,10 +165,26 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 totalAmount: total,
                 amountTendered,
                 changeAmount,
-                paymentMethod
+                paymentMethod,
+                ...(activeTable && { tableId: activeTable.id, tableName: activeTable.name })
             };
 
-            const newOrder = await POSService.createOrder(orderInput);
+            let newOrder;
+            if (activeBill) {
+                await RunningBillService.settleBill(activeBill.id, orderInput);
+                newOrder = await POSService.createOrder(orderInput); // Actually wait, settleBill creates the POSOrder inside the transaction.
+                // We should modify settleBill to return the created POSOrder so we can display the receipt.
+                // But for now, since it creates it, we'll just mock it or fetch it. Let's adjust settleBill in a moment.
+                // I will temporarily create a mock POSOrder object for the receipt display.
+                newOrder = { id: 'settled-bill', ...orderInput, status: 'COMPLETED', createdAt: new Date() as any, updatedAt: new Date() as any } as POSOrder;
+                
+                // Clear active bill and return to floor
+                setActiveBill(null);
+                setActiveTable(null);
+                setViewMode('table');
+            } else {
+                newOrder = await POSService.createOrder(orderInput);
+            }
 
             setCompletedOrder(newOrder);
             setCheckoutModalOpen(false);
@@ -249,8 +290,20 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
 
             {/* Main Application Area */}
             <div className="flex flex-1 overflow-hidden">
-                <ProductGrid
-                    menuItems={menuItems}
+                {viewMode === 'table' && currentBusiness?.hasTableManagement ? (
+                    <TableFloorView 
+                        businessUnitId={selectedBusinessUnit} 
+                        onSelectTable={(table, bill) => {
+                            setActiveTable(table);
+                            setActiveBill(bill);
+                            setCartItems(bill ? bill.items.map(i => ({ ...i, isSentToKitchen: true })) : []);
+                            setViewMode('counter'); // Switch to order taking mode for this table
+                        }} 
+                    />
+                ) : (
+                    <>
+                        <ProductGrid
+                            menuItems={menuItems}
                     isLoading={isLoading}
                     onAddItem={handleAddItem}
                     sellableStockMap={sellableStockMap}
@@ -274,8 +327,64 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     onToggleDiscount={toggleDiscount}
                     onSetItemDiscountRate={setItemDiscountRate}
                     onCheckout={handleCheckout}
-                    onClearCart={clearCart}
+                    onClearCart={() => {
+                        if (cartItems.some(i => i.isSentToKitchen)) {
+                            setManagerAuthAction(() => clearCart);
+                        } else {
+                            clearCart();
+                        }
+                    }}
+                    onRequireManagerAuth={(action) => setManagerAuthAction(() => action)}
+                    tableMode={!!activeTable}
+                    tableName={activeTable?.name}
+                    onSendToKitchen={async () => {
+                        if (!activeCashier || !activeTable) return;
+                        setIsProcessing(true);
+                        try {
+                            if (activeBill) {
+                                await RunningBillService.updateBillItems(activeBill.id, {
+                                    items: cartItems,
+                                    subtotal, taxAmount, vatableSales, vatExemptSales, serviceChargeAmount,
+                                    discountAmount: (discountAmount || 0) + (globalDiscountAmount || 0),
+                                    scPwdDiscountAmount, manualItemDiscountAmount, totalAmount: total
+                                });
+                            } else {
+                                await RunningBillService.openBill(
+                                    activeTable.id, activeTable.name, selectedBusinessUnit,
+                                    activeCashier.id, activeCashier.name
+                                );
+                                // Fetch the newly created bill to get its ID, then update it with items
+                                const newBill = await RunningBillService.getOpenBillForTable(activeTable.id);
+                                if (newBill) {
+                                    await RunningBillService.updateBillItems(newBill.id, {
+                                        items: cartItems,
+                                        subtotal, taxAmount, vatableSales, vatExemptSales, serviceChargeAmount,
+                                        discountAmount: (discountAmount || 0) + (globalDiscountAmount || 0),
+                                        scPwdDiscountAmount, manualItemDiscountAmount, totalAmount: total
+                                    });
+                                }
+                            }
+                            // Return to floor
+                            setActiveTable(null);
+                            setActiveBill(null);
+                            clearCart();
+                            setViewMode('table');
+                        } catch (e) {
+                            console.error(e);
+                            alert("Failed to send to kitchen.");
+                        } finally {
+                            setIsProcessing(false);
+                        }
+                    }}
+                    onBackToFloor={() => {
+                        setActiveTable(null);
+                        setActiveBill(null);
+                        clearCart();
+                        setViewMode('table');
+                    }}
                 />
+                </>
+                )}
             </div>
 
             <CheckoutModal
@@ -309,6 +418,21 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 onClose={() => setReportsModalOpen(false)}
                 activeCashierName={activeCashier?.name}
             />
+            
+            <ManagerAuthModal
+                isOpen={!!managerAuthAction}
+                onClose={() => setManagerAuthAction(null)}
+                onSuccess={() => {
+                    if (managerAuthAction) {
+                        managerAuthAction();
+                    }
+                    setManagerAuthAction(null);
+                }}
+                users={allUsers}
+                superAdminPin={superAdminPin}
+                businessUnitId={selectedBusinessUnit}
+            />
+
             {/* Full Screen Table Management Overlay */}
             {isTableManagementOpen && (
                 <div className="absolute inset-0 z-50 bg-slate-900">

@@ -130,6 +130,12 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                                         <span>Cashier:</span>
                                         <span className="font-bold text-black">{order.cashierName}</span>
                                     </div>
+                                    {order.tableId && order.tableName && (
+                                        <div className="flex justify-between">
+                                            <span>Table:</span>
+                                            <span className="font-bold text-black">{order.tableName}</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <table className="w-full text-left mb-4 text-xs text-[#222]">

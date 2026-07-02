@@ -49,6 +49,14 @@ export class POSTableService {
         });
     }
 
+    static async updateTableStatus(tableId: string, status: 'available' | 'occupied' | 'reserved'): Promise<void> {
+        const docRef = doc(db, this.COLLECTION, tableId);
+        await updateDoc(docRef, {
+            status,
+            updatedAt: serverTimestamp()
+        });
+    }
+
     static async deleteTable(tableId: string): Promise<void> {
         const docRef = doc(db, this.COLLECTION, tableId);
         await deleteDoc(docRef);

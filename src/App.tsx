@@ -63,6 +63,7 @@ const LoginView = React.lazy(() => import('./features/auth/views/LoginView'));
 const MainDashboardRouter = React.lazy(() => import('./features/dashboard/views/MainDashboardRouter'));
 const NotificationsView = React.lazy(() => import('./features/notifications/views/NotificationsView'));
 const POSView = React.lazy(() => import('./features/pos/views/POSView'));
+const KitchenDisplayPage = React.lazy(() => import('./features/pos/views/KitchenDisplayPage').then(module => ({ default: module.KitchenDisplayPage })));
 const PosImportDashboard = React.lazy(() => import('./features/pos/views/PosImportDashboard'));
 const EventImportDashboard = React.lazy(() => import('./features/pos/views/EventImportDashboard'));
 const WastageView = React.lazy(() => import('./features/inventory/views/WastageView'));
@@ -243,6 +244,12 @@ function ProtectedApp() {
           <Route path="/*" element={
             <Layout {...layoutProps}>
               <Routes>
+                {/* Kitchen Display */}
+                <Route path="/pos/kitchen" element={
+                  <ProtectedRoute permission="ui:module_access:view:pos">
+                    <KitchenDisplayPage businesses={accessibleBusinesses} />
+                  </ProtectedRoute>
+                } />
                 <Route path="/" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
                 <Route path="/dashboard" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
                 

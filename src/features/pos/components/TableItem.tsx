@@ -4,11 +4,12 @@ import type { POSTable } from '../types/pos.types';
 interface TableItemProps {
     table: POSTable;
     isSelected: boolean;
+    billAmount?: number;
     onSelect: (table: POSTable) => void;
     onDragEnd: (tableId: string, position: { x: number, y: number }) => void;
 }
 
-export const TableItem: React.FC<TableItemProps> = ({ table, isSelected, onSelect, onDragEnd }) => {
+export const TableItem: React.FC<TableItemProps> = ({ table, isSelected, billAmount, onSelect, onDragEnd }) => {
     const itemRef = useRef<HTMLDivElement>(null);
 
     const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -72,6 +73,19 @@ export const TableItem: React.FC<TableItemProps> = ({ table, isSelected, onSelec
         }
     }, [table.position.x, table.position.y]);
 
+    const getStatusStyles = () => {
+        if (isSelected) return 'border-indigo-500 bg-indigo-500/20 text-white shadow-indigo-500/20 ring-2 ring-indigo-400';
+        
+        switch (table.status) {
+            case 'occupied':
+                return 'border-amber-500/50 bg-amber-500/10 text-amber-500 hover:border-amber-400';
+            case 'reserved':
+                return 'border-sky-500/50 bg-sky-500/10 text-sky-400 hover:border-sky-400';
+            default: // available
+                return 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500';
+        }
+    };
+
     return (
         <div
             ref={itemRef}
@@ -84,16 +98,20 @@ export const TableItem: React.FC<TableItemProps> = ({ table, isSelected, onSelec
             }}
             className={`
                 w-24 h-24 flex flex-col items-center justify-center 
-                rounded-2xl border-2 transition-colors shadow-md active:cursor-grabbing
+                rounded-2xl border-2 transition-all shadow-md active:cursor-grabbing
                 ${table.shape === 'circle' ? 'rounded-full' : 'rounded-xl'}
-                ${isSelected 
-                    ? 'border-indigo-500 bg-indigo-500/20 text-white shadow-indigo-500/20' 
-                    : 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500'
-                }
+                ${getStatusStyles()}
             `}
         >
             <span className="font-bold text-center text-sm px-1 truncate w-full pointer-events-none">{table.name}</span>
-            <span className="text-xs opacity-70 mt-1 pointer-events-none">{table.seats} Seats</span>
+            <span className="text-xs opacity-70 mt-1 pointer-events-none">
+                {table.status === 'occupied' ? 'Occupied' : table.status === 'reserved' ? 'Reserved' : `${table.seats} Seats`}
+            </span>
+            {billAmount !== undefined && table.status === 'occupied' && (
+                <span className="text-xs font-bold text-amber-400 mt-1 pointer-events-none">
+                    ₱{billAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                </span>
+            )}
             {table.qrEnabled && (
                 <div className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full border-2 border-slate-900" title="QR Enabled" />
             )}
