@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, setDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { COLLECTIONS } from "../../../shared/types/firebase.types";
 import type { Business } from "../../../shared/types";
@@ -13,7 +13,9 @@ export const useBusinesses = () => {
     useEffect(() => {
         // setLoading(true); // Removed to avoid setState in effect, initial state is true
         const unsubscribe = onSnapshot(businessesCollection, (snapshot) => {
-            const bizData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
+            // IMPORTANT: spread doc.data() FIRST, then override id with doc.id
+            // This prevents stale 'id' fields in document data from overwriting the real Firestore document ID
+            const bizData = snapshot.docs.map(d => ({ ...d.data(), id: d.id } as Business));
             setBusinesses(bizData);
             setLoading(false);
         }, (error) => {
@@ -26,7 +28,9 @@ export const useBusinesses = () => {
 
     const addBusiness = async (businessData: Omit<Business, 'id'>) => {
         try {
-            await addDoc(businessesCollection, businessData);
+            // Strip any stale 'id' field before adding
+            const { id: _stripId, ...cleanData } = businessData as any;
+            await addDoc(businessesCollection, cleanData);
         } catch (error) {
             console.error("Error adding business: ", error);
             throw new Error("Failed to add business unit.");
@@ -35,8 +39,10 @@ export const useBusinesses = () => {
 
     const updateBusiness = async (id: string, updates: Partial<Business>) => {
         try {
+            // Strip the 'id' field from updates — it should only be used as the document reference, not stored as data
+            const { id: _stripId, ...cleanUpdates } = updates as any;
             const bizRef = doc(db, COLLECTIONS.BUSINESSES, id);
-            await setDoc(bizRef, updates, { merge: true });
+            await updateDoc(bizRef, cleanUpdates);
         } catch (error) {
             console.error("Error updating business: ", error);
             throw new Error("Failed to update business unit.");
