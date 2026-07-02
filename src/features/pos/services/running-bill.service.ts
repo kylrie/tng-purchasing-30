@@ -38,7 +38,7 @@ export class RunningBillService {
             scPwdDiscountAmount: 0,
             manualItemDiscountAmount: 0,
             totalAmount: 0,
-            guestCount,
+            guestCount: guestCount ?? 1,
             status: 'open',
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now()
