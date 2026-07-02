@@ -55,6 +55,17 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
         }
     };
 
+    const manualDiscountReasons = Array.from(new Set(
+        order?.items
+            .filter(item => !item.isDiscounted && (item.discountRate || 0) > 0 && item.discountReason)
+            .map(item => item.discountReason?.trim())
+            .filter(Boolean) || []
+    ));
+
+    const itemDiscountLabel = manualDiscountReasons.length > 0 
+        ? manualDiscountReasons.join(', ') + ' Discount'
+        : 'Item Discount';
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 selection:bg-indigo-500/30">
             {/* Backdrop */}
@@ -153,7 +164,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                                     )}
                                     {(order.manualItemDiscountAmount || 0) > 0 && (
                                         <div className="flex justify-between text-xs font-bold text-[#666]">
-                                            <span className="uppercase tracking-widest">Item Discount</span>
+                                            <span className="uppercase tracking-widest">{itemDiscountLabel}</span>
                                             <span>- ₱{order.manualItemDiscountAmount!.toFixed(2)}</span>
                                         </div>
                                     )}

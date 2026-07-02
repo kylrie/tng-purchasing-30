@@ -45,6 +45,17 @@ const CartPane: React.FC<CartPaneProps> = ({
     onClearCart,
     onCheckout
 }) => {
+    const manualDiscountReasons = Array.from(new Set(
+        cartItems
+            .filter(item => !item.isDiscounted && (item.discountRate || 0) > 0 && item.discountReason)
+            .map(item => item.discountReason?.trim())
+            .filter(Boolean)
+    ));
+
+    const itemDiscountLabel = manualDiscountReasons.length > 0 
+        ? manualDiscountReasons.join(', ') + ' Discount'
+        : 'Item Discount';
+
     return (
         <div className="w-full md:w-[400px] flex flex-col h-full bg-[#0a0a0f]/80 backdrop-blur-3xl z-20 border-l border-white/[0.05] relative shadow-[-30px_0_60px_rgba(0,0,0,0.5)]">
             {/* Header */}
@@ -216,7 +227,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                     )}
                     {manualItemDiscountAmount > 0 && (
                         <div className="flex justify-between text-emerald-400/80 font-medium text-sm">
-                            <span>Item Discount</span>
+                            <span className="uppercase">{itemDiscountLabel}</span>
                             <span>- ₱{manualItemDiscountAmount.toFixed(2)}</span>
                         </div>
                     )}
