@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, setDoc, deleteDoc, doc, onSnapshot } from "firebase/firestore";
 import { db } from "../../../config/firebase";
 import { COLLECTIONS } from "../../../shared/types/firebase.types";
 import type { Business } from "../../../shared/types";
@@ -36,7 +36,7 @@ export const useBusinesses = () => {
     const updateBusiness = async (id: string, updates: Partial<Business>) => {
         try {
             const bizRef = doc(db, COLLECTIONS.BUSINESSES, id);
-            await updateDoc(bizRef, updates);
+            await setDoc(bizRef, updates, { merge: true });
         } catch (error) {
             console.error("Error updating business: ", error);
             throw new Error("Failed to update business unit.");
