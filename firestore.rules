@@ -992,6 +992,17 @@ service cloud.firestore {
     }
     
     // =====================================================
+    // POS TABLES COLLECTION
+    // Table layouts for POS
+    // =====================================================
+    match /pos_tables/{tableId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+    
+    // =====================================================
     // POS SALES COLLECTION
     // Imported POS sales records linked to inventory items
     // =====================================================
