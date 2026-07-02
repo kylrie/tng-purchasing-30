@@ -106,6 +106,8 @@ export function useCart() {
         let grossSubtotal = 0;
         let totalVatAmount = 0;
         let totalDiscount = 0;
+        let totalScPwdDiscount = 0;
+        let totalManualDiscount = 0;
         let totalVatableSales = 0;
         let totalVatExemptSales = 0;
         let finalSubtotal = 0; // After discounts, before SC
@@ -126,6 +128,7 @@ export function useCart() {
                 itemDiscount = itemVatExempt * 0.20;
                 itemFinalSubtotal = itemVatExempt - itemDiscount;
                 totalVatExemptSales += itemFinalSubtotal;
+                totalScPwdDiscount += itemDiscount;
             } else if ((item.discountRate || 0) > 0) {
                 // Apply custom discount on the gross amount
                 itemDiscount = rawSubtotal * ((item.discountRate || 0) / 100);
@@ -134,6 +137,7 @@ export function useCart() {
                 itemVat = discountedPrice - vatableSales;
                 itemFinalSubtotal = discountedPrice;
                 totalVatableSales += vatableSales;
+                totalManualDiscount += itemDiscount;
             } else {
                 // Regular item: VAT is embedded in the price
                 // e.g. 112 -> 12 is VAT
@@ -172,6 +176,8 @@ export function useCart() {
             computedItems,
             grossSubtotal,
             totalDiscount,
+            totalScPwdDiscount,
+            totalManualDiscount,
             globalDiscountAmount,
             totalVatableSales,
             totalVatExemptSales,
@@ -199,6 +205,8 @@ export function useCart() {
         taxAmount: calculations.totalVatAmount,
         serviceChargeAmount: calculations.serviceChargeAmount,
         discountAmount: calculations.totalDiscount,
+        scPwdDiscountAmount: calculations.totalScPwdDiscount,
+        manualItemDiscountAmount: calculations.totalManualDiscount,
         globalDiscountAmount: calculations.globalDiscountAmount,
         total: calculations.total
     };

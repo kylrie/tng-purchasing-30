@@ -39,6 +39,8 @@ export interface POSOrder {
     vatExemptSales?: number; // Sum of VAT portions
     serviceChargeAmount?: number; // Service Charge computed
     discountAmount?: number; // Total discount amount
+    scPwdDiscountAmount?: number; // SC/PWD specific total
+    manualItemDiscountAmount?: number; // Manual per-item specific total
     totalAmount: number;
     amountTendered?: number;
     changeAmount?: number;
@@ -60,6 +62,8 @@ export interface POSOrderCreateInput {
     vatExemptSales?: number;
     serviceChargeAmount?: number;
     discountAmount?: number;
+    scPwdDiscountAmount?: number;
+    manualItemDiscountAmount?: number;
     totalAmount: number;
     amountTendered: number;
     changeAmount: number;

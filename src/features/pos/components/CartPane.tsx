@@ -10,7 +10,8 @@ interface CartPaneProps {
     vatableSales?: number;
     vatExemptSales?: number;
     serviceChargeAmount: number;
-    discountAmount: number;
+    scPwdDiscountAmount?: number;
+    manualItemDiscountAmount?: number;
     globalDiscountAmount?: number;
     globalDiscountRate?: number;
     setGlobalDiscountRate?: (rate: number) => void;
@@ -31,7 +32,8 @@ const CartPane: React.FC<CartPaneProps> = ({
     vatableSales = 0,
     vatExemptSales = 0,
     serviceChargeAmount,
-    discountAmount,
+    scPwdDiscountAmount = 0,
+    manualItemDiscountAmount = 0,
     total,
     onUpdateQuantity,
     onRemoveItem,
@@ -212,10 +214,16 @@ const CartPane: React.FC<CartPaneProps> = ({
                             <span>- ₱{globalDiscountAmount.toFixed(2)}</span>
                         </div>
                     )}
-                    {discountAmount > 0 && (
+                    {manualItemDiscountAmount > 0 && (
+                        <div className="flex justify-between text-emerald-400/80 font-medium text-sm">
+                            <span>Item Discount</span>
+                            <span>- ₱{manualItemDiscountAmount.toFixed(2)}</span>
+                        </div>
+                    )}
+                    {scPwdDiscountAmount > 0 && (
                         <div className="flex justify-between text-amber-400/80 font-medium text-sm">
                             <span>SC/PWD Discount</span>
-                            <span>- ₱{discountAmount.toFixed(2)}</span>
+                            <span>- ₱{scPwdDiscountAmount.toFixed(2)}</span>
                         </div>
                     )}
                     {vatableSales > 0 && (

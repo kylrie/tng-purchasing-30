@@ -145,10 +145,22 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                                         <span className="uppercase tracking-widest">Gross Subtotal</span>
                                         <span>₱{(order.subtotal + (order.discountAmount || 0)).toFixed(2)}</span>
                                     </div>
-                                    {(order.discountAmount || 0) > 0 && (
+                                    {(order.scPwdDiscountAmount || 0) > 0 && (
                                         <div className="flex justify-between text-xs font-bold text-[#666]">
-                                            <span className="uppercase tracking-widest">Total Discount</span>
-                                            <span>- ₱{order.discountAmount!.toFixed(2)}</span>
+                                            <span className="uppercase tracking-widest">SC/PWD Discount</span>
+                                            <span>- ₱{order.scPwdDiscountAmount!.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    {(order.manualItemDiscountAmount || 0) > 0 && (
+                                        <div className="flex justify-between text-xs font-bold text-[#666]">
+                                            <span className="uppercase tracking-widest">Item Discount</span>
+                                            <span>- ₱{order.manualItemDiscountAmount!.toFixed(2)}</span>
+                                        </div>
+                                    )}
+                                    {((order.discountAmount || 0) - (order.scPwdDiscountAmount || 0) - (order.manualItemDiscountAmount || 0)) > 0.01 && (
+                                        <div className="flex justify-between text-xs font-bold text-[#666]">
+                                            <span className="uppercase tracking-widest">Custom Discount</span>
+                                            <span>- ₱{((order.discountAmount || 0) - (order.scPwdDiscountAmount || 0) - (order.manualItemDiscountAmount || 0)).toFixed(2)}</span>
                                         </div>
                                     )}
                                     <div className="flex justify-between text-xs font-bold text-[#666]">
