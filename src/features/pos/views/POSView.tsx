@@ -207,28 +207,24 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="text-sm">
+                    <div className="text-sm text-right">
                         <div className="font-medium text-white">{activeCashier.name}</div>
                         <div className="text-slate-400 capitalize">{activeCashier.role.replace(/_/g, ' ').toLowerCase()}</div>
                     </div>
-                    {(activeCashier.role === 'SUPER_ADMIN' || activeCashier.role === 'MANAGER') && (
-                        <>
-                            <button
-                                onClick={() => setReportsModalOpen(true)}
-                                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
-                                title="Shift & Reports"
-                            >
-                                <BarChart3 className="w-5 h-5" />
-                            </button>
-                            <button
-                                onClick={() => setSettingsModalOpen(true)}
-                                className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
-                                title="POS Settings"
-                            >
-                                <Settings className="w-5 h-5" />
-                            </button>
-                        </>
-                    )}
+                    <button
+                        onClick={() => setReportsModalOpen(true)}
+                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                        title="Shift & Reports"
+                    >
+                        <BarChart3 className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={() => setSettingsModalOpen(true)}
+                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                        title="POS Settings"
+                    >
+                        <Settings className="w-5 h-5" />
+                    </button>
                     <button
                         onClick={handleLockTerminal}
                         className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
