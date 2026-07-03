@@ -11,7 +11,9 @@
         "start": "npm run shell",
         "deploy": "firebase deploy --only functions",
         "logs": "firebase functions:log",
-        "lint": "eslint --ext .js,.ts ."
+        "lint": "eslint --ext .js,.ts .",
+        "test": "npx tsx --test src/qr/orderLogic.test.ts src/qr/__tests__/createQrTable.handler.test.ts src/qr/__tests__/createQrOrder.handler.test.ts src/qr/__tests__/getPublicMenu.handler.test.ts",
+        "test:emulator": "firebase emulators:exec --only firestore --project demo-tng-qr \"npx tsx --test src/qr/__tests__/rules.emulator.test.ts\""
     },
     "engines": {
         "node": "20"
@@ -21,9 +23,11 @@
         "firebase-functions": "^5.0.0"
     },
     "devDependencies": {
+        "@firebase/rules-unit-testing": "^5.0.1",
         "@typescript-eslint/eslint-plugin": "^6.0.0",
         "@typescript-eslint/parser": "^6.0.0",
         "eslint": "^8.0.0",
+        "firebase": "^12.15.0",
         "typescript": "^5.0.0"
     },
     "private": true

@@ -18,6 +18,12 @@
             "npm --prefix \"$RESOURCE_DIR\" run build"
         ]
     },
+    "emulators": {
+        "firestore": {
+            "port": 8080
+        },
+        "singleProjectMode": true
+    },
     "hosting": {
         "site": "tng-systems",
         "public": "dist",
