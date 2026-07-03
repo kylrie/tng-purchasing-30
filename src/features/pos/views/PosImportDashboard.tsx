@@ -134,7 +134,7 @@ const PosImportDashboard: React.FC<Props> = () => {
     // Resolve the active BU id: if 'all' is selected in global context,
     // fall back to the first BU the user has access to
     const selectedBU = selectedBusinessUnit === 'all'
-        ? (currentUser?.businessUnitIds?.[0] || '')
+        ? (currentUser?.businessUnitIds?.[0] || currentUser?.businessId || '')
         : selectedBusinessUnit;
     const [activeTab, setActiveTab] = useState<Tab>('import');
     const [viewState, setViewState] = useState<ViewState>('UPLOAD');
@@ -228,7 +228,14 @@ const PosImportDashboard: React.FC<Props> = () => {
         const bounds = getDateBounds();
         if (!bounds) return [];
         return importHistory.filter(batch => {
-            const ts = batch.importedAt?.toMillis?.() ?? 0;
+            let ts = 0;
+            if (batch.importedAt) {
+                if (typeof batch.importedAt.toMillis === 'function') {
+                    ts = batch.importedAt.toMillis();
+                } else if ('seconds' in batch.importedAt) {
+                    ts = batch.importedAt.seconds * 1000;
+                }
+            }
             return ts >= bounds.start.getTime() && ts <= bounds.end.getTime();
         });
     }, [importHistory, getDateBounds]);

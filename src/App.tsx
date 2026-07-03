@@ -201,7 +201,7 @@ function ProtectedApp() {
 
   const accessibleBusinesses = React.useMemo(() => {
     if (!currentUser) return [];
-    if (currentUser.role === UserRole.SUPER_ADMIN) return businesses;
+    if (currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN) return businesses;
     return businesses.filter(b => 
       b.id === currentUser.businessId || 
       currentUser.businessUnitIds?.includes(b.id)
