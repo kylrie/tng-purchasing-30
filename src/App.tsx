@@ -29,6 +29,7 @@ import { useUOM } from './shared/hooks/useUOM';
 const CustomerMenuView = React.lazy(() => import('./features/qr-ordering/customer/CustomerMenuView'));
 const CheckoutView = React.lazy(() => import('./features/qr-ordering/customer/CheckoutView'));
 const OrderStatusView = React.lazy(() => import('./features/qr-ordering/customer/OrderStatusView'));
+const KitchenQueueView = React.lazy(() => import('./features/qr-ordering/kitchen/KitchenQueueView'));
 const BurfView = React.lazy(() => import('./features/procurement/views/BURFView'));
 const PrfView = React.lazy(() => import('./features/procurement/views/PRFView'));
 const PRFTrackerView = React.lazy(() => import('./features/procurement/views/PRFTrackerView'));
@@ -684,6 +685,11 @@ VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
                     <Route path="/order-status/:orderId?" element={
                       <Suspense fallback={<PageLoader />}>
                         <OrderStatusView />
+                      </Suspense>
+                    } />
+                    <Route path="/kitchen/:sessionId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <KitchenQueueView />
                       </Suspense>
                     } />
                     <Route path="/*" element={<ProtectedApp />} />
