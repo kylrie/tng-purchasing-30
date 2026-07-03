@@ -25,6 +25,8 @@
 | [12. Slack Announcement Draft](#12-slack-announcement-draft) | Copy-paste stakeholder summary |
 | [Appendix A. Evidence index](#appendix-a-evidence-index-file-citations) | File citations backing the analysis |
 
+**Related documents:** the [Phase 0.5 Firebase Audit](PHASE_0.5_FIREBASE_AUDIT.md) (official audit artifact) and the [Production Readiness Remediation Backlog](PRODUCTION_READINESS_REMEDIATION.md) (P0/P1/P2 tracking). The two roadmap gates (GATE A / GATE B in Section 8) are driven by those documents.
+
 **Confirmed fact vs assumption:** claims are marked `[CONFIRMED]` when backed by a cited file, or `[ASSUMPTION]` when not yet verified. Do not treat assumptions as settled.
 
 ---
@@ -98,6 +100,9 @@ The original architecture report and the payment revision report are **approved 
 | A7 | **Reuse** the existing inventory BOM-deduction logic, menu/recipe model, real-time listeners, and reporting rather than rebuilding them. |
 | A8 | **Phase 7 (automated POS synchronization) is deferred** and explicitly out of MVP. Reconciliation in MVP is manual (cashier posts the invoice number). |
 | A9 | Customer surface is routed through **Cloud Function callables** (Admin SDK), so `firestore.rules` stays staff-only and is not opened to the public. |
+| A10 | **(Audit-confirmed)** QR order numbers use the atomic **`CounterService`** pattern (`runTransaction`). The existing POS random-hex order-ID approach is **not approved** for QR Ordering (collision risk). |
+| A11 | **(Audit-confirmed)** QR inventory deduction / stock reservation must use **`runTransaction`** (not a plain `writeBatch`) so a diner cannot be charged for out-of-stock items. |
+| A12 | **(Audit-confirmed)** A **Security Remediation Gate** and a **Production Readiness Gate** (Section 8) must be passed before/around QR implementation. Details in [`PHASE_0.5_FIREBASE_AUDIT.md`](PHASE_0.5_FIREBASE_AUDIT.md) and [`PRODUCTION_READINESS_REMEDIATION.md`](PRODUCTION_READINESS_REMEDIATION.md). |
 
 ### 3.2 Open decisions ❓ (need an owner/lead answer before or during the relevant phase)
 
@@ -111,16 +116,18 @@ The original architecture report and the payment revision report are **approved 
 | O6 | **Refund authority** — which staff role may issue a Xendit refund, and what approval is required? | Phase 3 refund path |
 | O7 | **Pilot scope** — single location/business unit for launch, or multiple? | Phase 6 rollout |
 | O8 | Menu **modifiers/variants** (size, add-ons) — confirmed deferred to post-MVP? (Plan assumes yes.) | Phase 1–2 menu model |
+| O9 | **(Audit-raised) Which Firestore database is the production source of truth — `(default)` or `tng-systems`?** Two databases exist sharing rules/indexes; functions target `tng-systems`; `clone-db.mjs` copies `tng-systems → (default)`. QR writes and new indexes depend on one unambiguous answer. | **Security Remediation Gate / QR START** (P0-2) |
 
 ### 3.3 Assumptions 📌 (currently unverified — validate in Phase 0)
 
 | # | Assumption | Verify by |
 |---|---|---|
-| P1 | The repo is git-managed on an origin with a `main` branch. *(A local check reported the working copy as not a git repo — confirm the remote/branch setup before branching.)* | `git remote -v` on origin |
+| P1 | The repo is git-managed on an origin with a `main` branch. **`[CONFIRMED]` by Phase 0.5 audit** — the project subfolder is a git repo. Confirm the origin/branch before branching. | `git remote -v` on origin |
 | P2 | A Xendit merchant account can be provisioned for TNG in the Philippines with GCash, Maya, QRPH, and cards activated. | Xendit onboarding |
 | P3 | The menu's **single-price model** (no modifiers) is acceptable for MVP. | Owner confirm (O8) |
 | P4 | Customer flow ships as **mobile web** (QR → browser), not a native Capacitor build, for MVP. `[CONFIRMED]` Capacitor is configured but no native project folders are initialized yet. | Already observed |
-| P5 | Existing reporting can absorb a new sales feed via a `pos_sales`-shaped summary record. | Phase 5 |
+| P5 | Existing reporting can absorb a new sales feed via a `pos_sales`-shaped summary record. `[CONFIRMED]` audit found `pos_sales` immutable + BOM-deduction path reusable; revenue reporting itself is net-new. | Phase 5 |
+| P6 | The build compiles. **`[DISPROVEN]` by audit** — `tsc -b` fails on ~11 committed errors (build snapshot; verify live). Tracked as P0-3. | live `npm run build` |
 
 ### 3.4 Risks 🔴 — see the full payment risk table in [Section 7.5](#75-payment-risks). Program-level risks:
 
@@ -132,6 +139,13 @@ The original architecture report and the payment revision report are **approved 
 | Paid orders never reconciled to a BIR receipt | Med | Mandatory "unreconciled paid orders" cashier queue; block day-close until cleared. |
 | Printer integration is an unknown (no code exists) | Med | Treat as an isolated Phase 6 spike; keep KDS-on-screen as the fallback (O2). |
 | Scope creep into official invoicing / Phase 7 pulled early | Med | This document's BIR rule (A4) and MVP boundaries (Section 11) are the guardrail. |
+| **(Audit) Committed live Firebase service-account keys** — repo holds admin credentials to `tng-systems` | **Critical** | Rotate/purge before QR start; Remediation P0-1. |
+| **(Audit) Build is red** — `tsc -b` fails, blocking CI/integration of new code | High | Fix committed `tsc` errors before QR start; Remediation P0-3. |
+| **(Audit) Dual-database ambiguity** — QR could write to the wrong Firestore DB | High | Decide production DB (O9) before QR start; Remediation P0-2. |
+| **(Audit) Xendit webhook is greenfield** — no `onRequest`/HTTP function exists in the repo today | Med-High | Build the first HTTP function in Phase 3 with token verify + idempotency; extra hardening/testing budget. |
+| **(Audit) Firestore rule bypasses** (`\|\| true` ×3, commented-out fund-release validation, unvalidated financial collections) live in the shared project | Med | Remediate before go-live (P1-1); QR itself avoids these paths via callables. |
+| **(Audit) No CI/CD + hosting-only deploys** — payment/webhook code could ship unvetted or functions left un-deployed | Med | Stand up a minimal CI gate and add a functions-deploy step before payment code lands (P1-2, P1-3). |
+| **(Audit) POS lifecycle & order-numbering flaws** could be inherited if QR reuses `pos_orders` | Med | Use dedicated `qr_orders` + `CounterService` + `runTransaction` (A6, A10, A11). |
 
 ---
 
@@ -335,7 +349,7 @@ Use **Xendit Payments API v3 — Payment Sessions** (`POST /sessions`, `session_
 
 ## 8. Development roadmap (Phases 0–7)
 
-Each phase lists Objectives / Deliverables / Dependencies / Risks / Acceptance. Phases 0→0.5→1→2→3→3.5→5→6 are the MVP critical path. Phase 4 is polish. **Phase 7 is deferred (non-MVP).**
+Each phase lists Objectives / Deliverables / Dependencies / Risks / Acceptance. Critical path: **Phase 0 → 0.5 → 🚧 GATE A (Security Remediation) → 1 → 2 → 3 → 3.5 → 5 → 🚧 GATE B (Production Readiness) → 6.** Phase 4 is polish. **Phase 7 is deferred (non-MVP).** The two gates were introduced by the Phase 0.5 audit and are hard entry conditions.
 
 ### Phase 0 — Architecture validation (3–5 days)
 - **Objectives:** confirm the callable-mediated access pattern and the BIR "no official invoice" boundary with owner + accountant; provision the Xendit account early.
@@ -344,8 +358,8 @@ Each phase lists Objectives / Deliverables / Dependencies / Risks / Acceptance. 
 - **Risks:** scope creep into invoicing (A4 is the guard).
 - **Acceptance:** written sign-off on data model + security approach; Xendit onboarding in progress.
 
-### Phase 0.5 — Firebase audit (3–4 days)
-Runs immediately after architecture sign-off and **before any QR implementation begins**. The goal is to replace the remaining `[ASSUMPTION]` markers in this document with verified facts, so no schema, permission, or collection is guessed at during build.
+### Phase 0.5 — Firebase audit (3–4 days) — ✅ COMPLETE (2026-07-02)
+Runs immediately after architecture sign-off and **before any QR implementation begins**. The goal is to replace the remaining `[ASSUMPTION]` markers in this document with verified facts, so no schema, permission, or collection is guessed at during build. **Completed — findings in [`PHASE_0.5_FIREBASE_AUDIT.md`](PHASE_0.5_FIREBASE_AUDIT.md); remediation tracked in [`PRODUCTION_READINESS_REMEDIATION.md`](PRODUCTION_READINESS_REMEDIATION.md). Outcome: Conditional Pass — the Security Remediation Gate below must clear before Phase 1.**
 - **Objectives:**
   - Review Firestore **collections** (names, shapes, ownership, BU-scoping).
   - Review Firestore **indexes** (existing composite indexes and the query patterns they imply).
@@ -362,14 +376,23 @@ Runs immediately after architecture sign-off and **before any QR implementation 
   - **Reusable services inventory** — concrete list of existing services to reuse (BOM deduction, real-time listeners, `CounterService`, idempotency/batch patterns) with file references.
 - **Dependencies:** Phase 0 sign-off; read access to the repo and Firebase project/console.
 - **Risks:** discovering a schema/permission constraint late that changes the `qr_orders` design — precisely why this phase runs before build.
-- **Acceptance:** the current Firebase architecture is fully understood before QR implementation starts; **no assumptions remain** around collections, permissions, or schema (all Section 3.3 assumptions either confirmed or explicitly re-flagged as decisions).
+- **Acceptance:** the current Firebase architecture is fully understood before QR implementation starts; **no assumptions remain** around collections, permissions, or schema (all Section 3.3 assumptions either confirmed or explicitly re-flagged as decisions). ✅ Met.
+
+### 🚧 GATE A — Security Remediation Gate (blocks Phase 1 / QR START)
+A hard gate introduced by the Phase 0.5 audit. **No QR implementation (Phase 1+) begins until every item here is cleared or explicitly waived by the owner.** Tracked as P0 in [`PRODUCTION_READINESS_REMEDIATION.md`](PRODUCTION_READINESS_REMEDIATION.md).
+- **Exit criteria:**
+  1. **Service-account key rotation (P0-1)** — the two committed Firebase admin keys are revoked/rotated, removed from the repo, and purged from git history; `.gitignore` extended.
+  2. **Production database decision (P0-2 / O9)** — `(default)` vs `tng-systems` chosen and documented as the QR source of truth.
+  3. **Build verification (P0-3)** — a live `npm run build` is green (committed `tsc` errors fixed).
+  4. **Firestore rule bypass review scoped (P1-1)** — the `|| true` fallbacks and the commented-out fund-release validation are reviewed and a remediation owner/plan assigned (full fix may land before go-live, not necessarily before Phase 1).
+- **Owner:** repo owner / tech lead. **Status:** OPEN.
 
 ### Phase 1 — Foundation (1–2 weeks)
 - **Objectives:** scaffold the `qr-ordering` module and shared types; table QR generation + printing; sanitized public menu API.
 - **Deliverables:** `qr_orders`/`qr_tables` types frozen; `getPublicMenu()` callable; admin table management + printable QR codes.
-- **Dependencies:** Phase 0 sign-off.
-- **Risks:** menu sanitization must strip cost/margin/recipe fields (leak = COGS exposure).
-- **Acceptance:** scanning a QR opens a customer menu with no login prompt and no internal cost data present.
+- **Dependencies:** Phase 0 sign-off; **GATE A (Security Remediation) passed**; production DB chosen (O9).
+- **Risks:** menu sanitization must strip cost/margin/recipe fields (leak = COGS exposure). Building on a repo with a red build or ambiguous DB (mitigated by GATE A).
+- **Acceptance:** scanning a QR opens a customer menu with no login prompt and no internal cost data present; all new code compiles under the green build baseline.
 
 ### Phase 2 — QR ordering core (2–3 weeks)
 - **Objectives:** cart, server-side order creation, order state machine, kitchen/bar/cashier queue views.
@@ -403,14 +426,23 @@ Runs immediately after architecture sign-off and **before any QR implementation 
 - **Objectives:** wire order completion to the shared BOM-deduction service; prevent oversell.
 - **Deliverables:** refactor `pos-import.service.ts` BOM logic into a shared `InventoryDeductionService`; trigger on `qr_orders → COMPLETED`; write `pos_sales`-shaped summary with `referenceId = orderId`.
 - **Dependencies:** Phase 2; existing import logic.
-- **Risks:** double-deduction (mitigated via `referenceId` tagging + importer skip of QR sales).
-- **Acceptance:** completing a paid QR order deducts linked ingredient stock identically to the existing import path.
+- **Risks:** double-deduction (mitigated via `referenceId` tagging + importer skip of QR sales). Oversell if deduction is not transaction-guarded — **must use `runTransaction`** (A11), not the existing plain `writeBatch`, since the audit confirmed the current import path has no transaction wrapper.
+- **Acceptance:** completing a paid QR order deducts linked ingredient stock identically to the existing import path, under a `runTransaction` that cannot oversell.
+
+### 🚧 GATE B — Production Readiness Gate (blocks Phase 6 / GO-LIVE)
+A hard gate introduced by the Phase 0.5 audit. **No production deployment until every item here is cleared or explicitly waived.** Tracked as P1 in [`PRODUCTION_READINESS_REMEDIATION.md`](PRODUCTION_READINESS_REMEDIATION.md).
+- **Exit criteria:**
+  1. **Firestore rule bypasses remediated (P1-1)** — `|| true` fallbacks and the commented-out fund-release validation removed/fixed; financial collections validated.
+  2. **CI/CD baseline (P1-2)** — a minimal automated gate (lint + `tsc` + build) exists and passes on the release branch.
+  3. **Deployment process reviewed (P1-3)** — the deploy path deploys **functions** (not hosting-only), and no longer relies on crash-fragile on-disk `firebase.json` mutation.
+  4. **QR-phase items done** — required composite indexes deployed; payment/idempotency/oversell paths have automated tests.
+- **Owner:** tech lead / DevOps. **Status:** OPEN.
 
 ### Phase 6 — Deployment (3–5 days)
 - **Objectives:** production Firebase config; prod Xendit keys + webhook token registered; pilot rollout; printer integration (if in scope, O2).
 - **Deliverables:** live QR codes at tables; staff trained; rollback plan posted.
-- **Dependencies:** all prior phases at MVP quality.
-- **Risks:** printer integration is an unknown — isolate as a spike; KDS-on-screen is the fallback.
+- **Dependencies:** all prior phases at MVP quality; **GATE B (Production Readiness) passed**.
+- **Risks:** printer integration is an unknown — isolate as a spike; KDS-on-screen is the fallback. Shipping without the functions-deploy fix would leave the Xendit webhook un-deployed (mitigated by GATE B).
 - **Acceptance:** a real customer order goes phone → kitchen → payment → reconciliation at the pilot site without a P0 incident.
 
 ### Phase 7 — POS Synchronization (**DEFERRED — NOT MVP**)

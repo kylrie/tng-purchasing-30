@@ -26,6 +26,8 @@ import { db, isConfigValid } from './config/firebase';
 import { useUOM } from './shared/hooks/useUOM';
 
 // Lazy load views for code splitting
+const CustomerMenuView = React.lazy(() => import('./features/qr-ordering/customer/CustomerMenuView'));
+const OrderStatusView = React.lazy(() => import('./features/qr-ordering/customer/OrderStatusView'));
 const BurfView = React.lazy(() => import('./features/procurement/views/BURFView'));
 const PrfView = React.lazy(() => import('./features/procurement/views/PRFView'));
 const PRFTrackerView = React.lazy(() => import('./features/procurement/views/PRFTrackerView'));
@@ -665,6 +667,17 @@ VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
                     <Route path="/login" element={
                       <Suspense fallback={<PageLoader />}>
                         <LoginView />
+                      </Suspense>
+                    } />
+                    {/* QR Ordering — public customer routes (mock data prototype, no auth) */}
+                    <Route path="/order/:tableId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <CustomerMenuView />
+                      </Suspense>
+                    } />
+                    <Route path="/order-status/:orderId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <OrderStatusView />
                       </Suspense>
                     } />
                     <Route path="/*" element={<ProtectedApp />} />

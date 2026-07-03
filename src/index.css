@@ -482,3 +482,30 @@ input, textarea, [contenteditable] {
     display: none !important;
   }
 }
+/* ── QR customer menu utilities ─────────────────────────────── */
+
+/* Hide horizontal scrollbars on category pill rails etc. */
+@utility scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Add-to-cart count "pop" feedback (re-triggered via React key) */
+@keyframes qr-pop {
+  0% { transform: scale(0.5); }
+  60% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+.qr-pop {
+  animation: qr-pop 0.35s var(--ease-cinematic);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qr-pop {
+    animation: none;
+  }
+}

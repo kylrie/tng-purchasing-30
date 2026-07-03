@@ -109,33 +109,58 @@ Once validation passes, development proceeds per the phased roadmap in the maste
 
 ---
 
+# Audit Outcome
+
+> The Firebase + Production Readiness Audit (Phase 0.5) is **complete** (2026-07-02). Full detail in `docs/PHASE_0.5_FIREBASE_AUDIT.md`; fixes tracked in `docs/PRODUCTION_READINESS_REMEDIATION.md`. Bottom line: **the foundation is stronger than expected, QR Ordering remains approved, but a short security-and-readiness cleanup must happen before build starts.**
+
+**What the audit confirmed (good news):**
+- The existing system already has the hard, expensive parts: automatic inventory deduction from recipes, menu/costing, staff roles and permissions, live updates, and audit trails. These are reusable — reinforcing the decision to build inside TNG.
+- The security model is fundamentally sound (locked-down by default), and the approved "customers never touch the database directly" design fits it cleanly.
+- The plan to keep QR orders in their own dedicated area (not mixed with the old cashier POS) is the right call.
+
+**What the audit disproved / corrected:**
+- We assumed the project builds cleanly — it currently does **not** (there are code errors that stop a clean build). This must be fixed first.
+- We assumed one obvious database — there are actually **two**, and we must decide which is the official one before building.
+- The old cashier POS is **not** a suitable base for QR order tracking (its order status and ID generation are too limited), so QR Ordering will use its own purpose-built approach.
+
+**What remains unknown / needs a decision:**
+- Which Firestore database is the production source of truth (`(default)` vs `tng-systems`).
+- Whether kitchen-ticket printing is required at launch, and dine-in-only vs takeout.
+- Which registered POS is the official receipt issuer (needed for the future automation phase).
+
+**Readiness blockers identified (must clear before implementation):** committed admin credentials that need rotating, a failing build, and a few security rule cleanups. None change the direction; all are fixable in a short remediation pass. A new tracking document (`PRODUCTION_READINESS_REMEDIATION.md`) lists each item with priority and owner.
+
+---
+
 # Slack Communication Package
 
 > Copy-paste ready. One message per channel. Keep or trim as needed.
 
 ## `#general`
 
-> **📣 New: QR Ordering is coming to TNG**
-> Customers will soon scan a QR at their table, order and pay on their phone (GCash/Maya/QRPH/card via Xendit), and their paid order will go straight to the kitchen/bar. We're building this **inside TNG** (not a separate app) so it reuses our existing inventory, menu, and reporting. Important: **TNG will not issue official receipts** — our existing registered POS still does that, exactly as today. More detail in `#project-status` and `#decisions`.
+> **📣 QR Ordering update — foundation audit done, still on track**
+> We reviewed the TNG system to get it ready for QR Ordering. Good news: the foundation is **stronger than expected** — inventory, menu, roles, and live updates are already there to reuse. QR Ordering (scan → order → pay via Xendit → kitchen/bar) remains **approved**. Before we start building we have a short cleanup to do (security + a few technical fixes). As always, **TNG won't issue official receipts** — our registered POS keeps doing that. Detail in `#project-status` and `#decisions`.
 
 ## `#project-status`
 
-> **TNG QR Ordering — approved, kicking off validation**
-> Direction is approved. Target flow: scan QR → order → pay via Xendit → payment confirmed → kitchen/bar → inventory + reporting → registered POS issues the official receipt → cashier posts the invoice number back for reconciliation.
-> **Now:** Architecture Validation Sprint — owner/accountant sign-off, start Xendit account setup, and a Firebase audit (Phase 0.5) before any code.
-> **Estimate (2 devs in parallel):** ~5 wks optimistic / ~7 wks realistic / ~10 wks conservative.
-> Full plan: `docs/QR_ORDERING_MASTER_PLAN.md`.
+> **TNG QR Ordering — Firebase audit complete ✅**
+> **Result: Conditional Pass.** The ERP foundation is more reusable than we assumed, and the direction is unchanged (scan QR → pay via Xendit → webhook-confirmed → kitchen/bar → inventory + reporting → registered POS issues the official receipt → cashier reconciles).
+> **But** the audit found readiness blockers we must clear **before** implementation: rotate committed admin credentials, get the build passing, and pick one production database. A few security-rule cleanups follow.
+> **Next:** work the P0 remediation list (`docs/PRODUCTION_READINESS_REMEDIATION.md`), then start Phase 1. Estimate once we start: ~5/7/10 wks (opt/real/cons), 2 devs.
+> Docs: `docs/PHASE_0.5_FIREBASE_AUDIT.md`, `docs/QR_ORDERING_MASTER_PLAN.md`.
 
 ## `#requirements`
 
-> **QR Ordering — MVP requirements (summary)**
+> **QR Ordering — MVP requirements (unchanged after audit)**
 > **In:** dine-in QR ordering; menu browse + cart; online payment via Xendit; webhook-confirmed payment releases to kitchen/bar; kitchen/bar/cashier screens; automatic inventory deduction; operational reporting; manual reconciliation (cashier posts the official invoice number).
 > **Out (MVP):** TNG-issued BIR receipts (registered POS keeps that); automated POS sync (Phase 7); menu add-ons/sizes; loyalty; delivery; native app.
-> **Open questions:** which registered POS is the official issuer? printer/kitchen-ticket printing at launch? dine-in only? session-expiry handling? VAT display on checkout? Details in the master plan (Section 3.2).
+> **Audit-added gate:** implementation only starts after a short security/readiness remediation (credential rotation, green build, production-DB decision).
+> **Open questions:** which production database (`(default)` vs `tng-systems`)? which registered POS is the official issuer? printer at launch? dine-in only? session-expiry? VAT display? (Master plan §3.2.)
 
 ## `#decisions`
 
-> **Decision: build QR Ordering inside TNG (not a separate app).**
-> Why: the expensive foundations (inventory + auto stock deduction, menu/costing, roles, live updates, reporting) already exist — reusing them is faster, cheaper, and keeps one source of truth. A separate app would duplicate everything and force constant syncing.
-> **Boundary:** TNG handles operations/ordering/payment/kitchen/reporting/inventory/reconciliation. The registered POS remains the official invoice + receipt issuer. TNG does **not** issue BIR receipts in MVP.
-> **Deferred:** automated POS sync = Phase 7, after launch, due to compliance risk. Record: `docs/TNG_QR_ORDERING_DECISION_RECORD.md`.
+> **Decision: build QR Ordering inside TNG (confirmed by the audit).**
+> Why: the expensive foundations (inventory + auto stock deduction, menu/costing, roles, live updates, reporting) already exist and are reusable — faster, cheaper, one source of truth.
+> **Audit outcomes:** Conditional Pass. Confirmed the foundation is strong; corrected two assumptions — the build isn't currently green, and there are **two** databases (must pick one). QR Ordering will use its **own** order area (not the old cashier POS).
+> **Boundary (unchanged):** TNG handles operations/ordering/payment/kitchen/reporting/inventory/reconciliation; the registered POS remains the official invoice + receipt issuer; TNG does **not** issue BIR receipts in MVP.
+> **Gate:** implementation starts only after P0 remediation (credentials, build, DB). Records: `docs/TNG_QR_ORDERING_DECISION_RECORD.md`, `docs/PHASE_0.5_FIREBASE_AUDIT.md`.
