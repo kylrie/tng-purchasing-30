@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingCart, ShoppingBag, Utensils, CupSoda, Plus, Flame, ChevronRight, Sparkles, UtensilsCrossed } from 'lucide-react';
 import { MOCK_MENU_ITEMS, MENU_GROUPS, MOCK_TABLE } from '../data/mockMenu';
 import type { PublicMenuItem, MenuGroup } from '../data/mockMenu';
@@ -46,6 +46,7 @@ const SkeletonRow: React.FC = () => (
 
 const CustomerMenuView: React.FC = () => {
     const { tableId } = useParams<{ tableId: string }>();
+    const navigate = useNavigate();
     const tableNumber = tableId || MOCK_TABLE.tableNumber;
 
     const [isLoading, setIsLoading] = useState(true);
@@ -352,6 +353,7 @@ const CustomerMenuView: React.FC = () => {
                 onChangeQty={handleChangeQty}
                 onRemove={handleRemoveLine}
                 onClear={handleClearCart}
+                onCheckout={() => { setCartOpen(false); navigate('/checkout/demo'); }}
             />
         </div>
     );

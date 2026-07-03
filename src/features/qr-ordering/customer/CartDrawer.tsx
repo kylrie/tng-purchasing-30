@@ -29,11 +29,13 @@ interface CartDrawerProps {
     onChangeQty: (lineId: string, nextQty: number) => void;
     onRemove: (lineId: string) => void;
     onClear: () => void;
+    /** When provided, enables the "Proceed to checkout" CTA (mock flow). */
+    onCheckout?: () => void;
 }
 
 const LEAVE_MS = 250;
 
-const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClose, onChangeQty, onRemove, onClear }) => {
+const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClose, onChangeQty, onRemove, onClear, onCheckout }) => {
     const [mounted, setMounted] = useState(false);
     const [entered, setEntered] = useState(false);
 
@@ -228,17 +230,24 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClo
                                 ₱{subtotal.toFixed(2)}
                             </span>
                         </div>
-                        <button
-                            type="button"
-                            disabled
-                            title="Checkout ships in a later phase"
-                            className="w-full py-4 rounded-[1.25rem] bg-black/[0.04] border border-black/[0.06] text-slate-400 font-semibold text-sm cursor-not-allowed"
-                        >
-                            Proceed to checkout
-                        </button>
-                        <p className="mt-2 text-center text-[11px] text-slate-400 tracking-wide">
-                            Checkout &amp; payment ship in a later phase
-                        </p>
+                        {onCheckout ? (
+                            <button
+                                type="button"
+                                onClick={onCheckout}
+                                className="w-full py-4 rounded-[1.25rem] bg-[#0d6e62] hover:bg-[#0a5a50] active:scale-[0.98] text-white font-bold text-base transition-all duration-200 shadow-[0_12px_28px_-8px_rgba(13,110,98,0.5)]"
+                            >
+                                Proceed to checkout
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                disabled
+                                title="Checkout ships in a later phase"
+                                className="w-full py-4 rounded-[1.25rem] bg-black/[0.04] border border-black/[0.06] text-slate-400 font-semibold text-sm cursor-not-allowed"
+                            >
+                                Proceed to checkout
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

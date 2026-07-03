@@ -27,6 +27,7 @@ import { useUOM } from './shared/hooks/useUOM';
 
 // Lazy load views for code splitting
 const CustomerMenuView = React.lazy(() => import('./features/qr-ordering/customer/CustomerMenuView'));
+const CheckoutView = React.lazy(() => import('./features/qr-ordering/customer/CheckoutView'));
 const OrderStatusView = React.lazy(() => import('./features/qr-ordering/customer/OrderStatusView'));
 const BurfView = React.lazy(() => import('./features/procurement/views/BURFView'));
 const PrfView = React.lazy(() => import('./features/procurement/views/PRFView'));
@@ -673,6 +674,11 @@ VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
                     <Route path="/order/:tableId?" element={
                       <Suspense fallback={<PageLoader />}>
                         <CustomerMenuView />
+                      </Suspense>
+                    } />
+                    <Route path="/checkout/:sessionId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <CheckoutView />
                       </Suspense>
                     } />
                     <Route path="/order-status/:orderId?" element={
