@@ -12,7 +12,7 @@
         "deploy": "firebase deploy --only functions",
         "logs": "firebase functions:log",
         "lint": "eslint --ext .js,.ts .",
-        "test": "npx tsx --test src/qr/orderLogic.test.ts src/qr/__tests__/createQrTable.handler.test.ts src/qr/__tests__/createQrOrder.handler.test.ts src/qr/__tests__/getPublicMenu.handler.test.ts",
+        "test": "npx tsx --test src/qr/orderLogic.test.ts src/qr/__tests__/rateLimit.test.ts src/qr/__tests__/createQrTable.handler.test.ts src/qr/__tests__/createQrOrder.handler.test.ts src/qr/__tests__/getPublicMenu.handler.test.ts",
         "test:emulator": "firebase emulators:exec --only firestore --project demo-tng-qr \"npx tsx --test src/qr/__tests__/rules.emulator.test.ts\""
     },
     "engines": {

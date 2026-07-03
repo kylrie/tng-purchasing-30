@@ -9,6 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { getPublicMenuHandler } from '../getPublicMenu.handler';
+import { MENU_READ_LIMIT } from '../rateLimit';
 import { FakeFirestore } from './fakeFirestore';
 import { asDb, req, expectReject } from './testUtils';
 
@@ -59,4 +60,14 @@ test('getPublicMenu: rejects a missing qrToken', async () => {
 test('getPublicMenu: rejects an inactive table', async () => {
     const fake = seed();
     await expectReject(() => getPublicMenuHandler(asDb(fake), req({ qrToken: 'TOK-OFF' })), 'failed-precondition');
+});
+
+test('getPublicMenu: allows up to the menu-read limit, then rate-limits', async () => {
+    const fake = seed();
+    // All calls within one fast window → the first N succeed.
+    for (let i = 0; i < MENU_READ_LIMIT.maxRequests; i++) {
+        await getPublicMenuHandler(asDb(fake), req({ qrToken: 'TOK-ACTIVE' }));
+    }
+    // The next one is blocked with a generic resource-exhausted error.
+    await expectReject(() => getPublicMenuHandler(asDb(fake), req({ qrToken: 'TOK-ACTIVE' })), 'resource-exhausted');
 });

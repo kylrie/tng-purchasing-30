@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPublicMenuHandler = getPublicMenuHandler;
 const https_1 = require("firebase-functions/v2/https");
 const orderLogic_1 = require("./orderLogic");
+const rateLimit_1 = require("./rateLimit");
 async function getPublicMenuHandler(db, request) {
     const qrToken = request.data?.qrToken;
     if (typeof qrToken !== 'string' || qrToken.trim() === '') {
@@ -27,6 +28,8 @@ async function getPublicMenuHandler(db, request) {
         throw new https_1.HttpsError('failed-precondition', 'This table is not currently active');
     }
     const businessUnitId = table.businessUnitId;
+    // 1b. Rate limit per real table (bounded — bogus tokens fail above first).
+    await (0, rateLimit_1.enforceRateLimit)(db, `menu:${tableDoc.id}`, rateLimit_1.MENU_READ_LIMIT);
     // 2. Read the BU's active menu items and sanitize.
     const menuSnap = await db
         .collection('menu_items')

@@ -15,6 +15,7 @@ exports.createQrOrderHandler = createQrOrderHandler;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("firebase-admin/firestore");
 const orderLogic_1 = require("./orderLogic");
+const rateLimit_1 = require("./rateLimit");
 const QR_COUNTER_ID = 'qr'; // counters/qr — reuses the CounterService doc shape
 const QR_COUNTER_PREFIX = 'QR';
 async function createQrOrderHandler(db, request) {
@@ -26,6 +27,8 @@ async function createQrOrderHandler(db, request) {
     catch (e) {
         throw new https_1.HttpsError('invalid-argument', e.message);
     }
+    // Rate limit order creation per table (before the expensive main transaction).
+    await (0, rateLimit_1.enforceRateLimit)(db, `order:${input.tableId}`, rateLimit_1.ORDER_CREATE_LIMIT);
     const tableRef = db.collection('qr_tables').doc(input.tableId);
     const counterRef = db.collection('counters').doc(QR_COUNTER_ID);
     const menuRefs = input.lines.map(l => db.collection('menu_items').doc(l.menuItemId));

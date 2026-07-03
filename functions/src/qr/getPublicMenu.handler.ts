@@ -10,6 +10,7 @@
 import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { Firestore } from 'firebase-admin/firestore';
 import { sanitizeMenuItem, RawMenuItem } from './orderLogic';
+import { enforceRateLimit, MENU_READ_LIMIT } from './rateLimit';
 
 export interface GetPublicMenuInput {
     qrToken?: string;
@@ -32,6 +33,9 @@ export async function getPublicMenuHandler(db: Firestore, request: CallableReque
         throw new HttpsError('failed-precondition', 'This table is not currently active');
     }
     const businessUnitId: string = table.businessUnitId;
+
+    // 1b. Rate limit per real table (bounded — bogus tokens fail above first).
+    await enforceRateLimit(db, `menu:${tableDoc.id}`, MENU_READ_LIMIT);
 
     // 2. Read the BU's active menu items and sanitize.
     const menuSnap = await db

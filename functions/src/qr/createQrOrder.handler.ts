@@ -16,6 +16,7 @@ import {
     validateCreateOrderInput, repriceLine, computeOrderTotals, formatOrderNumber,
     RawMenuItem, PricedLine,
 } from './orderLogic';
+import { enforceRateLimit, ORDER_CREATE_LIMIT } from './rateLimit';
 
 const QR_COUNTER_ID = 'qr';       // counters/qr — reuses the CounterService doc shape
 const QR_COUNTER_PREFIX = 'QR';
@@ -28,6 +29,9 @@ export async function createQrOrderHandler(db: Firestore, request: CallableReque
     } catch (e) {
         throw new HttpsError('invalid-argument', (e as Error).message);
     }
+
+    // Rate limit order creation per table (before the expensive main transaction).
+    await enforceRateLimit(db, `order:${input.tableId}`, ORDER_CREATE_LIMIT);
 
     const tableRef = db.collection('qr_tables').doc(input.tableId);
     const counterRef = db.collection('counters').doc(QR_COUNTER_ID);

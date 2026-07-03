@@ -9,6 +9,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createQrOrderHandler } from '../createQrOrder.handler';
+import { ORDER_CREATE_LIMIT } from '../rateLimit';
 import { FakeFirestore } from './fakeFirestore';
 import { asDb, req, expectReject } from './testUtils';
 
@@ -100,6 +101,32 @@ test('createQrOrder: rejects empty / malformed input', async () => {
         () => createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [] })),
         'invalid-argument',
     );
+});
+
+test('createQrOrder: allows up to the order-create limit, then rate-limits', async () => {
+    const fake = seedMenuAndTable();
+    for (let i = 0; i < ORDER_CREATE_LIMIT.maxRequests; i++) {
+        await createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }] }));
+    }
+    await expectReject(
+        () => createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }] })),
+        'resource-exhausted',
+    );
+});
+
+test('createQrOrder: rate limits are per-table (one busy table does not block another)', async () => {
+    const fake = seedMenuAndTable();
+    fake._seed('qr_tables', 't2', { businessUnitId: 'bu1', tableNumber: '13', isActive: true });
+    for (let i = 0; i < ORDER_CREATE_LIMIT.maxRequests; i++) {
+        await createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }] }));
+    }
+    await expectReject(
+        () => createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }] })),
+        'resource-exhausted',
+    );
+    // Table 2 still works.
+    const ok = await createQrOrderHandler(asDb(fake), req({ tableId: 't2', items: [{ menuItemId: 'm1', quantity: 1 }] }));
+    assert.equal(ok.status, 'AWAITING_PAYMENT');
 });
 
 test('createQrOrder: increments the order counter across orders', async () => {

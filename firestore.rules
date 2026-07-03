@@ -1017,6 +1017,16 @@ service cloud.firestore {
     }
 
     // =====================================================
+    // QR ORDERING — RATE LIMITS (abuse protection · H2 fallback)
+    // Internal fixed-window counters written by the public QR callables via the
+    // Admin SDK only. No client access at all (covered by default-deny too;
+    // stated explicitly for clarity).
+    // =====================================================
+    match /qr_rate_limits/{key} {
+      allow read, write: if false;
+    }
+
+    // =====================================================
     // POS SALES COLLECTION
     // Imported POS sales records linked to inventory items
     // =====================================================
