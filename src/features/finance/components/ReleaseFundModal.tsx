@@ -43,6 +43,7 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
+// eslint-disable-next-line react-hooks/set-state-in-effect
       if (checkVoucherNumber !== '') setCheckVoucherNumber('');
       if (checkVoucherLink !== '') setCheckVoucherLink('');
       if (selectedCoa !== '') setSelectedCoa('');

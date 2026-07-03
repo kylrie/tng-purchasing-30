@@ -166,6 +166,7 @@ const ReceivingHistoryTab: React.FC<{
         );
     });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formatDate = (ts: any) => {
         if (!ts) return '—';
         try {
@@ -581,7 +582,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
         setSelectedPrfIdentifier('');
         setSelectedPrfSupplier('');
         if (fileInputRef.current) fileInputRef.current.value = '';
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     }, [selectedBusinessUnit]);
 
     // Stop camera stream on unmount or mode change

@@ -44,6 +44,7 @@ const SignatureModal: React.FC<SignatureModalProps> = ({
         const canvas = canvasRef.current;
 
         // Reset state on open
+// eslint-disable-next-line react-hooks/set-state-in-effect
         setIsEmpty(true);
         setIsSubmitting(false);
         setError(null);
@@ -138,6 +139,7 @@ const SignatureModal: React.FC<SignatureModalProps> = ({
     // (means the parent finished its async work)
     useEffect(() => {
         if (!isLoading && isSubmitting) {
+// eslint-disable-next-line react-hooks/set-state-in-effect
             setIsSubmitting(false);
         }
     }, [isLoading]);

@@ -254,6 +254,7 @@ export class CounterService {
      * @param _value - New counter value (unused - function disabled)
      * @throws Always throws an error directing to Firebase Admin SDK
      */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     static async resetCounter(_counterType: CounterType, _value: number = 0): Promise<void> {
         // FIX C3: COMPLETELY DISABLED - was only checking PROD environment
         // Risk: Development data with reused IDs could leak to production

@@ -62,6 +62,7 @@ export function withFormErrorHandler<TInput, TOutput = void>(
                 success: false,
                 error: {
                     message,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                     code: (error as any).code,
                 }
             };

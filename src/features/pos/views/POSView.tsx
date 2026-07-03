@@ -176,6 +176,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 // We should modify settleBill to return the created POSOrder so we can display the receipt.
                 // But for now, since it creates it, we'll just mock it or fetch it. Let's adjust settleBill in a moment.
                 // I will temporarily create a mock POSOrder object for the receipt display.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 newOrder = { id: 'settled-bill', ...orderInput, status: 'COMPLETED', createdAt: new Date() as any, updatedAt: new Date() as any } as POSOrder;
                 
                 // Clear active bill and return to floor

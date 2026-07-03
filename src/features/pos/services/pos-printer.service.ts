@@ -34,6 +34,7 @@ export class POSPrinterService {
             
             const service = services[0];
             const characteristics = await service.getCharacteristics();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             const writeCharacteristic = characteristics.find((c: any) => c.properties.write || c.properties.writeWithoutResponse);
             
             if (!writeCharacteristic) throw new Error('No writable characteristic found.');

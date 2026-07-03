@@ -40,6 +40,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     allUsers
 }) => {
     const [searchParams] = useSearchParams();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const initialTab = (searchParams.get('tab') as any) || 'br_pending';
 
     const [isReleaseModalOpen, setReleaseModalOpen] = useState(false);

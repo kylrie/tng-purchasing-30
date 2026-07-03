@@ -51,6 +51,7 @@ interface IngredientFormData {
  */
 function getItemRecipeUnit(item: InventoryItem): string {
     return item.units?.recipeUnit
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         || (item.units as any)?.countUnit
         || 'EA';
 }
@@ -249,6 +250,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
         if (menuItem) {
             setName(menuItem.name);
             setCategory(menuItem.category);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             setServiceType((menuItem as any).serviceType || '');
             setDescription(menuItem.description || '');
             setSellingPrice(menuItem.sellingPrice);
@@ -295,8 +297,11 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
         if (serviceType && serviceType !== 'Retail') {
             items = items.filter(item =>
                 // Include items with matching service type OR Retail items (universal)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (item as any).serviceType === serviceType ||
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (item as any).serviceType === 'Retail' ||
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 !(item as any).serviceType  // Include unclassified items too
             );
         }
@@ -454,6 +459,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
                 setImportWarning(`Successfully imported ${matchedCount} ingredients!`);
             }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Smart import error:', err);
             setError(err.message || 'Failed to import recipe');
@@ -518,6 +524,7 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
 
             onSave();
             onClose();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Error saving menu item (Full Details):', err);
             // Log specific Firestore error code if available

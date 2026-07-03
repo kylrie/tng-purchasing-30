@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { test, expect } from '@playwright/test';
 
 test('take screenshot of assign modal and tabs', async ({ page }) => {

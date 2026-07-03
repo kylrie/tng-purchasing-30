@@ -69,6 +69,7 @@ export const sanitizeItems = <T extends { name: string; remarks?: string; quanti
 export const sanitizeRequisition = <T extends {
     description?: string;
     remarks?: string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     items?: any[];
 }>(data: T): T => {
     return {

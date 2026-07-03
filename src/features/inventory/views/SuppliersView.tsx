@@ -141,6 +141,7 @@ const SupplierModal: React.FC<SupplierModalProps> = ({ supplier, isOpen, onClose
             } else {
                 await onSave(dataToSave);
             }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             setErrorMessage(error.message || "Failed to save supplier.");
         } finally {

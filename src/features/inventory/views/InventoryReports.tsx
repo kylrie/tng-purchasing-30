@@ -216,6 +216,7 @@ const StockValueChart: React.FC<{
                                 borderRadius: '8px',
                                 color: 'var(--tooltip-text, #fff)'
                             }}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                             formatter={(val: any) => [`₱${Number(val).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`, 'Stock Value']}
                             labelStyle={{ color: '#94a3b8' }}
                         />
@@ -303,7 +304,7 @@ const InventoryReports: React.FC<InventoryReportsProps> = ({ currentUser }) => {
         loadData();
     }, [dateRange]);
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+     
     void currentUser; // Silence lint - currentUser may be used for permissions later
 
     const formatCurrency = (val: number) =>

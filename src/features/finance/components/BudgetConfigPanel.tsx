@@ -230,6 +230,7 @@ export const BudgetConfigPanel: React.FC<BudgetConfigPanelProps> = ({ businesses
             // Refresh budgets list
             fetchData();
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Error saving budget:', err);
 

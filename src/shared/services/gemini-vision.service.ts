@@ -366,11 +366,13 @@ Only output valid JSON. Do not use markdown blocks like \`\`\`json.`;
             try {
                 const parsed = JSON.parse(rawText) as ExtractedRecipeResult;
                 return parsed;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (parseError) {
                 console.error('[GeminiVisionService] Failed to parse recipe JSON:', rawText);
                 throw new Error('Could not understand the AI response. Please try again or use a clearer document.');
             }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error('[GeminiVisionService] Error extracting recipe:', error);
             throw new Error('Failed to analyze the recipe document. Ensure your API key is valid and the file is legible.');

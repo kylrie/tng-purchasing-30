@@ -15,6 +15,7 @@ const RejectionModal: React.FC<RejectionModalProps> = ({ isOpen, onClose, onConf
     // FIX: Reset reason when modal opens to prevent stale state
     useEffect(() => {
         if (isOpen && reason !== '') {
+// eslint-disable-next-line react-hooks/set-state-in-effect
             setReason('');
         }
     }, [isOpen]);

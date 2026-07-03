@@ -123,6 +123,7 @@ export function calculateIngredientCost(
     inventoryItem: InventoryItem
 ): { baseQuantity: number; totalCost: number } {
     // Convert recipe quantity to inventory base unit (fallback for legacy items)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const inventoryBaseUnit = inventoryItem.units?.recipeUnit || (inventoryItem.units as any)?.countUnit || 'EA';
     const baseQuantity = convertUnits(quantity, recipeUnit, inventoryBaseUnit);
 
@@ -161,6 +162,7 @@ function convertToBomIngredients(
         })
         .map(ri => {
             const inv = itemMap.get(ri.inventoryItemId)!;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             const inventoryBaseUnit = inv.units?.recipeUnit || (inv.units as any)?.countUnit || 'EA';
             return {
                 ingredientId: ri.inventoryItemId,
@@ -251,6 +253,7 @@ function sanitizeDoc<T extends Record<string, unknown>>(obj: T): T {
             result[key] = value.map(item =>
                 item !== null && typeof item === 'object' ? sanitizeDoc(item as Record<string, unknown>) : item
             );
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } else if (value !== null && typeof value === 'object' && !(value as any).toMillis) {
             // Recurse into plain objects (skip Timestamps which have toMillis)
             result[key] = sanitizeDoc(value as Record<string, unknown>);
@@ -431,6 +434,7 @@ export async function updateMenuItem(
     // Copy other fields
     if (input.name) updateData.name = input.name;
     if (input.category) updateData.category = input.category;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (input.serviceType !== undefined) (updateData as any).serviceType = input.serviceType;
     if (input.description !== undefined) updateData.description = input.description;
     if (input.imageUrl !== undefined) updateData.imageUrl = input.imageUrl;

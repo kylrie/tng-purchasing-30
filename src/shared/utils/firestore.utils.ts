@@ -32,7 +32,9 @@ export const generateRequisitionId = (lastId?: string): string => {
  * Convert Firestore document data to application format
  * Converts Timestamps to Date strings for compatibility with existing components
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const convertFirestoreDoc = <T>(data: any): T => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const converted: any = { ...data };
 
     // Convert Timestamp fields to Date objects
@@ -68,7 +70,9 @@ export const getCurrentDateString = (): string => {
  * Utility to remove undefined values from an object
  * Firestore doesn't allow undefined values in documents
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function removeUndefinedFields<T extends Record<string, any>>(obj: T): T {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cleaned: any = {};
 
     for (const key in obj) {

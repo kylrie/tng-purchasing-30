@@ -17,6 +17,7 @@ export const useUOM = () => {
          * @deprecated UOMs are now hardcoded and cannot be updated.
          * This is a no-op kept for backwards compatibility.
          */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         updateUOMs: async (_units: string[]): Promise<void> => {
             console.warn('[useUOM] updateUOMs is disabled – UOMs are now hardcoded.');
         },

@@ -91,7 +91,7 @@ const CalculatorPopup: React.FC<{
         try {
             const sanitized = expr.replace(/[^0-9+\-*/.]/g, '');
             if (!sanitized) return '0';
-            // eslint-disable-next-line no-new-func
+             
             const result = new Function(`return ${sanitized}`)();
             return Number.isFinite(result) ? String(Number(result.toFixed(4))) : '0';
         } catch {

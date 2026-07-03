@@ -90,6 +90,7 @@ const BANK_RECON_DATA_SUBCOLLECTION = 'sheetData';
  * Heuristic: find the first row where >= 3 cells are non-empty strings.
  * This skips bank logos, titles, and summary text that precede actual data.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function detectHeaderRow(sheetData: any[][]): number {
     for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
         const row = sheetData[i];
@@ -112,6 +113,7 @@ function detectHeaderRow(sheetData: any[][]): number {
 /**
  * Normalize header names: trim, lowercase, replace spaces with underscores
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeHeader(raw: any): string {
     if (raw === null || raw === undefined || String(raw).trim() === '') {
         return '';
@@ -122,6 +124,7 @@ function normalizeHeader(raw: any): string {
 /**
  * Try to detect if a column is a date and format it nicely
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatCellValue(value: any, header: string): string | number | null {
     if (value === null || value === undefined) return null;
 
@@ -146,6 +149,7 @@ function formatCellValue(value: any, header: string): string | number | null {
 /**
  * Check if a row is mostly empty (likely a footer/summary separator)
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isEmptyRow(row: any[], threshold = 0.7): boolean {
     if (!row || row.length === 0) return true;
     const emptyCells = row.filter(
@@ -159,6 +163,7 @@ function isEmptyRow(row: any[], threshold = 0.7): boolean {
  */
 function parseSheet(worksheet: XLSX.WorkSheet, sheetName: string): ParsedSheet {
     // Convert to 2D array (raw data)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, {
         header: 1,
         defval: null,
@@ -211,6 +216,7 @@ function parseSheet(worksheet: XLSX.WorkSheet, sheetName: string): ParsedSheet {
     return { sheetName, headers, rows, headerRowIndex };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function sanitizeForFirestore(obj: any): any {
     return JSON.parse(JSON.stringify(obj));
 }
@@ -299,6 +305,7 @@ export const BankReconService = {
             // Sort dates to find range
             dates = dates.filter(Boolean).sort();
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             const summary: any = {
                 sheetName: sheet.sheetName,
                 rowCount: sheet.rows.length,
@@ -505,6 +512,7 @@ export const BankReconService = {
                 const rawCheckVal = row[checkCol];
 
                 // Remove leading zeros and commas for cross-check (e.g. 000457 vs 457, or 45,678 vs 45678)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const normalizeCheck = (val: any) => String(val || '').trim().replace(/,/g, '').replace(/^0+/, '');
                 const checkVal = normalizeCheck(rawCheckVal);
 

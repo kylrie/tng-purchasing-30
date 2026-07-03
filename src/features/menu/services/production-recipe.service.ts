@@ -320,6 +320,7 @@ export class ProductionRecipeService {
                             : item.costPerUnit ?? 0);
                     // Recalculate baseQuantity from quantity + unit to fix stale values
                     correctedBaseQuantity = ing.quantity;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const inventoryBaseUnit = item.units?.recipeUnit || (item.units as any)?.countUnit || 'EA';
                     if (ing.unit && ing.unit !== inventoryBaseUnit) {
                         correctedBaseQuantity = convertUnits(ing.quantity, ing.unit, inventoryBaseUnit);

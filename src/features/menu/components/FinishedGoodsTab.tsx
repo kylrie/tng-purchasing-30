@@ -320,6 +320,7 @@ const FinishedGoodsTab: React.FC<FinishedGoodsTabProps> = ({
         try {
             const resultMsg = await RecipesService.migrateExistingRecipes(selectedBusinessUnit);
             alert(resultMsg);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error('Error migrating recipes:', error);
             alert('Error migrating recipes: ' + error.message);
@@ -342,6 +343,7 @@ const FinishedGoodsTab: React.FC<FinishedGoodsTabProps> = ({
             const count = await RecipesService.bulkDeleteMenuItems(selectedBusinessUnit);
             alert(`Successfully deleted ${count} menu items and their linked finished goods.`);
             await loadMenuItems();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error('Error during bulk deletion:', error);
             alert('Error during bulk deletion: ' + error.message);

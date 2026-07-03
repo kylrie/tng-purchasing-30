@@ -96,6 +96,7 @@ const POSSettingsModal: React.FC<POSSettingsModalProps> = ({ isOpen, onClose }) 
             }
             const payload = POSPrinterService.generateReceiptPayload("=== FUN GUYS POS ===\n\nTest Print Successful!\nThank you.\n\n");
             await POSPrinterService.print({ type: printerType, ipAddress: printerIp }, payload);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             setError(err.message || 'Failed to print test receipt.');
         } finally {

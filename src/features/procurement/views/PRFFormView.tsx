@@ -47,6 +47,7 @@ export const PRFFormView: React.FC<PRFFormViewProps> = ({ requisitionId, onCance
         );
     }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleItemChange = (index: number, field: keyof RequisitionItem, value: any) => {
         const newItems = [...items];
         newItems[index] = { ...newItems[index], [field]: value };

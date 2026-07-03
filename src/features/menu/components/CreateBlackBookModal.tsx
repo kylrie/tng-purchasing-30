@@ -148,6 +148,7 @@ const CreateBlackBookModal: React.FC<CreateBlackBookModalProps> = ({ isOpen, onC
             onRecipeCreated();
             setFormData(INITIAL_FORM); // Reset
             onClose();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             setError(err.message || "Failed to save recipe");
         } finally {

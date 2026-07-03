@@ -31,3 +31,4 @@ firebase-adminsdk.json
 .env
 .env.local
 .env.production
+*-key.json

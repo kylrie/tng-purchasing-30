@@ -238,6 +238,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 await RequisitionService.approveRequisition(
                     req.id, currentUser.id, currentUser.name, undefined, undefined
                 );
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (error: any) {
                 console.error('Error approving:', error);
                 alert(`Failed to approve: ${error.message}`);
@@ -267,6 +268,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
             if (drawerReq?.id === signingReq.id) {
                 setDrawerReq(null);
             }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error('Error approving requisition:', error);
             alert(`Failed to approve requisition: ${error.message || 'Unknown error'}`);
@@ -290,6 +292,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                     reason
                 );
                 setRejectingReq(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (error: any) {
                 console.error('Error rejecting requisition:', error);
                 alert(`Failed to reject requisition: ${error.message || 'Unknown error'}`);
@@ -313,6 +316,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                     drawerReq.id, currentUser.id, currentUser.name, undefined, undefined
                 );
                 setDrawerReq(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (error: any) {
                 console.error('Error approving:', error);
                 alert(`Failed to approve: ${error.message}`);
@@ -338,6 +342,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 reason
             );
             setDrawerReq(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error("Error rejecting requisition:", error);
             alert(`Failed to reject requisition: ${error.message || 'Unknown error'}`);
@@ -364,6 +369,7 @@ export const ProcurementApprovalsView: React.FC<ProcurementApprovalsViewProps> =
                 reason: 'Cancelled by SuperAdmin'
             });
             setDrawerReq(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error("Error cancelling requisition:", error);
             alert(`Failed to cancel: ${error.message || 'Unknown error'}`);

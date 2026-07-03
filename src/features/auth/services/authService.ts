@@ -19,6 +19,7 @@ export const createAuthUser = async (email: string, password: string) => {
         await signOut(secondaryAuth);
 
         return userCredential.user.uid;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
         console.error("Error creating auth user:", error);
         throw error;

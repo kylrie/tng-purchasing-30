@@ -56,7 +56,7 @@ export class POSReportsService {
         let vatableSales = 0;
         let vatAmount = 0;
         let vatExemptSales = 0;
-        let zeroRatedSales = 0;
+        const zeroRatedSales = 0;
         let serviceChargeTotal = 0;
         let scPwdDiscountTotal = 0;
         let manualDiscountTotal = 0;

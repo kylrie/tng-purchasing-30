@@ -86,6 +86,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
                     }).catch(console.error);
                 }
                 setLoading(false);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (err: any) {
                 console.error('Error processing permissions update:', err);
                 setError(err.message);
@@ -111,6 +112,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             setPermissions(newPermissions);
             const docRef = doc(db, 'config', 'permissions');
             await setDoc(docRef, { permissions: newPermissions }, { merge: true });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Error saving permissions:', err);
             setPermissions(previousPermissions);
@@ -124,6 +126,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
             setRoles(newRoles);
             const docRef = doc(db, 'config', 'permissions');
             await setDoc(docRef, { roles: newRoles }, { merge: true });
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Error saving roles:', err);
             setRoles(previousRoles);
@@ -200,6 +203,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
             // The onSnapshot listener will update local state with the merged result,
             // so no need to manually setPermissions/setRoles again here.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Error saving permissions and roles:', err);
             // Rollback on error

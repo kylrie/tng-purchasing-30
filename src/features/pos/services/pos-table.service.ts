@@ -33,7 +33,9 @@ export class POSTableService {
             status: 'available',
             qrEnabled: tableData.qrEnabled || false,
             qrUrl: tableData.qrUrl || '',
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             createdAt: serverTimestamp() as any,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             updatedAt: serverTimestamp() as any
         };
 

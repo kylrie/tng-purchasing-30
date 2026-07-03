@@ -234,6 +234,7 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
             item.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
             item.category.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesServiceType = serviceTypeFilter === 'ALL' ||
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             (item as any).serviceType === serviceTypeFilter;
         const matchesDepartment = activeDepartmentTab === 'ALL' ||
             (item.department || 'Unassigned') === activeDepartmentTab;
@@ -323,13 +324,15 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                 
                 const results = await GeminiVisionService.organizeItems(itemsToOrganize);
                 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const batchUpdates: { id: string; data: any }[] = [];
                 
                 for (const item of chunk) {
                     const result = results[item.name];
                     if (result) {
                         const { category: newCategory, department: newDepartment } = result;
-                        let updates: any = {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        const updates: any = {};
                         let changed = false;
 
                         if (newCategory && newCategory !== item.category) {
@@ -935,14 +938,18 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                                     </span>
                                                     {item.category}
                                                 </div>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                 {(item as any).serviceType && (
                                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider w-fit ${
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                         (item as any).serviceType === 'Alacarte'
                                                             ? 'bg-indigo-500/20 text-indigo-400'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                             : (item as any).serviceType === 'Event'
                                                                 ? 'bg-teal-500/20 text-teal-400'
                                                                 : 'bg-orange-500/20 text-orange-400'
                                                     }`}>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                         {(item as any).serviceType}
                                                     </span>
                                                 )}

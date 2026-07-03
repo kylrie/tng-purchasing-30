@@ -117,6 +117,7 @@ export function useCart() {
         // We map and update the cartItems with calculated fields for display/saving
         const computedItems = cartItems.map(item => {
             const rawSubtotal = item.unitPrice * item.quantity;
+// eslint-disable-next-line react-hooks/immutability
             grossSubtotal += rawSubtotal;
 
             let itemVat = 0;

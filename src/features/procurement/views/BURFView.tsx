@@ -172,7 +172,9 @@ export const BurfView: React.FC<BurfViewProps> = ({
             }
 
             // Then apply user-selected sort
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             let aValue: any = a[sortField];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             let bValue: any = b[sortField];
 
             if (sortField === 'businessId') {
@@ -254,6 +256,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
 
             // FIX C6: Sanitize all user-generated content before saving to Firestore
             const nowISO = new Date().toISOString();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             const baseReq: any = {
                 id: reqId,
                 requesterId: currentUser.id,
@@ -807,6 +810,7 @@ export const BurfView: React.FC<BurfViewProps> = ({
                                 reason: 'Cancelled by SuperAdmin'
                             });
                             setSelectedBurf(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                         } catch (error: any) {
                             console.error('Error cancelling:', error);
                             alert(`Failed to cancel: ${error.message || 'Unknown error'}`);

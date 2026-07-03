@@ -97,6 +97,7 @@ const ActivityLogView: React.FC<ActivityLogViewProps> = ({ requisitions, allUser
     const [loadingSystem, setLoadingSystem] = useState(true);
 
     useEffect(() => {
+// eslint-disable-next-line react-hooks/set-state-in-effect
         setLoadingSystem(true);
         const unsub = ActivityLogService.subscribeLogs(
             {

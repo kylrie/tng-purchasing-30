@@ -73,6 +73,7 @@ const UpdateBlackBookVersionModal: React.FC<UpdateBlackBookVersionModalProps> = 
             
             onRecipeUpdated();
             onClose();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             setError(err.message || "Failed to update recipe");
         } finally {

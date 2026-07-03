@@ -62,6 +62,7 @@ export const useSuppliers = () => {
 
             const docRef = await addDoc(suppliersCollection, { ...supplierData, status: 'ACTIVE' });
             setSuppliers(prev => [...prev, { id: docRef.id, ...supplierData, status: 'ACTIVE' }]);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             console.error("Error creating supplier: ", error);
             throw error; // Re-throw to let component handle it

@@ -29,6 +29,7 @@ export const useBusinesses = () => {
     const addBusiness = async (businessData: Omit<Business, 'id'>) => {
         try {
             // Strip any stale 'id' field before adding
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id: _stripId, ...cleanData } = businessData as any;
             await addDoc(businessesCollection, cleanData);
         } catch (error) {
@@ -40,6 +41,7 @@ export const useBusinesses = () => {
     const updateBusiness = async (id: string, updates: Partial<Business>) => {
         try {
             // Strip the 'id' field from updates — it should only be used as the document reference, not stored as data
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { id: _stripId, ...cleanUpdates } = updates as any;
             const bizRef = doc(db, COLLECTIONS.BUSINESSES, id);
             await updateDoc(bizRef, cleanUpdates);

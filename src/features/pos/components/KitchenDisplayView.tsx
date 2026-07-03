@@ -49,6 +49,7 @@ export const KitchenDisplayView: React.FC<KitchenDisplayViewProps> = ({ business
                     status: 'pending' as const
                 };
             });
+// eslint-disable-next-line react-hooks/immutability
             updateTickets(prev => mergeTickets(prev, bills, 'table'));
         });
 

@@ -78,6 +78,7 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({ 
             setError(null);
 
             try {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const constraints: any[] = [];
 
                 // Filter by business unit

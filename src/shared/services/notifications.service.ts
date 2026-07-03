@@ -131,6 +131,7 @@ export class NotificationsService {
         // Sanitize metadata to remove undefined values (Firestore doesn't accept undefined)
         const sanitizedMetadata = data.metadata ?
             Object.fromEntries(
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
                 Object.entries(data.metadata).filter(([_, v]) => v !== undefined)
             ) : undefined;
 

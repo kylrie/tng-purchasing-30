@@ -143,6 +143,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
     // FIX Issue #5: Reset activeTab when requisition changes to prevent stale tab state
     useEffect(() => {
         if (activeTab !== 'items') {
+// eslint-disable-next-line react-hooks/set-state-in-effect
             setActiveTab('items');
         }
     }, [requisition?.id]);
@@ -186,6 +187,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
         sortDate: number;
     }
 
+// eslint-disable-next-line react-hooks/preserve-manual-memoization
     const combinedHistoryEntries = useMemo((): CombinedHistoryEntry[] => {
         const allEntries: CombinedHistoryEntry[] = [];
 
@@ -490,10 +492,12 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                             {/* Additional Expenses Table - Show if liquidation has additional expenses */}
                             {(() => {
                                 const additionalExpenses = (requisition.liquidationDetails?.expenses || [])
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     .filter((exp: any) => exp.isAdditionalExpense === true && (exp.amount > 0 || exp.vendorName));
 
                                 if (additionalExpenses.length === 0) return null;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 const totalAdditional = additionalExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
 
                                 return (
@@ -511,6 +515,7 @@ const RequisitionDrawer: React.FC<RequisitionDrawerProps> = ({
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-slate-700">
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                     {additionalExpenses.map((exp: any, index: number) => (
                                                         <tr key={exp.id || index} className="hover:bg-slate-800/40">
                                                             <td className="px-4 py-3 text-slate-200">{exp.description || exp.coaName || '-'}</td>

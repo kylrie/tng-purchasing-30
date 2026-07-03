@@ -27,6 +27,7 @@ const formatCurrency = (amount: number): string => {
 };
 
 // Helper: Format date nicely
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const formatDate = (dateValue: string | Date | any): string => {
     if (!dateValue) return '-';
     // Handle Firestore Timestamp

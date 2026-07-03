@@ -33,6 +33,7 @@ export interface NotificationItem {
         actorName?: string;
     };
     dismissedBy?: string[];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     createdAt?: any; // Firestore Timestamp or Date for sorting
 }
 

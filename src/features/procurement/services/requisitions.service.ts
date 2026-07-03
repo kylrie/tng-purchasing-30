@@ -296,6 +296,7 @@ export class RequisitionService {
 
         // FIX: Atomic Batch ID Generation
         // Get current batch counter or default to 0
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         const currentBatchCount = (sourceBurf as any).batchCounter || 0;
         const nextBatchCount = currentBatchCount + 1;
         const paddedBatch = nextBatchCount.toString().padStart(2, '0');
@@ -307,6 +308,7 @@ export class RequisitionService {
         const sourceItemMap = new Map(sourceBurf.items.map(i => [i.itemId, i]));
 
         // FIX: Check against already converted items
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         const alreadyConverted = (sourceBurf as any).convertedItemIds || [];
         const alreadyConvertedSet = new Set(alreadyConverted);
 
@@ -506,6 +508,7 @@ export class RequisitionService {
         sourceBurfNewStatus,
         remainingItemsCount,
       };
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('[createBatchPrfFromBurf] FAILED');
       console.error('Error Code:', error?.code);
@@ -1198,6 +1201,7 @@ export class RequisitionService {
     userId: string,
     userName: string,
     payload: {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       items: any[]; // Accepts both LiquidationItemRow and legacy formats
       totalBudget: number;
       totalActual: number;
@@ -1209,6 +1213,7 @@ export class RequisitionService {
     const docRef = doc(db, REQUISITIONS_COLLECTION, requisitionId);
 
     // Helper function to deeply sanitize any value (removes undefined from objects and arrays)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     const deepSanitize = (value: any): any => {
       if (value === undefined) return null; // Convert undefined to null (Firestore-safe)
       if (value === null) return null;
@@ -1216,6 +1221,7 @@ export class RequisitionService {
         return value.map(item => deepSanitize(item));
       }
       if (typeof value === 'object' && value !== null) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cleaned: Record<string, any> = {};
         for (const [key, val] of Object.entries(value)) {
           if (val !== undefined) {
@@ -1348,6 +1354,7 @@ export class RequisitionService {
         auditedBy: userId,
         auditDate: auditNowISO,
         auditNotes: notes,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         status: status === RequisitionStatus.AUDITED_CLEARED ? 'APPROVED' : 'REJECTED' as any,
         ...(status === RequisitionStatus.LIQUIDATION_REJECTED && { rejectionReason: notes })
       };
@@ -1445,6 +1452,7 @@ export class RequisitionService {
 
       // Step 1: Update the PRF status
       // Save to new fields (checkVoucherNumber/checkVoucherLink) and legacy fields for compatibility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updateData: Record<string, any> = {
         status: finalStatus,
         // New fields

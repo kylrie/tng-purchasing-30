@@ -69,6 +69,7 @@ export class InvestigationsService {
                 return {
                     ...data,
                     id: doc.id,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                     timeline: data.timeline?.map((t: any) => ({
                         ...t,
                         createdAt: t.createdAt?.toDate() || new Date()

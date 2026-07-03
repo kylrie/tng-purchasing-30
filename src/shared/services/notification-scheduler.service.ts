@@ -74,6 +74,7 @@ export class NotificationSchedulerService {
             for (const req of pendingLiquidations) {
                 // Calculate days since fund release
                 // Use type assertion since fundReleaseDate is an extended runtime property
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const reqData = req as any; // Use any to safely check types
 
                 let releaseDate: Date;

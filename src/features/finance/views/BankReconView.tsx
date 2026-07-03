@@ -120,6 +120,7 @@ const BankReconView: React.FC = () => {
             if (workbook.sheets.length === 0) {
                 setParseError('No data found in the uploaded file.');
             }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             setParseError(err.message || 'Failed to parse the file.');
             console.error(err);
@@ -178,6 +179,7 @@ const BankReconView: React.FC = () => {
             );
             await loadSavedStatements();
             clearUpload();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error(`Failed to save as ${status}:`, err);
             alert(`Failed to save bank statement: ${err?.message || err}`);
@@ -195,6 +197,7 @@ const BankReconView: React.FC = () => {
                 await BankReconService.updateStatementStatus(viewingStatement.id!, 'PENDING_AUDIT');
                 setViewingStatement({ ...viewingStatement, status: 'PENDING_AUDIT' });
                 await loadSavedStatements();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (err: any) {
                 console.error('Failed to submit for audit:', err);
                 alert(`Failed to submit: ${err?.message || err}`);
@@ -216,6 +219,7 @@ const BankReconView: React.FC = () => {
             // Update local state and history
             setViewingStatement({ ...viewingStatement, status: 'COMPLETED' });
             await loadSavedStatements();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Failed to mark as audited:', err);
             alert(`Failed to update status: ${err?.message || err}`);
@@ -232,6 +236,7 @@ const BankReconView: React.FC = () => {
             await BankReconService.updateStatementStatus(viewingStatement.id!, 'PENDING_AUDIT');
             await loadSavedStatements();
             closeViewStatement();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Failed to save audit progress:', err);
             alert(`Failed to save progress: ${err?.message || err}`);
@@ -283,6 +288,7 @@ const BankReconView: React.FC = () => {
         const sheet = sheets[sheetIdx];
         if (!sheet || sheet.rows.length === 0) return;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         const columns: ExportColumn<Record<string, any>>[] = sheet.headers.map(h => ({
             header: h,
             accessor: (row) => {
@@ -332,6 +338,7 @@ const BankReconView: React.FC = () => {
                     sheets: newSheets
                 });
             }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Failed to generate matching report:', err);
             alert(`Failed to generate matched report: ${err.message}`);

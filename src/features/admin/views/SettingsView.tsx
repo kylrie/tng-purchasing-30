@@ -44,6 +44,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     onApproveUser,
     onRejectUser,
     loadingUserId,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     uomOptions: _uomOptions,
 }) => {
     const { savePermissionsAndRoles } = usePermissionsContext();
@@ -178,6 +179,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     alert("User Created Successfully");
                 }
                 resetUserForm();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (error: any) {
                 console.error("Error saving user:", error);
                 alert(`Failed to save user: ${error.message}`);

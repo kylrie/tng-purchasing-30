@@ -73,6 +73,7 @@ export const TableSettingsSidebar: React.FC<TableSettingsSidebarProps> = ({ tabl
                     <label className="block text-sm font-medium text-slate-400 mb-1">Shape</label>
                     <select
                         value={table.shape}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                         onChange={(e) => onUpdate({ shape: e.target.value as any })}
                         className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >

@@ -461,6 +461,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ requisitions, currentUser
 
         // 1. Handle Tab Switching
         if (tab && ['burf', 'cic', 'prf', 'gmprf'].includes(tab)) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             setPendingApprovalTab(tab as any);
         }
 

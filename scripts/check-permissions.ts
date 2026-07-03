@@ -27,8 +27,10 @@ async function checkPermissions() {
             if (data.permissions) {
                 Object.entries(data.permissions).forEach(([role, perms]) => {
                     console.log(`\n${role}:`);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                     console.log(`  Total permissions: ${(perms as any[]).length}`);
                     console.log(`  Permissions:`);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                     (perms as any[]).forEach(p => {
                         console.log(`    - ${p}`);
                     });

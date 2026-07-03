@@ -81,6 +81,7 @@ const PermissionsMatrix: React.FC<PermissionsMatrixProps> = ({ onSave }) => {
     if (!loading && Object.keys(contextPermissions).length > 0) {
       if (!hasLoaded) {
         // First load — always accept Firestore data
+// eslint-disable-next-line react-hooks/set-state-in-effect
         setPermissions(contextPermissions);
         setRoles(contextRoles);
         setHasLoaded(true);

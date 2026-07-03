@@ -21,6 +21,7 @@ try {
     initializeApp({
         credential: cert(serviceAccountPath)
     });
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 } catch (e) {
     // App might already be initialized
 }
@@ -35,6 +36,7 @@ interface UserDoc {
     status?: string;
     businessId?: string;
     businessUnitIds?: string[];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
     createdAt?: any;
 }
 
@@ -67,6 +69,7 @@ async function detectDuplicates() {
         });
 
         // Find duplicates
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
         let duplicateCount = 0;
         const duplicates: { email: string; users: UserDoc[] }[] = [];
 

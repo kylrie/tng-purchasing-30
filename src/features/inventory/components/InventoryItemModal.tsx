@@ -120,11 +120,13 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 name: item.name || '',
                 type: item.type || 'RAW_MATERIAL',
                 department: item.department || 'Unassigned',
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 serviceType: (item as any).serviceType || '',
                 category: item.category || 'Other',
                 sku: item.sku || '',
                 storageAreas: item.storageAreas || [],
                 // Guard against older records that may use 'countUnit' or have undefined units
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                 recipeUnit: item.units?.recipeUnit || (item.units as any)?.countUnit || 'piece',
                 buyUnit: item.units?.buyUnit || 'piece',
                 conversion,

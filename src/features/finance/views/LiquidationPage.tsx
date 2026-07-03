@@ -1073,7 +1073,9 @@ const LiquidationPage: React.FC = () => {
                                     vat: exp.vat,
                                     ewt: exp.ewt,
                                     amount: exp.amount
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 })) as any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                             } as any
                         }}
                         onClose={() => setShowPrintModal(false)}

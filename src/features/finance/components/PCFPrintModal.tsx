@@ -55,6 +55,7 @@ const PCFPrintModal: React.FC<PCFPrintModalProps> = ({ liquidation, onClose, bus
                     .mb-4 { margin-bottom: 16px; }
                     .mt-2 { margin-top: 8px; }
                     .mt-4 { margin-top: 16px; }
+// eslint-disable-next-line no-useless-escape
                     .p-1\.5 { padding: 6px; }
                     .p-2 { padding: 8px; }
                     .p-3 { padding: 12px; }

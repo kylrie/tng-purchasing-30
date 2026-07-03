@@ -33,6 +33,7 @@ interface CartPaneProps {
 
 const CartPane: React.FC<CartPaneProps> = ({
     cartItems,
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
     subtotal: _subtotal,
     grossSubtotal,
     taxAmount,

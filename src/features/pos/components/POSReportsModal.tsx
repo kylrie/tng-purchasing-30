@@ -27,6 +27,7 @@ export const POSReportsModal: React.FC<POSReportsModalProps> = ({ isOpen, onClos
             const { start, end } = POSReportsService.getTodayRange();
             const data = await POSReportsService.generateShiftReport(currentUser.businessId, start, end);
             setReport(data);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error(err);
             setError('Failed to load shift report.');
@@ -82,6 +83,7 @@ export const POSReportsModal: React.FC<POSReportsModalProps> = ({ isOpen, onClos
             const payload = POSPrinterService.generateReceiptPayload(text);
             await POSPrinterService.print({ type: savedPrinter, ipAddress: savedIp }, payload);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error(err);
             setError(err.message || 'Failed to print report.');

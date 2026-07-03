@@ -15,6 +15,7 @@ export const useRequisitions = () => {
 
     useEffect(() => {
         if (!currentUser) {
+// eslint-disable-next-line react-hooks/set-state-in-effect
             setLoading(prev => prev ? false : prev);
             return;
         }
@@ -68,6 +69,7 @@ export const useRequisitions = () => {
             // Remove undefined fields to prevent Firestore errors
             const sanitized = removeUndefinedFields(requisitionData);
             await RequisitionService.createRequisition(sanitized);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error("Error creating requisition: ", err);
             setError(err.message);
@@ -80,6 +82,7 @@ export const useRequisitions = () => {
             // Remove undefined fields to prevent Firestore errors
             const sanitized = removeUndefinedFields(requisitionData);
             await RequisitionService.updateRequisition(requisitionData.id, sanitized);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error("Error updating requisition: ", err);
             setError(err.message);

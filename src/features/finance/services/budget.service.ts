@@ -164,7 +164,7 @@ export async function getBudgetedCOAs(businessUnitId: string, month?: number): P
     const fiscalYear = getCurrentFiscalYear();
 
     // Build base query
-    let budgetsQuery = query(
+    const budgetsQuery = query(
         collection(db, COLLECTIONS.BUDGETS),
         where('businessUnitId', '==', businessUnitId),
         where('fiscalYear', '==', fiscalYear)

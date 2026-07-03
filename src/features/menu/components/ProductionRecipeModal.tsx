@@ -92,6 +92,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                             : item.costPerUnit ?? 0);
                     // Always recalculate baseQuantity from the stored quantity + unit
                     let baseQuantity = ing.quantity;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const inventoryBaseUnit = item.units?.recipeUnit || (item.units as any)?.countUnit || 'EA';
                     if (ing.unit && ing.unit !== inventoryBaseUnit) {
                         baseQuantity = convertUnits(ing.quantity, ing.unit, inventoryBaseUnit);
@@ -118,7 +119,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
         // FIX: Reset errors when modal opens
         setValidationError(null);
         setSaveError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- inventoryItems is stable per parent render
+     
     }, [recipe, isOpen, inventoryItems]);
 
     // Calculate total ingredient cost
@@ -178,6 +179,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
             // Calculate base quantity based on unit conversion
             let baseQuantity = quantity;
             const item = inventoryItems.find(it => it.id === ing.inventoryItemId);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
             const inventoryBaseUnit = item?.units?.recipeUnit || (item?.units as any)?.countUnit || 'EA';
             if (item && unit !== inventoryBaseUnit) {
                 baseQuantity = convertUnits(quantity, unit, inventoryBaseUnit);
@@ -238,6 +240,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                             ? matchedInvItem.buyCost / matchedInvItem.units.conversion
                             : matchedInvItem.costPerUnit ?? 0);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const inventoryBaseUnit = matchedInvItem.units?.recipeUnit || (matchedInvItem.units as any)?.countUnit || 'EA';
                     let matchedUnit = UOM_CODES.find(u => u.toLowerCase() === extractedIng.unit.toLowerCase()) || inventoryBaseUnit;
                     
@@ -245,6 +248,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                     if (matchedUnit !== inventoryBaseUnit) {
                         try {
                             baseQuantity = convertUnits(extractedIng.quantity, matchedUnit, inventoryBaseUnit);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
                         } catch (e) {
                             // If conversion fails, use base unit and keep original quantity
                             matchedUnit = inventoryBaseUnit;
@@ -272,6 +276,7 @@ const ProductionRecipeModal: React.FC<ProductionRecipeModalProps> = ({
                 setImportWarning(`Successfully imported ${matchedCount} ingredients!`);
             }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (err: any) {
             console.error('Smart import error:', err);
             setSaveError(err.message || 'Failed to import recipe');

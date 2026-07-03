@@ -247,6 +247,7 @@ export function exportMultipleDrawersToXLSX(
     const wb = XLSX.utils.book_new();
 
     // XLSX sheet names max 31 chars, no special chars: \ / * ? : [ ]
+// eslint-disable-next-line no-useless-escape
     const sanitize = (name: string): string => name.replace(/[\\/*?:\[\]]/g, '_').substring(0, 31);
 
     requisitions.forEach((req) => {
