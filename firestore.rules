@@ -990,7 +990,32 @@ service cloud.firestore {
       allow update: if isSignedIn();
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
     }
-    
+
+    // =====================================================
+    // QR ORDERING — ORDERS (Sprint 1: Real Order Persistence)
+    // Reads are business-unit scoped (remediation M4): a signed-in user may
+    // only read orders in their own BU; ADMIN/SUPER_ADMIN are cross-BU per
+    // `belongsToSameBU`. ALL writes go through the createQrOrder Cloud Function
+    // (Admin SDK) — no client writes — mirroring the `transactions` pattern.
+    // =====================================================
+    match /qr_orders/{orderId} {
+      allow read: if belongsToSameBU(resource);
+      allow write: if false;
+    }
+
+    // =====================================================
+    // QR ORDERING — TABLES (Sprint 1)
+    // Direct reads are admin-only (remediation M3) so broad/PENDING staff
+    // cannot harvest `qrToken`s. The admin table-management UI lists tables via
+    // the token-OMITTING `listQrTables` callable instead. Writes go through the
+    // createQrTable Cloud Function (server-generated qrToken) — no direct
+    // client writes, so a token can never be chosen/guessed by a client.
+    // =====================================================
+    match /qr_tables/{tableId} {
+      allow read: if isSuperAdminOrAdmin();
+      allow write: if false;
+    }
+
     // =====================================================
     // POS SALES COLLECTION
     // Imported POS sales records linked to inventory items
