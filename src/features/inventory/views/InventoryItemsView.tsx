@@ -938,19 +938,15 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
                                                     </span>
                                                     {item.category}
                                                 </div>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                {(item as any).serviceType && (
+                                                {('serviceType' in item && typeof (item as {serviceType?: string}).serviceType === 'string') && (
                                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider w-fit ${
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                        (item as any).serviceType === 'Alacarte'
+                                                        (item as {serviceType?: string}).serviceType === 'Alacarte'
                                                             ? 'bg-indigo-500/20 text-indigo-400'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                            : (item as any).serviceType === 'Event'
+                                                            : (item as {serviceType?: string}).serviceType === 'Event'
                                                                 ? 'bg-teal-500/20 text-teal-400'
                                                                 : 'bg-orange-500/20 text-orange-400'
                                                     }`}>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-                                                        {(item as any).serviceType}
+                                                        {(item as {serviceType?: string}).serviceType}
                                                     </span>
                                                 )}
                                             </div>
