@@ -232,15 +232,22 @@ const FinishedGoodsTab: React.FC<FinishedGoodsTabProps> = ({
 
     // Load menu items
     const loadMenuItems = async () => {
-        if (!selectedBusinessUnit) return;
+        if (!selectedBusinessUnit) {
+             return;
+        }
+        if (selectedBusinessUnit === 'all') {
+             setMenuItems([]);
+             setIsLoading(false);
+             return;
+        }
 
         setIsLoading(true);
         try {
             console.log(`[MenuDashboard] Loading menu items for BU ${selectedBusinessUnit}...`);
             const items = await RecipesService.getMenuItems(selectedBusinessUnit);
-            console.log(`[MenuDashboard] Loaded ${items.length} menu items.`);
+            console.log(`[MenuDashboard] Found ${items.length} menu items`);
             setMenuItems(items);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error loading menu items:', error);
         } finally {
             setIsLoading(false);

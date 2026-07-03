@@ -109,8 +109,8 @@ export class FirestoreService {
 
             const querySnapshot = await getDocs(q);
             return querySnapshot.docs.map(doc => ({
-                id: doc.id,
                 ...doc.data(),
+                id: doc.id,
             })) as (T & { id: string })[];
         } catch (error) {
             console.error(`Error getting documents from ${collectionName}:`, error);
@@ -220,7 +220,7 @@ export class FirestoreService {
             docRef,
             (docSnap: DocumentSnapshot) => {
                 if (docSnap.exists()) {
-                    callback({ id: docSnap.id, ...docSnap.data() } as T & { id: string });
+                    callback({ ...docSnap.data(), id: docSnap.id } as T & { id: string });
                 } else {
                     callback(null);
                 }
@@ -248,8 +248,8 @@ export class FirestoreService {
             q,
             (querySnapshot: QuerySnapshot) => {
                 const documents = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
                     ...doc.data(),
+                    id: doc.id,
                 })) as (T & { id: string })[];
                 callback(documents);
             },

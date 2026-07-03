@@ -17,7 +17,7 @@ export const useSuppliers = () => {
                 // This handles legacy data without a 'status' field
                 const querySnapshot = await getDocs(suppliersCollection);
                 const suppliersData = querySnapshot.docs
-                    .map(doc => ({ id: doc.id, ...doc.data() } as Supplier))
+                    .map(doc => ({ ...doc.data(), id: doc.id } as Supplier))
                     // Filter out archived suppliers (keep those without status field = legacy/active)
                     .filter(s => s.status !== 'ARCHIVED');
                 setSuppliers(suppliersData);

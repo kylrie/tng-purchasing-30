@@ -25,7 +25,7 @@ export const fetchUsers = async (businessId?: string): Promise<User[]> => {
         const querySnapshot = await getDocs(q);
         const users: User[] = [];
         querySnapshot.forEach((doc) => {
-            users.push({ id: doc.id, ...doc.data() } as User);
+            users.push({ ...doc.data(), id: doc.id } as User);
         });
         return users;
     } catch (error) {
@@ -42,7 +42,7 @@ export const fetchUserByEmail = async (email: string): Promise<User | null> => {
 
         if (!querySnapshot.empty) {
             const doc = querySnapshot.docs[0];
-            return { id: doc.id, ...doc.data() } as User;
+            return { ...doc.data(), id: doc.id } as User;
         }
         return null;
     } catch (error) {

@@ -25,7 +25,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ onRegister, loadi
     const fetchBusinesses = async () => {
       try {
         const querySnapshot = await getDocs(collection(db, COLLECTIONS.BUSINESSES));
-        const businessesData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Business));
+        const businessesData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Business));
         setBusinesses(businessesData);
         if (businessesData.length > 0) {
           setSelectedBusinessId(businessesData[0].id);

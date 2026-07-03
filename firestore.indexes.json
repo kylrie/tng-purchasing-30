@@ -59,6 +59,168 @@
                     "order": "ASCENDING"
                 }
             ]
+        },
+        {
+            "collectionGroup": "activity_logs",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "timestamp",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "chart_of_accounts",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "code",
+                    "order": "ASCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "notifications",
+            "fields": [
+                {
+                    "fieldPath": "targetRoles",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "notifications",
+            "fields": [
+                {
+                    "fieldPath": "targetRoles",
+                    "arrayConfig": "CONTAINS"
+                },
+                {
+                    "fieldPath": "isRead",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "pos_orders",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "status",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "finance_transactions",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "productionRecipes",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "name",
+                    "order": "ASCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "investigations",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "wastage_reports",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "createdAt",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "inventory_recons",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "savedAt",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
+        },
+        {
+            "collectionGroup": "staff_variance_reports",
+            "fields": [
+                {
+                    "fieldPath": "businessUnitId",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "savedAt",
+                    "order": "DESCENDING"
+                }
+            ],
+            "queryScope": "COLLECTION"
         }
     ],
     "fieldOverrides": []

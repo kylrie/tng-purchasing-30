@@ -102,8 +102,8 @@ export const TransactionHistoryView: React.FC<TransactionHistoryViewProps> = ({ 
 
                 const snapshot = await getDocs(q);
                 const txList: Transaction[] = snapshot.docs.map(doc => ({
-                    id: doc.id,
                     ...doc.data(),
+                    id: doc.id,
                 } as Transaction));
 
                 // Client-side date filtering

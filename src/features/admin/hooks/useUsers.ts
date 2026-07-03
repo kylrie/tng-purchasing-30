@@ -16,7 +16,7 @@ export const useUsers = () => {
             setLoading(true);
             try {
                 const querySnapshot = await getDocs(usersCollection);
-                const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+                const usersData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as User));
                 setUsers(usersData);
             } catch (error) {
                 console.error("Error fetching users: ", error);

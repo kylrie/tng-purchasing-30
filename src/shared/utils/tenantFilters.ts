@@ -15,7 +15,7 @@ import { UserRole } from '../../features/procurement/types';
 import type { User } from '../../features/procurement/types';
 
 /** Roles that have global visibility and bypass tenant filtering. */
-const GLOBAL_ROLES: string[] = [UserRole.SUPER_ADMIN];
+const GLOBAL_ROLES: string[] = [UserRole.SUPER_ADMIN, UserRole.ADMIN];
 
 /**
  * Returns Firestore QueryConstraints that scope data to the user's

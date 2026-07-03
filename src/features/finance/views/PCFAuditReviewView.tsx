@@ -49,17 +49,24 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
         loadAuditReviewLiquidations();
     }, []);
 
-    // Apply date filter to the loaded liquidations
+    // Apply date and business filter to the loaded liquidations
     const filteredLiquidations = React.useMemo(() => {
-        if (!dateRange.start || !dateRange.end) return liquidations;
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
-        end.setHours(23, 59, 59, 999);
-        return liquidations.filter(l => {
-            const date = new Date(l.dateSubmitted || l.dateCreated);
-            return date >= start && date <= end;
-        });
-    }, [liquidations, dateRange]);
+        // First filter by businesses the user has access to
+        let result = liquidations.filter(l => businesses.some(b => b.id === l.businessId));
+
+        // Then filter by date range
+        if (dateRange.start && dateRange.end) {
+            const start = new Date(dateRange.start);
+            const end = new Date(dateRange.end);
+            end.setHours(23, 59, 59, 999);
+            result = result.filter(l => {
+                const date = new Date(l.dateSubmitted || l.dateCreated);
+                return date >= start && date <= end;
+            });
+        }
+        
+        return result;
+    }, [liquidations, dateRange, businesses]);
 
     const getUserById = (userId: string) => allUsers.find(u => u.id === userId);
     const getBusinessName = (businessId: string) => businesses.find(b => b.id === businessId)?.name || 'Unknown';

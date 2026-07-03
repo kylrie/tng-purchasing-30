@@ -38,8 +38,8 @@ export class ProductionRecipeService {
 
         const snapshot = await getDocs(q);
         const recipes = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+            ...doc.data(),
+                id: doc.id,
         })) as ProductionRecipe[];
 
         console.log(`[ProductionRecipeService] Fetched ${recipes.length} recipes for BU ${businessUnitId}`);

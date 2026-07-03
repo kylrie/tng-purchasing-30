@@ -9,7 +9,7 @@ export const fetchBusinesses = async (): Promise<Business[]> => {
         const querySnapshot = await getDocs(collection(db, BUSINESS_COLLECTION));
         const businesses: Business[] = [];
         querySnapshot.forEach((doc) => {
-            businesses.push({ id: doc.id, ...doc.data() } as Business);
+            businesses.push({ ...doc.data(), id: doc.id } as Business);
         });
         return businesses;
     } catch (error) {

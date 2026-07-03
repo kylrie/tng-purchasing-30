@@ -133,7 +133,7 @@ async function fetchReleasedRequisitions(userOrBuId?: User | string): Promise<Re
 
             const snapshot = await getDocs(q);
             snapshot.docs.forEach(doc => {
-                requisitions.push({ id: doc.id, ...doc.data() } as Requisition);
+                requisitions.push({ ...doc.data(), id: doc.id } as Requisition);
             });
         }
 

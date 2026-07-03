@@ -46,8 +46,8 @@ export class POSService {
 
             const snapshot = await getDocs(q);
             const orders = snapshot.docs.map(doc => ({
+                ...doc.data(),
                 id: doc.id,
-                ...doc.data()
             })) as POSOrder[];
             return orders.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
         } catch (error) {
@@ -74,8 +74,8 @@ export class POSService {
 
             const snapshot = await getDocs(q);
             const orders = snapshot.docs.map(doc => ({
+                ...doc.data(),
                 id: doc.id,
-                ...doc.data()
             })) as POSOrder[];
             return orders.sort((a, b) => (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0));
         } catch (error) {

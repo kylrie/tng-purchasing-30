@@ -373,8 +373,8 @@ export const BankReconService = {
         );
         const snapshot = await getDocs(q);
         const allStatements = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
+            ...doc.data(),
+                id: doc.id,
         } as BankReconStatement));
 
         // If viewAll or no BU filter, return everything
@@ -475,7 +475,7 @@ export const BankReconService = {
         );
 
         const reqSnapshot = await getDocs(reqQuery);
-        const requisitions = reqSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Requisition));
+        const requisitions = reqSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Requisition));
 
         // 2. Fetch Chart of Accounts for linking
         const coas = await CoaService.getAccounts();

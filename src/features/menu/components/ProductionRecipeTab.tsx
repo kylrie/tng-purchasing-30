@@ -62,18 +62,14 @@ const RecipeCard: React.FC<{
                         <span className="text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
                             {recipe.category}
                         </span>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
                         {(recipe as any).serviceType && (
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ml-1 ${
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 (recipe as any).serviceType === 'Alacarte'
                                     ? 'bg-indigo-500/10 text-indigo-400'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                     : (recipe as any).serviceType === 'Event'
                                         ? 'bg-teal-500/10 text-teal-400'
                                         : 'bg-orange-500/10 text-orange-400'
                             }`}>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                 {(recipe as any).serviceType}
                             </span>
                         )}
@@ -263,18 +259,14 @@ const RecipeList: React.FC<{
                                             <span className="text-xs text-amber-500 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 px-2 py-1 rounded-full font-medium">
                                                 {recipe.category}
                                             </span>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                             {(recipe as any).serviceType && (
                                                 <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                     (recipe as any).serviceType === 'Alacarte'
                                                         ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 dark:text-indigo-400'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                         : (recipe as any).serviceType === 'Event'
                                                             ? 'bg-teal-50 dark:bg-teal-500/10 text-teal-500 dark:text-teal-400'
                                                             : 'bg-orange-50 dark:bg-orange-500/10 text-orange-500 dark:text-orange-400'
                                                 }`}>
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                     {(recipe as any).serviceType}
                                                 </span>
                                             )}

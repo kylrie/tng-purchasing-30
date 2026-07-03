@@ -159,8 +159,8 @@ export const BudgetConfigPanel: React.FC<BudgetConfigPanelProps> = ({ businesses
             // Fetch budgets
             const budgetsSnapshot = await getDocs(collection(db, COLLECTIONS.BUDGETS));
             const budgetsData = budgetsSnapshot.docs.map(doc => ({
+                ...doc.data(),
                 id: doc.id,
-                ...doc.data()
             })) as Budget[];
             // Sort by BU, COA, year, month
             budgetsData.sort((a, b) =>

@@ -90,7 +90,11 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
     // Get pending liquidations count
     const pendingLiquidations = useMemo(() => {
-        let result = liquidations.filter(l => l.status === PCFStatus.PENDING_APPROVAL);
+        // First filter by businesses the user has access to
+        let result = liquidations.filter(l => 
+            l.status === PCFStatus.PENDING_APPROVAL && 
+            businesses.some(b => b.id === l.businessId)
+        );
 
         if (dateRange.start && dateRange.end) {
             const start = new Date(dateRange.start);
@@ -103,11 +107,12 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             });
         }
         return result;
-    }, [liquidations, dateRange]);
+    }, [liquidations, dateRange, businesses]);
 
     // Filter history liquidations
     const filteredHistory = useMemo(() => {
-        let result = historyLiquidations;
+        // First filter by businesses the user has access to
+        let result = historyLiquidations.filter(l => businesses.some(b => b.id === l.businessId));
 
         if (dateRange.start && dateRange.end) {
             const start = new Date(dateRange.start);
@@ -115,12 +120,14 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
             end.setHours(23, 59, 59, 999);
 
             result = result.filter(l => {
-                const date = new Date(l.dateApproved || l.dateCancelled || l.dateCreated);
+                // Use dateApproved or dateCreated for history
+                const dateStr = l.dateApproved || l.dateCancelled || l.dateCreated;
+                const date = new Date(dateStr);
                 return date >= start && date <= end;
             });
         }
         return result;
-    }, [historyLiquidations, dateRange]);
+    }, [historyLiquidations, dateRange, businesses]);
 
     // Get user by ID
     const getUserById = (userId: string) => {
