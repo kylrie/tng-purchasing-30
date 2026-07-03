@@ -11,6 +11,7 @@ import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 interface PCFApprovalViewProps {
     currentUser: UserType;
     businesses: Business[];
+    allBusinesses?: Business[];
     allUsers: UserType[];
 }
 
@@ -23,7 +24,7 @@ const formatCurrency = (amount: number): string => {
     }).format(amount);
 };
 
-const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, businesses, allUsers }) => {
+const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, businesses, allBusinesses, allUsers }) => {
     const [liquidations, setLiquidations] = useState<PCFLiquidation[]>([]);
     const [historyLiquidations, setHistoryLiquidations] = useState<PCFLiquidation[]>([]);
     const [loading, setLoading] = useState(true);
@@ -90,44 +91,52 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
     // Get pending liquidations count
     const pendingLiquidations = useMemo(() => {
-        // First filter by businesses the user has access to
-        let result = liquidations.filter(l => 
-            l.status === PCFStatus.PENDING_APPROVAL && 
-            businesses.some(b => b.id === l.businessId)
-        );
+        const canViewAll = currentUser.role === 'SYSTEM_ADMIN' || currentUser.role === 'SUPER_ADMIN' || canViewAllHistory;
+        
+        let result = liquidations.filter(l => l.status === PCFStatus.PENDING_APPROVAL);
+        
+        if (!canViewAll) {
+            // First filter by businesses the user has access to
+            result = result.filter(l => businesses.some(b => b.id === l.businessId));
+        }
 
         if (dateRange.start && dateRange.end) {
             const start = new Date(dateRange.start);
             const end = new Date(dateRange.end);
             end.setHours(23, 59, 59, 999);
-
             result = result.filter(l => {
                 const date = new Date(l.dateSubmitted || l.dateCreated);
                 return date >= start && date <= end;
             });
         }
+        
         return result;
-    }, [liquidations, dateRange, businesses]);
+    }, [liquidations, dateRange, businesses, currentUser, canViewAllHistory]);
 
     // Filter history liquidations
     const filteredHistory = useMemo(() => {
-        // First filter by businesses the user has access to
-        let result = historyLiquidations.filter(l => businesses.some(b => b.id === l.businessId));
+        const canViewAll = currentUser.role === 'SYSTEM_ADMIN' || currentUser.role === 'SUPER_ADMIN' || canViewAllHistory;
+        
+        let result = historyLiquidations;
+        
+        if (!canViewAll) {
+            // First filter by businesses the user has access to
+            result = result.filter(l => businesses.some(b => b.id === l.businessId));
+        }
 
         if (dateRange.start && dateRange.end) {
             const start = new Date(dateRange.start);
             const end = new Date(dateRange.end);
             end.setHours(23, 59, 59, 999);
-
             result = result.filter(l => {
-                // Use dateApproved or dateCreated for history
                 const dateStr = l.dateApproved || l.dateCancelled || l.dateCreated;
                 const date = new Date(dateStr);
                 return date >= start && date <= end;
             });
         }
+        
         return result;
-    }, [historyLiquidations, dateRange, businesses]);
+    }, [historyLiquidations, dateRange, businesses, currentUser, canViewAllHistory]);
 
     // Get user by ID
     const getUserById = (userId: string) => {
@@ -136,7 +145,8 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
     // Get business by ID
     const getBusinessName = (businessId: string) => {
-        return businesses.find(b => b.id === businessId)?.name || 'Unknown';
+        const sourceList = allBusinesses || businesses;
+        return sourceList.find(b => b.id === businessId)?.name || 'Unknown';
     };
 
     // Handle approve - Fast Track PRF creation

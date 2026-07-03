@@ -9,6 +9,7 @@ import { DateRangeFilter } from '../../../shared/components/DateRangeFilter';
 interface PCFAuditReviewViewProps {
     currentUser: UserType;
     businesses: Business[];
+    allBusinesses?: Business[];
     allUsers: UserType[];
 }
 
@@ -20,7 +21,7 @@ const formatCurrency = (amount: number): string => {
     }).format(amount);
 };
 
-const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, businesses, allUsers }) => {
+const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, businesses, allBusinesses, allUsers }) => {
     const [liquidations, setLiquidations] = useState<PCFLiquidation[]>([]);
     const [loading, setLoading] = useState(true);
     const [processingId, setProcessingId] = useState<string | null>(null);
@@ -51,8 +52,14 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
 
     // Apply date and business filter to the loaded liquidations
     const filteredLiquidations = React.useMemo(() => {
-        // First filter by businesses the user has access to
-        let result = liquidations.filter(l => businesses.some(b => b.id === l.businessId));
+        // If user is a super admin or has global view access, do not filter by accessibleBusinesses
+        const canViewAll = currentUser.role === 'SYSTEM_ADMIN' || currentUser.role === 'SUPER_ADMIN' || (currentUser.permissions || []).includes('audit:pcf:view:all');
+        
+        let result = liquidations;
+        if (!canViewAll) {
+            // First filter by businesses the user has access to
+            result = liquidations.filter(l => businesses.some(b => b.id === l.businessId));
+        }
 
         // Then filter by date range
         if (dateRange.start && dateRange.end) {
@@ -66,10 +73,15 @@ const PCFAuditReviewView: React.FC<PCFAuditReviewViewProps> = ({ currentUser, bu
         }
         
         return result;
-    }, [liquidations, dateRange, businesses]);
+    }, [liquidations, dateRange, businesses, currentUser]);
 
     const getUserById = (userId: string) => allUsers.find(u => u.id === userId);
-    const getBusinessName = (businessId: string) => businesses.find(b => b.id === businessId)?.name || 'Unknown';
+    
+    // Use allBusinesses if provided so we can display the correct name even if user is not assigned to it
+    const getBusinessName = (businessId: string) => {
+        const sourceList = allBusinesses || businesses;
+        return sourceList.find(b => b.id === businessId)?.name || 'Unknown';
+    };
 
     const handleApproveAuditReview = async (liquidation: PCFLiquidation) => {
         // Open the approve modal instead of confirm dialog

@@ -450,6 +450,7 @@ function ProtectedApp() {
                     <PCFApprovalView
                       currentUser={currentUser}
                       businesses={accessibleBusinesses}
+                      allBusinesses={businesses}
                       allUsers={users}
                     />
                   </ProtectedRoute>
@@ -465,6 +466,7 @@ function ProtectedApp() {
                     <PCFAuditReviewView
                       currentUser={currentUser}
                       businesses={accessibleBusinesses}
+                      allBusinesses={businesses}
                       allUsers={users}
                     />
                   </ProtectedRoute>
