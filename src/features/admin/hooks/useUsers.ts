@@ -29,8 +29,10 @@ export const useUsers = () => {
 
     const updateUser = async (userData: User) => {
         try {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { id, ...updateData } = userData as any;
             const userDoc = doc(db, COLLECTIONS.USERS, userData.id);
-            await updateDoc(userDoc, { ...userData });
+            await updateDoc(userDoc, updateData);
             setUsers(prev => prev.map(u => u.id === userData.id ? userData : u));
         } catch (error) {
             console.error("Error updating user: ", error);

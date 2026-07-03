@@ -14,7 +14,7 @@ import { auth, googleProvider, firebaseConfig } from '../../config/firebase';
 import { FirestoreService, Timestamp } from './firestore.service';
 import { COLLECTIONS } from '../types/firebase.types';
 import type { FirestoreUser } from '../types/firebase.types';
-import type { UserRole, UserStatus } from '../../features/procurement/types';
+import { UserStatus } from '../../features/procurement/types';
 import { generateEmployeeId } from '../utils/employeeId';
 
 /**
@@ -84,12 +84,7 @@ export class AuthService {
     static async createUser(
         email: string,
         password: string,
-        userData: {
-            name: string;
-            role: UserRole;
-            businessId: string;
-            avatar?: string;
-        }
+        userData: Partial<FirestoreUser>
     ): Promise<UserCredential> {
         let secondaryApp;
         try {
@@ -101,16 +96,13 @@ export class AuthService {
             const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
 
             // Generate human-readable employee ID from name
-            const employeeId = await generateEmployeeId(userData.name);
+            const employeeId = await generateEmployeeId(userData.name || 'New User');
 
-            const newDoc = {
+            const newDoc: Partial<FirestoreUser> = {
+                ...userData,
                 email,
-                name: userData.name,
                 employeeId, // Add human-readable ID
-                role: userData.role,
-                businessId: userData.businessId,
-                avatar: userData.avatar || '',
-                status: 'active' as UserStatus,
+                status: userData.status || UserStatus.ACTIVE,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             };

@@ -167,12 +167,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         setIsCreatingUser(false);
                         return;
                     }
-                    await AuthService.createUser(newUser.email, newUserPassword, {
-                        name: newUser.name,
-                        role: newUser.role,
-                        businessId: newUser.businessId,
-                        avatar: newUser.avatar
-                    });
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { id, ...createData } = userToSave;
+                    await AuthService.createUser(newUser.email, newUserPassword, createData as any);
                     // We also need to update the local list if not using a real-time listener that updates automatically
                     // Assuming App.tsx's useUsers hook listens to Firestore, it should update automatically.
                     // But we might want to manually trigger a refresh or just rely on the listener.
