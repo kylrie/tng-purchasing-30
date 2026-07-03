@@ -62,7 +62,7 @@ Items with no implementation movement at all — confirmed absent by direct code
 - **CI/CD pipeline** — `.github/workflows/` still has no active workflow file.
 - **Phase 6 deployment artifacts** — no prod Xendit keys/webhook registration, no pilot rollout plan executed (rollout plan is documentation-only in the master plan).
 - **Phase 7 (POS synchronization)** — correctly not started; explicitly deferred/out-of-scope per the plan itself, not a gap.
-- **Open decisions O1–O9** — no evidence any of the nine open questions in Master Plan §3.2 (registered POS product/API, printer scope, dine-in-only, session-expiry policy, VAT display, refund authority, pilot scope, modifiers, production DB) have been answered or recorded anywhere since the plan was written.
+- **Open decisions O1–O9** — **O9 (production DB) is now RESOLVED (2026-07-03): `tng-systems`.** The other eight open questions in Master Plan §3.2 (registered POS product/API, printer scope, dine-in-only, session-expiry policy, VAT display, refund authority, pilot scope, modifiers) still have no recorded answer since the plan was written.
 
 ---
 
@@ -72,12 +72,12 @@ These master-plan items are explicitly gated by **GATE A — Security Remediatio
 
 | Gate A exit criterion | Status (re-verified live) | Still blocking? |
 |---|---|---|
-| **P0-1 — Rotate committed service-account keys** | ❌ **Still open.** Both key files (`tng-systems-firebase-adminsdk-fbsvc-72a29d9d37.json`, `...-e2c2bb4cf9.json`) are still present at the repo root. `.gitignore` line 27 has only the literal string `firebase-adminsdk.json`, which does **not** match either actual filename (both have a hash suffix) — the recommended `*firebase-adminsdk*.json` glob was never applied. **Live credential exposure remains unresolved.** | **Yes — hard blocker** |
-| **P0-2 — Decide production database** ((default) vs tng-systems) | ❌ **Still open.** No decision document, code comment, or config change found anywhere recording a choice. Open decision O9 remains open. | **Yes — hard blocker** |
+| **P0-1 — Rotate committed service-account keys** | ✅ **CLOSED (2026-07-03).** Fred confirmed the old service-account keys were rotated/revoked in Google Cloud and are no longer active. Repo cleanup this pass `git rm`'d both key files (`tng-systems-firebase-adminsdk-fbsvc-72a29d9d37.json`, `...-e2c2bb4cf9.json`) from tracking and the working tree, and extended `.gitignore` with `*firebase-adminsdk*.json` and `*-adminsdk-*.json` to prevent re-adding (verified via `git check-ignore`). ⚠️ Git **history** was not purged in this task — a full history purge (git-filter-repo/BFG) is recommended as a separate task if the repo was ever public during the exposure window. | **No — resolved** |
+| **P0-2 — Decide production database** ((default) vs tng-systems) | ✅ **CLOSED (2026-07-03).** Production Firestore database confirmed as **`tng-systems`** (Fred). The QR backend already targets this correctly via `getFirestore(getApp(), 'tng-systems')` (centralized in `functions/src/qr/firestore.ts`), so no code change is required. Open decision O9 is now resolved. | **No — resolved** |
 | **P0-3 — Green build** | ✅ **Resolved in practice** — live `tsc --noEmit` and `npm run build` both succeed today. ⚠️ The committed snapshot evidence (`tsc-errors.txt`, `lint_report.txt`) was never refreshed to reflect this, so the audit document itself still reads as unverified/failing. | No (recommend closing the paperwork) |
 | **P1-1 — Rules bypass review scoped** | ❌ **No evidence of review.** The three `\|\| true` fallbacks, the commented-out PRF Stage-7 validation, and the unvalidated financial collections (`budgetReservations`, `bankReconStatements`) were not re-inspected this pass, but nothing in the repo suggests they were touched since the audit. | Partial — this item alone doesn't block QR *start* per the plan, but see §5 |
 
-**Net effect:** because P0-1 and P0-2 remain open, **Phase 1 (Foundation) — and everything after it that touches real Firestore or Cloud Functions — remains correctly un-started.** The mock-only approach taken across every QR session so far is the right call given this gate is still open.
+**Net effect (updated 2026-07-03):** ✅ **GATE A is now CLOSED.** Both hard blockers are resolved — **P0-1** (keys rotated by Fred; repo cleanup done) and **P0-2** (production DB confirmed as `tng-systems`). Phase 1 (real Firestore / Cloud Functions) is unblocked. (P0-3 green-build was already resolved in practice.) The remaining go-live work belongs to **Gate B — Production Readiness** (security review, CI/CD, deployment path), not Gate A.
 
 ---
 
@@ -123,13 +123,13 @@ Items that depend on an answer about the **existing registered POS/invoicing sys
 
 Prioritized, read-only recommendations. No code is proposed here — these are sequencing/decision recommendations only.
 
-1. **Close P0-1 for real.** The two committed service-account keys are still sitting in the repo root with an ineffective `.gitignore` pattern. This is the single highest-severity open item in the entire program and has been open since the audit; it should not wait for a "next sprint" — flag to the repo owner/DevOps immediately, independent of QR sprint planning.
-2. **Get the O9/P0-2 production-database decision on the owner's desk.** It's a one-meeting decision ((default) vs `tng-systems`) that unblocks Phase 1 entirely and currently has no owner or date attached.
+1. **~~Close P0-1 for real.~~ ✅ DONE (2026-07-03).** Keys rotated/revoked by Fred; both committed key files `git rm`'d from tracking and working tree; `.gitignore` extended to a working glob (`*firebase-adminsdk*.json`, `*-adminsdk-*.json`). Residual: a full git-history purge is recommended as a separate task if the repo was ever public during exposure.
+2. **~~Get the O9/P0-2 production-database decision on the owner's desk.~~ ✅ DONE (2026-07-03).** Decided: production DB is **`tng-systems`** (Fred). Phase 1 is unblocked; the backend already targets this DB.
 3. **Refresh the audit's build-health evidence.** Re-run `npm run build` / lint live, replace `tsc-errors.txt`/`lint_report.txt` with current output, and update §9 of the audit doc — P0-3 is very likely closeable this sprint with zero code changes.
 4. **Fill the one missing screen: Bar Queue.** Every other Screen Spec surface has a mock; Bar Queue (§7) does not. If the Kitchen Queue mock pattern is reused (same lane/card/status components, drink-category filter, amber "Bar" accent), this is a small, low-risk addition that completes 8/8 mock-screen coverage before any real backend work begins.
 5. **Schedule the webhook security design review now, not during Phase 3.** Since it's a pure design/paper review (token strategy, idempotency ledger shape, amount-validation rule), it can happen in parallel with Gate A closure and de-risks the highest-risk phase before a line of payment code is written.
 6. **Triage the open decisions (O1–O9) as a single owner working session.** Several (O3 dine-in-only, O8 modifiers-deferred, O2 printer) are already implicitly assumed correctly by the mocks built so far — formally confirming them costs little and removes ambiguity before Phase 1 starts.
-7. **Do not start Phase 1 (real `qr_orders`/`qr_tables`/callables) until Gate A (§4) clears.** The mock-only discipline maintained across every session so far is correct and should continue until P0-1 and P0-2 are actually resolved — not just scheduled.
+7. **~~Do not deploy Phase 1 until Gate A clears.~~ ✅ GATE A CLOSED (2026-07-03).** Both P0-1 (keys) and P0-2 (prod DB = `tng-systems`) are resolved. Phase 1 is unblocked. Deployment now gates on **Gate B — Production Readiness** (security review, CI/CD, deployment-path fixes), not Gate A.
 
 ---
 

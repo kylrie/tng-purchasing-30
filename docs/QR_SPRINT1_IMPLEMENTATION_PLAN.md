@@ -6,17 +6,17 @@
 
 ---
 
-## 0. Sprint 1 does not start yet — gate status
+## 0. Gate status — ✅ GATE A CLOSED (2026-07-03)
 
-Per the Gap Analysis §4, **GATE A (Security Remediation Gate)** is a hard precondition for Phase 1, and two of its three exit criteria are still open as of this writing:
+Per the Gap Analysis §4, **GATE A (Security Remediation Gate)** is a hard precondition for Phase 1. **As of 2026-07-03, all exit criteria are met and Gate A is CLOSED:**
 
 | Exit criterion | Status |
 |---|---|
-| P0-1 — Rotate committed service-account keys | ❌ Open (keys still in repo) |
-| P0-2 — Decide production database ((default) vs `tng-systems`) | ❌ Open (no decision recorded) |
-| P0-3 — Green build | ✅ Resolved (verify/refresh audit evidence) |
+| P0-1 — Rotate committed service-account keys | ✅ CLOSED (2026-07-03) — keys rotated/revoked by Fred; tracked JSON files removed + `.gitignore` glob added. History purge recommended separately. |
+| P0-2 — Decide production database ((default) vs `tng-systems`) | ✅ CLOSED (2026-07-03) — confirmed **`tng-systems`**; backend already targets it. |
+| P0-3 — Green build | ✅ Resolved (`tsc -b && vite build` passes). |
 
-**This plan is written so Sprint 1 can begin the moment P0-1 and P0-2 clear — it is not itself the authorization to write code.** Task 9.0/10.0 below (Elio/Fred's first task each) is explicitly "confirm Gate A is closed" before anything else in this plan starts.
+**Gate A is closed, so Sprint 1 Phase 1 implementation is authorized to begin.** Task 9.0/10.0 below (Elio/Fred's first task each) — "confirm Gate A is closed" — is now satisfied by this section; deployment still gates separately on **Gate B — Production Readiness**.
 
 ---
 
@@ -242,7 +242,7 @@ There is **no existing data to migrate** — `qr_orders`/`qr_tables` are net-new
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| **Starting before Gate A actually clears** | Critical | This entire plan is blocked on P0-1 (key rotation) and P0-2 (prod DB decision) per §0. Do not begin task 9.1/10.1 until both are confirmed closed by the repo owner — not just "in progress." |
+| **Starting before Gate A actually clears** | ✅ Resolved (2026-07-03) | Gate A is now CLOSED per §0 — P0-1 (key rotation) and P0-2 (prod DB = `tng-systems`) both confirmed closed by the repo owner (Fred). Task 9.1/10.1 is cleared to begin. |
 | **Oversell via the stock-check transaction** | Med-High | Master Plan A11: the check-and-create must be one `runTransaction`, reading `inventory_items` stock and writing `qr_orders` atomically. A plain read-then-write (matching the audit's `[BLOCKER]`-flagged existing `pos-import.service.ts:617-789` pattern) would reintroduce the exact bug the audit called out — this must not be copied. |
 | **`qr_orders` inheriting `pos_orders`' unvalidated-write weakness** | Med | Rule is `allow write: if false` (§3) from day one — stricter than `pos_orders`, by design, not an oversight. |
 | **Client-submitted prices trusted at order-create time** | Med | `createQrOrder` re-fetches current `sellingPrice` from `menu_items` server-side and computes `subtotal`/`totalAmount` itself; it never accepts a client-supplied price as truth. |

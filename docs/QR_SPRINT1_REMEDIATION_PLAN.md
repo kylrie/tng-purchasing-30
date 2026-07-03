@@ -8,11 +8,11 @@
 
 ## 1. Fix plan — Critical & High findings
 
-### C1 — Deploying onto an open Gate A *(Critical)*
-Not a code fix — a release-process gate. Nothing in this remediation pass is deployed until:
-- **P0-1** (service-account keys) is closed: keys rotated/revoked in Google Cloud IAM, removed from the repo, purged from git history, `.gitignore` extended to a working glob.
-- **P0-2** (production database) is closed: owner/tech-lead decision between `(default)` and `tng-systems`, documented.
-**Owner:** repo owner / DevOps, per `PRODUCTION_READINESS_REMEDIATION.md`. **Verification:** both items marked resolved in that backlog, with evidence (IAM rotation confirmation, a signed-off decision note) — not just "in progress."
+### C1 — Deploying onto an open Gate A *(Critical — CLOSED 2026-07-03)*
+Not a code fix — a release-process gate. ✅ **Both preconditions are now met, so Gate A is CLOSED:**
+- **P0-1** (service-account keys) — ✅ CLOSED: Fred confirmed the old keys were rotated/revoked in Google Cloud; repo cleanup removed both tracked JSON files from tracking + working tree and extended `.gitignore` to a working glob (`*firebase-adminsdk*.json`, `*-adminsdk-*.json`). ⚠️ Git history not purged in that task — recommended separately if the repo was ever public during exposure.
+- **P0-2** (production database) — ✅ CLOSED: confirmed as **`tng-systems`** (Fred), which the backend already targets via `getFirestore(getApp(), 'tng-systems')`. No code change required.
+**Owner:** repo owner / DevOps, per `PRODUCTION_READINESS_REMEDIATION.md`. **Verification:** both items marked resolved in that backlog (2026-07-03). Remaining deploy preconditions now live under Gate B — Production Readiness.
 
 ### H1 — `createQrTable` has no RBAC *(High)*
 **Fix:** replace the current `if (!request.auth)`-only check with a real permission check, following the same role/permission pattern the rest of the app already uses (the `firestore.rules` helper functions and the app's permission-matrix model) — ported to a callable-side check, since this is server code, not a rules file. Require a specific permission (e.g., `MENU_MANAGE_TABLES` or the nearest existing equivalent — confirm the exact key with Fred during implementation) and reject with `permission-denied` otherwise.
@@ -61,13 +61,13 @@ Not a code fix — a release-process gate. Nothing in this remediation pass is d
 
 | Finding | Blocks deployment? | Why |
 |---|---|---|
-| **C1** | **Yes — absolute.** | Gate A open = don't deploy anything, independent of code quality. |
+| **C1** | ✅ **CLOSED 2026-07-03.** | Gate A closed — P0-1 (keys) + P0-2 (prod DB = `tng-systems`) both resolved. No longer a Gate A deploy blocker; remaining deploy preconditions are Gate B. |
 | **H1** | **Yes.** | Any signed-in (incl. unapproved self-registered) account can mint tables/tokens today — a direct privilege-escalation path onto the customer-facing surface. |
 | **H2** | **Yes, before real/public traffic.** | The project's first genuinely anonymous public surface, with no abuse control at all. Could arguably deploy to a fully access-restricted internal test environment without this, but not to anything reachable by real diners. |
 | **H3** | **Yes, before real ordering/payment.** | Oversell risk. Not a risk while no payment exists and no real diners are ordering; becomes a hard blocker the moment Sprint 2 (payment) or any live pilot begins. |
 | **M3** | **Yes.** | Any signed-in staff account (including unapproved self-registrations) can read every table's access token digitally, bypassing the "physical QR only" model entirely. |
 | **M4** | **Yes.** | Cross-business-unit data + customer PII (`customerName`) exposure — breaks the multi-tenancy boundary every other collection maintains. |
-| **M6** | **Tied to C1/P0-2.** | Already blocked by Gate A; fix regardless so the eventual DB decision can't be silently wrong in one of three copies. |
+| **M6** | ✅ **Resolved (centralized).** | P0-2 closed — DB target confirmed as `tng-systems`, centralized in `functions/src/qr/firestore.ts`. Correct target, single source of truth. |
 
 **Net: C1, H1, H2, H3, M3, M4, M6 must all be resolved before any deploy to the live project.**
 
@@ -93,7 +93,7 @@ Not a code fix — a release-process gate. Nothing in this remediation pass is d
 
 Sequenced so each step either unblocks or de-risks the next; mechanical/cheap items go first so later diffs are written against final structure, not against something about to change again.
 
-1. **Gate A external closure** (§1 C1) — precondition for everything else actually shipping; can proceed in parallel with steps 2–7 being *written*, but nothing after this list deploys until it's done.
+1. **~~Gate A external closure~~ ✅ DONE (2026-07-03)** (§1 C1) — P0-1 (keys) + P0-2 (prod DB = `tng-systems`) both closed. Precondition met; shipping now gates on Gate B (production readiness).
 2. **M6** — centralize the DB-target module. Do first: every subsequent change touches these same three files, so get the shared import in place before layering more edits on top.
 3. **H1 + M5** — RBAC, BU-scope, BU-existence, and duplicate-table checks on `createQrTable`, as one PR.
 4. **M3** — replace direct `qr_tables` client reads with a token-omitting callable/DTO; tighten the read rule. Independent of step 3 but naturally follows it since both touch table-management access.

@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ShoppingCart, ShoppingBag, Utensils, CupSoda, Plus, Flame, ChevronRight, Sparkles, UtensilsCrossed } from 'lucide-react';
+import { ShoppingCart, ShoppingBag, Utensils, CupSoda, Plus, Flame, ChevronRight, Sparkles, UtensilsCrossed, RefreshCw } from 'lucide-react';
 import { MOCK_MENU_ITEMS, MENU_GROUPS, MOCK_TABLE } from '../data/mockMenu';
 import type { PublicMenuItem, MenuGroup } from '../data/mockMenu';
+import { isConfigValid } from '../../../config/firebase';
+import { fetchPublicMenu, isCallableUnavailable, toUserFacingMenuError } from '../services/publicMenu.service';
+import { shouldUseMockMenu } from '../services/publicMenu.mapper';
 import ProductDetailsSheet from './ProductDetailsSheet';
 import CartDrawer from './CartDrawer';
 import type { CartLine } from './CartDrawer';
@@ -11,7 +14,10 @@ import type { CartLine } from './CartDrawer';
  * QR Ordering — Customer Menu (Inflatable Island Beach Club theme)
  *
  * Spec: docs/QR_SCREEN_SPEC.md §1 · Approved design clone.
- * MOCK DATA ONLY — no Firebase reads/writes, no Xendit, no Cloud Functions.
+ *
+ * Data source: the real `getPublicMenu` callable (sanitized, server-authoritative),
+ * with a mock fallback for the demo route (/order/demo), a missing token, or when
+ * Firebase isn't configured locally. No Xendit, no createQrOrder, no payment.
  *
  * Two-level Food / Drinks navigation over a candy pink→mint gradient header,
  * a single-column card list, and a floating teal cart bar.
@@ -47,33 +53,76 @@ const SkeletonRow: React.FC = () => (
 const CustomerMenuView: React.FC = () => {
     const { tableId } = useParams<{ tableId: string }>();
     const navigate = useNavigate();
-    const tableNumber = tableId || MOCK_TABLE.tableNumber;
 
-    const [isLoading, setIsLoading] = useState(true);
+    // Demo/local mock vs. real callable is decided from the route + config.
+    const usingMock = shouldUseMockMenu(tableId, isConfigValid);
+
+    const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+    const [errorMsg, setErrorMsg] = useState<string>('');
+    const [reloadKey, setReloadKey] = useState(0);
     const [menuItems, setMenuItems] = useState<PublicMenuItem[]>([]);
+    const [tableNumber, setTableNumber] = useState<string>(
+        tableId && !usingMock ? tableId : MOCK_TABLE.tableNumber,
+    );
     const [activeGroup, setActiveGroup] = useState<MenuGroup>('Food');
     const [activeSub, setActiveSub] = useState<string>('Appetizers');
 
-    // Local demo cart. Seeded to match the approved mock (2 items · ₱570.00).
-    const [cart, setCart] = useState<CartLine[]>([
-        { lineId: 'seed-1', id: 'ib-sisig', name: 'Sisig', unitPrice: 285, qty: 1, note: '' },
-        { lineId: 'seed-2', id: 'ib-lechon', name: 'Lechon Kawali', unitPrice: 285, qty: 1, note: '' },
-    ]);
+    // Cart. In demo/mock mode it's seeded to match the approved mock
+    // (2 items · ₱570.00); against a real menu it starts empty.
+    const [cart, setCart] = useState<CartLine[]>(() =>
+        usingMock
+            ? [
+                { lineId: 'seed-1', id: 'ib-sisig', name: 'Sisig', unitPrice: 285, qty: 1, note: '' },
+                { lineId: 'seed-2', id: 'ib-lechon', name: 'Lechon Kawali', unitPrice: 285, qty: 1, note: '' },
+            ]
+            : [],
+    );
     const [detailItem, setDetailItem] = useState<PublicMenuItem | null>(null);
     const [cartOpen, setCartOpen] = useState(false);
     const lineSeq = useRef(2);
 
+    const isLoading = status === 'loading';
     const cartCount = cart.reduce((n, line) => n + line.qty, 0);
     const cartTotal = cart.reduce((sum, line) => sum + line.unitPrice * line.qty, 0);
 
-    // Simulate the future getPublicMenu() callable with mock data.
+    // Load the menu: mock (demo/local) or the real getPublicMenu callable.
     useEffect(() => {
-        const timer = window.setTimeout(() => {
-            setMenuItems(MOCK_MENU_ITEMS);
-            setIsLoading(false);
-        }, MOCK_LOAD_MS);
-        return () => window.clearTimeout(timer);
-    }, []);
+        let cancelled = false;
+        setStatus('loading');
+        setErrorMsg('');
+
+        if (usingMock) {
+            const timer = window.setTimeout(() => {
+                if (cancelled) return;
+                setMenuItems(MOCK_MENU_ITEMS);
+                setStatus('ready');
+            }, MOCK_LOAD_MS);
+            return () => { cancelled = true; window.clearTimeout(timer); };
+        }
+
+        fetchPublicMenu((tableId ?? '').trim())
+            .then(result => {
+                if (cancelled) return;
+                setMenuItems(result.items);
+                if (result.tableNumber) setTableNumber(result.tableNumber);
+                setStatus('ready');
+            })
+            .catch(err => {
+                if (cancelled) return;
+                // Local dev convenience: if the function isn't reachable (not
+                // deployed / network), fall back to the mock rather than erroring.
+                if (import.meta.env.DEV && isCallableUnavailable(err)) {
+                    setMenuItems(MOCK_MENU_ITEMS);
+                    setStatus('ready');
+                    return;
+                }
+                setErrorMsg(toUserFacingMenuError(err));
+                setStatus('error');
+            });
+        return () => { cancelled = true; };
+    }, [tableId, usingMock, reloadKey]);
+
+    const handleRetry = () => setReloadKey(k => k + 1);
 
     const subcategories = useMemo(
         () => MENU_GROUPS.find(g => g.key === activeGroup)?.subcategories ?? [],
@@ -237,6 +286,30 @@ const CustomerMenuView: React.FC = () => {
                 <div className="mt-4 space-y-4 pb-40">
                     {isLoading ? (
                         Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />)
+                    ) : status === 'error' ? (
+                        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                            <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
+                                <UtensilsCrossed size={26} className="text-rose-400" strokeWidth={1.5} />
+                            </div>
+                            <h3 className="text-base font-bold text-slate-700 mb-1">Menu unavailable</h3>
+                            <p className="text-slate-400 text-sm max-w-[18rem] mb-5">{errorMsg}</p>
+                            <button
+                                type="button"
+                                onClick={handleRetry}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-white text-sm font-bold shadow-[0_8px_20px_-4px_rgba(239,78,140,0.45)] active:scale-95 transition-transform"
+                                style={{ backgroundColor: PINK }}
+                            >
+                                <RefreshCw size={16} strokeWidth={2.5} /> Try again
+                            </button>
+                        </div>
+                    ) : menuItems.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                            <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
+                                <UtensilsCrossed size={26} className="text-slate-400" strokeWidth={1.5} />
+                            </div>
+                            <h3 className="text-base font-bold text-slate-700 mb-1">Menu coming soon</h3>
+                            <p className="text-slate-400 text-sm max-w-[16rem]">There aren’t any items on this menu yet. Please ask our staff for help.</p>
+                        </div>
                     ) : visibleItems.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                             <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">

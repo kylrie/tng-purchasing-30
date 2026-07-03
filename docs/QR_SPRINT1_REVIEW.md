@@ -15,11 +15,11 @@ However, the review found **1 Critical, 3 High, 6 Medium, and 6 Low** findings. 
 
 **Severity legend:** **Critical** = must not ship / active exposure · **High** = security/correctness gap, blocks go-live · **Medium** = real risk, schedule before pilot · **Low** = hygiene / hardening / accuracy note.
 
-> **Remediation status (updated 2026-07-03):** the deployment-blocking findings have been remediated in code — see [`QR_SPRINT1_REMEDIATION_PLAN.md`](QR_SPRINT1_REMEDIATION_PLAN.md) and the **Status** column below. **H2 remains OPEN by design** (App Check needs client-side attestation infra not yet present — delivered as a plan, not half-built code). Nothing is deployed (Gate A / C1 still open).
+> **Remediation status (updated 2026-07-03):** the deployment-blocking findings have been remediated in code — see [`QR_SPRINT1_REMEDIATION_PLAN.md`](QR_SPRINT1_REMEDIATION_PLAN.md) and the **Status** column below. **H2 remains OPEN by design** (App Check needs client-side attestation infra not yet present — delivered as a plan, not half-built code). **Gate A / C1 is now CLOSED (2026-07-03)** — P0-1 (keys) and P0-2 (prod DB = `tng-systems`) both resolved; remaining deploy preconditions are Gate B (production readiness), and nothing is deployed yet.
 
 | # | Finding | Area | Severity | Status |
 |---|---|---|---|---|
-| C1 | Deploying onto an open Gate A (unrotated keys, undecided prod DB) | Security / prod-readiness | **Critical** | ⛔ Open (external gate) |
+| C1 | Deploying onto an open Gate A (unrotated keys, undecided prod DB) | Security / prod-readiness | **Critical** | ✅ CLOSED 2026-07-03 — P0-1 (keys) + P0-2 (prod DB = `tng-systems`) both resolved; Gate A closed |
 | H1 | `createQrTable` has zero RBAC — any signed-in user mints tables + tokens | Callable authorization | **High** | ✅ Fixed |
 | H2 | No abuse protection (App Check / rate limiting) on the anonymous callables | Security | **High** | 📝 Plan only (see §1 H2) |
 | H3 | Stock validation absent — oversell gap; diverges from plan §4 | Missing stock validation | **High** | ✅ Doc reconciled; impl → Phase 5 |
@@ -36,14 +36,14 @@ However, the review found **1 Critical, 3 High, 6 Medium, and 6 Low** findings. 
 | L5 | `functions/lib` is git-tracked and was recompiled | Prod-readiness | **Low** | ⬜ Deferred |
 | L6 | No observability/structured logging on the new callables | Prod-readiness | **Low** | ⬜ Deferred |
 
-**This pass fixed:** H1, H3 (doc), M3, M4, M5, M6. **Still blocking go-live:** C1 (external Gate A), H2 (abuse protection — plan delivered), H3-impl (Phase 5 stock check). **Not blocking (deferred):** M1, M2, all Lows.
+**This pass fixed:** H1, H3 (doc), M3, M4, M5, M6. **C1 (Gate A) CLOSED 2026-07-03** (P0-1 + P0-2 resolved). **Still blocking go-live:** H2 (abuse protection — plan delivered), H3-impl (Phase 5 stock check), plus Gate B production-readiness items. **Not blocking (deferred):** M1, M2, all Lows.
 
 ---
 
 ## 1. Security
 
-### C1 — Deploying onto an open Gate A *(Critical)*
-The code targets the live `tng-systems` project, whose **admin service-account keys remain committed to git** (Remediation P0-1, still open per [`QR_MVP_GAP_ANALYSIS.md`](QR_MVP_GAP_ANALYSIS.md) §4) and whose **production database is still undecided** (P0-2 / O9). The implementation itself is not at fault, but *deploying it* would stand up new public-facing endpoints inside a project with exposed credentials and an ambiguous write target. **This code must not be deployed until P0-1 and P0-2 are closed.** As written for a non-deployed sprint, no action is needed in the code — this is a release gate, not a code defect.
+### C1 — Deploying onto an open Gate A *(Critical — CLOSED 2026-07-03)*
+✅ **Gate A is now closed.** The code targets the live `tng-systems` project. **P0-1 (committed admin service-account keys) is CLOSED:** Fred confirmed the old keys were rotated/revoked in Google Cloud, and repo cleanup `git rm`'d both key files from tracking and the working tree and extended `.gitignore` to a working glob (`*firebase-adminsdk*.json`, `*-adminsdk-*.json`). ⚠️ Git **history** was not purged — a full history purge (git-filter-repo/BFG) is recommended as a separate task if the repo was ever public during exposure. **P0-2 (production database) is CLOSED:** confirmed as **`tng-systems`** (Fred) — the exact target the backend already uses via `getFirestore(getApp(), 'tng-systems')`, so the DB target is correct and no code change is required. With both blockers resolved, this is no longer a deploy blocker at the Gate A level; remaining deploy preconditions belong to **Gate B — Production Readiness** (security review, CI/CD, deployment path).
 
 ### H2 — No abuse protection on anonymous callables *(High)*
 `getPublicMenu` and `createQrOrder` are `onCall` functions with **no `request.auth` requirement** (correct for anonymous diners) but **no [Firebase App Check], rate limiting, or per-caller throttling**. Consequences:
@@ -149,7 +149,7 @@ Classified **High** as a gap-versus-target, with the explicit acknowledgment tha
 Callable clients (Firebase SDK) may retry on transient network errors, and a diner can double-tap "submit." `createQrOrder` has **no idempotency key**, so a retry mints a *second* `qr_orders` document and a second order number for the same intent. The Master Plan makes idempotency central for payment (§7.4); order creation deserves at least a client-supplied idempotency token (or a short-window dedupe on `(tableId, itemsHash)`) to avoid duplicate tickets and, later, duplicate payment sessions. **Medium** now (junk unpaid orders); escalates once payment is attached.
 
 ### M6 — Hardcoded `'tng-systems'` DB target *(Medium)*
-All three callables call `getFirestore(getApp(), 'tng-systems')`. This encodes the still-open P0-2 decision as a literal in three files. If the production DB is decided to be `(default)`, these will **silently write to the wrong database** with no error. Centralize the DB handle in one module and treat the target as the single documented output of P0-2.
+All three callables call `getFirestore(getApp(), 'tng-systems')`, now centralized in `functions/src/qr/firestore.ts` (M6 fix). **P0-2 is CLOSED (2026-07-03): production DB confirmed as `tng-systems`**, so this literal is the correct, documented target — the earlier "silently write to the wrong database" risk no longer applies. The centralized handle remains the single source of truth for the DB target.
 
 ### L5 — `functions/lib` is git-tracked *(Low)*
 Compiled output under `functions/lib` is committed (a pre-existing repo choice); building Sprint 1 regenerated it, including incidental recompiles of `admin.js`/`transactions.js` (whose source is unchanged). Recommend `.gitignore`-ing `functions/lib` and building in CI instead, so review diffs reflect source only.
@@ -173,7 +173,7 @@ Only a bare `console.error` on the catch-all. The first public endpoints in the 
 
 ## Recommended fix order (for the next sprint's grooming)
 
-1. **Do not deploy** until Gate A (C1 / P0-1 / P0-2) clears — unchanged from the Gap Analysis.
+1. **~~Do not deploy until Gate A (C1 / P0-1 / P0-2) clears.~~ ✅ Gate A CLOSED (2026-07-03)** — P0-1 + P0-2 resolved. Deployment now gates on Gate B (production readiness), not Gate A.
 2. **H1** add RBAC + BU-scope to `createQrTable`; **H2** add App Check + rate limiting to the anonymous callables. These are the two go-live-blocking authorization/abuse gaps.
 3. **M3/M4** stop returning `qrToken` to clients and BU-scope `qr_orders` reads.
 4. **H3** reconcile the stock-check divergence: either amend plan §4 to match the deferred reality, or schedule the BOM reservation before any live ordering.

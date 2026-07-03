@@ -25,6 +25,8 @@ dist-ssr
 
 # Firebase Admin SDK credentials (NEVER commit)
 firebase-adminsdk.json
+*firebase-adminsdk*.json
+*-adminsdk-*.json
 *.pem
 
 # Environment files with secrets

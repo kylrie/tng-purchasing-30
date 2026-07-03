@@ -18,13 +18,14 @@
 
 ## P0 — Critical 🔴
 
-### P0-1 — Rotate committed Firebase service-account keys
-- **Description:** Two live service-account JSON keys (`tng-systems-firebase-adminsdk-fbsvc-72a29d9d37.json`, `tng-systems-firebase-adminsdk-fbsvc-e2c2bb4cf9.json`) with RSA private keys are committed and tracked in git.
+### P0-1 — Rotate committed Firebase service-account keys — ✅ CLOSED (2026-07-03)
+- **Description:** Two live service-account JSON keys (`tng-systems-firebase-adminsdk-fbsvc-72a29d9d37.json`, `tng-systems-firebase-adminsdk-fbsvc-e2c2bb4cf9.json`) with RSA private keys were committed and tracked in git.
 - **Severity:** BLOCKER (R1/R2).
-- **Why it matters:** Anyone with repo access holds admin credentials to the `tng-systems` Firebase project — full read/write to all data, bypassing all security rules. This is an active credential exposure.
+- **Why it matters:** Anyone with repo access held admin credentials to the `tng-systems` Firebase project — full read/write to all data, bypassing all security rules. This was an active credential exposure.
 - **Recommended owner:** Repo owner / DevOps (with Firebase project admin rights).
-- **Blocking status:** **BLOCKS QR START.**
-- **Resolution outline (not performed in this doc task):** revoke/rotate keys in Google Cloud IAM; remove files and purge from git history; add `.gitignore` patterns (`*firebase-adminsdk*.json`, `.env.development`, `.env.test`).
+- **Blocking status:** **RESOLVED — no longer blocks QR START.**
+- **Resolution (2026-07-03):** Fred confirmed old service account keys were rotated/revoked; repo cleanup removes tracked local JSON files and prevents re-adding. Concretely: both key files `git rm`'d from tracking and the working tree; `.gitignore` extended with `*firebase-adminsdk*.json` and `*-adminsdk-*.json` (verified with `git check-ignore`).
+- **Residual (separate task):** git **history** was **not** purged in this task. A full history purge (git-filter-repo / BFG) is recommended as a separate task if the repo was ever public during the exposure window — untracking alone leaves the keys reachable in prior commits.
 
 ### P0-2 — Decide production database source of truth
 - **Description:** Two Firestore databases exist — `(default)` and `tng-systems` — sharing rules/indexes; functions target `tng-systems`; `clone-db.mjs` copies `tng-systems → (default)`.
