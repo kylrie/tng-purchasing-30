@@ -241,24 +241,34 @@ const EventImportDashboard: React.FC<Props> = () => {
                                         </tr></thead>
                                         <tbody className="divide-y divide-slate-700/30">
                                             {simDeductions.filter(d => d.type !== 'FG').map((d, i) => (
-                                                <tr key={i} className={`hover:bg-slate-700/20 ${d.newTheoreticalStock < 0 ? 'bg-red-500/5' : ''}`}>
-                                                    <td className="px-4 py-3">
-                                                        <span className="text-white font-medium">{d.itemName}</span>
-                                                        {d.parentItemName && <span className="block text-xs text-slate-500">← {d.parentItemName}</span>}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${d.type === 'RM' ? 'bg-amber-500/20 text-amber-400' : d.type === 'FG_DIRECT' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-purple-500/20 text-purple-400'}`}>
-                                                            {d.type === 'RM' ? 'Raw Material' : d.type === 'FG_DIRECT' ? 'Direct FG' : 'Production'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-4 py-3 text-slate-300 text-xs">{d.eventName}</td>
-                                                    <td className="px-4 py-3 text-slate-300">{d.currentTheoreticalStock.toFixed(2)}</td>
-                                                    <td className="px-4 py-3 text-red-400 font-semibold">-{d.deductionAmount.toFixed(2)}</td>
-                                                    <td className={`px-4 py-3 font-semibold ${d.newTheoreticalStock < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-                                                        {d.newTheoreticalStock.toFixed(2)}
-                                                        {d.newTheoreticalStock < 0 && <AlertTriangle size={14} className="inline ml-1 text-red-400" />}
-                                                    </td>
-                                                </tr>
+                                                <React.Fragment key={i}>
+                                                    <tr className={`hover:bg-slate-700/20 ${d.newTheoreticalStock < 0 ? 'bg-red-500/5' : ''}`}>
+                                                        <td className="px-4 py-3">
+                                                            <span className="text-white font-medium">{d.itemName}</span>
+                                                            {d.parentItemName && <span className="block text-xs text-slate-500">← {d.parentItemName}</span>}
+                                                        </td>
+                                                        <td className="px-4 py-3">
+                                                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${d.type === 'RM' ? 'bg-amber-500/20 text-amber-400' : d.type === 'FG_DIRECT' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-purple-500/20 text-purple-400'}`}>
+                                                                {d.type === 'RM' ? 'Raw Material' : d.type === 'FG_DIRECT' ? 'Direct FG' : 'Production'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-4 py-3 text-slate-300 text-xs">{d.eventName}</td>
+                                                        <td className="px-4 py-3 text-slate-300">{d.currentTheoreticalStock.toFixed(2)}</td>
+                                                        <td className="px-4 py-3 text-red-400 font-semibold">-{d.deductionAmount.toFixed(2)}</td>
+                                                        <td className={`px-4 py-3 font-semibold ${d.newTheoreticalStock < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                                                            {d.newTheoreticalStock.toFixed(2)}
+                                                            {d.newTheoreticalStock < 0 && <AlertTriangle size={14} className="inline ml-1 text-red-400" />}
+                                                        </td>
+                                                    </tr>
+                                                    {d.alert && (
+                                                        <tr className="bg-amber-500/5">
+                                                            <td colSpan={6} className="px-8 py-2 text-xs text-amber-400 border-t-0">
+                                                                <AlertTriangle size={14} className="inline mr-1" />
+                                                                {d.alert}
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </React.Fragment>
                                             ))}
                                         </tbody>
                                     </table>

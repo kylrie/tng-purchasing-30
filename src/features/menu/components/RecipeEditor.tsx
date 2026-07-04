@@ -228,9 +228,9 @@ const RecipeEditor: React.FC<RecipeEditorProps> = ({
             setIsLoading(true);
             try {
                 const items = await InventoryService.getInventory(businessUnitId);
-                // Only show RAW_MATERIAL and PRODUCTION items for recipes
+                // Only show RAW_MATERIAL, PRODUCTION, and FINISHED_GOOD items for recipes
                 setInventoryItems(items.filter(i =>
-                    i.type === 'RAW_MATERIAL' || i.type === 'PRODUCTION'
+                    i.type === 'RAW_MATERIAL' || i.type === 'PRODUCTION' || i.type === 'FINISHED_GOOD'
                 ));
             } catch (err) {
                 console.error('Error loading inventory:', err);

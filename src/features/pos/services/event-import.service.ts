@@ -219,21 +219,63 @@ export class EventImportService {
             const totalDed = ingredient.quantityUsed * multiplier;
             const currentStock = runningStock.get(iItem.id) ?? (safeNum(iItem.theoreticalStock) || safeNum(iItem.currentStock));
 
-            if (iItem.type === 'RAW_MATERIAL') {
+            if (iItem.type === 'RAW_MATERIAL' || iItem.type === 'FINISHED_GOOD') {
                 const newStock = currentStock - totalDed;
                 runningStock.set(iItem.id, newStock);
                 deductions.push({
-                    itemId: iItem.id, itemName: iItem.name, type: 'RM',
+                    itemId: iItem.id, itemName: iItem.name, type: iItem.type === 'FINISHED_GOOD' ? 'FG_DIRECT' : 'RM',
                     currentTheoreticalStock: currentStock, deductionAmount: totalDed,
                     newTheoreticalStock: newStock, parentItemId, parentItemName, eventName,
                 });
             } else if (iItem.type === 'PRODUCTION') {
-                deductions.push({
-                    itemId: iItem.id, itemName: iItem.name, type: 'PRODUCTION',
-                    currentTheoreticalStock: currentStock, deductionAmount: totalDed,
-                    newTheoreticalStock: currentStock, parentItemId, parentItemName, eventName,
-                });
-                this.simulateRecursiveBOM(iItem, totalDed, iItem.id, iItem.name, eventName, allItemsMap, runningStock, deductions);
+                // ── AUTO-EXPLODE FALLBACK ──
+                const availablePrep = Math.max(0, currentStock);
+                const deductedFromPrep = Math.min(availablePrep, totalDed);
+                const shortfall = totalDed - deductedFromPrep;
+
+                if (deductedFromPrep > 0) {
+                    const newPrepStock = currentStock - deductedFromPrep;
+                    runningStock.set(iItem.id, newPrepStock);
+                    deductions.push({
+                        itemId: iItem.id, itemName: iItem.name, type: 'PRODUCTION',
+                        currentTheoreticalStock: currentStock, deductionAmount: deductedFromPrep,
+                        newTheoreticalStock: newPrepStock, parentItemId, parentItemName, eventName,
+                    });
+                }
+
+                if (shortfall > 0) {
+                    if (deductedFromPrep === 0) {
+                        deductions.push({
+                            itemId: iItem.id, itemName: iItem.name, type: 'PRODUCTION',
+                            currentTheoreticalStock: currentStock, deductionAmount: 0,
+                            newTheoreticalStock: currentStock, parentItemId, parentItemName, eventName,
+                            alert: `⚠️ No production stock available. ${shortfall} units auto-exploded to raw materials below.`,
+                        });
+                    } else {
+                        const lastDed = deductions[deductions.length - 1];
+                        lastDed.alert = `⚠️ Only ${deductedFromPrep} of ${totalDed} available. ${shortfall} units auto-exploded to raw materials below.`;
+                    }
+
+                    // Recurse into the production item's recipe for the shortfall
+                    if (iItem.recipe && iItem.recipe.length > 0) {
+                        for (const subIng of iItem.recipe) {
+                            const subItem = allItemsMap.get(subIng.ingredientId);
+                            if (!subItem) continue;
+
+                            const explodedQty = subIng.quantityUsed * shortfall;
+                            const subCurrentStock = runningStock.get(subItem.id) ?? (safeNum(subItem.theoreticalStock) || safeNum(subItem.currentStock));
+                            const subNewStock = subCurrentStock - explodedQty;
+                            runningStock.set(subItem.id, subNewStock);
+
+                            deductions.push({
+                                itemId: subItem.id, itemName: subItem.name, type: 'RM',
+                                currentTheoreticalStock: subCurrentStock, deductionAmount: explodedQty,
+                                newTheoreticalStock: subNewStock, parentItemId, parentItemName, eventName,
+                                alert: `Auto-produced from ${iItem.name} — no production record found`,
+                            });
+                        }
+                    }
+                }
             }
         }
     }
@@ -267,17 +309,77 @@ export class EventImportService {
         const rmDeductionMap = new Map<string, { totalQty: number; note: string }>();
         const fgDirectDeductionMap = new Map<string, { totalQty: number; note: string }>();
 
+        // Running stock tracker for PRODUCTION items to support auto-explode fallback
+        const prodRunningStock = new Map<string, number>();
+        for (const [, item] of allItemsMap) {
+            if (item.type === 'PRODUCTION') {
+                prodRunningStock.set(item.id, safeNum(item.theoreticalStock) || safeNum(item.currentStock));
+            }
+        }
+
+        // Track unrecorded production logs for database alert
+        interface AutoProductionLog {
+            productionItemId: string;
+            productionItemName: string;
+            shortageQty: number;
+            finishedGoodName: string;
+            rawMaterialsExploded: { itemId: string; itemName: string; qty: number; unit: string }[];
+        }
+        const autoProductionLogs: AutoProductionLog[] = [];
+
         const recursiveExplosion = (item: InventoryItem & { id: string }, multiplier: number, rootNote: string) => {
             if (!item.recipe || item.recipe.length === 0) return;
             for (const ingredient of item.recipe) {
                 const iItem = allItemsMap.get(ingredient.ingredientId);
                 if (!iItem) continue;
                 const ded = ingredient.quantityUsed * multiplier;
-                if (iItem.type === 'RAW_MATERIAL') {
+
+                if (iItem.type === 'RAW_MATERIAL' || iItem.type === 'FINISHED_GOOD') {
                     const prev = rmDeductionMap.get(ingredient.ingredientId);
                     rmDeductionMap.set(ingredient.ingredientId, { totalQty: (prev?.totalQty ?? 0) + ded, note: prev?.note ?? rootNote });
                 } else if (iItem.type === 'PRODUCTION') {
-                    recursiveExplosion(iItem, ded, rootNote);
+                    // ── AUTO-EXPLODE FALLBACK ──
+                    const currentPrepStock = prodRunningStock.get(iItem.id) ?? 0;
+                    const availablePrep = Math.max(0, currentPrepStock);
+                    const deductedFromPrep = Math.min(availablePrep, ded);
+                    const shortfall = ded - deductedFromPrep;
+
+                    if (deductedFromPrep > 0) {
+                        prodRunningStock.set(iItem.id, currentPrepStock - deductedFromPrep);
+                        const prev = rmDeductionMap.get(ingredient.ingredientId);
+                        rmDeductionMap.set(ingredient.ingredientId, { totalQty: (prev?.totalQty ?? 0) + deductedFromPrep, note: prev?.note ?? rootNote });
+                    }
+
+                    if (shortfall > 0) {
+                        if (deductedFromPrep === 0) {
+                            prodRunningStock.set(iItem.id, currentPrepStock);
+                        }
+
+                        const explodedRMs: AutoProductionLog['rawMaterialsExploded'] = [];
+
+                        if (iItem.recipe && iItem.recipe.length > 0) {
+                            for (const subIng of iItem.recipe) {
+                                const subItem = allItemsMap.get(subIng.ingredientId);
+                                if (!subItem) continue;
+                                const explodedQty = subIng.quantityUsed * shortfall;
+                                const prev = rmDeductionMap.get(subIng.ingredientId);
+                                rmDeductionMap.set(subIng.ingredientId, {
+                                    totalQty: (prev?.totalQty ?? 0) + explodedQty,
+                                    note: prev?.note ?? `${rootNote} (auto-produced ${iItem.name})`,
+                                });
+                                explodedRMs.push({
+                                    itemId: subItem.id, itemName: subItem.name,
+                                    qty: explodedQty, unit: subIng.unit || subItem.units?.recipeUnit || '',
+                                });
+                            }
+                        }
+
+                        autoProductionLogs.push({
+                            productionItemId: iItem.id, productionItemName: iItem.name,
+                            shortageQty: shortfall, finishedGoodName: rootNote,
+                            rawMaterialsExploded: explodedRMs,
+                        });
+                    }
                 }
             }
         };
@@ -421,6 +523,33 @@ export class EventImportService {
             importedBy: userId, importedByName: userName, importedAt: now,
         } satisfies Omit<EventImportBatch, 'id'>);
         opCount++;
+
+        // ================================================================
+        // Write UNRECORDED_AUTO_PRODUCTION alerts for Event Import
+        // ================================================================
+        for (const log of autoProductionLogs) {
+            const logRef = doc(collection(db, 'production_logs'));
+            ensureBatch();
+            currentBatch.set(logRef, {
+                id: logRef.id,
+                businessUnitId,
+                type: 'UNRECORDED_AUTO_PRODUCTION',
+                productionItemId: log.productionItemId,
+                productionItemName: log.productionItemName,
+                shortageQuantity: log.shortageQty,
+                finishedGoodSold: log.finishedGoodName,
+                rawMaterialsExploded: log.rawMaterialsExploded,
+                referenceId: batchImportId,
+                referenceType: 'EVENT_IMPORT',
+                fileName,
+                notes: `⚠️ Auto-produced ${log.shortageQty} units of "${log.productionItemName}" from raw materials — no production batch was recorded before event: "${log.finishedGoodName}"`,
+                performedBy: userId,
+                performedByName: userName,
+                timestamp: now,
+                createdAt: now,
+            });
+            opCount++;
+        }
 
         batches.push(currentBatch);
         for (const batch of batches) await batch.commit();

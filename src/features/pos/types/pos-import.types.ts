@@ -117,4 +117,5 @@ export interface SimulatedDeduction {
   newTheoreticalStock: number;
   parentItemId?: string;    // ID of the FG or PRODUCTION parent
   parentItemName?: string;  // Display name of the parent (e.g., "Cheeseburger")
+  alert?: string;           // Note indicating conditional BOM explosion behavior
 }

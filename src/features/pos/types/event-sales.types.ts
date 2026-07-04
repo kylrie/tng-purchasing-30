@@ -136,6 +136,7 @@ export interface EventSimulatedDeduction {
   parentItemId?: string;
   parentItemName?: string;
   eventName: string;                // Which event triggered this deduction
+  alert?: string;                   // Note indicating conditional BOM explosion behavior
 }
 
 // ============================================================

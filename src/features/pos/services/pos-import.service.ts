@@ -429,21 +429,93 @@ export class PosImportService {
                 ? runningStock.get(ingredientItem.id)!
                 : safeStock(ingredientItem.theoreticalStock) || safeStock(ingredientItem.currentStock);
 
-            if (ingredientItem.type === 'RAW_MATERIAL' || ingredientItem.type === 'PRODUCTION') {
+            if (ingredientItem.type === 'RAW_MATERIAL' || ingredientItem.type === 'FINISHED_GOOD') {
+                // Direct deduction — allow negative stock
                 const newStock = currentStock - totalDeduction;
                 runningStock.set(ingredientItem.id, newStock);
 
                 simulatedDeductions.push({
                     itemId: ingredientItem.id,
                     itemName: ingredientItem.name,
-                    type: ingredientItem.type === 'PRODUCTION' ? 'PRODUCTION' : 'RM',
+                    type: ingredientItem.type === 'FINISHED_GOOD' ? 'FG_DIRECT' : 'RM',
                     currentTheoreticalStock: currentStock,
                     deductionAmount: totalDeduction,
                     newTheoreticalStock: newStock,
                     parentItemId,
                     parentItemName,
                 });
-                // Note: We do NOT recurse into PRODUCTION items. They are deducted directly.
+            } else if (ingredientItem.type === 'PRODUCTION') {
+                // ── AUTO-EXPLODE FALLBACK ──
+                // Check if we have enough prep stock to fulfill the demand
+                const availablePrep = Math.max(0, currentStock);
+                const deductedFromPrep = Math.min(availablePrep, totalDeduction);
+                const shortfall = totalDeduction - deductedFromPrep;
+
+                if (deductedFromPrep > 0) {
+                    // Deduct what we can from the prep item
+                    const newPrepStock = currentStock - deductedFromPrep;
+                    runningStock.set(ingredientItem.id, newPrepStock);
+
+                    simulatedDeductions.push({
+                        itemId: ingredientItem.id,
+                        itemName: ingredientItem.name,
+                        type: 'PRODUCTION',
+                        currentTheoreticalStock: currentStock,
+                        deductionAmount: deductedFromPrep,
+                        newTheoreticalStock: newPrepStock,
+                        parentItemId,
+                        parentItemName,
+                    });
+                }
+
+                if (shortfall > 0) {
+                    // Not enough prep stock — auto-explode the shortfall into raw materials
+                    if (deductedFromPrep === 0) {
+                        // Zero stock — show the prep item with 0 deduction + alert
+                        simulatedDeductions.push({
+                            itemId: ingredientItem.id,
+                            itemName: ingredientItem.name,
+                            type: 'PRODUCTION',
+                            currentTheoreticalStock: currentStock,
+                            deductionAmount: 0,
+                            newTheoreticalStock: currentStock,
+                            parentItemId,
+                            parentItemName,
+                            alert: `⚠️ No production stock available. ${shortfall} units auto-exploded to raw materials below.`,
+                        });
+                    } else {
+                        // Partial stock — update the existing deduction's alert
+                        const lastDed = simulatedDeductions[simulatedDeductions.length - 1];
+                        lastDed.alert = `⚠️ Only ${deductedFromPrep} of ${totalDeduction} available. ${shortfall} units auto-exploded to raw materials below.`;
+                    }
+
+                    // Recurse into the production item's recipe for the shortfall quantity
+                    if (ingredientItem.recipe && ingredientItem.recipe.length > 0) {
+                        for (const subIng of ingredientItem.recipe) {
+                            const subItem = allItemsMap.get(subIng.ingredientId);
+                            if (!subItem) continue;
+
+                            const explodedQty = subIng.quantityUsed * shortfall;
+                            const subCurrentStock = runningStock.has(subItem.id)
+                                ? runningStock.get(subItem.id)!
+                                : safeStock(subItem.theoreticalStock) || safeStock(subItem.currentStock);
+                            const subNewStock = subCurrentStock - explodedQty;
+                            runningStock.set(subItem.id, subNewStock);
+
+                            simulatedDeductions.push({
+                                itemId: subItem.id,
+                                itemName: subItem.name,
+                                type: 'RM',
+                                currentTheoreticalStock: subCurrentStock,
+                                deductionAmount: explodedQty,
+                                newTheoreticalStock: subNewStock,
+                                parentItemId,
+                                parentItemName,
+                                alert: `Auto-produced from ${ingredientItem.name} — no production record found`,
+                            });
+                        }
+                    }
+                }
             }
         }
     }
@@ -521,6 +593,25 @@ export class PosImportService {
         // Track recipe-less FGs that need direct stock deduction
         const fgDirectDeductionMap = new Map<string, { totalQty: number; fgName: string }>();
 
+        // Running stock tracker for PRODUCTION items to support auto-explode fallback
+        const safeNum = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
+        const prodRunningStock = new Map<string, number>();
+        for (const [, item] of allItemsMap) {
+            if (item.type === 'PRODUCTION') {
+                prodRunningStock.set(item.id, safeNum(item.theoreticalStock) || safeNum(item.currentStock));
+            }
+        }
+
+        // Track unrecorded production logs for database alert
+        interface AutoProductionLog {
+            productionItemId: string;
+            productionItemName: string;
+            shortageQty: number;
+            finishedGoodName: string;
+            rawMaterialsExploded: { itemId: string; itemName: string; qty: number; unit: string }[];
+        }
+        const autoProductionLogs: AutoProductionLog[] = [];
+
         const recursiveExplosion = (
             itemArg: InventoryItem & { id: string },
             multiplier: number,
@@ -532,14 +623,68 @@ export class PosImportService {
                 if (!iItem) continue;
                 const ded = ingredient.quantityUsed * multiplier;
 
-                if (iItem.type === 'RAW_MATERIAL' || iItem.type === 'PRODUCTION') {
+                if (iItem.type === 'RAW_MATERIAL' || iItem.type === 'FINISHED_GOOD') {
                     const prev = rmDeductionMap.get(ingredient.ingredientId);
                     rmDeductionMap.set(ingredient.ingredientId, {
                         totalQty: (prev?.totalQty ?? 0) + ded,
-                        fgName: prev?.fgName ?? rootFgName, // keep first FG for single-item batches
+                        fgName: prev?.fgName ?? rootFgName,
                     });
+                } else if (iItem.type === 'PRODUCTION') {
+                    // ── AUTO-EXPLODE FALLBACK ──
+                    const currentPrepStock = prodRunningStock.get(iItem.id) ?? 0;
+                    const availablePrep = Math.max(0, currentPrepStock);
+                    const deductedFromPrep = Math.min(availablePrep, ded);
+                    const shortfall = ded - deductedFromPrep;
+
+                    if (deductedFromPrep > 0) {
+                        // Deduct from prep stock
+                        prodRunningStock.set(iItem.id, currentPrepStock - deductedFromPrep);
+                        const prev = rmDeductionMap.get(ingredient.ingredientId);
+                        rmDeductionMap.set(ingredient.ingredientId, {
+                            totalQty: (prev?.totalQty ?? 0) + deductedFromPrep,
+                            fgName: prev?.fgName ?? rootFgName,
+                        });
+                    }
+
+                    if (shortfall > 0) {
+                        // Auto-explode the shortfall into raw materials
+                        if (deductedFromPrep === 0) {
+                            prodRunningStock.set(iItem.id, currentPrepStock); // unchanged
+                        }
+
+                        const explodedRMs: AutoProductionLog['rawMaterialsExploded'] = [];
+
+                        if (iItem.recipe && iItem.recipe.length > 0) {
+                            for (const subIng of iItem.recipe) {
+                                const subItem = allItemsMap.get(subIng.ingredientId);
+                                if (!subItem) continue;
+
+                                const explodedQty = subIng.quantityUsed * shortfall;
+                                const prev = rmDeductionMap.get(subIng.ingredientId);
+                                rmDeductionMap.set(subIng.ingredientId, {
+                                    totalQty: (prev?.totalQty ?? 0) + explodedQty,
+                                    fgName: prev?.fgName ?? `${rootFgName} (auto-produced ${iItem.name})`,
+                                });
+
+                                explodedRMs.push({
+                                    itemId: subItem.id,
+                                    itemName: subItem.name,
+                                    qty: explodedQty,
+                                    unit: subIng.unit || subItem.units?.recipeUnit || '',
+                                });
+                            }
+                        }
+
+                        // Queue the unrecorded production log
+                        autoProductionLogs.push({
+                            productionItemId: iItem.id,
+                            productionItemName: iItem.name,
+                            shortageQty: shortfall,
+                            finishedGoodName: rootFgName,
+                            rawMaterialsExploded: explodedRMs,
+                        });
+                    }
                 }
-                // FINISHED_GOOD nested inside a recipe is unusual but handled the same way
             }
         };
 
@@ -571,7 +716,6 @@ export class PosImportService {
         }
 
         // Pre-load raw material theoretical stock for balanceAfter calculation
-        const safeNum = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
         const rmStockMap = new Map<string, number>();
         for (const [rmId] of rmDeductionMap) {
             const rmItem = allItemsMap.get(rmId);
@@ -747,6 +891,36 @@ export class PosImportService {
             importedAt: importDateTs,
         });
         opCount++;
+
+        // ================================================================
+        // STEP F: Write UNRECORDED_AUTO_PRODUCTION alerts
+        // When a PRODUCTION item had insufficient stock and was auto-exploded
+        // into raw materials, log it so management can track unrecorded prep.
+        // ================================================================
+        for (const log of autoProductionLogs) {
+            const logRef = doc(collection(db, 'production_logs'));
+            ensureBatch();
+            currentBatch.set(logRef, {
+                id: logRef.id,
+                businessUnitId,
+                type: 'UNRECORDED_AUTO_PRODUCTION',
+                productionItemId: log.productionItemId,
+                productionItemName: log.productionItemName,
+                shortageQuantity: log.shortageQty,
+                finishedGoodSold: log.finishedGoodName,
+                rawMaterialsExploded: log.rawMaterialsExploded,
+                referenceId: batchImportId,
+                referenceType: 'POS_IMPORT',
+                fileName,
+                importDate,
+                notes: `⚠️ Auto-produced ${log.shortageQty} units of "${log.productionItemName}" from raw materials — no production batch was recorded before POS sale of "${log.finishedGoodName}"`,
+                performedBy: userId,
+                performedByName: userName,
+                timestamp: importDateTs,
+                createdAt: importDateTs,
+            });
+            opCount++;
+        }
 
         // Push final batch
         batches.push(currentBatch);

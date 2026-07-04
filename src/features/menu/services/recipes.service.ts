@@ -158,7 +158,7 @@ function convertToBomIngredients(
     return ingredients
         .filter(ri => {
             const inv = itemMap.get(ri.inventoryItemId);
-            return inv && (inv.type === 'RAW_MATERIAL' || inv.type === 'PRODUCTION');
+            return inv && (inv.type === 'RAW_MATERIAL' || inv.type === 'PRODUCTION' || inv.type === 'FINISHED_GOOD');
         })
         .map(ri => {
             const inv = itemMap.get(ri.inventoryItemId)!;

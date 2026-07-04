@@ -294,34 +294,41 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
                                                     const childNegative = child.newTheoreticalStock < 0;
 
                                                     return (
-                                                        <div
-                                                            key={`${child.itemId}-${ci}`}
-                                                            className={`flex items-center gap-3 px-4 py-2.5 text-sm ${
-                                                                ci < group.children.length - 1 ? 'border-b border-slate-50 dark:border-slate-700/40' : ''
-                                                            } ${childNegative ? 'bg-red-50/50 dark:bg-red-500/5' : ''}`}
-                                                        >
-                                                            <div className="w-6" /> {/* Spacer for expand icon alignment */}
-                                                            <CornerDownRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />
-                                                            <childConfig.icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                            <span className="flex-1 text-slate-700 dark:text-slate-300">
-                                                                {child.itemName}
-                                                            </span>
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${childConfig.color}`}>
-                                                                {childConfig.label}
-                                                            </span>
-                                                            <div className="flex items-center gap-6 ml-4 tabular-nums">
-                                                                <span className="w-20 text-right text-slate-400 dark:text-slate-500">
-                                                                    {formatStock(child.currentTheoreticalStock)}
+                                                        <React.Fragment key={`${child.itemId}-${ci}`}>
+                                                            <div
+                                                                className={`flex items-center gap-3 px-4 py-2.5 text-sm ${
+                                                                    (ci < group.children.length - 1 && !child.alert) ? 'border-b border-slate-50 dark:border-slate-700/40' : ''
+                                                                } ${childNegative ? 'bg-red-50/50 dark:bg-red-500/5' : ''}`}
+                                                            >
+                                                                <div className="w-6" /> {/* Spacer for expand icon alignment */}
+                                                                <CornerDownRight className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />
+                                                                <childConfig.icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                                <span className="flex-1 text-slate-700 dark:text-slate-300">
+                                                                    {child.itemName}
                                                                 </span>
-                                                                <span className={`w-20 text-right font-medium ${child.type === 'PRODUCTION' ? 'text-slate-300' : 'text-red-500'}`}>
-                                                                    {child.type === 'PRODUCTION' ? '—' : `−${formatStock(child.deductionAmount)}`}
+                                                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border ${childConfig.color}`}>
+                                                                    {childConfig.label}
                                                                 </span>
-                                                                <span className={`w-20 text-right font-bold ${childNegative ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'}`}>
-                                                                    {formatStock(child.newTheoreticalStock)}
-                                                                    {childNegative && <AlertCircle className="inline w-3.5 h-3.5 ml-1 text-red-500" />}
-                                                                </span>
+                                                                <div className="flex items-center gap-6 ml-4 tabular-nums">
+                                                                    <span className="w-20 text-right text-slate-400 dark:text-slate-500">
+                                                                        {formatStock(child.currentTheoreticalStock)}
+                                                                    </span>
+                                                                    <span className="w-20 text-right font-medium text-red-500">
+                                                                        {`−${formatStock(child.deductionAmount)}`}
+                                                                    </span>
+                                                                    <span className={`w-20 text-right font-bold ${childNegative ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'}`}>
+                                                                        {formatStock(child.newTheoreticalStock)}
+                                                                        {childNegative && <AlertCircle className="inline w-3.5 h-3.5 ml-1 text-red-500" />}
+                                                                    </span>
+                                                                </div>
                                                             </div>
-                                                        </div>
+                                                            {child.alert && (
+                                                                <div className={`flex items-center gap-2 pl-12 pr-4 py-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-900/10 ${ci < group.children.length - 1 ? 'border-b border-slate-50 dark:border-slate-700/40' : ''}`}>
+                                                                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                                                    <span>{child.alert}</span>
+                                                                </div>
+                                                            )}
+                                                        </React.Fragment>
                                                     );
                                                 })}
                                             </div>

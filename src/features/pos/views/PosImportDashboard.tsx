@@ -693,9 +693,9 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                 Supports .xlsx, .csv — Columns: CATEGORY, ITEM NAME, QTY SOLD, AMOUNT, Costs, Profit
                                             </p>
                                         </div>
-                                        <button className="px-6 py-2.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-colors text-sm font-medium">
+                                        <span className="inline-block px-6 py-2.5 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-colors text-sm font-medium cursor-pointer">
                                             Browse Files
-                                        </button>
+                                        </span>
                                     </div>
                                 )}
                             </div>
@@ -1002,9 +1002,9 @@ const PosImportDashboard: React.FC<Props> = () => {
                             return (
                                 <div key={batch.id} className="bg-white dark:bg-slate-800/60 backdrop-blur border border-slate-200 dark:border-slate-700/50 rounded-xl overflow-hidden transition-all">
                                     {/* Batch Row (Clickable) */}
-                                    <button
+                                    <div
                                         onClick={() => handleBatchClick(batch.id)}
-                                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors text-left"
+                                        className="w-full px-5 py-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors text-left cursor-pointer"
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl flex items-center justify-center">
@@ -1038,7 +1038,7 @@ const PosImportDashboard: React.FC<Props> = () => {
                                             )}
                                             <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                         </div>
-                                    </button>
+                                    </div>
 
                                     {/* Expanded Detail */}
                                     {isExpanded && (
