@@ -5,6 +5,8 @@ import { MOCK_MENU_ITEMS, MENU_GROUPS, MOCK_TABLE } from '../data/mockMenu';
 import type { PublicMenuItem, MenuGroup } from '../data/mockMenu';
 import { isConfigValid } from '../../../config/firebase';
 import { fetchPublicMenu, isCallableUnavailable, toUserFacingMenuError } from '../services/publicMenu.service';
+import { submitQrOrder, toUserFacingOrderError, newIdempotencyKey } from '../services/createOrder.service';
+import { isQrPaymentsEnabled } from '../services/createSession.service';
 import { shouldUseMockMenu } from '../services/publicMenu.mapper';
 import ProductDetailsSheet from './ProductDetailsSheet';
 import CartDrawer from './CartDrawer';
@@ -64,6 +66,12 @@ const CustomerMenuView: React.FC = () => {
     const [tableNumber, setTableNumber] = useState<string>(
         tableId && !usingMock ? tableId : MOCK_TABLE.tableNumber,
     );
+    // Resolved qr_tables document id from getPublicMenu — the key createQrOrder
+    // needs (distinct from the route's opaque QR token). Empty until a real menu
+    // loads, which is what gates real order submission vs. the mock fallback.
+    const [resolvedTableId, setResolvedTableId] = useState<string>('');
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState<string>('');
     const [activeGroup, setActiveGroup] = useState<MenuGroup>('Food');
     const [activeSub, setActiveSub] = useState<string>('Appetizers');
 
@@ -80,6 +88,10 @@ const CustomerMenuView: React.FC = () => {
     const [detailItem, setDetailItem] = useState<PublicMenuItem | null>(null);
     const [cartOpen, setCartOpen] = useState(false);
     const lineSeq = useRef(2);
+    // Idempotency key for the current submit. Held stable across retries so a
+    // lost-response retry / double-tap returns the same order; regenerated after
+    // a successful submit so the next distinct order gets a fresh key.
+    const idempotencyKeyRef = useRef<string>('');
 
     const isLoading = status === 'loading';
     const cartCount = cart.reduce((n, line) => n + line.qty, 0);
@@ -105,6 +117,7 @@ const CustomerMenuView: React.FC = () => {
                 if (cancelled) return;
                 setMenuItems(result.items);
                 if (result.tableNumber) setTableNumber(result.tableNumber);
+                if (result.tableId) setResolvedTableId(result.tableId);
                 setStatus('ready');
             })
             .catch(err => {
@@ -169,6 +182,61 @@ const CustomerMenuView: React.FC = () => {
     const handleRemoveLine = (lineId: string) => setCart(prev => prev.filter(line => line.lineId !== lineId));
     const handleClearCart = () => setCart([]);
 
+    // Real order submission is possible only once a real menu has resolved a
+    // table id; otherwise (demo route, missing token, unconfigured Firebase, or
+    // the dev mock fallback) we keep the existing mock checkout flow.
+    const canSubmitRealOrder = !usingMock && resolvedTableId !== '';
+
+    // Open the cart, clearing any stale submit error from a previous attempt.
+    const openCart = () => { setSubmitError(''); setCartOpen(true); };
+
+    const handleCheckout = async () => {
+        if (submitting) return;
+        if (!canSubmitRealOrder) {
+            // Demo / local fallback — unchanged mock checkout hop.
+            setCartOpen(false);
+            navigate('/checkout/demo');
+            return;
+        }
+        if (cart.length === 0) return;
+
+        // Reuse the key on a retry of the same submit; mint one on a fresh submit.
+        if (!idempotencyKeyRef.current) idempotencyKeyRef.current = newIdempotencyKey();
+
+        setSubmitting(true);
+        setSubmitError('');
+        try {
+            const result = await submitQrOrder({ tableId: resolvedTableId, lines: cart, idempotencyKey: idempotencyKeyRef.current });
+            // Snapshot the cart summary BEFORE clearing it, so checkout can render
+            // the order without an extra round-trip.
+            const summaryLines = cart.map(l => ({ name: l.name, qty: l.qty, unitPrice: l.unitPrice, note: l.note }));
+            setSubmitting(false);
+            idempotencyKeyRef.current = ''; // next distinct submit gets a fresh key
+            setCart([]);                    // clear the cart ONLY after a successful create (kept intact on error for retry)
+            setCartOpen(false);
+            const handoff = {
+                orderId: result.orderId,
+                orderNumber: result.orderNumber,
+                totalAmount: result.totalAmount,
+                tableNumber,
+                qrToken: tableId,
+                lines: summaryLines,
+            };
+            // When online payments are enabled, route the created order through
+            // the Xendit checkout; otherwise (dark launch / flag off) preserve the
+            // existing hop straight to the order-status page. Either way the order
+            // is created and unpaid — payment truth still comes from the webhook.
+            if (isQrPaymentsEnabled()) {
+                navigate(`/checkout/${result.orderId}`, { state: handoff });
+            } else {
+                navigate(`/order-status/${result.orderId}`, { state: handoff });
+            }
+        } catch (err) {
+            setSubmitting(false);
+            setSubmitError(toUserFacingOrderError(err));
+        }
+    };
+
     return (
         <div className="min-h-dvh bg-white text-slate-800 relative overflow-x-hidden">
             {/* Candy gradient behind the header */}
@@ -205,7 +273,7 @@ const CustomerMenuView: React.FC = () => {
                         </div>
                         <button
                             type="button"
-                            onClick={() => setCartOpen(true)}
+                            onClick={openCart}
                             aria-label={`Open cart, ${cartCount} item${cartCount === 1 ? '' : 's'}`}
                             className="absolute right-0 top-1/2 -translate-y-1/2 w-16 h-16 rounded-full bg-white shadow-[0_10px_30px_rgba(17,24,39,0.12)] flex items-center justify-center active:scale-95 transition-transform"
                         >
@@ -383,7 +451,7 @@ const CustomerMenuView: React.FC = () => {
                     <div className="max-w-md mx-auto">
                         <button
                             type="button"
-                            onClick={() => setCartOpen(true)}
+                            onClick={openCart}
                             className="w-full flex items-center gap-4 rounded-[24px] px-5 py-4 text-white shadow-[0_16px_36px_-8px_rgba(13,110,98,0.55)] active:scale-[0.96] transition-transform duration-200"
                             style={{ backgroundColor: TEAL }}
                         >
@@ -426,7 +494,9 @@ const CustomerMenuView: React.FC = () => {
                 onChangeQty={handleChangeQty}
                 onRemove={handleRemoveLine}
                 onClear={handleClearCart}
-                onCheckout={() => { setCartOpen(false); navigate('/checkout/demo'); }}
+                onCheckout={handleCheckout}
+                submitting={submitting}
+                submitError={submitError}
             />
         </div>
     );

@@ -116,7 +116,9 @@ The original architecture report and the payment revision report are **approved 
 | O6 | **Refund authority** — which staff role may issue a Xendit refund, and what approval is required? | Phase 3 refund path |
 | O7 | **Pilot scope** — single location/business unit for launch, or multiple? | Phase 6 rollout |
 | O8 | Menu **modifiers/variants** (size, add-ons) — confirmed deferred to post-MVP? (Plan assumes yes.) | Phase 1–2 menu model |
-| O9 | **(Audit-raised) Which Firestore database is the production source of truth — `(default)` or `tng-systems`?** Two databases exist sharing rules/indexes; functions target `tng-systems`; `clone-db.mjs` copies `tng-systems → (default)`. QR writes and new indexes depend on one unambiguous answer. | **Security Remediation Gate / QR START** (P0-2) |
+| ~~O9~~ | ~~(Audit-raised) Which Firestore database is the production source of truth — `(default)` or `tng-systems`?~~ **✅ RESOLVED (2026-07-03): `tng-systems`.** Confirmed by Fred; the backend already targets it (centralized in `functions/src/qr/firestore.ts`). | ~~Security Remediation Gate / QR START (P0-2)~~ — Gate A closed |
+
+**Still open: O1–O8 (eight of nine).** None of these block current Phase 1/2 backend or client work; they matter progressively later (O3/O8 for menu-model correctness, O5 for checkout copy, O4/O6/O7 for Phase 3 payment behavior, O1/O2 for Phase 6/7).
 
 ### 3.3 Assumptions 📌 (currently unverified — validate in Phase 0)
 
@@ -378,28 +380,36 @@ Runs immediately after architecture sign-off and **before any QR implementation 
 - **Risks:** discovering a schema/permission constraint late that changes the `qr_orders` design — precisely why this phase runs before build.
 - **Acceptance:** the current Firebase architecture is fully understood before QR implementation starts; **no assumptions remain** around collections, permissions, or schema (all Section 3.3 assumptions either confirmed or explicitly re-flagged as decisions). ✅ Met.
 
-### 🚧 GATE A — Security Remediation Gate (blocks Phase 1 / QR START)
-A hard gate introduced by the Phase 0.5 audit. **No QR implementation (Phase 1+) begins until every item here is cleared or explicitly waived by the owner.** Tracked as P0 in [`PRODUCTION_READINESS_REMEDIATION.md`](PRODUCTION_READINESS_REMEDIATION.md).
+### 🚧 GATE A — Security Remediation Gate (blocks Phase 1 / QR START) — ✅ CLOSED (2026-07-03)
+A hard gate introduced by the Phase 0.5 audit. **Phase 1 implementation is now authorized — all exit criteria are met.**
 - **Exit criteria:**
-  1. **Service-account key rotation (P0-1)** — the two committed Firebase admin keys are revoked/rotated, removed from the repo, and purged from git history; `.gitignore` extended.
-  2. **Production database decision (P0-2 / O9)** — `(default)` vs `tng-systems` chosen and documented as the QR source of truth.
-  3. **Build verification (P0-3)** — a live `npm run build` is green (committed `tsc` errors fixed).
-  4. **Firestore rule bypass review scoped (P1-1)** — the `|| true` fallbacks and the commented-out fund-release validation are reviewed and a remediation owner/plan assigned (full fix may land before go-live, not necessarily before Phase 1).
-- **Owner:** repo owner / tech lead. **Status:** OPEN.
+  1. **Service-account key rotation (P0-1)** — ✅ CLOSED. Keys rotated/revoked in Google Cloud (confirmed by Fred); both committed key files removed from git tracking and the working tree; `.gitignore` extended to a working glob. ⚠️ Git *history* purge not yet done — recommended as a separate task if the repo was ever public during exposure.
+  2. **Production database decision (P0-2 / O9)** — ✅ CLOSED. Confirmed **`tng-systems`** (Fred). The QR backend already targets this correctly (centralized in `functions/src/qr/firestore.ts`).
+  3. **Build verification (P0-3)** — ✅ Resolved in practice — live `tsc --noEmit`/`npm run build`/functions `tsc` all green.
+  4. **Firestore rule bypass review scoped (P1-1)** — ❌ Not yet reviewed (unchanged; does not block Phase 1, see Gate B below).
+- **Owner:** repo owner / tech lead. **Status:** **CLOSED** for items 1–3. Item 4 rolls forward into Gate B (Production Readiness).
 
-### Phase 1 — Foundation (1–2 weeks)
+### Phase 1 — Foundation (1–2 weeks) — ✅ Backend + client menu wiring COMPLETE; admin table UI still open
 - **Objectives:** scaffold the `qr-ordering` module and shared types; table QR generation + printing; sanitized public menu API.
-- **Deliverables:** `qr_orders`/`qr_tables` types frozen; `getPublicMenu()` callable; admin table management + printable QR codes.
-- **Dependencies:** Phase 0 sign-off; **GATE A (Security Remediation) passed**; production DB chosen (O9).
-- **Risks:** menu sanitization must strip cost/margin/recipe fields (leak = COGS exposure). Building on a repo with a red build or ambiguous DB (mitigated by GATE A).
-- **Acceptance:** scanning a QR opens a customer menu with no login prompt and no internal cost data present; all new code compiles under the green build baseline.
+- **Deliverables status:**
+  - ✅ `qr_orders`/`qr_tables` types frozen (`functions/src/qr/orderLogic.ts`, `src/features/qr-ordering/types/qrOrder.types.ts`).
+  - ✅ `getPublicMenu()` callable — built, unit-tested (sanitization/rate-limit/rejection cases), and now **wired to the real Customer Menu UI** (`publicMenu.service.ts` + `publicMenu.mapper.ts`, field-whitelisted, with a mock fallback for `/order/demo` and local dev).
+  - ✅ `createQrTable()` + `listQrTables()` callables — RBAC-gated (admin-only), BU-existence + duplicate-table checks, token-omitting list projection.
+  - ❌ **Admin table-management UI + printable QR-code screen — still not built.** The backend callables exist and are tested, but no frontend screen calls them yet; today tables can only be created by direct callable invocation (e.g. a script), not through a staff-facing UI.
+- **Dependencies:** Phase 0 sign-off; **GATE A (Security Remediation) — CLOSED**; production DB chosen (O9 — resolved: `tng-systems`).
+- **Risks:** menu sanitization must strip cost/margin/recipe fields (leak = COGS exposure) — **verified by test** (`getPublicMenu.handler.test.ts` asserts none of `calculatedCost/grossMargin/marginPercent/foodCostPercent/ingredients/linkedInventoryItemId/businessUnitId/isActive` ever appear in the DTO).
+- **Acceptance:** scanning a QR opens a customer menu with no login prompt and no internal cost data present (met for the menu-read path); all new code compiles under the green build baseline (met). Admin table UI acceptance not yet attempted.
 
-### Phase 2 — QR ordering core (2–3 weeks)
+### Phase 2 — QR ordering core (2–3 weeks) — 🟡 `createQrOrder` backend built; no client wiring yet
 - **Objectives:** cart, server-side order creation, order state machine, kitchen/bar/cashier queue views.
-- **Deliverables:** `createQrOrder()` callable with **transactional stock check before session creation**; queue views via `onSnapshot`.
-- **Dependencies:** Phase 1 menu API + frozen order shape.
-- **Risks:** oversell on concurrent last-unit orders.
-- **Acceptance:** a submitted order is created `AWAITING_PAYMENT` and does **not** appear in the kitchen queue until paid.
+- **Deliverables status:**
+  - ✅ `createQrOrder()` callable — server-authoritative repricing, atomic order-number allocation, and the whole write inside one `runTransaction`, unit-tested.
+  - ❌ **Transactional stock check before order creation is explicitly deferred to Phase 5** (documented, not a gap against current scope — see H3 in the Remediation Plan).
+  - ❌ Client (`CustomerMenuView`/`CartDrawer`) is **not yet wired** to `createQrOrder` — cart submit still only navigates to the mock checkout route. This is the next natural client-integration task after `getPublicMenu`.
+  - ❌ Kitchen/Bar/Cashier queue views remain **mock UI only** (local `useState`, no `onSnapshot`, not BU-scoped, not inside the staff `Layout`/permission shell) — unchanged from Phase 0.5 assessment.
+- **Dependencies:** Phase 1 menu API + frozen order shape (met).
+- **Risks:** oversell on concurrent last-unit orders (tracked, deferred to Phase 5 per plan).
+- **Acceptance:** a submitted order is created `AWAITING_PAYMENT` and does **not** appear in the kitchen queue until paid — met at the **backend** level (verified by tests); not yet observable end-to-end because no client calls `createQrOrder` yet.
 
 ### Phase 3 — Payments (Xendit) (1.5–2 weeks) — **core MVP**
 - **Objectives:** online payment; webhook-gated kitchen release; references persisted.
@@ -407,6 +417,18 @@ A hard gate introduced by the Phase 0.5 audit. **No QR implementation (Phase 1+)
 - **Dependencies:** Xendit account with GCash/Maya/QRPH/cards **activated**; test-mode keys first, separate prod keys + webhook token; `#payments-xendit`.
 - **Risks:** see [7.5](#75-payment-risks) — highest-risk phase.
 - **Acceptance:** sandbox payment via each channel flips the order to PAID **only on the verified webhook**, appearing in the kitchen queue within ~2s; a replayed/duplicate webhook creates exactly one ticket; bad token or mismatched amount is rejected.
+
+### Security hardening done ahead of schedule (Sprint 1 remediation, 2026-07-03)
+Not a numbered phase — this is Gate-B-relevant hardening the team completed early, alongside the Phase 1 backend, per [`QR_SPRINT1_REMEDIATION_PLAN.md`](QR_SPRINT1_REMEDIATION_PLAN.md):
+- ✅ **RBAC on `createQrTable`/`listQrTables`** (`functions/src/qr/auth.ts`) — admin-only, fails closed on missing/unknown role.
+- ✅ **BU-existence + duplicate-active-table checks** on `createQrTable`.
+- ✅ **`qrToken` no longer exposed** to any signed-in reader — `listQrTables` returns a token-omitting DTO; `firestore.rules` tightened.
+- ✅ **`qr_orders` reads BU-scoped** in `firestore.rules` (own BU only; ADMIN/SUPER_ADMIN cross-BU by design).
+- ✅ **Rate limiting** (`functions/src/qr/rateLimit.ts`) — fixed-window, Firestore-backed, keyed per table per surface (menu reads: 30/min; order creates: 10/min) — live protection against scripted abuse today, independent of App Check.
+- ✅ **DB-target centralization** (`functions/src/qr/firestore.ts`) — all three callables import one module; P0-2's `tng-systems` answer is now a single source of truth.
+- ❌ **App Check enforcement** — deliberately **not enabled yet** (needs client-side attestation wiring not yet present); tracked as its own plan in [`QR_APP_CHECK_ABUSE_PROTECTION_PLAN.md`](QR_APP_CHECK_ABUSE_PROTECTION_PLAN.md).
+- ❌ **Order-creation idempotency key (M1)** — not yet implemented; **must land before Phase 3 payment code**, so a duplicate submit can never become a duplicate charge.
+- **Test coverage:** 44 functions unit tests + 7 Firestore-emulator rules tests, all passing (`npm --prefix functions run test` / `test:emulator`).
 
 ### Phase 3.5 — Reconciliation (0.5 week)
 - **Objectives:** cashier posts the official BIR receipt number back into TNG.
@@ -601,6 +623,10 @@ A future phase (Phase 7) will explore **automatically syncing** completed sales 
 | All Firestore rules require auth; no public precedent | `firestore.rules` (helper `isSignedIn()` gating throughout) |
 | Finance revenue is a placeholder | `src/features/finance/services/finance.dashboard.service.ts:169` |
 | Capacitor configured, no native projects | `capacitor.config.ts`; absence of initialized `android/`/`ios/` project state |
+| `getPublicMenu`/`createQrOrder`/`createQrTable`/`listQrTables` callables, RBAC, rate limiting | `functions/src/qr/*.ts` + `functions/src/qr/__tests__/*.test.ts` (44 unit tests) |
+| Firestore rules BU-scoping + `qrToken` non-exposure, live-verified | `functions/src/qr/__tests__/rules.emulator.test.ts` (7 tests, run via `firebase emulators:exec`) |
+| Client `getPublicMenu` integration (mock fallback preserved) | `src/features/qr-ordering/services/publicMenu.service.ts`, `publicMenu.mapper.ts`, `src/features/qr-ordering/customer/CustomerMenuView.tsx` |
+| Bar Queue mock screen (Screen Spec §7) | `src/features/qr-ordering/bar/BarQueueView.tsx`, routed at `/bar/:sessionId?` in `src/App.tsx` |
 
 ---
 

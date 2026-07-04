@@ -1,25 +1,36 @@
-import React, { useState } from 'react';
-import { Martini, Blend, CheckCircle2, Check, Clock, AlertTriangle, StickyNote, UtensilsCrossed } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { Martini, Blend, CheckCircle2, Check, Clock, AlertTriangle, StickyNote, UtensilsCrossed, Loader2, RefreshCw, LockKeyhole, AlertCircle } from 'lucide-react';
 import { MOCK_BAR_ORDERS, BAR_LATE_THRESHOLD_MIN } from '../data/mockBar';
-import type { BarOrder, BarStatus } from '../data/mockBar';
+import type { BarOrder } from '../data/mockBar';
+import { isConfigValid } from '../../../config/firebase';
+import { useAuth } from '../../../contexts/useAuth';
+import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { subscribeBarOrders } from '../services/barOrders.service';
+import type { BarCard, BarLane } from '../services/barOrders.service';
 
 /**
- * QR Ordering — Bar Queue (Phase 1 UI prototype · MOCK ONLY)
+ * QR Ordering — Bar Queue (Sprint 2 · real qr_orders listener)
  *
  * Spec: docs/QR_SCREEN_SPEC.md §7 · Staff-facing bar display.
- * MOCK ONLY — no Firestore listener, no Xendit, no Functions, no backend, no
- * real order updates. Status changes move cards between lanes in local state.
  *
- * Same bright, high-contrast pattern as the Kitchen Queue, tuned for bar staff:
- * drink-only cards, a drink-focused colour system, and a "Food also in kitchen"
- * note when the order also has food. Tablet/desktop = 3 columns, mobile = stacked.
+ * `/bar/demo` (and local dev without Firebase) shows the mock board with
+ * interactive (mock-only) status buttons. Any other session id (e.g. /bar/live)
+ * reads REAL `qr_orders` live via a BU-scoped onSnapshot, showing only PAID bar
+ * work with DRINK lines (an order that also has food carries a "Food also in
+ * kitchen" note).
+ *
+ * The LIVE board is READ-ONLY: `qr_orders` is `write: if false` and no safe
+ * bar-transition callable exists yet, so no status buttons are rendered live (no
+ * writes). AWAITING_PAYMENT orders never appear (release only on paid — Master
+ * Plan A3); until Xendit lands, the live board is legitimately empty ("No paid
+ * bar orders yet."). No Xendit, no inventory deduction.
  */
 
-type LaneKey = BarStatus;
-type NextAction = BarStatus | 'served';
+type NextAction = BarLane | 'served';
 
 interface LaneConfig {
-    key: LaneKey;
+    key: BarLane;
     title: string;
     headerBg: string;
     columnBg: string;
@@ -53,12 +64,28 @@ const LANES: LaneConfig[] = [
     },
 ];
 
+/** Adapt a mock order to the shared card shape (demo mode). */
+function mockToCard(o: BarOrder): BarCard {
+    return {
+        id: o.id,
+        orderNumber: o.orderNumber,
+        tableNumber: o.tableNumber,
+        lane: o.status,
+        minutesSinceOrder: o.minutesSincePaid,
+        createdAtMillis: 0,
+        lines: o.lines,
+        hasFoodInKitchen: o.hasFoodInKitchen,
+    };
+}
+
 const OrderCard: React.FC<{
-    order: BarOrder;
+    card: BarCard;
     lane: LaneConfig;
-    onAdvance: (id: string, to: NextAction) => void;
-}> = ({ order, lane, onAdvance }) => {
-    const isLate = lane.flagLate && order.minutesSincePaid >= BAR_LATE_THRESHOLD_MIN;
+    /** Interactive (mock) status buttons — demo mode only. Live board is read-only. */
+    interactive: boolean;
+    onAdvance?: (id: string, to: NextAction) => void;
+}> = ({ card, lane, interactive, onAdvance }) => {
+    const isLate = lane.flagLate && card.minutesSinceOrder >= BAR_LATE_THRESHOLD_MIN;
     const BtnIcon = lane.btnIcon;
 
     return (
@@ -67,28 +94,30 @@ const OrderCard: React.FC<{
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-baseline gap-2 min-w-0">
                     <span className="text-xs font-black uppercase tracking-wider text-slate-400">Table</span>
-                    <span className="text-4xl md:text-5xl font-black leading-none text-slate-900">{order.tableNumber}</span>
+                    <span className="text-4xl md:text-5xl font-black leading-none text-slate-900">{card.tableNumber}</span>
                 </div>
                 <div className="text-right shrink-0">
-                    <div className="text-sm font-bold text-slate-600">{order.orderNumber}</div>
+                    <div className="text-sm font-bold text-slate-600">{card.orderNumber}</div>
                     <div
                         className={`mt-1 inline-flex items-center gap-1 text-sm font-bold ${isLate ? 'text-red-600' : 'text-slate-500'}`}
-                        title="Time since paid"
+                        title="Time since order"
                     >
-                        <Clock size={14} strokeWidth={2.5} />{order.minutesSincePaid} min
+                        <Clock size={14} strokeWidth={2.5} />{card.minutesSinceOrder} min
                     </div>
                 </div>
             </div>
 
             {isLate && (
-                <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-black uppercase tracking-wide">
-                    <AlertTriangle size={13} strokeWidth={2.75} /> Late
+                <div className="mt-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-black uppercase tracking-wide">
+                        <AlertTriangle size={13} strokeWidth={2.75} /> Late
+                    </span>
                 </div>
             )}
 
             {/* Drink items */}
             <ul className="mt-3 space-y-2.5">
-                {order.lines.map((line, i) => (
+                {card.lines.map((line, i) => (
                     <li key={i}>
                         <div className="flex items-baseline gap-2">
                             <span className="text-lg md:text-xl font-black text-slate-900 tabular-nums shrink-0">{line.qty}×</span>
@@ -105,96 +134,215 @@ const OrderCard: React.FC<{
             </ul>
 
             {/* Food-also-in-kitchen note */}
-            {order.hasFoodInKitchen && (
+            {card.hasFoodInKitchen && (
                 <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-800 text-sm font-bold">
                     <UtensilsCrossed size={15} strokeWidth={2.25} className="shrink-0" />
                     Food also in kitchen
                 </div>
             )}
 
-            {/* Big action button */}
-            <button
-                type="button"
-                onClick={() => onAdvance(order.id, lane.next)}
-                className={`mt-4 w-full py-4 rounded-xl text-white text-lg font-bold flex items-center justify-center gap-2.5 transition-all duration-150 active:scale-[0.98] ${lane.btnClass}`}
-            >
-                <BtnIcon size={22} strokeWidth={2.5} />
-                {lane.btnLabel}
-            </button>
+            {/* Big action button — mock-only, demo mode. The live board is read-only. */}
+            {interactive && onAdvance && (
+                <button
+                    type="button"
+                    onClick={() => onAdvance(card.id, lane.next)}
+                    className={`mt-4 w-full py-4 rounded-xl text-white text-lg font-bold flex items-center justify-center gap-2.5 transition-all duration-150 active:scale-[0.98] ${lane.btnClass}`}
+                >
+                    <BtnIcon size={22} strokeWidth={2.5} />
+                    {lane.btnLabel}
+                </button>
+            )}
         </div>
     );
 };
 
-const BarQueueView: React.FC = () => {
-    const [orders, setOrders] = useState<BarOrder[]>(MOCK_BAR_ORDERS);
+type ReadState = 'loading' | 'ready' | 'error' | 'unauthorized';
 
-    // MOCK status change — local state only, no backend / order update.
-    const handleAdvance = (id: string, to: NextAction) => {
-        setOrders(prev =>
-            to === 'served'
-                ? prev.filter(o => o.id !== id)
-                : prev.map(o => (o.id === id ? { ...o, status: to } : o)),
+const BarQueueView: React.FC = () => {
+    const { sessionId } = useParams<{ sessionId: string }>();
+    const { currentUser, loading: authLoading } = useAuth();
+    const { selectedBusinessUnit } = useBusinessUnit();
+
+    const isDemo = !sessionId || sessionId.trim().toLowerCase() === 'demo' || !isConfigValid;
+    const businessUnitId =
+        selectedBusinessUnit && selectedBusinessUnit !== 'all' ? selectedBusinessUnit : currentUser?.businessId ?? '';
+    const signedIn = !!currentUser;
+
+    const demoCards = useMemo(() => MOCK_BAR_ORDERS.map(mockToCard), []);
+
+    const [serverCards, setServerCards] = useState<BarCard[]>([]);
+    const [readState, setReadState] = useState<ReadState>(isDemo ? 'ready' : 'loading');
+    const [reloadKey, setReloadKey] = useState(0);
+
+    // Local-only lane overrides + served dismissals (both modes). Never persisted.
+    const [overrides, setOverrides] = useState<Record<string, BarLane>>({});
+    const [servedIds, setServedIds] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (isDemo) { setReadState('ready'); return; }
+        if (authLoading) { setReadState('loading'); return; }
+        if (!signedIn || !businessUnitId) { setReadState('unauthorized'); return; }
+
+        let cancelled = false;
+        setReadState('loading');
+        const unsub = subscribeBarOrders(
+            businessUnitId,
+            cards => { if (!cancelled) { setServerCards(cards); setReadState('ready'); } },
+            () => { if (!cancelled) setReadState('error'); },
         );
+        return () => { cancelled = true; unsub(); };
+    }, [isDemo, authLoading, signedIn, businessUnitId, reloadKey]);
+
+    const handleAdvance = (id: string, to: NextAction) => {
+        if (to === 'served') {
+            setServedIds(prev => (prev.includes(id) ? prev : [...prev, id]));
+        } else {
+            setOverrides(prev => ({ ...prev, [id]: to }));
+        }
     };
 
-    const activeCount = orders.length;
+    // Effective board: base cards (demo or live) minus locally-served, with
+    // local lane overrides applied on top of the real status.
+    const baseCards = isDemo ? demoCards : serverCards;
+    const cards: BarCard[] = baseCards
+        .filter(c => !servedIds.includes(c.id))
+        .map(c => ({ ...c, lane: overrides[c.id] ?? c.lane }));
+
+    const activeCount = cards.length;
+
+    const header = (
+        <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
+            <div className="max-w-[1500px] mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-11 h-11 rounded-xl bg-slate-900 flex items-center justify-center shrink-0">
+                        <Martini size={24} className="text-white" strokeWidth={2.25} />
+                    </div>
+                    <div className="min-w-0">
+                        <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 leading-none">Bar Queue</h1>
+                        <p className="text-sm font-semibold text-slate-500 truncate">
+                            {isDemo ? 'Demo board · sample drinks' : 'Live orders'}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[11px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full ${isDemo ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'}`}>
+                        {isDemo ? 'Demo' : 'Live'}
+                    </span>
+                    <span className="text-sm font-bold text-slate-500 hidden sm:inline">Active</span>
+                    <span className="min-w-9 h-9 px-3 rounded-full bg-slate-900 text-white text-lg font-black flex items-center justify-center tabular-nums">
+                        {activeCount}
+                    </span>
+                </div>
+            </div>
+        </header>
+    );
+
+    // ── Non-ready real states ─────────────────────────────────────────────
+    if (!isDemo && readState !== 'ready') {
+        return (
+            <div className="min-h-dvh bg-slate-100 text-slate-900">
+                {header}
+                <main className="max-w-[1500px] mx-auto px-4 md:px-6 py-16 flex justify-center">
+                    {readState === 'loading' ? (
+                        <div className="flex flex-col items-center text-center" role="status" aria-live="polite">
+                            <Loader2 size={30} className="text-slate-500 animate-spin" />
+                            <p className="mt-4 text-sm font-semibold text-slate-500">Loading live orders…</p>
+                        </div>
+                    ) : readState === 'unauthorized' ? (
+                        <BarMessage
+                            Icon={LockKeyhole}
+                            iconCls="text-slate-400"
+                            title="Staff sign-in required"
+                            body="Sign in with a staff account (with a business unit) to view the live bar queue. Use /bar/demo for the sample board."
+                        />
+                    ) : (
+                        <BarMessage
+                            Icon={AlertCircle}
+                            iconCls="text-rose-400"
+                            title="Couldn’t load the queue"
+                            body="We couldn’t reach the live orders. Please check your connection and try again."
+                            onRetry={() => setReloadKey(k => k + 1)}
+                        />
+                    )}
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-dvh bg-slate-100 text-slate-900">
-            {/* Top bar */}
-            <header className="sticky top-0 z-20 bg-white border-b border-slate-200 shadow-sm">
-                <div className="max-w-[1500px] mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 rounded-xl bg-slate-900 flex items-center justify-center shrink-0">
-                            <Martini size={24} className="text-white" strokeWidth={2.25} />
-                        </div>
-                        <div className="min-w-0">
-                            <h1 className="text-xl md:text-2xl font-black tracking-tight text-slate-900 leading-none">Bar Queue</h1>
-                            <p className="text-sm font-semibold text-slate-500 truncate">Inflatable Island Beach Club</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-sm font-bold text-slate-500 hidden sm:inline">Active</span>
-                        <span className="min-w-9 h-9 px-3 rounded-full bg-slate-900 text-white text-lg font-black flex items-center justify-center tabular-nums">
-                            {activeCount}
-                        </span>
-                    </div>
-                </div>
-            </header>
+            {header}
 
-            {/* Lanes */}
             <main className="max-w-[1500px] mx-auto px-3 md:px-6 py-4 md:py-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 md:h-[calc(100dvh-140px)]">
-                    {LANES.map(lane => {
-                        const laneOrders = orders.filter(o => o.status === lane.key);
-                        return (
-                            <section key={lane.key} className="flex flex-col min-h-0 rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200">
-                                <header className={`${lane.headerBg} text-white px-4 py-3 flex items-center justify-between shrink-0`}>
-                                    <h2 className="text-lg md:text-xl font-black uppercase tracking-wide">{lane.title}</h2>
-                                    <span className={`min-w-8 h-8 px-2.5 rounded-full ${lane.countChip} text-white text-lg font-black flex items-center justify-center tabular-nums`}>
-                                        {laneOrders.length}
-                                    </span>
-                                </header>
-                                <div className={`flex-1 min-h-0 overflow-y-auto ${lane.columnBg} p-3 md:p-4 space-y-3 md:space-y-4`}>
-                                    {laneOrders.length > 0 ? (
-                                        laneOrders.map(order => (
-                                            <OrderCard key={order.id} order={order} lane={lane} onAdvance={handleAdvance} />
-                                        ))
-                                    ) : (
-                                        <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center py-10">
-                                            <CheckCircle2 size={36} className="text-slate-300 mb-2" strokeWidth={1.75} />
-                                            <p className="text-base font-bold text-slate-400">All clear</p>
-                                            <p className="text-sm text-slate-400">No drinks in this lane</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-                        );
-                    })}
-                </div>
+                {!isDemo && cards.length === 0 ? (
+                    /* Live board with no PAID bar orders (expected until Xendit lands). */
+                    <div className="py-16 flex justify-center">
+                        <BarMessage
+                            Icon={Martini}
+                            iconCls="text-slate-400"
+                            title="No paid bar orders yet."
+                            body="Paid drink orders appear here automatically once payment is confirmed. Until then, this board stays empty."
+                        />
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 md:h-[calc(100dvh-140px)]">
+                        {LANES.map(lane => {
+                            const laneOrders = cards.filter(o => o.lane === lane.key);
+                            return (
+                                <section key={lane.key} className="flex flex-col min-h-0 rounded-2xl overflow-hidden bg-white shadow-sm border border-slate-200">
+                                    <header className={`${lane.headerBg} text-white px-4 py-3 flex items-center justify-between shrink-0`}>
+                                        <h2 className="text-lg md:text-xl font-black uppercase tracking-wide">{lane.title}</h2>
+                                        <span className={`min-w-8 h-8 px-2.5 rounded-full ${lane.countChip} text-white text-lg font-black flex items-center justify-center tabular-nums`}>
+                                            {laneOrders.length}
+                                        </span>
+                                    </header>
+                                    <div className={`flex-1 min-h-0 overflow-y-auto ${lane.columnBg} p-3 md:p-4 space-y-3 md:space-y-4`}>
+                                        {laneOrders.length > 0 ? (
+                                            laneOrders.map(order => (
+                                                <OrderCard key={order.id} card={order} lane={lane} interactive={isDemo} onAdvance={isDemo ? handleAdvance : undefined} />
+                                            ))
+                                        ) : (
+                                            <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-center py-10">
+                                                <CheckCircle2 size={36} className="text-slate-300 mb-2" strokeWidth={1.75} />
+                                                <p className="text-base font-bold text-slate-400">All clear</p>
+                                                <p className="text-sm text-slate-400">No drinks in this lane</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </section>
+                            );
+                        })}
+                    </div>
+                )}
             </main>
         </div>
     );
 };
+
+/** Centered icon + title + body (+ optional retry) for the non-ready states. */
+const BarMessage: React.FC<{
+    Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
+    iconCls: string;
+    title: string;
+    body: string;
+    onRetry?: () => void;
+}> = ({ Icon, iconCls, title, body, onRetry }) => (
+    <div className="flex flex-col items-center text-center max-w-md">
+        <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
+            <Icon size={26} className={iconCls} strokeWidth={1.5} />
+        </div>
+        <h3 className="text-base font-bold text-slate-700 mb-1">{title}</h3>
+        <p className="text-slate-500 text-sm mb-5">{body}</p>
+        {onRetry && (
+            <button
+                type="button"
+                onClick={onRetry}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold active:scale-95 transition-transform"
+            >
+                <RefreshCw size={16} strokeWidth={2.5} /> Try again
+            </button>
+        )}
+    </div>
+);
 
 export default BarQueueView;

@@ -107,3 +107,23 @@ test('validateCreateOrderInput rejects bad payloads', () => {
     assert.throws(() => validateCreateOrderInput({ tableId: 't', items: [{ menuItemId: 'm', quantity: 1.5 }] }), /quantity/);
     assert.throws(() => validateCreateOrderInput({ tableId: 't', items: [{ menuItemId: '', quantity: 1 }] }), /menuItemId/);
 });
+
+test('validateCreateOrderInput accepts a valid idempotency key (either field name)', () => {
+    const good = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'; // 36-char UUID
+    const v1 = validateCreateOrderInput({ tableId: 't', items: [{ menuItemId: 'm', quantity: 1 }], idempotencyKey: good });
+    assert.equal(v1.idempotencyKey, good);
+    const v2 = validateCreateOrderInput({ tableId: 't', items: [{ menuItemId: 'm', quantity: 1 }], clientRequestId: good });
+    assert.equal(v2.idempotencyKey, good);
+    // Absent key is fine (backward compatible).
+    const v3 = validateCreateOrderInput({ tableId: 't', items: [{ menuItemId: 'm', quantity: 1 }] });
+    assert.equal(v3.idempotencyKey, undefined);
+});
+
+test('validateCreateOrderInput rejects a malformed idempotency key', () => {
+    const base = { tableId: 't', items: [{ menuItemId: 'm', quantity: 1 }] };
+    assert.throws(() => validateCreateOrderInput({ ...base, idempotencyKey: 'short' }), /idempotencyKey/);      // < 8
+    assert.throws(() => validateCreateOrderInput({ ...base, idempotencyKey: 'a'.repeat(65) }), /idempotencyKey/); // > 64
+    assert.throws(() => validateCreateOrderInput({ ...base, idempotencyKey: 'bad key!' }), /idempotencyKey/);    // space + '!'
+    assert.throws(() => validateCreateOrderInput({ ...base, idempotencyKey: 'has:colon:here' }), /idempotencyKey/); // ':' excluded
+    assert.throws(() => validateCreateOrderInput({ ...base, idempotencyKey: 12345678 }), /idempotencyKey/);      // not a string
+});

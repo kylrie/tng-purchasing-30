@@ -45,6 +45,7 @@ test('createQrOrder: creates a qr_order as AWAITING_PAYMENT / UNPAID', async () 
     assert.equal(stored.paymentStatus, 'UNPAID');
     assert.equal(stored.businessUnitId, 'bu1');
     assert.equal(stored.tableId, 't1');
+    assert.equal(stored.tableNumber, '12');   // denormalized for client kitchen/bar reads
     assert.equal(stored.orderType, 'DINE_IN');
 });
 
@@ -127,6 +128,66 @@ test('createQrOrder: rate limits are per-table (one busy table does not block an
     // Table 2 still works.
     const ok = await createQrOrderHandler(asDb(fake), req({ tableId: 't2', items: [{ menuItemId: 'm1', quantity: 1 }] }));
     assert.equal(ok.status, 'AWAITING_PAYMENT');
+});
+
+const KEY = 'idem-key-abcdef123456'; // valid: [A-Za-z0-9_-]{8,64}
+
+test('createQrOrder: first request with an idempotency key creates the order', async () => {
+    const fake = seedMenuAndTable();
+    const res = await createQrOrderHandler(asDb(fake), req({
+        tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }], idempotencyKey: KEY,
+    }));
+    assert.equal(res.orderNumber, 'QR-00001');
+    // The idempotency record is written, scoped to the table.
+    const idem = fake._read('qr_order_idempotency', `t1:${KEY}`)!;
+    assert.equal(idem.orderId, res.orderId);
+    assert.equal(idem.orderNumber, 'QR-00001');
+    assert.equal(idem.tableId, 't1');
+});
+
+test('createQrOrder: a retry with the same key returns the SAME order (double-tap safe, counter not bumped twice)', async () => {
+    const fake = seedMenuAndTable();
+    const first = await createQrOrderHandler(asDb(fake), req({
+        tableId: 't1', items: [{ menuItemId: 'm1', quantity: 2 }], idempotencyKey: KEY,
+    }));
+    const retry = await createQrOrderHandler(asDb(fake), req({
+        tableId: 't1', items: [{ menuItemId: 'm1', quantity: 2 }], idempotencyKey: KEY,
+    }));
+
+    assert.equal(retry.orderId, first.orderId);
+    assert.equal(retry.orderNumber, first.orderNumber);
+    assert.equal(retry.totalAmount, first.totalAmount);
+
+    // Exactly one order, and the counter advanced only once.
+    assert.equal(fake._all('qr_orders').length, 1);
+    assert.equal(fake._read('counters', 'qr')!.value, 1);
+});
+
+test('createQrOrder: the same key on a DIFFERENT table does not collide', async () => {
+    const fake = seedMenuAndTable();
+    fake._seed('qr_tables', 't2', { businessUnitId: 'bu1', tableNumber: '13', isActive: true });
+    const a = await createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }], idempotencyKey: KEY }));
+    const b = await createQrOrderHandler(asDb(fake), req({ tableId: 't2', items: [{ menuItemId: 'm1', quantity: 1 }], idempotencyKey: KEY }));
+
+    assert.notEqual(a.orderId, b.orderId);         // separate orders
+    assert.equal(fake._all('qr_orders').length, 2);
+    assert.equal(fake._read('counters', 'qr')!.value, 2);
+});
+
+test('createQrOrder: different keys on the same table create separate orders', async () => {
+    const fake = seedMenuAndTable();
+    const a = await createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }], idempotencyKey: 'key-one-aaaaaaaa' }));
+    const b = await createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }], idempotencyKey: 'key-two-bbbbbbbb' }));
+    assert.notEqual(a.orderId, b.orderId);
+    assert.equal(fake._all('qr_orders').length, 2);
+});
+
+test('createQrOrder: rejects a malformed idempotency key', async () => {
+    const fake = seedMenuAndTable();
+    await expectReject(
+        () => createQrOrderHandler(asDb(fake), req({ tableId: 't1', items: [{ menuItemId: 'm1', quantity: 1 }], idempotencyKey: 'bad key!' })),
+        'invalid-argument',
+    );
 });
 
 test('createQrOrder: increments the order counter across orders', async () => {

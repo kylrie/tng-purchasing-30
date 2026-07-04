@@ -60,6 +60,14 @@ export const MAX_QTY_PER_LINE = 99;
 export const ORDER_NUMBER_PAD = 5;
 
 /**
+ * Client-supplied idempotency key (a.k.a. clientRequestId): 8–64 chars of
+ * URL/doc-id-safe characters. A UUID (36 chars) or a 32-char hex string both
+ * qualify. Deliberately excludes ':' and '/' so it composes safely into the
+ * `${tableId}:${key}` idempotency document id.
+ */
+export const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
+
+/**
  * Sanitized customer-facing projection of a menu item. Explicitly whitelists
  * fields — cost/margin/recipe can never appear because they are not read.
  * `isActive` (menu on/off) maps to the customer-facing `isAvailable`.
@@ -153,6 +161,8 @@ export interface ValidatedOrderInput {
     tableId: string;
     lines: OrderLineInput[];
     customerName?: string;
+    /** Optional client-supplied dedupe key (idempotencyKey / clientRequestId). */
+    idempotencyKey?: string;
 }
 
 /**
@@ -189,5 +199,14 @@ export function validateCreateOrderInput(raw: unknown): ValidatedOrderInput {
     const result: ValidatedOrderInput = { tableId: data.tableId, lines };
     const customerName = normalizeCustomerName(data.customerName);
     if (customerName) result.customerName = customerName;
+
+    // Optional idempotency key — accept either `idempotencyKey` or `clientRequestId`.
+    const rawKey = data.idempotencyKey ?? data.clientRequestId;
+    if (rawKey !== undefined && rawKey !== null) {
+        if (typeof rawKey !== 'string' || !IDEMPOTENCY_KEY_PATTERN.test(rawKey)) {
+            throw new Error('INVALID_INPUT:idempotencyKey');
+        }
+        result.idempotencyKey = rawKey;
+    }
     return result;
 }

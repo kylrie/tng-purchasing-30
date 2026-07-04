@@ -115,7 +115,7 @@ test('listQrTables: returns table metadata but NEVER the qrToken', async () => {
     assert.equal(res.tables.length, 2);
     for (const t of res.tables) {
         const keys = Object.keys(t).sort();
-        assert.deepEqual(keys, ['id', 'isActive', 'tableNumber']);
+        assert.deepEqual(keys, ['businessUnitId', 'createdAtMillis', 'id', 'isActive', 'tableNumber']);
         assert.equal('qrToken' in t, false, 'qrToken must not be present');
     }
 });

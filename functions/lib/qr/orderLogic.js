@@ -8,7 +8,7 @@
  * createQrTable) do the I/O and delegate every business rule to this module.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ORDER_NUMBER_PAD = exports.MAX_QTY_PER_LINE = exports.MAX_LINES = exports.MAX_NOTE_LEN = exports.MAX_CUSTOMER_NAME_LEN = void 0;
+exports.IDEMPOTENCY_KEY_PATTERN = exports.ORDER_NUMBER_PAD = exports.MAX_QTY_PER_LINE = exports.MAX_LINES = exports.MAX_NOTE_LEN = exports.MAX_CUSTOMER_NAME_LEN = void 0;
 exports.sanitizeMenuItem = sanitizeMenuItem;
 exports.money = money;
 exports.repriceLine = repriceLine;
@@ -23,6 +23,13 @@ exports.MAX_NOTE_LEN = 120;
 exports.MAX_LINES = 50;
 exports.MAX_QTY_PER_LINE = 99;
 exports.ORDER_NUMBER_PAD = 5;
+/**
+ * Client-supplied idempotency key (a.k.a. clientRequestId): 8–64 chars of
+ * URL/doc-id-safe characters. A UUID (36 chars) or a 32-char hex string both
+ * qualify. Deliberately excludes ':' and '/' so it composes safely into the
+ * `${tableId}:${key}` idempotency document id.
+ */
+exports.IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 /**
  * Sanitized customer-facing projection of a menu item. Explicitly whitelists
  * fields — cost/margin/recipe can never appear because they are not read.
@@ -143,6 +150,14 @@ function validateCreateOrderInput(raw) {
     const customerName = normalizeCustomerName(data.customerName);
     if (customerName)
         result.customerName = customerName;
+    // Optional idempotency key — accept either `idempotencyKey` or `clientRequestId`.
+    const rawKey = data.idempotencyKey ?? data.clientRequestId;
+    if (rawKey !== undefined && rawKey !== null) {
+        if (typeof rawKey !== 'string' || !exports.IDEMPOTENCY_KEY_PATTERN.test(rawKey)) {
+            throw new Error('INVALID_INPUT:idempotencyKey');
+        }
+        result.idempotencyKey = rawKey;
+    }
     return result;
 }
 //# sourceMappingURL=orderLogic.js.map

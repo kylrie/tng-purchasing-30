@@ -14,7 +14,7 @@
  * See docs/QR_APP_CHECK_ABUSE_PROTECTION_PLAN.md §2.5–2.7.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ORDER_CREATE_LIMIT = exports.MENU_READ_LIMIT = exports.RATE_LIMIT_MESSAGE = void 0;
+exports.SESSION_CREATE_LIMIT = exports.ORDER_CREATE_LIMIT = exports.MENU_READ_LIMIT = exports.RATE_LIMIT_MESSAGE = void 0;
 exports.rateLimitDecision = rateLimitDecision;
 exports.enforceRateLimit = enforceRateLimit;
 const https_1 = require("firebase-functions/v2/https");
@@ -25,6 +25,10 @@ exports.RATE_LIMIT_MESSAGE = 'Please wait a moment and try again.';
 /** Per-surface budgets. Menu reads are cheap → generous; order creation → tight. */
 exports.MENU_READ_LIMIT = { maxRequests: 30, windowMs: 60_000 };
 exports.ORDER_CREATE_LIMIT = { maxRequests: 10, windowMs: 60_000 };
+/** Payment-session creation per table. Tighter than order creation: each call is a
+ *  Xendit round-trip and a card-testing surface, and a table needs only a few
+ *  (retry after fail/expire) within a window. See QR_XENDIT_IMPLEMENTATION_PLAN §4. */
+exports.SESSION_CREATE_LIMIT = { maxRequests: 5, windowMs: 60_000 };
 /**
  * Pure fixed-window decision. Given the current stored window (or undefined for
  * a first request) and the wall clock, decide whether to allow and what the

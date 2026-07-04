@@ -32,6 +32,7 @@ const OrderStatusView = React.lazy(() => import('./features/qr-ordering/customer
 const KitchenQueueView = React.lazy(() => import('./features/qr-ordering/kitchen/KitchenQueueView'));
 const BarQueueView = React.lazy(() => import('./features/qr-ordering/bar/BarQueueView'));
 const CashierReconciliationView = React.lazy(() => import('./features/qr-ordering/cashier/CashierReconciliationView'));
+const TableManagementView = React.lazy(() => import('./features/qr-ordering/admin/TableManagementView'));
 const BurfView = React.lazy(() => import('./features/procurement/views/BURFView'));
 const PrfView = React.lazy(() => import('./features/procurement/views/PRFView'));
 const PRFTrackerView = React.lazy(() => import('./features/procurement/views/PRFTrackerView'));
@@ -702,6 +703,11 @@ VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
                     <Route path="/cashier/:sessionId?" element={
                       <Suspense fallback={<PageLoader />}>
                         <CashierReconciliationView />
+                      </Suspense>
+                    } />
+                    <Route path="/qr-tables/:mode?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TableManagementView />
                       </Suspense>
                     } />
                     <Route path="/*" element={<ProtectedApp />} />

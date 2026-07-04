@@ -23,7 +23,7 @@ However, the review found **1 Critical, 3 High, 6 Medium, and 6 Low** findings. 
 | H1 | `createQrTable` has zero RBAC — any signed-in user mints tables + tokens | Callable authorization | **High** | ✅ Fixed |
 | H2 | No abuse protection (App Check / rate limiting) on the anonymous callables | Security | **High** | 📝 Plan only (see §1 H2) |
 | H3 | Stock validation absent — oversell gap; diverges from plan §4 | Missing stock validation | **High** | ✅ Doc reconciled; impl → Phase 5 |
-| M1 | No order-creation idempotency — retry/double-tap ⇒ duplicate orders | Race / correctness | **Medium** | ⬜ Deferred (pre-Sprint 2) |
+| M1 | No order-creation idempotency — retry/double-tap ⇒ duplicate orders | Race / correctness | **Medium** | ✅ Fixed 2026-07-03 (client idempotency key + table-scoped dedupe record) |
 | M2 | Single hot counter document — throughput ceiling + retry amplification | Order-number race | **Medium** | ⬜ Deferred (load-driven) |
 | M3 | `qr_tables` read exposes `qrToken` to every signed-in user | Firestore rules | **Medium** | ✅ Fixed |
 | M4 | `qr_orders` read is not BU-scoped — cross-BU + PII exposure to any staff | Firestore rules | **Medium** | ✅ Fixed |
@@ -36,7 +36,7 @@ However, the review found **1 Critical, 3 High, 6 Medium, and 6 Low** findings. 
 | L5 | `functions/lib` is git-tracked and was recompiled | Prod-readiness | **Low** | ⬜ Deferred |
 | L6 | No observability/structured logging on the new callables | Prod-readiness | **Low** | ⬜ Deferred |
 
-**This pass fixed:** H1, H3 (doc), M3, M4, M5, M6. **C1 (Gate A) CLOSED 2026-07-03** (P0-1 + P0-2 resolved). **Still blocking go-live:** H2 (abuse protection — plan delivered), H3-impl (Phase 5 stock check), plus Gate B production-readiness items. **Not blocking (deferred):** M1, M2, all Lows.
+**This pass fixed:** H1, H3 (doc), M3, M4, M5, M6. **C1 (Gate A) CLOSED 2026-07-03** (P0-1 + P0-2 resolved). **M1 (idempotency) FIXED 2026-07-03.** **Still blocking go-live:** H2 (abuse protection — plan delivered), H3-impl (Phase 5 stock check), plus Gate B production-readiness items. **Not blocking (deferred):** M2, all Lows.
 
 ---
 
@@ -145,8 +145,8 @@ Classified **High** as a gap-versus-target, with the explicit acknowledgment tha
 
 ## 10. Production-readiness risks
 
-### M1 — No order-creation idempotency *(Medium)*
-Callable clients (Firebase SDK) may retry on transient network errors, and a diner can double-tap "submit." `createQrOrder` has **no idempotency key**, so a retry mints a *second* `qr_orders` document and a second order number for the same intent. The Master Plan makes idempotency central for payment (§7.4); order creation deserves at least a client-supplied idempotency token (or a short-window dedupe on `(tableId, itemsHash)`) to avoid duplicate tickets and, later, duplicate payment sessions. **Medium** now (junk unpaid orders); escalates once payment is attached.
+### M1 — No order-creation idempotency *(Medium)* — ✅ FIXED (2026-07-03)
+Callable clients (Firebase SDK) may retry on transient network errors, and a diner can double-tap "submit." **Resolved:** `createQrOrder` now accepts an optional client-generated `idempotencyKey` (a.k.a. `clientRequestId`; validated `[A-Za-z0-9_-]{8,64}`). Inside the existing `runTransaction`, a table-scoped record at `qr_order_idempotency/${tableId}:${key}` is read first; a repeat submit with the same (table, key) returns the **original** `orderId`/`orderNumber` with no second document and no counter bump. The dedupe record is written in the same transaction as the order + counter, so concurrent submits collide and the loser retries into the short-circuit (Firestore optimistic concurrency). The key is table-scoped, so one table can't affect another. The customer client (`CustomerMenuView` → `createOrder.service.ts`) mints one key per submit and reuses it across retries. This closes the pre-payment duplicate-ticket risk and the downstream duplicate-payment-session risk (Master Plan §7.4).
 
 ### M6 — Hardcoded `'tng-systems'` DB target *(Medium)*
 All three callables call `getFirestore(getApp(), 'tng-systems')`, now centralized in `functions/src/qr/firestore.ts` (M6 fix). **P0-2 is CLOSED (2026-07-03): production DB confirmed as `tng-systems`**, so this literal is the correct, documented target — the earlier "silently write to the wrong database" risk no longer applies. The centralized handle remains the single source of truth for the DB target.

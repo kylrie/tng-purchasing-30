@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { X, Minus, Plus, Trash2, ShoppingCart, StickyNote } from 'lucide-react';
+import { X, Minus, Plus, Trash2, ShoppingCart, StickyNote, Loader2, AlertCircle } from 'lucide-react';
 
 /**
- * QR Ordering — Cart Drawer (Phase 1 UI prototype)
+ * QR Ordering — Cart Drawer (Phase 1 UI · Sprint 2 order submit)
  *
  * Spec: docs/QR_SCREEN_SPEC.md §3 · Visuals: docs/QR_UI_GUIDE.md §2.3
- * MOCK ONLY — no Firebase / Xendit / Functions / backend / checkout.
  *
  * Light, beach-friendly theme. Mobile-first bottom drawer (slide-up); side
- * panel on tablet+ (slide-in from the right). Checkout is intentionally disabled.
+ * panel on tablet+ (slide-in from the right). The checkout CTA submits the cart
+ * via `onCheckout` (parent owns the real createQrOrder call vs. mock fallback);
+ * `submitting`/`submitError` drive the loading + error affordances.
  */
 
 /** A single cart line (prototype cart lives in CustomerMenuView state). */
@@ -29,13 +30,17 @@ interface CartDrawerProps {
     onChangeQty: (lineId: string, nextQty: number) => void;
     onRemove: (lineId: string) => void;
     onClear: () => void;
-    /** When provided, enables the "Proceed to checkout" CTA (mock flow). */
+    /** When provided, enables the "Proceed to checkout" CTA. */
     onCheckout?: () => void;
+    /** True while the order is being submitted — disables the CTA + shows a spinner. */
+    submitting?: boolean;
+    /** Diner-friendly error from a failed submit; shown above the CTA with a retry hint. */
+    submitError?: string;
 }
 
 const LEAVE_MS = 250;
 
-const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClose, onChangeQty, onRemove, onClear, onCheckout }) => {
+const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClose, onChangeQty, onRemove, onClear, onCheckout, submitting = false, submitError = '' }) => {
     const [mounted, setMounted] = useState(false);
     const [entered, setEntered] = useState(false);
 
@@ -52,10 +57,13 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClo
         return () => window.clearTimeout(leaveTimer);
     }, [open]);
 
+    // Don't allow dismissing the drawer mid-submit (would hide the spinner/error).
+    const handleClose = () => { if (!submitting) onClose(); };
+
     // Escape to close + lock body scroll while open.
     useEffect(() => {
         if (!open) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !submitting) onClose(); };
         window.addEventListener('keydown', onKey);
         const prev = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
@@ -63,7 +71,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClo
             window.removeEventListener('keydown', onKey);
             document.body.style.overflow = prev;
         };
-    }, [open, onClose]);
+    }, [open, onClose, submitting]);
 
     if (!mounted) return null;
 
@@ -82,7 +90,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClo
             <button
                 type="button"
                 aria-label="Close cart"
-                onClick={onClose}
+                onClick={handleClose}
                 className={`absolute inset-0 bg-slate-900/40 transition-opacity duration-300 ${entered ? 'opacity-100' : 'opacity-0'}`}
             />
 
@@ -123,9 +131,10 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClo
                         )}
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
+                            disabled={submitting}
                             aria-label="Close"
-                            className="p-2 rounded-full bg-white border border-black/[0.06] text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors"
+                            className="p-2 rounded-full bg-white border border-black/[0.06] text-slate-600 hover:text-slate-900 hover:bg-slate-50 shadow-sm transition-colors disabled:opacity-40"
                         >
                             <X size={18} />
                         </button>
@@ -230,13 +239,28 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClo
                                 ₱{subtotal.toFixed(2)}
                             </span>
                         </div>
+                        {submitError && (
+                            <p
+                                role="alert"
+                                className="mb-3 flex items-start gap-2 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2"
+                            >
+                                <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                                <span className="min-w-0">{submitError}</span>
+                            </p>
+                        )}
                         {onCheckout ? (
                             <button
                                 type="button"
                                 onClick={onCheckout}
-                                className="w-full py-4 rounded-[1.25rem] bg-[#0d6e62] hover:bg-[#0a5a50] active:scale-[0.98] text-white font-bold text-base transition-all duration-200 shadow-[0_12px_28px_-8px_rgba(13,110,98,0.5)]"
+                                disabled={submitting}
+                                aria-busy={submitting}
+                                className="w-full py-4 rounded-[1.25rem] bg-[#0d6e62] hover:bg-[#0a5a50] active:scale-[0.98] text-white font-bold text-base transition-all duration-200 shadow-[0_12px_28px_-8px_rgba(13,110,98,0.5)] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2"
                             >
-                                Proceed to checkout
+                                {submitting ? (
+                                    <>
+                                        <Loader2 size={18} className="animate-spin" /> Placing order…
+                                    </>
+                                ) : submitError ? 'Try again' : 'Proceed to checkout'}
                             </button>
                         ) : (
                             <button

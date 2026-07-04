@@ -92,3 +92,14 @@ test('qr_tables: no client can WRITE directly (write: if false)', async () => {
     const db = env.authenticatedContext('admin').firestore();
     await assertFails(setDoc(doc(db, 'qr_tables', 'hack'), { qrToken: 'x' }));
 });
+
+// ── Phase 3: xendit_events ledger is fully server-only ────────────────────
+test('xendit_events: no client can READ the payment ledger (read: if false)', async () => {
+    const db = env.authenticatedContext('admin').firestore();
+    await assertFails(getDoc(doc(db, 'xendit_events', 'py-1:payment.succeeded')));
+});
+
+test('xendit_events: no client can WRITE a forged paid ledger entry (write: if false)', async () => {
+    const db = env.authenticatedContext('admin').firestore();
+    await assertFails(setDoc(doc(db, 'xendit_events', 'py-1:payment.succeeded'), { result: 'applied' }));
+});

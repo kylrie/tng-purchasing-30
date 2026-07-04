@@ -1027,6 +1027,26 @@ service cloud.firestore {
     }
 
     // =====================================================
+    // QR ORDERING — ORDER IDEMPOTENCY (duplicate-submit guard · M1)
+    // Table-scoped dedupe records written by createQrOrder via the Admin SDK
+    // only. No client access at all (default-deny too; explicit for clarity).
+    // =====================================================
+    match /qr_order_idempotency/{key} {
+      allow read, write: if false;
+    }
+
+    // =====================================================
+    // QR ORDERING — XENDIT EVENT LEDGER (webhook idempotency · Phase 3)
+    // Payment-event dedupe ledger (`${payment_id}:${event}`) written ONLY by the
+    // xenditWebhook Cloud Function via the Admin SDK. Never client-readable or
+    // writable — a client could otherwise forge a "paid" ledger entry. Default-
+    // deny would cover this; stated explicitly for clarity + audit.
+    // =====================================================
+    match /xendit_events/{eventId} {
+      allow read, write: if false;
+    }
+
+    // =====================================================
     // POS SALES COLLECTION
     // Imported POS sales records linked to inventory items
     // =====================================================

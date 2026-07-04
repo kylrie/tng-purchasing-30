@@ -8,7 +8,7 @@
  * (createQrTable, listQrTables) share one implementation.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QR_TABLE_ADMIN_ROLES = void 0;
+exports.QR_RECONCILE_ROLES = exports.QR_TABLE_ADMIN_ROLES = void 0;
 exports.requireStaffRole = requireStaffRole;
 const https_1 = require("firebase-functions/v2/https");
 /**
@@ -18,6 +18,14 @@ const https_1 = require("firebase-functions/v2/https");
  * later confirmed in `config/permissions`, tighten to that.
  */
 exports.QR_TABLE_ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
+/**
+ * Roles permitted to post an official (registered-POS) invoice number back onto
+ * a paid QR order for reconciliation (Phase 3.5). Cashier/finance duty — there is
+ * no dedicated CASHIER role in the current dynamic role set, so this is the
+ * nearest reasonable staff set. Confirm the exact allow-list with Fred before
+ * go-live. Fails closed for any role not listed here.
+ */
+exports.QR_RECONCILE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'MANAGER', 'FINANCE'];
 /**
  * Assert the caller is authenticated and holds one of `allowedRoles`.
  * Returns the caller's user record (for downstream BU checks). Throws a typed

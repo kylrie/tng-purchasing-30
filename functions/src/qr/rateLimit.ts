@@ -32,6 +32,10 @@ export interface RateLimitConfig {
 /** Per-surface budgets. Menu reads are cheap → generous; order creation → tight. */
 export const MENU_READ_LIMIT: RateLimitConfig = { maxRequests: 30, windowMs: 60_000 };
 export const ORDER_CREATE_LIMIT: RateLimitConfig = { maxRequests: 10, windowMs: 60_000 };
+/** Payment-session creation per table. Tighter than order creation: each call is a
+ *  Xendit round-trip and a card-testing surface, and a table needs only a few
+ *  (retry after fail/expire) within a window. See QR_XENDIT_IMPLEMENTATION_PLAN §4. */
+export const SESSION_CREATE_LIMIT: RateLimitConfig = { maxRequests: 5, windowMs: 60_000 };
 
 export interface RateWindow {
     windowStart: number; // epoch ms

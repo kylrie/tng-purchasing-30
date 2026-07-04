@@ -54,6 +54,7 @@ export interface QrOrder {
     id: string;
     businessUnitId: string;
     tableId: string;
+    tableNumber: string;            // denormalized from qr_tables at creation (client kitchen/bar reads)
     orderNumber: string;            // via the QR counter → "QR-00001"
 
     items: QrOrderItem[];
@@ -74,6 +75,21 @@ export interface QrOrder {
     xenditPaymentId?: string;
     xenditChannelCode?: string;
     paidAt?: Timestamp;
+
+    // Session-creation fields (Phase 3 · createXenditSession) — additive, written
+    // by createXenditSession; never touched by the client (Admin SDK only).
+    paymentLinkUrl?: string;          // hosted-checkout URL of the current session (transient)
+    paymentAttempt?: number;          // increments per retry → distinct reference_id per session
+    sessionExpiresAtMillis?: number;  // current session expiry (epoch ms) — drives ACTIVE-session reuse
+    paymentMethodType?: string;       // set by the webhook once paid (declared now to avoid a migration)
+
+    // Release to fulfillment (DORMANT until payment exists — written server-side
+    // by the release service once a PAID order is released to the kitchen/bar).
+    released?: boolean;                          // metadata: has this order been released
+    releasedAt?: Timestamp;                      // metadata: when it was released
+    releaseSource?: 'XENDIT_WEBHOOK' | 'MANUAL' | 'SYSTEM'; // metadata: what authorized it
+    releasedBy?: string;                         // audit: uid / system id that released it
+    releaseEventId?: string;                     // audit: authorizing event id (e.g. Xendit payment_id)
 
     // Reconciliation (Sprint 3.5 — absent until the cashier posts it)
     officialInvoiceNumber?: string;
@@ -130,6 +146,12 @@ export interface CreateQrOrderInput {
     tableId: string;
     items: CreateQrOrderLineInput[];
     customerName?: string;
+    /**
+     * Optional client-generated dedupe key (8–64 of [A-Za-z0-9_-]). Reused
+     * across retries of the same submit so a double-tap / lost-response retry
+     * returns the original order instead of creating a duplicate.
+     */
+    idempotencyKey?: string;
 }
 
 export interface CreateQrOrderResult {
@@ -138,6 +160,50 @@ export interface CreateQrOrderResult {
     totalAmount: number;
     currency: 'PHP';
     status: QrOrderStatus;         // always 'AWAITING_PAYMENT' in Sprint 1
+}
+
+/** createXenditSession input — only the orderId; amount/price is never trusted
+ *  from the client (read from the server order document). */
+export interface CreateXenditSessionInput {
+    orderId: string;
+}
+
+/** createXenditSession output — the hosted-checkout link the phone redirects to. */
+export interface CreateXenditSessionResult {
+    paymentLinkUrl: string;
+    reference: string;            // the reference_id used for this session/attempt
+    expiresAtMillis: number;      // session expiry (epoch ms)
+}
+
+export interface GetQrOrderInput {
+    orderId: string;
+}
+
+/** Sanitized order line returned to the diner (no menuItemId / cost fields). */
+export interface PublicQrOrderLine {
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    subtotal: number;
+    notes?: string;
+    category: string;
+}
+
+/** Sanitized customer-facing order projection (getQrOrder output). NEVER
+ *  includes businessUnitId / tableId / xendit* / officialInvoice* fields. */
+export interface GetQrOrderResult {
+    orderId: string;
+    orderNumber: string;
+    tableNumber: string;
+    status: QrOrderStatus;
+    paymentStatus: QrPaymentStatus;
+    items: PublicQrOrderLine[];
+    subtotal: number;
+    taxAmount: number;
+    totalAmount: number;
+    currency: 'PHP';
+    customerName?: string;
+    createdAtMillis?: number;
 }
 
 export interface CreateQrTableInput {
@@ -160,8 +226,21 @@ export interface QrTableSummary {
     id: string;
     tableNumber: string;
     isActive: boolean;
+    businessUnitId: string;
+    createdAtMillis: number;
 }
 
 export interface ListQrTablesResult {
     tables: QrTableSummary[];
+}
+
+/** Reveal a single table's qrToken on explicit admin request (never in lists). */
+export interface GetQrTableTokenInput {
+    tableId: string;
+}
+
+export interface GetQrTableTokenResult {
+    tableId: string;
+    tableNumber: string;
+    qrToken: string;
 }

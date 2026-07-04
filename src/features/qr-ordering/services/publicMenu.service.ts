@@ -10,26 +10,10 @@
 // App Check elsewhere the token rides along automatically, but we do not force
 // attestation for this callable.
 
-import { getFunctions, httpsCallable, connectFunctionsEmulator, type Functions } from 'firebase/functions';
-import { app } from '../../../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { getQrFunctions } from './qrFunctions';
 import { mapPublicMenuResponse } from './publicMenu.mapper';
 import type { GetPublicMenuResponse, PublicMenuResult } from './publicMenu.mapper';
-
-let functionsInstance: Functions | null = null;
-
-/** Lazily create the Functions handle. Connects to a local emulator only when
- *  VITE_FUNCTIONS_EMULATOR_HOST (e.g. "localhost:5001") is set — never in prod. */
-function getQrFunctions(): Functions {
-    if (functionsInstance) return functionsInstance;
-    const fns = getFunctions(app);
-    const emulatorHost = import.meta.env.VITE_FUNCTIONS_EMULATOR_HOST as string | undefined;
-    if (emulatorHost) {
-        const [host, port] = emulatorHost.split(':');
-        connectFunctionsEmulator(fns, host || 'localhost', Number(port) || 5001);
-    }
-    functionsInstance = fns;
-    return fns;
-}
 
 /** Call getPublicMenu with the opaque QR token and return the mapped menu. */
 export async function fetchPublicMenu(qrToken: string): Promise<PublicMenuResult> {

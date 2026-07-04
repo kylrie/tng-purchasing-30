@@ -19,3 +19,16 @@ export { getPublicMenu } from './qr/getPublicMenu';
 export { createQrOrder } from './qr/createQrOrder';
 export { createQrTable } from './qr/createQrTable';
 export { listQrTables } from './qr/listQrTables';
+export { getQrTableToken } from './qr/getQrTableToken';
+
+// QR Ordering — Sprint 2 (customer order-status read)
+export { getQrOrder } from './qr/getQrOrder';
+
+// QR Ordering — Sprint 2 (Phase 3.5 · cashier reconciliation)
+export { postOfficialInvoice } from './qr/postOfficialInvoice';
+
+// QR Ordering — Phase 3 (Xendit payment session creation)
+export { createXenditSession } from './qr/createXenditSession';
+
+// QR Ordering — Phase 3 (Xendit webhook · source of truth for PAID)
+export { xenditWebhook } from './qr/xenditWebhook';

@@ -20,6 +20,17 @@ import { enforceRateLimit, ORDER_CREATE_LIMIT } from './rateLimit';
 
 const QR_COUNTER_ID = 'qr';       // counters/qr — reuses the CounterService doc shape
 const QR_COUNTER_PREFIX = 'QR';
+const IDEMPOTENCY_COLLECTION = 'qr_order_idempotency';
+
+/**
+ * Deterministic idempotency-record id, scoped by table. Neither the tableId
+ * (a Firestore auto-id) nor the validated key contains ':', so the split is
+ * unambiguous — the same key on a different table maps to a different record,
+ * and one table can never collide with another.
+ */
+function idempotencyDocId(tableId: string, key: string): string {
+    return `${tableId}:${key}`;
+}
 
 export async function createQrOrderHandler(db: Firestore, request: CallableRequest) {
     // 1. Shape validation (pure).
@@ -38,10 +49,28 @@ export async function createQrOrderHandler(db: Firestore, request: CallableReque
     const menuRefs: DocumentReference[] = input.lines.map(l =>
         db.collection('menu_items').doc(l.menuItemId),
     );
+    // Table-scoped idempotency record (only when the client supplied a key).
+    const idempotencyRef = input.idempotencyKey
+        ? db.collection(IDEMPOTENCY_COLLECTION).doc(idempotencyDocId(input.tableId, input.idempotencyKey))
+        : null;
 
     try {
         const result = await db.runTransaction(async (txn: Transaction) => {
             // ── All reads first (Firestore transaction requirement) ──────
+
+            // Idempotency short-circuit: a retry / double-tap with the same
+            // (table, key) returns the ORIGINAL order — no new doc, no counter
+            // bump. The write below lives in this same transaction, so two
+            // concurrent submits collide on it and the loser retries into this
+            // branch (Firestore optimistic-concurrency retry).
+            if (idempotencyRef) {
+                const idemSnap = await txn.get(idempotencyRef);
+                if (idemSnap.exists) {
+                    const prior = idemSnap.data() as { orderId: string; orderNumber: string; totalAmount: number };
+                    return { orderId: prior.orderId, orderNumber: prior.orderNumber, totalAmount: prior.totalAmount };
+                }
+            }
+
             const tableSnap = await txn.get(tableRef);
             if (!tableSnap.exists) throw new HttpsError('not-found', 'Table not found');
             const table = tableSnap.data() as { businessUnitId: string; tableNumber: string; isActive: boolean };
@@ -89,6 +118,7 @@ export async function createQrOrderHandler(db: Firestore, request: CallableReque
                 id: orderRef.id,
                 businessUnitId: table.businessUnitId,
                 tableId: input.tableId,
+                tableNumber: table.tableNumber,   // denormalized for client-side kitchen/bar reads (qr_tables is admin-only)
                 orderNumber,
                 items: priced,
                 orderType: 'DINE_IN',
@@ -104,6 +134,21 @@ export async function createQrOrderHandler(db: Firestore, request: CallableReque
             if (input.customerName) orderDoc.customerName = input.customerName;
 
             txn.set(orderRef, orderDoc);
+
+            // Record the idempotency mapping in the SAME transaction as the
+            // order + counter writes, so a duplicate submit can never create a
+            // second order or bump the counter twice.
+            if (idempotencyRef) {
+                txn.set(idempotencyRef, {
+                    orderId: orderRef.id,
+                    orderNumber,
+                    totalAmount: totals.totalAmount,
+                    tableId: input.tableId,
+                    businessUnitId: table.businessUnitId,
+                    idempotencyKey: input.idempotencyKey,
+                    createdAt: FieldValue.serverTimestamp(),
+                });
+            }
 
             return { orderId: orderRef.id, orderNumber, totalAmount: totals.totalAmount };
         });
