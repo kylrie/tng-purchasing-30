@@ -16,13 +16,21 @@ export interface VarianceReportItem {
     purchased: number;          // Sum of purchases between sessions
     wastage: number;            // Sum of wastage records between sessions
     wastageCost: number;        // wastage * costPerUnit
-    theoreticalUsage: number;   // Placeholder for Sales (0 if no POS)
-    expected: number;           // starting + purchased - wastage - theoreticalUsage
+    theoreticalUsage: number;   // From POS Sales / BOM Explosion
+    adjustments: number;        // Positive or negative adjustments from counts/manual
+    expected: number;           // starting + purchased - wastage - theoreticalUsage + adjustments
     actual: number;             // Count from End Session
     variance: number;           // actual - expected (negative = missing)
     varianceCost: number;       // variance * costPerUnit
     costPerUnit: number;        // For reference
     unit: string;               // Unit of measure
+}
+
+export interface TransactionAggregates {
+    purchased: number;
+    wastage: number;
+    theoreticalUsage: number;
+    adjustments: number; // Positive or negative
 }
 
 export interface VarianceReport {
@@ -55,8 +63,7 @@ export interface VarianceReport {
 const COLLECTIONS = {
     STOCK_COUNTS: 'stock_counts',
     INVENTORY_ITEMS: 'inventory_items',
-    REQUISITIONS: 'requisitions',
-    WASTAGE_RECORDS: 'wastage_records'
+    STOCK_TRANSACTIONS: 'stock_transactions'
 } as const;
 
 // ============================================================
@@ -91,95 +98,69 @@ export class InventoryReportsService {
     }
 
     /**
-     * Get purchases (requisition items) between two dates for a business unit
-     * Only considers requisitions with status FUNDS_RELEASED (completed purchases)
+     * Get all stock transactions between dates and aggregate them by itemId
      */
-    static async getPurchasesBetweenDates(
+    static async getTransactionAggregates(
         businessUnitId: string,
         startDate: Date,
         endDate: Date
-    ): Promise<Map<string, number>> {
-        try {
-            // Fetch all requisitions for the business unit
-            const requisitions = await FirestoreService.getDocuments<Requisition>(
-                COLLECTIONS.REQUISITIONS,
-                [where('businessId', '==', businessUnitId)]
-            );
-
-            // Filter to only FUNDS_RELEASED (completed purchases) within date range
-            const purchaseMap = new Map<string, number>();
-
-            for (const req of requisitions) {
-                // Check if status indicates completed purchase
-                if (req.status !== RequisitionStatus.FUNDS_RELEASED &&
-                    req.status !== RequisitionStatus.LIQUIDATION_FILED &&
-                    req.status !== RequisitionStatus.AUDITED_CLEARED) {
-                    continue;
-                }
-
-                // Check if fund release date is within range
-                const releaseDate = req.fundReleaseDate ? new Date(req.fundReleaseDate) : null;
-                if (!releaseDate || releaseDate < startDate || releaseDate > endDate) {
-                    continue;
-                }
-
-                // Sum up quantities by item name (since PRF items don't have inventory item IDs)
-                for (const item of req.items) {
-                    const key = item.name.toLowerCase().trim();
-                    const currentQty = purchaseMap.get(key) || 0;
-                    purchaseMap.set(key, currentQty + item.quantity);
-                }
-            }
-
-            return purchaseMap;
-        } catch (error) {
-            console.error('Error fetching purchases:', error);
-            return new Map();
-        }
-    }
-
-    /**
-     * Get wastage records grouped by itemId for a date range.
-     * Returns a Map<itemId, { quantity: number; totalCost: number }>
-     */
-    static async getWastageBetweenDates(
-        businessUnitId: string,
-        startDate: Date,
-        endDate: Date
-    ): Promise<Map<string, { quantity: number; totalCost: number }>> {
+    ): Promise<Map<string, TransactionAggregates>> {
         try {
             const startTs = Timestamp.fromDate(startDate);
             const endTs = Timestamp.fromDate(endDate);
 
             const q = query(
-                collection(db, COLLECTIONS.WASTAGE_RECORDS),
+                collection(db, COLLECTIONS.STOCK_TRANSACTIONS),
                 fsWhere('businessUnitId', '==', businessUnitId),
-                fsWhere('createdAt', '>=', startTs),
-                fsWhere('createdAt', '<=', endTs)
+                fsWhere('timestamp', '>=', startTs),
+                fsWhere('timestamp', '<=', endTs)
             );
 
             const snapshot = await getDocs(q);
-            const wastageMap = new Map<string, { quantity: number; totalCost: number }>();
+            const aggMap = new Map<string, TransactionAggregates>();
 
             for (const docSnap of snapshot.docs) {
                 const data = docSnap.data();
-                const itemId: string = data.itemId;
-                const qty: number = data.quantity ?? 0;
-                const cost: number = data.totalCost ?? 0;
+                const itemId = data.itemId;
+                const type = data.type;
+                const qty = Number(data.quantity) || 0;
 
-                const existing = wastageMap.get(itemId);
-                if (existing) {
-                    existing.quantity += qty;
-                    existing.totalCost += cost;
-                } else {
-                    wastageMap.set(itemId, { quantity: qty, totalCost: cost });
+                let agg = aggMap.get(itemId);
+                if (!agg) {
+                    agg = { purchased: 0, wastage: 0, theoreticalUsage: 0, adjustments: 0 };
+                    aggMap.set(itemId, agg);
+                }
+
+                // Map transaction types to buckets
+                switch (type) {
+                    case 'RECEIVE':
+                    case 'PRODUCTION_YIELD':
+                        agg.purchased += qty;
+                        break;
+                    case 'WASTAGE':
+                        agg.wastage += qty;
+                        break;
+                    case 'THEORETICAL_USAGE':
+                    case 'POS_SALE':
+                    case 'EVENT_CONSUMPTION':
+                    case 'PRODUCTION_CONSUME':
+                    case 'ISSUE': // Manual issue
+                        agg.theoreticalUsage += qty;
+                        break;
+                    case 'ADJUSTMENT':
+                        agg.adjustments += qty; // Can be positive or negative
+                        break;
+                    // STOCK_COUNT transactions don't affect Expected calculation
+                    // as they represent the Actual count, which is captured from the End Session.
+                    case 'STOCK_COUNT':
+                        break;
                 }
             }
 
-            console.log(`[InventoryReportsService] Fetched ${snapshot.size} wastage records between ${startDate.toISOString()} and ${endDate.toISOString()}`);
-            return wastageMap;
+            console.log(`[InventoryReportsService] Fetched ${snapshot.size} ledger transactions between ${startDate.toISOString()} and ${endDate.toISOString()}`);
+            return aggMap;
         } catch (error) {
-            console.error('Error fetching wastage records:', error);
+            console.error('Error fetching stock transactions:', error);
             return new Map();
         }
     }
@@ -240,10 +221,9 @@ export class InventoryReportsService {
             new Date();
         const businessUnitId = endSession.businessUnitId;
 
-        // Step 2: Fetch purchases, wastage, and inventory items in parallel
-        const [purchaseMap, wastageMap, inventoryMap] = await Promise.all([
-            this.getPurchasesBetweenDates(businessUnitId, startDate, endDate),
-            this.getWastageBetweenDates(businessUnitId, startDate, endDate),
+        // Step 2: Fetch transactions and inventory items in parallel
+        const [aggMap, inventoryMap] = await Promise.all([
+            this.getTransactionAggregates(businessUnitId, startDate, endDate),
             this.getInventoryItemsMap(businessUnitId)
         ]);
 
@@ -263,19 +243,16 @@ export class InventoryReportsService {
             // Get starting stock (0 if not in start session = new item)
             const starting = startItem ? (startItem.count + (startItem.partialCount || 0)) : 0;
 
-            // Get purchases by item name (match by lowercase name)
-            const itemNameKey = endItem.itemName?.toLowerCase().trim() || '';
-            const purchased = purchaseMap.get(itemNameKey) || 0;
+            // Get aggregates from the ledger
+            const agg = aggMap.get(endItem.itemId) || { purchased: 0, wastage: 0, theoreticalUsage: 0, adjustments: 0 };
+            
+            const purchased = agg.purchased;
+            const wastage = agg.wastage;
+            const theoreticalUsage = agg.theoreticalUsage;
+            const adjustments = agg.adjustments;
 
-            // Get wastage by itemId
-            const wastageEntry = wastageMap.get(endItem.itemId);
-            const wastage = wastageEntry?.quantity || 0;
-
-            // Theoretical usage (placeholder for Sales - set to 0 for now)
-            const theoreticalUsage = 0;
-
-            // Calculate expected stock: Starting + Purchases − Wastage − Usage
-            const expected = starting + purchased - wastage - theoreticalUsage;
+            // Calculate expected stock: Starting + Purchases − Wastage − Usage + Adjustments
+            const expected = starting + purchased - wastage - theoreticalUsage + adjustments;
 
             // Actual stock from end session
             const actual = endItem.count + (endItem.partialCount || 0);
@@ -286,7 +263,7 @@ export class InventoryReportsService {
             // Get cost per unit from inventory
             const costPerUnit = inventoryItem?.costPerUnit || 0;
             const varianceCost = variance * costPerUnit;
-            const wastageCost = wastageEntry?.totalCost || 0;
+            const wastageCost = wastage * costPerUnit;
 
             varianceItems.push({
                 itemId: endItem.itemId,
@@ -296,6 +273,7 @@ export class InventoryReportsService {
                 wastage,
                 wastageCost,
                 theoreticalUsage,
+                adjustments,
                 expected,
                 actual,
                 variance,

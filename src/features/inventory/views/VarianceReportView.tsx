@@ -249,10 +249,10 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                     <Info size={18} className="text-cyan-600 dark:text-cyan-400 mt-0.5 flex-shrink-0" />
                     <div>
                         <p className="text-sm text-slate-700 dark:text-slate-300">
-                            <strong>Formula:</strong> Expected Stock = Starting Stock + Purchases <span className="text-orange-500">− Wastage</span> − Usage
+                            <strong>Formula:</strong> Expected Stock = Starting Stock + Purchases <span className="text-orange-500">− Wastage</span> − Usage <span className="text-blue-500">± Adjustments</span>
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
-                            Variance = Actual Count − Expected Stock | <span className="text-red-500 dark:text-red-400">Negative = Missing</span> | <span className="text-green-600 dark:text-green-400">Positive = Surplus</span> | <span className="text-orange-500">Wastage is deducted from Expected Stock</span>
+                            Variance = Actual Count − Expected Stock | <span className="text-red-500 dark:text-red-400">Negative = Missing</span> | <span className="text-green-600 dark:text-green-400">Positive = Surplus</span>
                         </p>
                     </div>
                 </div>
@@ -326,7 +326,8 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Starting</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Purchased</th>
                                         <th className="text-right p-4 text-orange-500 dark:text-orange-400 font-medium text-sm">Wastage</th>
-                                        <th className="text-right p-4 text-orange-500 dark:text-orange-400 font-medium text-sm">Wastage Cost</th>
+                                        <th className="text-right p-4 text-blue-500 dark:text-blue-400 font-medium text-sm">Usage (Sales)</th>
+                                        <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Adjustments</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Expected</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Actual</th>
                                         <th className="text-right p-4 text-slate-500 dark:text-slate-400 font-medium text-sm">Variance</th>
@@ -360,10 +361,16 @@ const VarianceReportView: React.FC<VarianceReportViewProps> = ({ businesses }) =
                                                 <td className="p-4 text-right text-orange-600 dark:text-orange-400 font-mono">
                                                     {item.wastage > 0 ? `-${item.wastage.toFixed(2)}` : '—'}
                                                 </td>
-                                                <td className="p-4 text-right text-orange-600 dark:text-orange-400 font-mono">
-                                                    {item.wastageCost > 0 ? `-${formatCurrency(item.wastageCost)}` : '—'}
+                                                <td className="p-4 text-right text-blue-600 dark:text-blue-400 font-mono">
+                                                    {item.theoreticalUsage > 0 ? `-${item.theoreticalUsage.toFixed(2)}` : '—'}
                                                 </td>
-                                                <td className="p-4 text-right text-slate-700 dark:text-slate-300">
+                                                <td className="p-4 text-right text-slate-700 dark:text-slate-300 font-mono">
+                                                    {/* adjustments can be positive or negative */}
+                                                    {item.adjustments !== undefined && item.adjustments !== 0 
+                                                        ? `${item.adjustments > 0 ? '+' : ''}${item.adjustments.toFixed(2)}` 
+                                                        : '—'}
+                                                </td>
+                                                <td className="p-4 text-right text-slate-700 dark:text-slate-300 font-bold">
                                                     {item.expected.toFixed(2)}
                                                 </td>
                                                 <td className="p-4 text-right text-slate-900 dark:text-white font-medium">
