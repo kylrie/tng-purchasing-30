@@ -13,3 +13,4 @@ initializeApp();
 // Export all Cloud Functions
 export { postTransaction } from './transactions';
 export { setBudgetLimit } from './admin';
+export { aggregateStockTransactions } from './inventory/aggregators';

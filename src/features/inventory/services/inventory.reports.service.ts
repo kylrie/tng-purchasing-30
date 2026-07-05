@@ -97,7 +97,8 @@ export class InventoryReportsService {
     }
 
     /**
-     * Get all stock transactions between dates and aggregate them by itemId
+     * Get aggregated stock data using the pre-computed Cloud Function aggregates.
+     * O(1) scaling regardless of transaction volume.
      */
     static async getTransactionAggregates(
         businessUnitId: string,
@@ -105,58 +106,36 @@ export class InventoryReportsService {
         endDate: Date
     ): Promise<Map<string, TransactionAggregates>> {
         try {
-            const startTs = Timestamp.fromDate(startDate);
-            const endTs = Timestamp.fromDate(endDate);
-
             const q = query(
-                collection(db, COLLECTIONS.STOCK_TRANSACTIONS),
+                collection(db, 'inventory_aggregates'),
                 fsWhere('businessUnitId', '==', businessUnitId),
-                fsWhere('timestamp', '>=', startTs),
-                fsWhere('timestamp', '<=', endTs)
+                fsWhere('date', '>=', startDate.toISOString().split('T')[0]),
+                fsWhere('date', '<=', endDate.toISOString().split('T')[0])
             );
-
+            
             const snapshot = await getDocs(q);
             const aggMap = new Map<string, TransactionAggregates>();
 
-            for (const docSnap of snapshot.docs) {
-                const data = docSnap.data();
+            for (const doc of snapshot.docs) {
+                const data = doc.data();
                 const itemId = data.itemId;
-                const type = data.type;
-                const qty = Number(data.quantity) || 0;
-
-                let agg = aggMap.get(itemId);
-                if (!agg) {
-                    agg = { purchased: 0, wastage: 0, theoreticalUsage: 0, adjustments: 0 };
-                    aggMap.set(itemId, agg);
+                
+                let entry = aggMap.get(itemId);
+                if (!entry) {
+                    entry = { purchased: 0, wastage: 0, theoreticalUsage: 0, adjustments: 0 };
+                    aggMap.set(itemId, entry);
                 }
-
-                // Map transaction types to buckets
-                switch (type) {
-                    case 'RECEIVE':
-                    case 'PRODUCTION_YIELD':
-                        agg.purchased += qty;
-                        break;
-                    case 'WASTAGE':
-                        agg.wastage += qty;
-                        break;
-                    case 'THEORETICAL_USAGE':
-                    case 'POS_SALE':
-                    case 'EVENT_CONSUMPTION':
-                    case 'PRODUCTION_CONSUME':
-                    case 'ISSUE': // Manual issue
-                        agg.theoreticalUsage += qty;
-                        break;
-                    case 'ADJUSTMENT':
-                        agg.adjustments += qty; // Can be positive or negative
-                        break;
-                    // STOCK_COUNT transactions don't affect Expected calculation
-                    // as they represent the Actual count, which is captured from the End Session.
-                    case 'STOCK_COUNT':
-                        break;
-                }
+                
+                // Sum across the dates
+                // Assuming positive quantities for POSITIVE increments, and signed for ADJUSTMENTS
+                entry.purchased += Math.abs(data.RECEIVE_qty || 0) + Math.abs(data.PRODUCTION_YIELD_qty || 0);
+                entry.wastage += Math.abs(data.WASTAGE_qty || 0);
+                entry.theoreticalUsage += Math.abs(data.THEORETICAL_USAGE_qty || 0) + Math.abs(data.EVENT_CONSUMPTION_qty || 0) + Math.abs(data.PRODUCTION_CONSUME_qty || 0) + Math.abs(data.POS_SALE_qty || 0);
+                // Adjustments are signed
+                entry.adjustments += (data.ADJUSTMENT_qty || 0);
             }
 
-            console.log(`[InventoryReportsService] Fetched ${snapshot.size} ledger transactions between ${startDate.toISOString()} and ${endDate.toISOString()}`);
+            console.log(`[InventoryReportsService] Fetched ${snapshot.size} aggregated records between ${startDate.toISOString()} and ${endDate.toISOString()}`);
             return aggMap;
         } catch (error) {
             console.error('Error fetching stock transactions:', error);

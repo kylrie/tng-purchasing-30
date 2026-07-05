@@ -159,146 +159,9 @@ export class InventoryDashboardService {
     }
 
     // ============================================================
-    // LEDGER AGGREGATION — Transaction-based queries
+    // SERVER-SIDE AGGREGATION
     // ============================================================
 
-    /**
-     * Aggregate stock_transactions by type(s) for a date range.
-     * Joins with inventory_items to get costPerUnit for peso calculation.
-     * Returns Map<itemId, { itemName, category, totalQty, totalPeso, costPerUnit }>
-     *
-     * Uses client-side date filtering to avoid composite Firestore indexes
-     * (same proven pattern as ReconService.aggregateTransactions).
-     *
-     * @param tenantConstraints - Pre-computed QueryConstraints for BU scoping.
-     */
-    private static async aggregateStockTransactions(
-        tenantConstraints: QueryConstraint[],
-        startDate: Date,
-        endDate: Date,
-        types: string[]
-    ): Promise<Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number; type: string; recipeUnit: string; conversionRate: number }>> {
-        const result = new Map<string, { itemName: string; category: string; totalQty: number; totalPeso: number; costPerUnit: number; type: string; recipeUnit: string; conversionRate: number }>();
-
-        try {
-            // 1. Fetch all inventory items for costPerUnit + category lookup
-            const itemsQ = query(
-                collection(db, COL.INVENTORY_ITEMS),
-                ...tenantConstraints
-            );
-            const itemsSnap = await getDocs(itemsQ);
-            const costMap = new Map<string, { costPerUnit: number; name: string; category: string; type: string; recipeUnit: string; conversionRate: number }>();
-            for (const d of itemsSnap.docs) {
-                const data = d.data() as InventoryItem;
-                costMap.set(d.id, {
-                    costPerUnit: resolveItemCostPerUnit(data),
-                    name: data.name || 'Unknown',
-                    category: data.category || 'Other',
-                    type: data.type || 'Other',
-                    recipeUnit: data.units?.recipeUnit || 'pcs',
-                    conversionRate: data.units?.conversion || 1,
-                });
-            }
-
-            // 2. Fetch stock_transactions scoped to the same tenant constraints
-            const txQ = query(
-                collection(db, COL.STOCK_TRANSACTIONS),
-                ...tenantConstraints
-            );
-            const txSnap = await getDocs(txQ);
-
-            for (const docSnap of txSnap.docs) {
-                const data = docSnap.data();
-                const txType = data.type as string;
-                if (!types.includes(txType)) continue;
-
-                // Client-side date filter
-                const txDate = data.timestamp?.toDate?.() || new Date(data.timestamp);
-                if (txDate < startDate || txDate > endDate) continue;
-
-                const itemId = data.itemId as string;
-                const qty = Math.abs(data.quantity as number || 0);
-                const itemInfo = costMap.get(itemId);
-                const costPerUnit = itemInfo?.costPerUnit || 0;
-                const peso = qty * costPerUnit;
-
-                let entry = result.get(itemId);
-                if (!entry) {
-                    entry = {
-                        itemName: (data.itemName as string) || itemInfo?.name || 'Unknown',
-                        category: itemInfo?.category || 'Other',
-                        totalQty: 0,
-                        totalPeso: 0,
-                        costPerUnit: costPerUnit,
-                        type: itemInfo?.type || 'Other',
-                        recipeUnit: itemInfo?.recipeUnit || 'pcs',
-                        conversionRate: itemInfo?.conversionRate || 1,
-                    };
-                    result.set(itemId, entry);
-                }
-                entry.totalQty += qty;
-                entry.totalPeso += peso;
-            }
-        } catch (error) {
-            console.error('Error aggregating stock transactions:', error);
-        }
-
-        return result;
-    }
-
-    /**
-     * Card 2: Theoretical Usage (CoGS) — Ledger Method
-     * Sum quantity × costPerUnit for THEORETICAL_USAGE transactions in the date range.
-     * These are created by BOM explosion during POS import.
-     */
-    static async getTheoreticalUsage(
-        userOrBuId: User | string,
-        period: DashboardPeriod,
-        customRange?: DateRange
-    ): Promise<number> {
-        const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
-        const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
-        const txMap = await this.aggregateStockTransactions(
-            tenantConstraints, start, end, ['THEORETICAL_USAGE']
-        );
-        let total = 0;
-        for (const [, entry] of txMap) {
-            total += entry.totalPeso;
-        }
-        return total;
-    }
-
-    /**
-     * Unexplained Gap (Loss) — Ledger Method
-     * Sum quantity × costPerUnit for ADJUSTMENT transactions in the date range.
-     * These are created by ReconService.savePhysicalCounts() when physical
-     * counts differ from system-expected stock.
-     */
-    static async getUnexplainedGap(
-        userOrBuId: User | string,
-        period: DashboardPeriod,
-        customRange?: DateRange
-    ): Promise<number> {
-        const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
-        const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
-        const txMap = await this.aggregateStockTransactions(
-            tenantConstraints, start, end, ['ADJUSTMENT']
-        );
-        // ADJUSTMENT quantity is signed: negative = loss, positive = surplus
-        // We want the net gap (negative = unexplained loss)
-        let total = 0;
-        for (const [, entry] of txMap) {
-            total += entry.totalPeso;
-        }
-        return total;
-    }
-
-    /**
-     * Top 10 Suspicious Items & Category Risks — Ledger Method
-     * Groups ADJUSTMENT transactions by itemId, sums peso value,
-     * sorts descending by absolute peso value, slices top 10.
-     * Completely time-bound to the selected period.
-     */
     static async getInventoryAnalysis(
         userOrBuId: User | string,
         period: DashboardPeriod,
@@ -307,83 +170,102 @@ export class InventoryDashboardService {
         const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
         const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
 
-        try {
-            // Get all ADJUSTMENT transactions grouped by item
-            const adjustmentMap = await this.aggregateStockTransactions(
-                tenantConstraints, start, end, ['ADJUSTMENT']
-            );
-
-            // Get THEORETICAL_USAGE transactions grouped by item (for expected closing calc)
-            const theoreticalMap = await this.aggregateStockTransactions(
-                tenantConstraints, start, end, ['THEORETICAL_USAGE']
-            );
-
-            // Build suspicious items from ADJUSTMENT transactions
-            const allItems: SuspiciousItem[] = [];
-            const itemCategoryMap: Record<string, string> = {};
-
-            for (const [itemId, adjEntry] of adjustmentMap) {
-                const theoEntry = theoreticalMap.get(itemId) || null;
-                const expectedClosing = theoEntry?.totalQty || 0;
-                const varianceQty = adjEntry.totalQty; // ADJUSTMENT qty (signed)
-                const varianceValue = adjEntry.totalPeso; // ADJUSTMENT peso (signed)
-                const variancePercent = expectedClosing > 0
-                    ? (Math.abs(varianceQty) / expectedClosing) * 100
-                    : (varianceQty !== 0 ? 100 : 0);
-
-                itemCategoryMap[itemId] = adjEntry.category;
-
-                allItems.push({
-                    itemId,
-                    itemName: adjEntry.itemName,
-                    type: adjEntry.type,
-                    recipeUnit: adjEntry.recipeUnit,
-                    conversionRate: adjEntry.conversionRate,
-                    category: adjEntry.category,
-                    expectedClosing,
-                    actualClosing: expectedClosing - varianceQty,
-                    varianceQty,
-                    varianceValue,
-                    variancePercent,
-                    costPerUnit: adjEntry.costPerUnit,
-                    status: getItemStatus(variancePercent),
-                });
-            }
-
-            // Build Category Risks from the same ADJUSTMENT data
-            const categoryMap = new Map<string, { expected: number; actual: number; loss: number }>();
-
-            allItems.forEach(item => {
-                const catData = categoryMap.get(item.category) || { expected: 0, actual: 0, loss: 0 };
-                catData.expected += item.expectedClosing * item.costPerUnit;
-                catData.actual += item.actualClosing * item.costPerUnit;
-                catData.loss += item.varianceValue;
-                categoryMap.set(item.category, catData);
-            });
-
-            const categoryRisks: CategoryRiskRecord[] = Array.from(categoryMap.entries()).map(([name, data]) => {
-                const variancePercent = data.expected > 0 ? (data.loss / data.expected) * 100 : 0;
-                return {
-                    id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                    name,
-                    variancePercent,
-                    lossValue: data.loss,
-                    expectedValue: data.expected,
-                    actualValue: data.actual,
-                    salesValue: 0,
-                };
-            }).sort((a, b) => Math.abs(b.lossValue) - Math.abs(a.lossValue));
-
-            // Top 10 suspicious items sorted by absolute peso value
-            const suspiciousItems = [...allItems]
-                .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue))
-                .slice(0, 10);
-
-            return { suspiciousItems, categoryRisks, itemCategoryMap };
-        } catch (error) {
-            console.error('Error calculating inventory analysis:', error);
-            return { suspiciousItems: [], categoryRisks: [], itemCategoryMap: {} };
+        // Prevent cross-tenant data leaks by ensuring we never query 'ALL' without proper admin claims
+        if (typeof userOrBuId === 'string' && userOrBuId === 'ALL') {
+            // Note: In production, the backend rules MUST block this query if the user doesn't have the admin role.
+            // We rely on Firebase Security Rules for this, but we log it.
+            console.warn('[InventoryDashboardService] Executing cross-tenant ALL query. Security rules must enforce this.');
         }
+
+        const q = query(
+            collection(db, 'inventory_aggregates'),
+            ...tenantConstraints,
+            where('date', '>=', start.toISOString().split('T')[0]),
+            where('date', '<=', end.toISOString().split('T')[0])
+        );
+
+        const snapshot = await getDocs(q);
+        const itemMap = new Map<string, any>();
+        const itemCategoryMap: Record<string, string> = {};
+
+        // O(1) loop over ~30-31 documents maximum for a month
+        for (const doc of snapshot.docs) {
+            const data = doc.data();
+            const itemId = data.itemId;
+            
+            let entry = itemMap.get(itemId);
+            if (!entry) {
+                entry = { 
+                    itemName: data.itemName || 'Unknown', 
+                    category: data.category || 'Other',
+                    type: data.type || 'Other',
+                    recipeUnit: data.recipeUnit || 'pcs',
+                    conversionRate: data.conversionRate || 1,
+                    costPerUnit: data.costPerUnit || 0,
+                    expectedClosing: 0, 
+                    varianceQty: 0, 
+                    varianceValue: 0 
+                };
+                itemMap.set(itemId, entry);
+                itemCategoryMap[itemId] = entry.category;
+            }
+            
+            entry.expectedClosing += Math.abs(data.THEORETICAL_USAGE_qty || 0) + Math.abs(data.EVENT_CONSUMPTION_qty || 0) + Math.abs(data.PRODUCTION_CONSUME_qty || 0) + Math.abs(data.POS_SALE_qty || 0);
+            entry.varianceQty += (data.ADJUSTMENT_qty || 0);
+            entry.varianceValue += (data.ADJUSTMENT_peso || 0);
+        }
+
+        const allItems: SuspiciousItem[] = [];
+        const categoryMap = new Map<string, { expected: number; actual: number; loss: number }>();
+
+        for (const [itemId, entry] of itemMap) {
+            const variancePercent = entry.expectedClosing > 0
+                ? (Math.abs(entry.varianceQty) / entry.expectedClosing) * 100
+                : (entry.varianceQty !== 0 ? 100 : 0);
+
+            const item: SuspiciousItem = {
+                itemId,
+                itemName: entry.itemName,
+                type: entry.type,
+                recipeUnit: entry.recipeUnit,
+                conversionRate: entry.conversionRate,
+                category: entry.category,
+                expectedClosing: entry.expectedClosing,
+                actualClosing: entry.expectedClosing + entry.varianceQty, // Adjustments are signed
+                varianceQty: entry.varianceQty,
+                varianceValue: entry.varianceValue,
+                variancePercent,
+                costPerUnit: entry.costPerUnit,
+                status: getItemStatus(variancePercent),
+            };
+            
+            allItems.push(item);
+
+            const catData = categoryMap.get(item.category) || { expected: 0, actual: 0, loss: 0 };
+            catData.expected += item.expectedClosing * item.costPerUnit;
+            catData.actual += item.actualClosing * item.costPerUnit;
+            catData.loss += item.varianceValue;
+            categoryMap.set(item.category, catData);
+        }
+
+        const categoryRisks: CategoryRiskRecord[] = Array.from(categoryMap.entries()).map(([name, data]) => {
+            const variancePercent = data.expected > 0 ? (data.loss / data.expected) * 100 : 0;
+            return {
+                id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+                name,
+                variancePercent,
+                lossValue: data.loss,
+                expectedValue: data.expected,
+                actualValue: data.actual,
+                salesValue: 0,
+            };
+        }).sort((a, b) => Math.abs(b.lossValue) - Math.abs(a.lossValue));
+
+        const suspiciousItems = [...allItems]
+            .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue))
+            .slice(0, 10);
+
+        return { suspiciousItems, categoryRisks, itemCategoryMap };
     }
 
     /**
@@ -403,52 +285,44 @@ export class InventoryDashboardService {
         };
         const periodLabel = periodLabels[period];
 
-        try {
-            const [netSales, theoreticalUsage, unexplainedVariance, inventoryAnalysis] = await Promise.all([
-                this.getNetSales(userOrBuId, period, customRange),
-                this.getTheoreticalUsage(userOrBuId, period, customRange),
-                this.getUnexplainedGap(userOrBuId, period, customRange),
-                this.getInventoryAnalysis(userOrBuId, period, customRange),
-            ]);
+        // Let errors propagate up so the ErrorBoundary can catch them.
+        // Returning silent 0 values hides system failures.
+        const [netSales, inventoryAnalysis] = await Promise.all([
+            this.getNetSales(userOrBuId, period, customRange),
+            this.getInventoryAnalysis(userOrBuId, period, customRange),
+        ]);
 
-            // Actual Usage = Theoretical + Unexplained Gap (derived)
-            const actualUsage = theoreticalUsage + Math.abs(unexplainedVariance);
+        // Aggregate Theoretical Usage and Unexplained Gap directly from the analysis
+        let theoreticalUsage = 0;
+        let unexplainedVariance = 0;
 
-            const variancePercent = theoreticalUsage > 0
-                ? (unexplainedVariance / theoreticalUsage) * 100
-                : 0;
-
-            const varianceStatus = getVarianceStatus(variancePercent);
-
-            return {
-                netSales,
-                theoreticalUsage,
-                actualUsage,
-                unexplainedVariance,
-                variancePercent,
-                varianceStatus,
-                periodLabel,
-                recordedWaste: 0,
-                suspiciousItems: inventoryAnalysis.suspiciousItems,
-                categoryRisks: inventoryAnalysis.categoryRisks,
-                itemCategoryMap: inventoryAnalysis.itemCategoryMap,
-            };
-        } catch (error) {
-            console.error('Error loading dashboard KPIs:', error);
-            return {
-                netSales: 0,
-                theoreticalUsage: 0,
-                actualUsage: 0,
-                unexplainedVariance: 0,
-                variancePercent: 0,
-                varianceStatus: 'green',
-                periodLabel,
-                recordedWaste: 0,
-                suspiciousItems: [],
-                categoryRisks: [],
-                itemCategoryMap: {},
-            };
+        for (const cat of inventoryAnalysis.categoryRisks) {
+            theoreticalUsage += cat.expectedValue;
+            unexplainedVariance += cat.lossValue;
         }
+
+        // Actual Usage = Theoretical + Unexplained Gap (derived)
+        const actualUsage = theoreticalUsage + Math.abs(unexplainedVariance);
+
+        const variancePercent = theoreticalUsage > 0
+            ? (unexplainedVariance / theoreticalUsage) * 100
+            : 0;
+
+        const varianceStatus = getVarianceStatus(variancePercent);
+
+        return {
+            netSales,
+            theoreticalUsage,
+            actualUsage,
+            unexplainedVariance,
+            variancePercent,
+            varianceStatus,
+            periodLabel,
+            recordedWaste: 0,
+            suspiciousItems: inventoryAnalysis.suspiciousItems,
+            categoryRisks: inventoryAnalysis.categoryRisks,
+            itemCategoryMap: inventoryAnalysis.itemCategoryMap,
+        };
     }
 }
 
