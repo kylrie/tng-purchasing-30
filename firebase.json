@@ -18,30 +18,58 @@
             "npm --prefix \"$RESOURCE_DIR\" run build"
         ]
     },
-    "hosting": {
-        "site": "tng-systems",
-        "public": "dist",
-        "ignore": [
-            "firebase.json",
-            "**/.*",
-            "**/node_modules/**"
-        ],
-        "rewrites": [
-            {
-                "source": "**",
-                "destination": "/index.html"
-            }
-        ],
-        "headers": [
-            {
-                "source": "**",
-                "headers": [
-                    {
-                        "key": "Cross-Origin-Opener-Policy",
-                        "value": "same-origin-allow-popups"
-                    }
-                ]
-            }
-        ]
-    }
+    "hosting": [
+        {
+            "target": "production",
+            "public": "dist",
+            "ignore": [
+                "firebase.json",
+                "**/.*",
+                "**/node_modules/**"
+            ],
+            "rewrites": [
+                {
+                    "source": "**",
+                    "destination": "/index.html"
+                }
+            ],
+            "headers": [
+                {
+                    "source": "**",
+                    "headers": [
+                        {
+                            "key": "Cross-Origin-Opener-Policy",
+                            "value": "same-origin-allow-popups"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "target": "staging",
+            "public": "dist",
+            "ignore": [
+                "firebase.json",
+                "**/.*",
+                "**/node_modules/**"
+            ],
+            "rewrites": [
+                {
+                    "source": "**",
+                    "destination": "/index.html"
+                }
+            ],
+            "headers": [
+                {
+                    "source": "**",
+                    "headers": [
+                        {
+                            "key": "Cross-Origin-Opener-Policy",
+                            "value": "same-origin-allow-popups"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
 }

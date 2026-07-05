@@ -1,6 +1,6 @@
 /**
  * Clone Firestore Database
- * Copies all documents from tng-systems database to (default) database
+ * Copies all documents from backup-restored database to (default) database
  * 
  * Usage: node scripts/clone-db.mjs
  * 
@@ -9,11 +9,12 @@
  * - Or run after: firebase login
  */
 
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { readFileSync } from 'fs';
 
 const PROJECT_ID = 'tng-systems';
-const SOURCE_DATABASE = 'tng-systems';
+const SOURCE_DATABASE = 'backup-restored';
 const TARGET_DATABASE = '(default)';
 
 // Collections to clone
@@ -22,7 +23,7 @@ const COLLECTIONS = [
     'requisitions',
     'businesses',
     'suppliers',
-    'roles',
+    // 'roles', excluded as per user request
     'settings',
     'pcf_liquidations',
     'inventory_items',
@@ -45,6 +46,24 @@ const COLLECTIONS = [
     'system_activity_logs',
     'stocktake_audit_logs'
 ];
+
+async function wipeCollection(targetDb, collectionName) {
+    console.log(`🧹 Wiping collection in target: ${collectionName}`);
+    const targetRef = targetDb.collection(collectionName);
+    
+    while (true) {
+        const snapshot = await targetRef.limit(500).get();
+        if (snapshot.empty) break;
+        
+        let batch = targetDb.batch();
+        snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        console.log(`   ✓ Deleted ${snapshot.size} documents...`);
+    }
+    console.log(`   ✅ Wiped ${collectionName}`);
+}
 
 async function cloneCollection(sourceDb, targetDb, collectionName) {
     console.log(`📦 Cloning collection: ${collectionName}`);
@@ -92,7 +111,10 @@ async function main() {
 
     // Initialize Firebase Admin
     if (getApps().length === 0) {
+        const serviceAccount = JSON.parse(readFileSync('./tng-systems-firebase-adminsdk-fbsvc-9c071a7b56.json', 'utf8'));
+        
         initializeApp({
+            credential: cert(serviceAccount),
             projectId: PROJECT_ID
         });
     }
@@ -104,6 +126,7 @@ async function main() {
 
     for (const collection of COLLECTIONS) {
         try {
+            await wipeCollection(targetDb, collection);
             const count = await cloneCollection(sourceDb, targetDb, collection);
             totalDocs += count;
         } catch (error) {
