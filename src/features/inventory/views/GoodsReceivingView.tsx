@@ -37,6 +37,7 @@ import type { Business, User, Requisition } from '../../procurement/types';
 import { RequisitionService } from '../../procurement/services/requisitions.service';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { usePermissions } from '../../../hooks/usePermissions';
+import SearchableDropdown from '../../../shared/components/SearchableDropdown';
 
 // ============================================================
 // TYPES
@@ -1232,14 +1233,13 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                                                     </td>
                                                     <td className="p-3 hidden sm:table-cell align-top pt-3">
                                                         <div className="flex flex-col gap-1.5">
-                                                            <select
+                                                            <SearchableDropdown
                                                                 value={row.inventoryItem?.id || ''}
-                                                                onChange={(e) => handleItemChange(idx, e.target.value)}
-                                                                className={`w-full p-2 bg-slate-50 dark:bg-slate-900 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 ${row.inventoryItem ? 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white' : 'border-amber-500/50 text-amber-400'}`}
-                                                            >
-                                                                <option value="">-- Select Inventory Item --</option>
-                                                                {items.map(i => <option key={i.id} value={i.id}>{i.name} ({i.category})</option>)}
-                                                            </select>
+                                                                onChange={(value) => handleItemChange(idx, value)}
+                                                                options={items.map(i => ({ value: i.id, label: `${i.name} (${i.category})` }))}
+                                                                placeholder="-- Select Inventory Item --"
+                                                                className={`w-full ${row.inventoryItem ? 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white' : 'border-amber-500/50 text-amber-400'}`}
+                                                            />
                                                             {row.inventoryItem && (
                                                                 <div className="flex items-center gap-1.5">
                                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${row.matchedBy === 'name' ? 'bg-emerald-500/20 text-emerald-400' : row.matchedBy === 'sku' ? 'bg-purple-500/20 text-purple-400' : row.matchedBy === 'manual' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}`}>
