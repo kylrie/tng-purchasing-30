@@ -71,8 +71,9 @@ service cloud.firestore {
     // =====================================================
     
     function getResourceBU(resource) {
-      return 'businessUnitId' in resource.data ? resource.data.businessUnitId : 
-             ('businessId' in resource.data ? resource.data.businessId : null);
+      // Use get() with a default value to avoid ternary operators that 
+      // confuse the Firestore static query analyzer.
+      return resource.data.get('businessUnitId', resource.data.get('businessId', null));
     }
 
     function belongsToSameBU(resource) {
@@ -827,20 +828,7 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // =====================================================
-    // STOCK TRANSACTIONS COLLECTION
-    // Multi-tenant stock transactions log
-    // =====================================================
-    match /stock_transactions/{txnId} {
-      // Users can only read stock transactions belonging to their BU
-      allow read: if isSignedIn() && belongsToSameBU(resource);
-      
-      // Users can create stock transactions
-      allow create: if isSignedIn();
-      
-      // Prevent update/delete - immutable audit logs
-      allow update, delete: if false;
-    }
+
     
     // =====================================================
     // MENU ITEMS COLLECTION (Menu Engineering)
@@ -1069,6 +1057,15 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn();
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+    }
+
+    // =====================================================
+    // INVENTORY AGGREGATES COLLECTION
+    // Multi-tenant aggregate data for inventory dashboard
+    // =====================================================
+    match /inventory_aggregates/{aggId} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
 
     // =====================================================

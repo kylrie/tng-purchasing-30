@@ -1,25 +1,22 @@
 import React, { useState } from 'react';
 import {
+  Search,
   AlertTriangle,
+  Clock,
+  BarChart3,
   DollarSign,
   Package,
   TrendingDown,
   TrendingUp,
   Percent,
-  ShieldAlert,
-  Mail,
-  UserPlus,
   Wine,
   Beef,
   Fish,
   Leaf,
   Milk,
   Wheat,
-  BarChart3,
   Bell,
-  Layers,
-  Clock,
-  Search,
+  Layers
 } from 'lucide-react';
 import NotificationsTab from '../components/NotificationsTab';
 import InvestigationsTab from '../components/InvestigationsTab';
@@ -32,11 +29,11 @@ import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import type { DashboardPeriod, SuspiciousItem } from '../services/inventory-dashboard.service';
 import { InvestigationsService } from '../services/investigations.service';
 
-import { HighAlertBanner } from './integrity-monitor/HighAlertBanner';
-import { KpiCards } from './integrity-monitor/KpiCards';
-import { CategoryRiskGrid } from './integrity-monitor/CategoryRiskGrid';
-import { SuspiciousItemsTable } from './integrity-monitor/SuspiciousItemsTable';
-import type { KpiItem, CategoryRisk, SuspiciousRow } from './integrity-monitor/types';
+import { HighAlertBanner } from '../components/integrity-monitor/HighAlertBanner';
+import { KpiCards } from '../components/integrity-monitor/KpiCards';
+import { CategoryRiskGrid } from '../components/integrity-monitor/CategoryRiskGrid';
+import { SuspiciousItemsTable } from '../components/integrity-monitor/SuspiciousItemsTable';
+import type { KpiItem, CategoryRisk, SuspiciousRow } from '../components/integrity-monitor/types';
 
 type TimeFilter = 'Today' | 'Week' | 'Month';
 type ActiveTab = 'Overview' | 'Investigations' | 'Shift Overlay' | 'Notifications';

@@ -1,10 +1,8 @@
 import { collection, query, where, getDocs, Timestamp, QueryConstraint } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import type { PosSaleRecord } from '../../pos/types/pos-import.types';
-import type { InventoryItem } from '../types/InventoryItem';
 import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
 import type { User } from '../../procurement/types';
-import { resolveItemCostPerUnit } from '../utils/inventory.utils';
 
 const COL = {
     POS_SALES: 'pos_sales',

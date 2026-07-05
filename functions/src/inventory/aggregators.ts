@@ -32,8 +32,6 @@ export const aggregateStockTransactions = functions.firestore
             .doc(`${tx.businessUnitId}_${dateStr}_${tx.itemId}`);
 
         const itemInfo = await getItemCost(tx.itemId, tx.businessUnitId);
-        const qty = Math.abs(tx.quantity);
-        const peso = qty * itemInfo.cost;
 
         const updates: any = {
             itemId: tx.itemId,
