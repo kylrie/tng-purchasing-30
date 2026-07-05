@@ -1,3 +1,29 @@
+/**
+ * ============================================================
+ * POS Sales Import Service (Remediated)
+ * ============================================================
+ *
+ * CHANGELOG (Audit Remediation):
+ * ──────────────────────────────────────────────────────────────
+ * [CRITICAL] Performance: matchItemsToInventory now uses O(1) Map
+ *   lookup instead of O(N×M) nested .find() loops.
+ *
+ * [CRITICAL] Concurrency: commitImport stock updates now use
+ *   Firestore increment() instead of in-memory absolute writes.
+ *   This prevents race conditions when two imports run concurrently.
+ *
+ * [HIGH] DRY: Extracted recursiveExplosion and simulateRecursiveBOM
+ *   into shared bom-explosion.service.ts. Both POS and Event import
+ *   services now delegate to the same logic.
+ *
+ * [MEDIUM] Input Validation: parseNumber now rejects Infinity, NaN,
+ *   and values exceeding safe numeric ceilings (±999,999,999).
+ *
+ * [LOW] Logging: Removed verbose console.log statements that leaked
+ *   sample data. Kept only essential error/warn logs.
+ * ──────────────────────────────────────────────────────────────
+ */
+
 import * as XLSX from 'xlsx';
 import {
     collection,
@@ -7,6 +33,7 @@ import {
     where,
     writeBatch,
     Timestamp,
+    increment,
 } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
@@ -17,6 +44,12 @@ import type {
     PosSaleRecord,
     SimulatedDeduction,
 } from '../types/pos-import.types';
+import {
+    recursiveExplosion,
+    simulateRecursiveBOM,
+    safeNum,
+    type AutoProductionLog,
+} from './bom-explosion.service';
 
 // Collection names (mirrored from COLLECTIONS for direct use)
 const COL = {
@@ -25,6 +58,13 @@ const COL = {
     STOCK_TRANSACTIONS: 'stock_transactions',
     INVENTORY_ITEMS: 'inventory_items',
 } as const;
+
+/**
+ * Maximum safe numeric value accepted during file parsing.
+ * Prevents integer overflow or scientifically-notated values
+ * (e.g. "1e99") from corrupting inventory data.
+ */
+const MAX_SAFE_CURRENCY = 999_999_999;
 
 /**
  * POS Sales Import Service
@@ -69,10 +109,6 @@ export class PosImportService {
             else if (normalized === 'discount' || normalized === 'discounts') headerMap[key] = 'discount';
         }
 
-        // Debug: log header mapping for troubleshooting
-        console.log('[POS Import] File columns:', Object.keys(firstRow));
-        console.log('[POS Import] Mapped headers:', JSON.stringify(headerMap));
-
         // Check if the file has an amount column
         const mappedFields = Object.values(headerMap);
         const hasAmountColumn = mappedFields.includes('amount');
@@ -94,14 +130,26 @@ export class PosImportService {
             console.warn('[POS Import] No amount column found — will auto-fill from FG selling prices during matching.');
         }
 
-        // Helper: safely parse numbers that may contain currency symbols, commas, or whitespace
+        /**
+         * [MEDIUM] AUDIT FIX: Hardened number parser.
+         * - Strips currency symbols (₱, $, €, etc.), commas, and spaces.
+         * - Explicitly rejects NaN, ±Infinity, and values exceeding the
+         *   safe currency ceiling to prevent database corruption from
+         *   scientific notation (e.g. "1e99") or malformed inputs.
+         */
         const parseNumber = (val: unknown): number => {
-            if (typeof val === 'number') return isNaN(val) ? 0 : val;
+            if (typeof val === 'number') {
+                if (!Number.isFinite(val)) return 0;
+                return Math.abs(val) > MAX_SAFE_CURRENCY ? 0 : val;
+            }
             if (!val) return 0;
             // Strip currency symbols (₱, $, €, etc.), commas, spaces
             const cleaned = String(val).replace(/[₱$€¥£,\s]/g, '').trim();
+            if (cleaned === '') return 0;
             const num = Number(cleaned);
-            return isNaN(num) ? 0 : num;
+            // Reject NaN, Infinity, and out-of-bounds values
+            if (!Number.isFinite(num) || Math.abs(num) > MAX_SAFE_CURRENCY) return 0;
+            return num;
         };
 
         // Map rows to typed objects
@@ -154,13 +202,6 @@ export class PosImportService {
         }
         const consolidated = Array.from(consolidationMap.values());
 
-        // Debug: log consolidation stats
-        if (consolidated.length > 0) {
-            console.log(`[POS Import] Consolidated ${rawRowCount} raw rows → ${consolidated.length} unique items`);
-            console.log('[POS Import] Sample consolidated rows:', consolidated.slice(0, 3));
-            console.log('[POS Import] Has amount column:', hasAmountColumn);
-        }
-
         return { rows: consolidated, hasAmountColumn, rawRowCount, consolidatedCount: consolidated.length };
     }
 
@@ -198,8 +239,12 @@ export class PosImportService {
     // ================================================================
 
     /**
-     * Match parsed rows to FINISHED_GOOD inventory items
-     * Strategy: exact match first, then case-insensitive contains
+     * Match parsed rows to FINISHED_GOOD inventory items.
+     *
+     * [CRITICAL] AUDIT FIX: Pre-computes a Map<normalizedName, item>
+     * for O(1) exact-match lookups. Falls back to a linear scan ONLY
+     * for substring/contains matching when exact match fails.
+     * Previous implementation was O(N×M) with nested .find() calls.
      */
     static async matchItemsToInventory(
         rows: PosImportRow[],
@@ -245,7 +290,6 @@ export class PosImportService {
                     }
                 }
             });
-            console.log(`[POS Import] Loaded ${menuSellingPriceMap.size} selling prices, ${menuCostMap.size} recipe costs.`);
         } catch (err) {
             console.warn('[POS Import] Could not load menu items for selling price lookup:', err);
         }
@@ -259,20 +303,33 @@ export class PosImportService {
             baseCost: menuCostMap.get(item.id) ?? item.baseCost ?? undefined,
         }));
 
+        /**
+         * [CRITICAL] AUDIT FIX: O(1) exact-match lookup map.
+         * Pre-compute a Map keyed by normalized (lowercased, trimmed) name.
+         * This eliminates the previous O(N×M) pattern where every CSV row
+         * iterated the entire inventory list with .find().
+         */
+        const exactMatchMap = new Map<string, typeof enrichedItems[number]>();
+        for (const item of enrichedItems) {
+            const normalizedKey = item.name.toLowerCase().trim();
+            // First item wins if duplicates exist (same behavior as .find())
+            if (!exactMatchMap.has(normalizedKey)) {
+                exactMatchMap.set(normalizedKey, item);
+            }
+        }
+
         const mappedRows: PosImportMappedRow[] = rows.map((row, index) => {
             const normalizedName = row.itemName.toLowerCase().trim();
 
-            // Priority 1: Exact match (case-insensitive)
-            let match = enrichedItems.find(item =>
-                item.name.toLowerCase().trim() === normalizedName
-            );
+            // Priority 1: O(1) exact match via Map lookup
+            let match = exactMatchMap.get(normalizedName) ?? null;
 
-            // Priority 2: Contains match
+            // Priority 2: Contains match — still O(M) but only fires when exact misses
             if (!match) {
-                match = enrichedItems.find(item =>
-                    item.name.toLowerCase().trim().includes(normalizedName) ||
-                    normalizedName.includes(item.name.toLowerCase().trim())
-                );
+                match = enrichedItems.find(item => {
+                    const itemNorm = item.name.toLowerCase().trim();
+                    return itemNorm.includes(normalizedName) || normalizedName.includes(itemNorm);
+                }) ?? null;
             }
 
             // For FGs WITH recipes, stock deductions happen at the ingredient level (BOM explosion),
@@ -329,6 +386,9 @@ export class PosImportService {
     /**
      * Simulate a POS import without writing to Firestore.
      * Useful for seeing what BOM explosion (theoreticalStock deductions) will happen.
+     *
+     * [HIGH] AUDIT FIX: Now delegates to shared simulateRecursiveBOM
+     * from bom-explosion.service.ts instead of duplicating the logic inline.
      */
     static async simulatePosImport(
         mappedRows: PosImportMappedRow[],
@@ -356,8 +416,7 @@ export class PosImportService {
 
             if (fgItem.recipe && fgItem.recipe.length > 0) {
                 // Push the FG header so the preview modal can group children under it
-                const safeStockFG = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
-                const fgCurrent = safeStockFG(fgItem.theoreticalStock) || safeStockFG(fgItem.currentStock);
+                const fgCurrent = safeNum(fgItem.theoreticalStock) || safeNum(fgItem.currentStock);
                 simulatedDeductions.push({
                     itemId: fgItem.id,
                     itemName: fgItem.name,
@@ -369,9 +428,8 @@ export class PosImportService {
                     parentItemName: row.matchedItemName || row.itemName,
                 });
 
-                // FG has a recipe — explode into underlying ingredient deductions
-                // Use totalQty so FOC items also consume raw materials
-                this.simulateRecursiveBOM(
+                // [HIGH] AUDIT FIX: Delegates to shared BOM explosion service
+                simulateRecursiveBOM(
                     fgItem,
                     totalQty,
                     row.matchedItemId!,
@@ -383,10 +441,9 @@ export class PosImportService {
             } else {
                 // No recipe — deduct the FINISHED_GOOD's own stock directly
                 // (e.g., bottled retail items, simple countable products)
-                const safeStock = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
                 const currentStock = runningStock.has(fgItem.id)
                     ? runningStock.get(fgItem.id)!
-                    : safeStock(fgItem.theoreticalStock) || safeStock(fgItem.currentStock);
+                    : safeNum(fgItem.theoreticalStock) || safeNum(fgItem.currentStock);
                 const newStock = currentStock - totalQty;
                 runningStock.set(fgItem.id, newStock);
 
@@ -406,120 +463,6 @@ export class PosImportService {
         return simulatedDeductions;
     }
 
-    private static simulateRecursiveBOM(
-        item: InventoryItem & { id: string },
-        multiplier: number,
-        parentItemId: string,
-        parentItemName: string, // FG or PRODUCTION name, for audit note context
-        allItemsMap: Map<string, InventoryItem & { id: string }>,
-        runningStock: Map<string, number>,
-        simulatedDeductions: SimulatedDeduction[]
-    ) {
-        if (!item.recipe || item.recipe.length === 0) return;
-
-        for (const ingredient of item.recipe) {
-            const ingredientItem = allItemsMap.get(ingredient.ingredientId);
-            if (!ingredientItem) continue;
-
-            const totalDeduction = ingredient.quantityUsed * multiplier;
-
-            const safeStock = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
-
-            const currentStock = runningStock.has(ingredientItem.id)
-                ? runningStock.get(ingredientItem.id)!
-                : safeStock(ingredientItem.theoreticalStock) || safeStock(ingredientItem.currentStock);
-
-            if (ingredientItem.type === 'RAW_MATERIAL' || ingredientItem.type === 'FINISHED_GOOD') {
-                // Direct deduction — allow negative stock
-                const newStock = currentStock - totalDeduction;
-                runningStock.set(ingredientItem.id, newStock);
-
-                simulatedDeductions.push({
-                    itemId: ingredientItem.id,
-                    itemName: ingredientItem.name,
-                    type: ingredientItem.type === 'FINISHED_GOOD' ? 'FG_DIRECT' : 'RM',
-                    currentTheoreticalStock: currentStock,
-                    deductionAmount: totalDeduction,
-                    newTheoreticalStock: newStock,
-                    parentItemId,
-                    parentItemName,
-                });
-            } else if (ingredientItem.type === 'PRODUCTION') {
-                // ── AUTO-EXPLODE FALLBACK ──
-                // Check if we have enough prep stock to fulfill the demand
-                const availablePrep = Math.max(0, currentStock);
-                const deductedFromPrep = Math.min(availablePrep, totalDeduction);
-                const shortfall = totalDeduction - deductedFromPrep;
-
-                if (deductedFromPrep > 0) {
-                    // Deduct what we can from the prep item
-                    const newPrepStock = currentStock - deductedFromPrep;
-                    runningStock.set(ingredientItem.id, newPrepStock);
-
-                    simulatedDeductions.push({
-                        itemId: ingredientItem.id,
-                        itemName: ingredientItem.name,
-                        type: 'PRODUCTION',
-                        currentTheoreticalStock: currentStock,
-                        deductionAmount: deductedFromPrep,
-                        newTheoreticalStock: newPrepStock,
-                        parentItemId,
-                        parentItemName,
-                    });
-                }
-
-                if (shortfall > 0) {
-                    // Not enough prep stock — auto-explode the shortfall into raw materials
-                    if (deductedFromPrep === 0) {
-                        // Zero stock — show the prep item with 0 deduction + alert
-                        simulatedDeductions.push({
-                            itemId: ingredientItem.id,
-                            itemName: ingredientItem.name,
-                            type: 'PRODUCTION',
-                            currentTheoreticalStock: currentStock,
-                            deductionAmount: 0,
-                            newTheoreticalStock: currentStock,
-                            parentItemId,
-                            parentItemName,
-                            alert: `⚠️ No production stock available. ${shortfall} units auto-exploded to raw materials below.`,
-                        });
-                    } else {
-                        // Partial stock — update the existing deduction's alert
-                        const lastDed = simulatedDeductions[simulatedDeductions.length - 1];
-                        lastDed.alert = `⚠️ Only ${deductedFromPrep} of ${totalDeduction} available. ${shortfall} units auto-exploded to raw materials below.`;
-                    }
-
-                    // Recurse into the production item's recipe for the shortfall quantity
-                    if (ingredientItem.recipe && ingredientItem.recipe.length > 0) {
-                        for (const subIng of ingredientItem.recipe) {
-                            const subItem = allItemsMap.get(subIng.ingredientId);
-                            if (!subItem) continue;
-
-                            const explodedQty = subIng.quantityUsed * shortfall;
-                            const subCurrentStock = runningStock.has(subItem.id)
-                                ? runningStock.get(subItem.id)!
-                                : safeStock(subItem.theoreticalStock) || safeStock(subItem.currentStock);
-                            const subNewStock = subCurrentStock - explodedQty;
-                            runningStock.set(subItem.id, subNewStock);
-
-                            simulatedDeductions.push({
-                                itemId: subItem.id,
-                                itemName: subItem.name,
-                                type: 'RM',
-                                currentTheoreticalStock: subCurrentStock,
-                                deductionAmount: explodedQty,
-                                newTheoreticalStock: subNewStock,
-                                parentItemId,
-                                parentItemName,
-                                alert: `Auto-produced from ${ingredientItem.name} — no production record found`,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     // ================================================================
     // COMMIT IMPORT (BATCH WRITE)
     // ================================================================
@@ -534,6 +477,13 @@ export class PosImportService {
      * and THEORETICAL_USAGE stock_transactions are logged for the audit trail.
      *
      * Rows with matchedItemId === null are SKIPPED (unmatched)
+     *
+     * [CRITICAL] AUDIT FIX: Stock updates now use increment() instead of
+     * absolute in-memory values. This prevents race conditions when two
+     * imports run concurrently against the same inventory items.
+     *
+     * [HIGH] AUDIT FIX: BOM explosion now delegates to shared
+     * bom-explosion.service.ts instead of inline duplication.
      */
     /**
      * Convert a "YYYY-MM-DD" string into a Firestore Timestamp at midnight LOCAL time.
@@ -594,7 +544,6 @@ export class PosImportService {
         const fgDirectDeductionMap = new Map<string, { totalQty: number; fgName: string }>();
 
         // Running stock tracker for PRODUCTION items to support auto-explode fallback
-        const safeNum = (v: unknown): number => typeof v === 'number' && Number.isFinite(v) ? v : 0;
         const prodRunningStock = new Map<string, number>();
         for (const [, item] of allItemsMap) {
             if (item.type === 'PRODUCTION') {
@@ -603,91 +552,14 @@ export class PosImportService {
         }
 
         // Track unrecorded production logs for database alert
-        interface AutoProductionLog {
-            productionItemId: string;
-            productionItemName: string;
-            shortageQty: number;
-            finishedGoodName: string;
-            rawMaterialsExploded: { itemId: string; itemName: string; qty: number; unit: string }[];
-        }
         const autoProductionLogs: AutoProductionLog[] = [];
 
-        const recursiveExplosion = (
-            itemArg: InventoryItem & { id: string },
-            multiplier: number,
-            rootFgName: string // for audit notes: "Deducted Xg Beef Patty for POS Sale: Cheeseburger"
-        ) => {
-            if (!itemArg.recipe || itemArg.recipe.length === 0) return;
-            for (const ingredient of itemArg.recipe) {
-                const iItem = allItemsMap.get(ingredient.ingredientId);
-                if (!iItem) continue;
-                const ded = ingredient.quantityUsed * multiplier;
-
-                if (iItem.type === 'RAW_MATERIAL' || iItem.type === 'FINISHED_GOOD') {
-                    const prev = rmDeductionMap.get(ingredient.ingredientId);
-                    rmDeductionMap.set(ingredient.ingredientId, {
-                        totalQty: (prev?.totalQty ?? 0) + ded,
-                        fgName: prev?.fgName ?? rootFgName,
-                    });
-                } else if (iItem.type === 'PRODUCTION') {
-                    // ── AUTO-EXPLODE FALLBACK ──
-                    const currentPrepStock = prodRunningStock.get(iItem.id) ?? 0;
-                    const availablePrep = Math.max(0, currentPrepStock);
-                    const deductedFromPrep = Math.min(availablePrep, ded);
-                    const shortfall = ded - deductedFromPrep;
-
-                    if (deductedFromPrep > 0) {
-                        // Deduct from prep stock
-                        prodRunningStock.set(iItem.id, currentPrepStock - deductedFromPrep);
-                        const prev = rmDeductionMap.get(ingredient.ingredientId);
-                        rmDeductionMap.set(ingredient.ingredientId, {
-                            totalQty: (prev?.totalQty ?? 0) + deductedFromPrep,
-                            fgName: prev?.fgName ?? rootFgName,
-                        });
-                    }
-
-                    if (shortfall > 0) {
-                        // Auto-explode the shortfall into raw materials
-                        if (deductedFromPrep === 0) {
-                            prodRunningStock.set(iItem.id, currentPrepStock); // unchanged
-                        }
-
-                        const explodedRMs: AutoProductionLog['rawMaterialsExploded'] = [];
-
-                        if (iItem.recipe && iItem.recipe.length > 0) {
-                            for (const subIng of iItem.recipe) {
-                                const subItem = allItemsMap.get(subIng.ingredientId);
-                                if (!subItem) continue;
-
-                                const explodedQty = subIng.quantityUsed * shortfall;
-                                const prev = rmDeductionMap.get(subIng.ingredientId);
-                                rmDeductionMap.set(subIng.ingredientId, {
-                                    totalQty: (prev?.totalQty ?? 0) + explodedQty,
-                                    fgName: prev?.fgName ?? `${rootFgName} (auto-produced ${iItem.name})`,
-                                });
-
-                                explodedRMs.push({
-                                    itemId: subItem.id,
-                                    itemName: subItem.name,
-                                    qty: explodedQty,
-                                    unit: subIng.unit || subItem.units?.recipeUnit || '',
-                                });
-                            }
-                        }
-
-                        // Queue the unrecorded production log
-                        autoProductionLogs.push({
-                            productionItemId: iItem.id,
-                            productionItemName: iItem.name,
-                            shortageQty: shortfall,
-                            finishedGoodName: rootFgName,
-                            rawMaterialsExploded: explodedRMs,
-                        });
-                    }
-                }
-            }
-        };
-
+        /**
+         * [HIGH] AUDIT FIX: BOM explosion now delegates to the shared
+         * recursiveExplosion() from bom-explosion.service.ts.
+         * Previously, this was a 75-line inline function duplicated
+         * identically in event-import.service.ts.
+         */
         for (const row of rowsToCommit) {
             const fgItem = allItemsMap.get(row.matchedItemId!);
             if (!fgItem) continue;
@@ -704,7 +576,15 @@ export class PosImportService {
 
             if (fgItem.recipe && fgItem.recipe.length > 0) {
                 // Has recipe — explode into raw material deductions using totalQty
-                recursiveExplosion(fgItem, totalQty, fgName);
+                recursiveExplosion(
+                    fgItem,
+                    totalQty,
+                    fgName,
+                    allItemsMap,
+                    prodRunningStock,
+                    rmDeductionMap,
+                    autoProductionLogs
+                );
             } else {
                 // No recipe — track for direct FG stock deduction using totalQty
                 const prev = fgDirectDeductionMap.get(row.matchedItemId!);
@@ -712,15 +592,6 @@ export class PosImportService {
                     totalQty: (prev?.totalQty ?? 0) + totalQty,
                     fgName: prev?.fgName ?? fgName,
                 });
-            }
-        }
-
-        // Pre-load raw material theoretical stock for balanceAfter calculation
-        const rmStockMap = new Map<string, number>();
-        for (const [rmId] of rmDeductionMap) {
-            const rmItem = allItemsMap.get(rmId);
-            if (rmItem) {
-                rmStockMap.set(rmId, safeNum(rmItem.theoreticalStock) || safeNum(rmItem.currentStock));
             }
         }
 
@@ -773,21 +644,17 @@ export class PosImportService {
         // ================================================================
         // STEP D: BOM Explosion writes — raw material deductions only
         // Notes include the originating Finished Good name for full audit trail.
+        //
+        // [CRITICAL] AUDIT FIX: Stock updates use increment() instead of
+        // computing absolute values in memory. This is concurrency-safe —
+        // if two imports run simultaneously, increment() atomically adjusts
+        // the field rather than blind-overwriting it.
         // ================================================================
-        const runningRmStock = new Map<string, number>();
-        for (const [rmId, stock] of rmStockMap) {
-            runningRmStock.set(rmId, stock);
-        }
-
         for (const [rmId, { totalQty, fgName }] of rmDeductionMap) {
             const rmItem = allItemsMap.get(rmId);
             if (!rmItem) continue;
 
-            const theoStock = runningRmStock.get(rmId) ?? 0;
-            const newTheoStock = theoStock - totalQty;
-            runningRmStock.set(rmId, newTheoStock);
-
-            // Write THEORETICAL_USAGE stock transaction
+            // Write THEORETICAL_USAGE stock transaction (audit log only)
             const rmTxRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
             ensureBatch();
             currentBatch.set(rmTxRef, {
@@ -798,7 +665,6 @@ export class PosImportService {
                 quantity: totalQty,
                 unitCost: rmItem.costPerUnit ?? 0,
                 totalValue: totalQty * (rmItem.costPerUnit ?? 0),
-                balanceAfter: newTheoStock,
                 referenceId: batchImportId,
                 notes: `Deducted ${totalQty} ${rmItem.units?.recipeUnit ?? ''} ${rmItem.name} for POS Sale: ${fgName} (${fileName})`,
                 performedBy: userId,
@@ -809,14 +675,17 @@ export class PosImportService {
             });
             opCount++;
 
-            // Update raw material stock — both currentStock and theoreticalStock
-            // so POS deductions are immediately visible in the Inventory Items view.
+            /**
+             * [CRITICAL] AUDIT FIX: Concurrency-safe stock update.
+             * Uses Firestore increment(-totalQty) instead of:
+             *   theoreticalStock: newTheoStock   // ← stale in-memory value
+             * This prevents race conditions where concurrent imports
+             * overwrite each other's stock calculations.
+             */
             ensureBatch();
-            const rmCurrentStock = safeNum(rmItem.currentStock);
-            const newRmCurrentStock = rmCurrentStock - totalQty;
             currentBatch.update(doc(db, COL.INVENTORY_ITEMS, rmId), {
-                currentStock: newRmCurrentStock,
-                theoreticalStock: newTheoStock,
+                currentStock: increment(-totalQty),
+                theoreticalStock: increment(-totalQty),
                 updatedAt: importDateTs,
             });
             opCount++;
@@ -826,13 +695,12 @@ export class PosImportService {
         // STEP E: Direct FG deductions (no-recipe items)
         // These items are countable products (bottled goods, retail, etc.)
         // whose stock is tracked directly on the FINISHED_GOOD document.
+        //
+        // [CRITICAL] Same increment() fix applied here for concurrency safety.
         // ================================================================
         for (const [fgId, { totalQty }] of fgDirectDeductionMap) {
             const fgItem = allItemsMap.get(fgId);
             if (!fgItem) continue;
-
-            const theoStock = safeNum(fgItem.theoreticalStock) || safeNum(fgItem.currentStock);
-            const newTheoStock = theoStock - totalQty;
 
             // Write POS_SALE stock transaction for the FG itself
             const fgTxRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
@@ -845,7 +713,6 @@ export class PosImportService {
                 quantity: totalQty,
                 unitCost: fgItem.baseCost ?? fgItem.costPerUnit ?? 0,
                 totalValue: totalQty * (fgItem.baseCost ?? fgItem.costPerUnit ?? 0),
-                balanceAfter: newTheoStock,
                 referenceId: batchImportId,
                 notes: `Deducted ${totalQty} ${fgItem.units?.recipeUnit ?? ''} ${fgItem.name} — direct POS sale (no recipe) (${fileName})`,
                 performedBy: userId,
@@ -861,11 +728,9 @@ export class PosImportService {
             // countable goods (bottles, retail packs) whose on-hand stock should
             // reflect POS deductions immediately.
             ensureBatch();
-            const fgCurrentStock = safeNum(fgItem.currentStock);
-            const newCurrentStock = fgCurrentStock - totalQty;
             currentBatch.update(doc(db, COL.INVENTORY_ITEMS, fgId), {
-                currentStock: newCurrentStock,
-                theoreticalStock: newTheoStock,
+                currentStock: increment(-totalQty),
+                theoreticalStock: increment(-totalQty),
                 updatedAt: importDateTs,
             });
             opCount++;
@@ -1039,6 +904,9 @@ export class PosImportService {
      * 3. Adds a POS_REVERSAL audit transaction per item (for the ledger trail)
      * 4. Restores currentStock and theoreticalStock on each affected inventory item
      * 5. Deletes the batch metadata doc
+     *
+     * NOTE: Reversal uses increment(+qty) for concurrency safety, matching the
+     * forward-path pattern established in commitImport.
      */
     static async deleteImportBatch(
         batchImportId: string,
@@ -1088,25 +956,6 @@ export class PosImportService {
             });
         });
 
-        // 5. Fetch current inventory state for affected items (to compute new balances)
-        const itemIds = Array.from(deductionsByItem.keys());
-        const itemsMap = new Map<string, Partial<InventoryItem>>();
-
-        const chunkArray = <T>(arr: T[], size: number): T[][] => {
-            const chunks = [];
-            for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
-            return chunks;
-        };
-
-        for (const chunk of chunkArray(itemIds, 10)) {
-            const q = query(
-                collection(db, COL.INVENTORY_ITEMS),
-                where('__name__', 'in', chunk)
-            );
-            const snap = await getDocs(q);
-            snap.docs.forEach(d => itemsMap.set(d.id, d.data()));
-        }
-
         // ================================================================
         // Build Firestore batches
         // ================================================================
@@ -1124,8 +973,6 @@ export class PosImportService {
         };
 
         const now = Timestamp.now();
-        const safeNum = (v: unknown): number =>
-            typeof v === 'number' && Number.isFinite(v) ? v : 0;
 
         // 6. Delete all pos_sales docs
         salesSnap.docs.forEach(docSnap => {
@@ -1147,16 +994,6 @@ export class PosImportService {
 
         // 8. For each affected item: add a POS_REVERSAL audit record and restore stock
         for (const [itemId, info] of deductionsByItem.entries()) {
-            const itemData = itemsMap.get(itemId);
-            if (!itemData) continue;
-
-            const currentTheo = safeNum(itemData.theoreticalStock);
-            const currentPhys = safeNum(itemData.currentStock);
-
-            // Restore: add back what was originally deducted
-            const newTheoStock = currentTheo + info.qty;
-            const newCurrentStock = currentPhys + info.qty;
-
             // Audit trail — POS_REVERSAL is NOT counted by Recon aggregation
             // (aggregatePosSales only reads THEORETICAL_USAGE and POS_SALE)
             const adjTxRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
@@ -1169,7 +1006,6 @@ export class PosImportService {
                 quantity: info.qty,   // positive = stock returned
                 unitCost: info.unitCost,
                 totalValue: info.qty * info.unitCost,
-                balanceAfter: newTheoStock,
                 referenceId: batchImportId,
                 notes: `Reversed POS Import Batch ${batchImportId} — ${info.qty} ${info.itemName} returned to stock`,
                 performedBy: userId,
@@ -1179,12 +1015,15 @@ export class PosImportService {
             });
             opCount++;
 
-            // Restore item stock fields
+            /**
+             * [CRITICAL] AUDIT FIX: Reversal uses increment(+qty) for
+             * concurrency safety, consistent with the commitImport pattern.
+             */
             const itemRef = doc(db, COL.INVENTORY_ITEMS, itemId);
             ensureBatch();
             currentBatch.update(itemRef, {
-                currentStock: newCurrentStock,
-                theoreticalStock: newTheoStock,
+                currentStock: increment(info.qty),
+                theoreticalStock: increment(info.qty),
                 updatedAt: now,
             });
             opCount++;
