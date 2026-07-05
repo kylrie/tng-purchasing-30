@@ -2,8 +2,7 @@ import { collection, getDocs, query, where as fsWhere, Timestamp } from 'firebas
 import { db } from '../../../config/firebase';
 import { FirestoreService, where } from '../../../shared/services/firestore.service';
 import type { StockCountSession, StockCountItem, InventoryItem } from '../types/InventoryItem';
-import type { Requisition } from '../../procurement/types';
-import { RequisitionStatus } from '../../procurement/types';
+// Removed unused imports
 
 // ============================================================
 // TYPES
