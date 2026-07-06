@@ -262,7 +262,7 @@ const CustomerMenuView: React.FC = () => {
                     <img
                         src="/inflatable-logo.avif"
                         alt="Inflatable Island Beach Club"
-                        className="mx-auto w-[300px] max-w-[82%] h-auto select-none [filter:saturate(1.45)_contrast(1.12)_brightness(1.02)_drop-shadow(0_2px_10px_rgba(236,72,153,0.18))]"
+                        className="mx-auto w-[300px] max-w-[82%] h-auto select-none [filter:saturate(1.9)_contrast(1.32)_brightness(1.01)_drop-shadow(0_0_0.5px_rgba(0,0,0,0.28))_drop-shadow(0_2px_10px_rgba(236,72,153,0.22))]"
                         draggable={false}
                     />
 
