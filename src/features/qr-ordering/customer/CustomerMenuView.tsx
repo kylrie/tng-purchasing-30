@@ -269,7 +269,10 @@ const CustomerMenuView: React.FC = () => {
                     <div className="relative mt-5 h-20">
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                             <p className="text-[13px] font-semibold tracking-[0.35em] text-[#0d6e62]">TABLE</p>
-                            <p className="text-[46px] leading-none font-extrabold text-[#0d6e62] mt-1">{tableNumber}</p>
+                            {/* max-w + truncate is a layout backstop: tableNumber briefly holds the raw
+                                qrToken as a fallback before the real fetch resolves, and must never be
+                                able to overflow the mobile header regardless of its length. */}
+                            <p className="text-[46px] leading-none font-extrabold text-[#0d6e62] mt-1 max-w-[85vw] truncate px-2">{tableNumber}</p>
                         </div>
                         <button
                             type="button"

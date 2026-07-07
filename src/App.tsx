@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthProvider';
 import { useAuth } from './contexts/useAuth';
 import { PermissionsProvider } from './contexts/PermissionsContext';
@@ -27,6 +27,20 @@ import { useUOM } from './shared/hooks/useUOM';
 
 // Lazy load views for code splitting
 const CustomerMenuView = React.lazy(() => import('./features/qr-ordering/customer/CustomerMenuView'));
+
+/**
+ * Forces a full remount of CustomerMenuView per distinct :tableId. React Router
+ * does NOT remount a matched route's element when only its dynamic segment
+ * changes, so without this, cart/tableNumber/resolvedTableId (all plain
+ * useState, keyed by nothing) can persist across two different QR tokens
+ * visited in the same browser tab — real cross-table/cross-business cart
+ * leakage. Keying by the token guarantees a fresh component instance, and
+ * therefore fresh state, per table.
+ */
+const KeyedCustomerMenuView: React.FC = () => {
+    const { tableId } = useParams<{ tableId?: string }>();
+    return <CustomerMenuView key={tableId ?? '__no_token__'} />;
+};
 const CheckoutView = React.lazy(() => import('./features/qr-ordering/customer/CheckoutView'));
 const OrderStatusView = React.lazy(() => import('./features/qr-ordering/customer/OrderStatusView'));
 const KitchenQueueView = React.lazy(() => import('./features/qr-ordering/kitchen/KitchenQueueView'));
@@ -685,7 +699,7 @@ VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
                     {/* QR Ordering — public customer routes (mock data prototype, no auth) */}
                     <Route path="/order/:tableId?" element={
                       <Suspense fallback={<PageLoader />}>
-                        <CustomerMenuView />
+                        <KeyedCustomerMenuView />
                       </Suspense>
                     } />
                     <Route path="/checkout/:sessionId?" element={
