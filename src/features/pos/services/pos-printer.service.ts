@@ -50,6 +50,23 @@ export class POSPrinterService {
         }
     }
 
+    /** True when a Bluetooth printer characteristic is currently held (this session).
+     *  Additive read-only helper — does not change existing POS behavior. */
+    static isBluetoothConnected(): boolean {
+        return this.bluetoothCharacteristic !== null;
+    }
+
+    /** Drop the current Bluetooth connection (best-effort GATT disconnect + clear).
+     *  Additive helper — safe no-op when nothing is connected. */
+    static disconnectBluetooth(): void {
+        try {
+            this.bluetoothCharacteristic?.service?.device?.gatt?.disconnect();
+        } catch {
+            /* ignore — clearing the ref below is what matters */
+        }
+        this.bluetoothCharacteristic = null;
+    }
+
     /**
      * Send raw ESC/POS bytes to the configured printer.
      */

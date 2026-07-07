@@ -128,6 +128,42 @@ export function normalizeCategory(
 }
 
 /**
+ * Name-based refinement rules (owner-approved 2026-07-07). BEACHBOSSES' backend
+ * categories are coarse — every drink is 'Beverages' and every food item is
+ * 'Mains' — so the correct FIXED customer subcategory is derived from the item
+ * NAME. First match wins; if none match, the category-based normalization stands.
+ * Rules are ordered so more specific drink types resolve before the generic bucket.
+ */
+interface NameRule { re: RegExp; category: string; }
+const NAME_RULES: NameRule[] = [
+    // Drinks (backend 'Beverages') → fine drink tabs
+    { re: /\b(heineken|red\s*horse|san\s*mig|pale\s*pilsen|pilsen|lager|beer)\b/i, category: 'Beer' },
+    { re: /\b(americano|cappu\w*|latte|espresso|coffee|barako|mocha|macchiato)\b/i, category: 'Coffee' },
+    { re: /\b(mule|cocktail|mojito|margarita|daiquiri|smirnoff|vodka|rum|gin|tequila|whisk(?:e)?y)\b/i, category: 'Cocktails' },
+    { re: /mais\s*con\s*yelo/i, category: 'Desserts' },
+    { re: /\b(juice|shake|smoothie|lemonade)\b/i, category: 'Fresh Juice' },
+    // Food (backend 'Mains') → obvious appetizers
+    { re: /\b(nachos?|mozz?arella|mozza|crispy\s*trio|wings|lumpiang?|sisig|grilled\s*corn|pork\s*bbq|hotdog|calamares|logs)\b/i, category: 'Appetizers' },
+];
+
+/**
+ * Refine a base category by the item name (see NAME_RULES). Returns the refined
+ * category + its group (the target category can flip the group — e.g. a smoothie
+ * mistagged 'Mains' becomes Fresh Juice / Drinks). Pure + exported for testing.
+ */
+export function refineByName(
+    name: string,
+    base: { category: string; group: MenuGroup },
+    index: Map<string, MenuGroup> = buildCategoryGroupIndex(),
+): { category: string; group: MenuGroup } {
+    const n = name ?? '';
+    for (const rule of NAME_RULES) {
+        if (rule.re.test(n)) return { category: rule.category, group: index.get(rule.category) ?? base.group };
+    }
+    return base;
+}
+
+/**
  * Map one sanitized server DTO to a UI PublicMenuItem. Field-whitelisted:
  * only id/name/category/sellingPrice/isAvailable (+ optional description/imageUrl)
  * are ever read. `group` is derived from `category`. `bestSeller` is intentionally
@@ -137,8 +173,9 @@ export function mapMenuItem(
     dto: PublicMenuItemDTO,
     index: Map<string, MenuGroup> = buildCategoryGroupIndex(),
 ): PublicMenuItem {
-    // Normalize the raw backend category INTO a fixed canonical customer tab.
-    const { category, group } = normalizeCategory(dto.category, index);
+    // Normalize the raw backend category, then refine by item name (coarse backend
+    // categories → the correct FIXED customer subcategory). Both land in the stable nav.
+    const { category, group } = refineByName(dto.name, normalizeCategory(dto.category, index), index);
     const item: PublicMenuItem = {
         id: dto.id,
         name: dto.name,
