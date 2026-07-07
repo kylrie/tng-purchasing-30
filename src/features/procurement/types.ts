@@ -162,7 +162,8 @@ export interface User {
   pcfCeiling?: number; // Petty Cash Fund ceiling amount for the user
   status: UserStatus;
   permissions?: string[]; // User-level permission overrides (takes precedence over role permissions)
-  posPin?: string; // 4-digit PIN for Point of Sale access
+  posPin?: string; // Legacy 4-digit PIN for Point of Sale access (plaintext)
+  posPinHash?: string; // Secure hashed 4-digit PIN for Point of Sale access
 }
 
 export interface BankDetails {

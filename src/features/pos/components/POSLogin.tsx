@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { User } from '../../../shared/types';
 import { UserStatus } from '../../../features/procurement/types';
-import { Lock } from 'lucide-react';
+import { Lock, Loader2 } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface POSLoginProps {
     users: User[];
@@ -12,6 +13,7 @@ interface POSLoginProps {
 const POSLogin: React.FC<POSLoginProps> = ({ users, onLogin, superAdminPin }) => {
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
+    const [isVerifying, setIsVerifying] = useState(false);
 
     const handleNumberClick = (num: string) => {
         if (pin.length < 4) {
@@ -30,7 +32,7 @@ const POSLogin: React.FC<POSLoginProps> = ({ users, onLogin, superAdminPin }) =>
         setError('');
     };
 
-    const handleSubmit = (e?: React.FormEvent) => {
+    const handleSubmit = async (e?: React.FormEvent) => {
         e?.preventDefault();
 
         if (pin.length !== 4) {
@@ -38,32 +40,72 @@ const POSLogin: React.FC<POSLoginProps> = ({ users, onLogin, superAdminPin }) =>
             return;
         }
 
-        // Check super admin pin first
-        if (superAdminPin && pin === superAdminPin) {
-            const superAdminUser: User = {
-                id: 'super-admin',
-                name: 'Super Admin',
-                email: 'admin@pos.system',
-                role: 'ADMIN',
-                businessUnitIds: [],
-                businessId: '',
-                avatar: '',
-                status: UserStatus.ACTIVE,
-                posPin: superAdminPin,
-            };
-            onLogin(superAdminUser);
-            setPin('');
-            return;
-        }
+        setIsVerifying(true);
+        setError('');
 
-        const matchedUser = users.find(u => u.posPin === pin);
+        try {
+            const functions = getFunctions();
+            const verifyPosPin = httpsCallable(functions, 'verifyPosPin');
+            
+            // Check super admin pin first locally if we still have the plaintext one cached
+            if (superAdminPin && pin === superAdminPin) {
+                const superAdminUser: User = {
+                    id: 'super-admin',
+                    name: 'Super Admin',
+                    email: 'admin@pos.system',
+                    role: 'ADMIN',
+                    businessUnitIds: [],
+                    businessId: '',
+                    avatar: '',
+                    status: UserStatus.ACTIVE,
+                    posPin: superAdminPin,
+                };
+                onLogin(superAdminUser);
+                setPin('');
+                setIsVerifying(false);
+                return;
+            }
 
-        if (matchedUser) {
-            onLogin(matchedUser);
-            setPin('');
-        } else {
-            setError('Invalid PIN');
-            setPin('');
+            // Fallback to cloud function
+            const result = await verifyPosPin({ pin });
+            const data = result.data as any;
+
+            if (data.success) {
+                if (data.role === 'SUPER_ADMIN') {
+                    const superAdminUser: User = {
+                        id: 'super-admin',
+                        name: 'Super Admin',
+                        email: 'admin@pos.system',
+                        role: 'ADMIN',
+                        businessUnitIds: [],
+                        businessId: '',
+                        avatar: '',
+                        status: UserStatus.ACTIVE,
+                        posPinHash: 'super_admin',
+                    };
+                    onLogin(superAdminUser);
+                } else if (data.user) {
+                    onLogin(data.user);
+                }
+                setPin('');
+            } else {
+                setError('Invalid PIN');
+                setPin('');
+            }
+        } catch (err: any) {
+            console.error('PIN verification failed:', err);
+            
+            // Offline fallback: try to check locally if we have the plaintext PINs
+            const matchedUser = users.find(u => u.posPin === pin);
+            if (matchedUser) {
+                onLogin(matchedUser);
+                setPin('');
+            } else {
+                setError(err.message || 'Verification failed. Are you offline?');
+                setPin('');
+            }
+        } finally {
+            setIsVerifying(false);
         }
     };
 
@@ -158,10 +200,10 @@ const POSLogin: React.FC<POSLoginProps> = ({ users, onLogin, superAdminPin }) =>
 
                         <button
                             type="submit"
-                            disabled={pin.length !== 4}
-                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl font-medium transition-colors"
+                            disabled={pin.length !== 4 || isVerifying}
+                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl font-medium transition-colors flex items-center justify-center"
                         >
-                            Login
+                            {isVerifying ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Login'}
                         </button>
                     </form>
                 </div>

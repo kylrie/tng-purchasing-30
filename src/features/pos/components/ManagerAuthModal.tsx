@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { User } from '../../../shared/types';
-import { X, KeyRound } from 'lucide-react';
+import { X, KeyRound, Loader2 } from 'lucide-react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 
 interface ManagerAuthModalProps {
     isOpen: boolean;
@@ -21,6 +22,7 @@ export const ManagerAuthModal: React.FC<ManagerAuthModalProps> = ({
 }) => {
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
+    const [isVerifying, setIsVerifying] = useState(false);
 
     if (!isOpen) return null;
 
@@ -41,32 +43,73 @@ export const ManagerAuthModal: React.FC<ManagerAuthModalProps> = ({
         setError('');
     };
 
-    const handleVerify = () => {
+    const handleVerify = async () => {
         if (!pin) {
             setError('Please enter a PIN');
             return;
         }
 
-        // Check Super Admin
-        if (superAdminPin && pin === superAdminPin) {
-            setPin('');
-            onSuccess();
-            return;
-        }
+        setIsVerifying(true);
+        setError('');
 
-        // Check Manager in Users
-        const manager = users.find(u => 
-            u.posPin === pin && 
-            ['MANAGER', 'SUPER_ADMIN'].includes(u.role) &&
-            (u.businessId === businessUnitId || u.businessUnitIds?.includes(businessUnitId))
-        );
+        try {
+            const functions = getFunctions();
+            const verifyPosPin = httpsCallable(functions, 'verifyPosPin');
 
-        if (manager) {
-            setPin('');
-            onSuccess();
-        } else {
+            // Fallback for locally cached plaintext Super Admin PIN
+            if (superAdminPin && pin === superAdminPin) {
+                setPin('');
+                setIsVerifying(false);
+                onSuccess();
+                return;
+            }
+
+            const result = await verifyPosPin({ pin });
+            const data = result.data as any;
+
+            if (data.success) {
+                if (data.role === 'SUPER_ADMIN') {
+                    setPin('');
+                    onSuccess();
+                    return;
+                }
+
+                if (data.user) {
+                    const u = data.user;
+                    if (['MANAGER', 'SUPER_ADMIN'].includes(u.role) && 
+                        (u.businessId === businessUnitId || u.businessUnitIds?.includes(businessUnitId))) {
+                        setPin('');
+                        onSuccess();
+                        return;
+                    } else {
+                        setError('User is not authorized as a Manager for this location');
+                        setPin('');
+                        return;
+                    }
+                }
+            }
+            
             setError('Invalid Manager PIN');
             setPin('');
+        } catch (err: any) {
+            console.error('Manager PIN verification failed:', err);
+            
+            // Offline fallback
+            const manager = users.find(u => 
+                u.posPin === pin && 
+                ['MANAGER', 'SUPER_ADMIN'].includes(u.role) &&
+                (u.businessId === businessUnitId || u.businessUnitIds?.includes(businessUnitId))
+            );
+
+            if (manager) {
+                setPin('');
+                onSuccess();
+            } else {
+                setError(err.message || 'Verification failed');
+                setPin('');
+            }
+        } finally {
+            setIsVerifying(false);
         }
     };
 
@@ -106,47 +149,34 @@ export const ManagerAuthModal: React.FC<ManagerAuthModalProps> = ({
                 </div>
 
                 {error && (
-                    <div className="mb-4 text-red-400 text-sm text-center font-medium bg-red-500/10 py-2 rounded-lg">
+                    <div className="mb-4 text-center text-red-400 text-sm">
                         {error}
                     </div>
                 )}
 
                 <div className="grid grid-cols-3 gap-3 mb-6">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                    {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].map((btn) => (
                         <button
-                            key={num}
-                            onClick={() => handleNumberClick(num.toString())}
-                            className="aspect-square bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-white text-2xl font-bold rounded-xl transition-colors"
+                            key={btn}
+                            onClick={() => {
+                                if (btn === 'C') handleClear();
+                                else if (btn === '⌫') handleDelete();
+                                else handleNumberClick(btn);
+                            }}
+                            disabled={isVerifying}
+                            className="bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white font-semibold py-4 rounded-xl transition-colors text-xl border border-slate-600"
                         >
-                            {num}
+                            {btn}
                         </button>
                     ))}
-                    <button
-                        onClick={handleClear}
-                        className="aspect-square bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 text-red-400 font-bold rounded-xl transition-colors uppercase tracking-wider text-sm"
-                    >
-                        Clear
-                    </button>
-                    <button
-                        onClick={() => handleNumberClick('0')}
-                        className="aspect-square bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-white text-2xl font-bold rounded-xl transition-colors"
-                    >
-                        0
-                    </button>
-                    <button
-                        onClick={handleDelete}
-                        className="aspect-square bg-slate-700 hover:bg-slate-600 active:bg-slate-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center"
-                    >
-                        <X className="w-8 h-8" />
-                    </button>
                 </div>
 
                 <button
                     onClick={handleVerify}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all text-lg uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={pin.length === 0}
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all text-lg uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    disabled={pin.length === 0 || isVerifying}
                 >
-                    Verify
+                    {isVerifying ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Verify'}
                 </button>
             </div>
         </div>

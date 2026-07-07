@@ -1,21 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import type { User, Business } from '../../../shared/types';
 import { Store, KeyRound, Eye, EyeOff, Save, Loader2, AlertCircle, Building2, Users } from 'lucide-react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
-import { COLLECTIONS } from '../../../shared/types/firebase.types';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { SettingsService } from '../../../shared/services/settings.service';
 import { useAuth } from '../../../contexts/useAuth';
 
 interface CashierSettingsPanelProps {
     allUsers: User[];
-    setAllUsers: (user: User) => void;
+    onUpdateUser: (user: User) => void;
     businesses: Business[];
 }
 
 const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
     allUsers,
-    setAllUsers,
+    onUpdateUser,
     businesses
 }) => {
     const { currentUser } = useAuth();
@@ -40,12 +38,16 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
     const [error, setError] = useState<string | null>(null);
 
     // Derived states
-    const filteredUsers = allUsers.filter(u =>
-        (u.businessUnitIds?.includes(selectedBusinessId) || u.businessId === selectedBusinessId) &&
-        u.role === selectedRole
-    );
+    const filteredUsers = React.useMemo(() => {
+        return allUsers.filter(u =>
+            (u.businessUnitIds?.includes(selectedBusinessId) || u.businessId === selectedBusinessId) &&
+            u.role === selectedRole
+        );
+    }, [allUsers, selectedBusinessId, selectedRole]);
 
-    const selectedUser = allUsers.find(u => u.id === selectedUserId);
+    const selectedUser = React.useMemo(() => {
+        return allUsers.find(u => u.id === selectedUserId);
+    }, [allUsers, selectedUserId]);
 
     // Effect triggers defaults when the form changes constraints
     useEffect(() => {
@@ -58,7 +60,9 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
     useEffect(() => {
         const loadSettings = async () => {
             const settings = await SettingsService.getPOSSettings();
-            if (settings.superAdminPin) {
+            if (settings.superAdminPinHash) {
+                setSuperAdminPin('****');
+            } else if (settings.superAdminPin) {
                 setSuperAdminPin(settings.superAdminPin);
             }
         };
@@ -81,7 +85,7 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
     // Resync PIN fields when a user changes
     useEffect(() => {
         if (selectedUser) {
-            setPin(selectedUser.posPin || '');
+            setPin(selectedUser.posPinHash ? '****' : (selectedUser.posPin || ''));
             setConfirmPin('');
         } else {
             setPin('');
@@ -112,10 +116,14 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
 
         setIsSaving(true);
         try {
-            const userRef = doc(db, COLLECTIONS.USERS, selectedUser.id);
-            await updateDoc(userRef, { posPin: pin });
+            const functions = getFunctions();
+            const setPosPin = httpsCallable(functions, 'setPosPin');
+            await setPosPin({ userId: selectedUser.id, pin, isSuperAdmin: false });
 
-            setAllUsers({ ...selectedUser, posPin: pin });
+            // We update local state to reflect that the PIN is set, even if it's cleared from posPin
+            // We'll set a dummy value '****' so the UI knows a PIN exists
+            const displayPin = pin ? '****' : '';
+            onUpdateUser({ ...selectedUser, posPin: displayPin, posPinHash: pin ? 'set' : '' });
             setSaveSuccess(true);
             setConfirmPin(''); // Clear confirm pin on success
 
@@ -148,13 +156,9 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
 
         setIsSavingGlobal(true);
         try {
-            await SettingsService.updatePOSSettings(
-                { 
-                    superAdminPin
-                },
-                currentUser?.id,
-                currentUser?.name
-            );
+            const functions = getFunctions();
+            const setPosPin = httpsCallable(functions, 'setPosPin');
+            await setPosPin({ userId: currentUser?.id, pin: superAdminPin, isSuperAdmin: true });
 
             setSaveGlobalSuccess(true);
             setConfirmSuperAdminPin(''); // Clear confirm pin on success

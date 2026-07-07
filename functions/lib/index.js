@@ -6,7 +6,7 @@
  * and budget management with RBAC.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateQrOrderStatus = exports.xenditWebhook = exports.createXenditSession = exports.postOfficialInvoice = exports.getQrOrder = exports.getQrTableToken = exports.listQrTables = exports.createQrTable = exports.createQrOrder = exports.getPublicMenu = exports.aggregateStockTransactions = exports.setBudgetLimit = exports.postTransaction = void 0;
+exports.verifyPosPin = exports.setPosPin = exports.onInventoryItemUpdated = exports.updateQrOrderStatus = exports.xenditWebhook = exports.createXenditSession = exports.postOfficialInvoice = exports.getQrOrder = exports.getQrTableToken = exports.listQrTables = exports.createQrTable = exports.createQrOrder = exports.getPublicMenu = exports.aggregateStockTransactions = exports.setBudgetLimit = exports.postTransaction = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin SDK
 (0, app_1.initializeApp)();
@@ -43,4 +43,10 @@ Object.defineProperty(exports, "xenditWebhook", { enumerable: true, get: functio
 // QR Ordering — Operations (staff kitchen/fulfillment status transitions)
 var updateQrOrderStatus_1 = require("./qr/updateQrOrderStatus");
 Object.defineProperty(exports, "updateQrOrderStatus", { enumerable: true, get: function () { return updateQrOrderStatus_1.updateQrOrderStatus; } });
+// Inventory — Background Recipe Recalculation
+var recipeRecalculation_1 = require("./inventory/recipeRecalculation");
+Object.defineProperty(exports, "onInventoryItemUpdated", { enumerable: true, get: function () { return recipeRecalculation_1.onInventoryItemUpdated; } });
+var posAuth_1 = require("./posAuth");
+Object.defineProperty(exports, "setPosPin", { enumerable: true, get: function () { return posAuth_1.setPosPin; } });
+Object.defineProperty(exports, "verifyPosPin", { enumerable: true, get: function () { return posAuth_1.verifyPosPin; } });
 //# sourceMappingURL=index.js.map

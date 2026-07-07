@@ -39,3 +39,4 @@ export { updateQrOrderStatus } from './qr/updateQrOrderStatus';
 
 // Inventory — Background Recipe Recalculation
 export { onInventoryItemUpdated } from './inventory/recipeRecalculation';
+export { setPosPin, verifyPosPin } from './posAuth';

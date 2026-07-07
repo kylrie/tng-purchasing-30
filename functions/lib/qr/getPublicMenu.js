@@ -11,5 +11,7 @@ exports.getPublicMenu = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const firestore_1 = require("./firestore");
 const getPublicMenu_handler_1 = require("./getPublicMenu.handler");
-exports.getPublicMenu = (0, https_1.onCall)(request => (0, getPublicMenu_handler_1.getPublicMenuHandler)(firestore_1.qrDb, request));
+// minInstances: 1 keeps one instance warm so a customer's QR scan never pays a
+// multi-second cold start on the critical menu-load path (owner decision · MVP).
+exports.getPublicMenu = (0, https_1.onCall)({ minInstances: 1 }, request => (0, getPublicMenu_handler_1.getPublicMenuHandler)(firestore_1.qrDb, request));
 //# sourceMappingURL=getPublicMenu.js.map

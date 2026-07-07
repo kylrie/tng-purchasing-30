@@ -26,7 +26,8 @@ const POS_CONFIG_DOC = 'pos_config';
 // POS SETTINGS INTERFACE
 // =====================================================
 export interface POSSettings {
-    superAdminPin?: string;
+    superAdminPin?: string; // Legacy plaintext PIN
+    superAdminPinHash?: string; // Secure hashed PIN
     vatRate?: number;            // Default VAT percentage (e.g., 12)
     serviceChargeRate?: number;  // Default Service Charge percentage (e.g., 10)
     lastUpdated?: string;
@@ -314,7 +315,8 @@ export class SettingsService {
         await FirestoreService.setDocument(
             SETTINGS_COLLECTION,
             POS_CONFIG_DOC,
-            updatePayload
+            updatePayload,
+            true // Enable merge to prevent overwriting existing settings
         );
     }
 
