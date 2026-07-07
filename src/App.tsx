@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthProvider';
 import { useAuth } from './contexts/useAuth';
 import { PermissionsProvider } from './contexts/PermissionsContext';
@@ -82,6 +82,7 @@ const PageLoader = () => (
 
 function ProtectedApp() {
   const { currentUser, logout, loading } = useAuth();
+  const location = useLocation();
   const { requisitions, createRequisition, updateRequisition } = useRequisitions();
   const { users, setUsers, updateUser } = useUsers();
   const { businesses, addBusiness, updateBusiness, deleteBusiness } = useBusinesses();
@@ -217,7 +218,10 @@ function ProtectedApp() {
   }
 
   if (!currentUser) {
-    return <Navigate to="/login" replace />;
+    // Preserve the intended destination so login can return here (see
+    // AuthProvider.postLoginTarget). Without `from`, deep links like /qr-hub
+    // fall back to '/' after sign-in.
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   const pendingUsers = users.filter(user => user.status === UserStatus.PENDING_APPROVAL);
