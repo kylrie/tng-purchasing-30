@@ -10,4 +10,9 @@ import { onCall } from 'firebase-functions/v2/https';
 import { qrDb } from './firestore';
 import { getPublicMenuHandler, GetPublicMenuInput } from './getPublicMenu.handler';
 
-export const getPublicMenu = onCall<GetPublicMenuInput>(request => getPublicMenuHandler(qrDb, request));
+// minInstances: 1 keeps one instance warm so a customer's QR scan never pays a
+// multi-second cold start on the critical menu-load path (owner decision · MVP).
+export const getPublicMenu = onCall<GetPublicMenuInput>(
+    { minInstances: 1 },
+    request => getPublicMenuHandler(qrDb, request),
+);
