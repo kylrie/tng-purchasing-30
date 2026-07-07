@@ -1,29 +1,9 @@
 import React from 'react';
 import { ShoppingCart, Trash2, Plus, Minus } from 'lucide-react';
-import type { POSOrderItem } from '../types/pos.types';
+import { usePOSStore } from '../store/posStore';
 
 interface CartPaneProps {
-    cartItems: POSOrderItem[];
-    subtotal: number;
-    grossSubtotal: number;
-    taxAmount: number;
-    vatableSales?: number;
-    vatExemptSales?: number;
-    serviceChargeAmount: number;
-    scPwdDiscountAmount?: number;
-    manualItemDiscountAmount?: number;
-    globalDiscountAmount?: number;
-    globalDiscountRate?: number;
-    setGlobalDiscountRate?: (rate: number) => void;
-    total: number;
-    onUpdateQuantity: (index: number, qty: number) => void;
-    onRemoveItem: (index: number) => void;
-    onToggleDiscount: (index: number) => void;
-    onSetItemDiscountRate: (index: number, rate: number, reason: string, type?: 'percentage' | 'amount') => void;
-    onClearCart: () => void;
-    onCheckout?: () => void; // Optional because table mode might not check out immediately
-    
-    // Table mode props
+    onCheckout?: () => void;
     tableMode?: boolean;
     tableName?: string;
     onSendToKitchen?: () => void;
@@ -33,25 +13,6 @@ interface CartPaneProps {
 }
 
 const CartPane: React.FC<CartPaneProps> = ({
-    cartItems,
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-    subtotal: _subtotal,
-    grossSubtotal,
-    taxAmount,
-    vatableSales = 0,
-    vatExemptSales = 0,
-    serviceChargeAmount,
-    scPwdDiscountAmount = 0,
-    manualItemDiscountAmount = 0,
-    total,
-    onUpdateQuantity,
-    onRemoveItem,
-    onToggleDiscount,
-    onSetItemDiscountRate,
-    globalDiscountRate = 0,
-    setGlobalDiscountRate,
-    globalDiscountAmount = 0,
-    onClearCart,
     onCheckout,
     tableMode,
     tableName,
@@ -60,6 +21,33 @@ const CartPane: React.FC<CartPaneProps> = ({
     onRequireManagerAuth,
     onPrintRunningBill
 }) => {
+    const {
+        cartItems,
+        grossSubtotal,
+        taxAmount,
+        vatableSales,
+        vatExemptSales,
+        serviceChargeAmount,
+        scPwdDiscountAmount,
+        manualItemDiscountAmount,
+        total,
+        updateQuantity,
+        removeFromCart,
+        toggleDiscount,
+        setItemDiscountRate,
+        globalDiscountRate,
+        setGlobalDiscountRate,
+        globalDiscountAmount,
+        clearCart
+    } = usePOSStore();
+
+    const handleClearCart = () => {
+        if (cartItems.some(i => i.isSentToKitchen) && onRequireManagerAuth) {
+            onRequireManagerAuth(clearCart);
+        } else {
+            clearCart();
+        }
+    };
     const manualDiscountReasons = Array.from(new Set(
         cartItems
             .filter(item => !item.isDiscounted && (item.discountRate || 0) > 0 && item.discountReason)
@@ -93,7 +81,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                     )}
                     {cartItems.length > 0 && (
                         <button
-                            onClick={onClearCart}
+                            onClick={handleClearCart}
                             className="text-xs font-bold text-red-500/80 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 px-3 py-2 rounded-lg transition-all duration-300 uppercase tracking-widest border border-red-500/10"
                         >
                             Clear
@@ -152,7 +140,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                                 <div className="flex items-center bg-black/40 rounded-xl border border-white/[0.05] p-1 backdrop-blur-sm shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
                                     <button
                                         onClick={() => {
-                                            const decrease = () => onUpdateQuantity(index, item.quantity - 1);
+                                            const decrease = () => updateQuantity(index, item.quantity - 1);
                                             if (item.isSentToKitchen && onRequireManagerAuth) {
                                                 onRequireManagerAuth(decrease);
                                             } else {
@@ -167,7 +155,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                                         {item.quantity}
                                     </span>
                                     <button
-                                        onClick={() => onUpdateQuantity(index, item.quantity + 1)}
+                                        onClick={() => updateQuantity(index, item.quantity + 1)}
                                         className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.1] transition-all duration-300 active:scale-95"
                                     >
                                         <Plus size={14} strokeWidth={2.5} />
@@ -175,7 +163,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                                 </div>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => onToggleDiscount(index)}
+                                        onClick={() => toggleDiscount(index)}
                                         className={`p-2.5 rounded-xl transition-all duration-300 text-xs font-bold uppercase tracking-wider border ${
                                             item.isDiscounted 
                                                 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' 
@@ -194,7 +182,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                                             <input
                                                 type="number"
                                                 value={item.discountRate || ''}
-                                                onChange={(e) => onSetItemDiscountRate(index, parseFloat(e.target.value) || 0, item.discountReason || '', item.discountType)}
+                                                onChange={(e) => setItemDiscountRate(index, parseFloat(e.target.value) || 0, item.discountReason || '', item.discountType)}
                                                 placeholder="0"
                                                 className={`bg-transparent text-right text-xs font-bold focus:outline-none placeholder-slate-600 ${item.discountType === 'amount' ? 'w-10' : 'w-8'}`}
                                                 min="0"
@@ -202,7 +190,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                                                 disabled={item.isDiscounted}
                                             />
                                             <button 
-                                                onClick={() => onSetItemDiscountRate(index, item.discountRate || 0, item.discountReason || '', item.discountType === 'amount' ? 'percentage' : 'amount')}
+                                                onClick={() => setItemDiscountRate(index, item.discountRate || 0, item.discountReason || '', item.discountType === 'amount' ? 'percentage' : 'amount')}
                                                 disabled={item.isDiscounted}
                                                 className="text-[10px] font-bold uppercase tracking-wider hover:text-white transition-colors"
                                             >
@@ -212,7 +200,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                                         <input
                                             type="text"
                                             value={item.discountReason || ''}
-                                            onChange={(e) => onSetItemDiscountRate(index, item.discountRate || 0, e.target.value, item.discountType)}
+                                            onChange={(e) => setItemDiscountRate(index, item.discountRate || 0, e.target.value, item.discountType)}
                                             placeholder="Reason"
                                             className="w-16 bg-transparent text-xs focus:outline-none placeholder-slate-600 border-t border-white/10 mt-1 pt-1"
                                             disabled={item.isDiscounted}
@@ -220,7 +208,7 @@ const CartPane: React.FC<CartPaneProps> = ({
                                     </div>
                                     <button
                                         onClick={() => {
-                                            const remove = () => onRemoveItem(index);
+                                            const remove = () => removeFromCart(index);
                                             if (item.isSentToKitchen && onRequireManagerAuth) {
                                                 onRequireManagerAuth(remove);
                                             } else {

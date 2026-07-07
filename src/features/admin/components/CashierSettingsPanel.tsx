@@ -120,12 +120,11 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
             const setPosPin = httpsCallable(functions, 'setPosPin');
             await setPosPin({ userId: selectedUser.id, pin, isSuperAdmin: false });
 
-            // We update local state to reflect that the PIN is set, even if it's cleared from posPin
-            // We'll set a dummy value '****' so the UI knows a PIN exists
-            const displayPin = pin ? '****' : '';
-            onUpdateUser({ ...selectedUser, posPin: displayPin, posPinHash: pin ? 'set' : '' });
+            // Do not call onUpdateUser here because it will overwrite the securely hashed PIN
+            // in Firestore with dummy values. The Cloud Function already handled the DB update.
             setSaveSuccess(true);
             setConfirmPin(''); // Clear confirm pin on success
+            setPin(''); // Clear pin so placeholder or next selection works
 
             // Clear success message after 3 seconds
             setTimeout(() => setSaveSuccess(false), 3000);
@@ -162,6 +161,7 @@ const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
 
             setSaveGlobalSuccess(true);
             setConfirmSuperAdminPin(''); // Clear confirm pin on success
+            setSuperAdminPin(''); // Clear input so placeholder can be shown
 
             // Clear success message after 3 seconds
             setTimeout(() => setSaveGlobalSuccess(false), 3000);

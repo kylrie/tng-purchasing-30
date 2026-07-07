@@ -6,7 +6,7 @@
  * and budget management with RBAC.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyPosPin = exports.setPosPin = exports.onInventoryItemUpdated = exports.updateQrOrderStatus = exports.xenditWebhook = exports.createXenditSession = exports.postOfficialInvoice = exports.getQrOrder = exports.getQrTableToken = exports.listQrTables = exports.createQrTable = exports.createQrOrder = exports.getPublicMenu = exports.aggregateStockTransactions = exports.setBudgetLimit = exports.postTransaction = void 0;
+exports.checkoutOrder = exports.verifyPosPin = exports.setPosPin = exports.onInventoryItemUpdated = exports.updateQrOrderStatus = exports.xenditWebhook = exports.createXenditSession = exports.postOfficialInvoice = exports.getQrOrder = exports.getQrTableToken = exports.listQrTables = exports.createQrTable = exports.createQrOrder = exports.getPublicMenu = exports.aggregateStockTransactions = exports.setBudgetLimit = exports.postTransaction = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin SDK
 (0, app_1.initializeApp)();
@@ -49,4 +49,6 @@ Object.defineProperty(exports, "onInventoryItemUpdated", { enumerable: true, get
 var posAuth_1 = require("./posAuth");
 Object.defineProperty(exports, "setPosPin", { enumerable: true, get: function () { return posAuth_1.setPosPin; } });
 Object.defineProperty(exports, "verifyPosPin", { enumerable: true, get: function () { return posAuth_1.verifyPosPin; } });
+var posOrders_1 = require("./posOrders");
+Object.defineProperty(exports, "checkoutOrder", { enumerable: true, get: function () { return posOrders_1.checkoutOrder; } });
 //# sourceMappingURL=index.js.map

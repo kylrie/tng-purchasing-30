@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/useAuth';
 import { usePOSMenu } from '../hooks/usePOSMenu';
-import { useCart } from '../hooks/useCart';
+import { usePOSStore } from '../store/posStore';
 import { POSService } from '../services/pos.service';
 import type { POSOrder, PaymentMethod, POSOrderCreateInput, POSTable, RunningBill } from '../types/pos.types';
 import type { User } from '../../../shared/types';
@@ -71,16 +71,9 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
         cartItems,
         setCartItems,
         addToCart,
-        updateQuantity,
-        removeFromCart,
         clearCart,
-        toggleDiscount,
-        setItemDiscountRate,
-        globalDiscountRate,
-        setGlobalDiscountRate,
         globalDiscountAmount,
         subtotal,
-        grossSubtotal,
         vatableSales,
         vatExemptSales,
         taxAmount,
@@ -88,8 +81,14 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
         discountAmount,
         scPwdDiscountAmount,
         manualItemDiscountAmount,
-        total
-    } = useCart();
+        total,
+        setSettings
+    } = usePOSStore();
+
+    // Fetch POS settings to populate the store
+    useEffect(() => {
+        SettingsService.getPOSSettings().then(setSettings).catch(console.error);
+    }, [setSettings]);
 
     const [isCheckoutModalOpen, setCheckoutModalOpen] = useState(false);
     const [isReceiptModalOpen, setReceiptModalOpen] = useState(false);
@@ -354,31 +353,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     sellableStockMap={sellableStockMap}
                 />
                 <CartPane
-                    cartItems={cartItems}
-                    subtotal={subtotal}
-                    grossSubtotal={grossSubtotal}
-                    taxAmount={taxAmount}
-                    vatableSales={vatableSales}
-                    vatExemptSales={vatExemptSales}
-                    serviceChargeAmount={serviceChargeAmount}
-                    scPwdDiscountAmount={scPwdDiscountAmount}
-                    manualItemDiscountAmount={manualItemDiscountAmount}
-                    globalDiscountRate={globalDiscountRate}
-                    setGlobalDiscountRate={setGlobalDiscountRate}
-                    globalDiscountAmount={globalDiscountAmount}
-                    total={total}
-                    onUpdateQuantity={updateQuantity}
-                    onRemoveItem={removeFromCart}
-                    onToggleDiscount={toggleDiscount}
-                    onSetItemDiscountRate={setItemDiscountRate}
                     onCheckout={handleCheckout}
-                    onClearCart={() => {
-                        if (cartItems.some(i => i.isSentToKitchen)) {
-                            setManagerAuthAction(() => clearCart);
-                        } else {
-                            clearCart();
-                        }
-                    }}
                     onRequireManagerAuth={(action) => setManagerAuthAction(() => action)}
                     tableMode={!!activeTable}
                     tableName={activeTable?.name}

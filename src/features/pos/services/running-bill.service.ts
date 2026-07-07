@@ -95,9 +95,15 @@ export class RunningBillService {
      */
     static async updateBillItems(billId: string, updates: Partial<RunningBill>): Promise<void> {
         const docRef = doc(db, this.COLLECTION, billId);
-        await updateDoc(docRef, {
-            ...updates,
-            updatedAt: Timestamp.now()
+        await runTransaction(db, async (transaction) => {
+            const billSnap = await transaction.get(docRef);
+            if (!billSnap.exists()) {
+                throw new Error("Bill does not exist.");
+            }
+            transaction.update(docRef, {
+                ...updates,
+                updatedAt: Timestamp.now()
+            });
         });
     }
 
