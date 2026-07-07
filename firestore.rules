@@ -762,7 +762,9 @@ service cloud.firestore {
       
       allow update: if isSignedIn() && (
         hasPermission('inventory:item:edit') ||
-        (hasPermission('ui:module_access:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentStock', 'theoreticalStock', 'updatedAt']))
+        (hasPermission('ui:module_access:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentStock', 'theoreticalStock', 'updatedAt'])) ||
+        hasPermission('pos:import:delete') ||
+        hasPermission('pos:import:create')
       );
       
       allow delete: if isSignedIn() && (hasPermission('inventory:item:delete') || isSuperAdminOrAdmin());
@@ -1008,8 +1010,8 @@ service cloud.firestore {
     match /pos_sales/{saleId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      // Only admins can delete for rollback
-      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      // Allow delete for rollback
+      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete'));
       allow update: if false;
     }
     
@@ -1020,8 +1022,8 @@ service cloud.firestore {
     match /pos_sales_batches/{batchId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      // Only admins can delete for rollback
-      allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      // Allow delete for rollback
+      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete'));
       allow update: if false;
     }
     
@@ -1034,6 +1036,18 @@ service cloud.firestore {
       allow create: if isSignedIn();
       // Only admins can delete for rollback
       allow delete: if isSignedIn() && isSuperAdminOrAdmin();
+      allow update: if false;
+    }
+
+    // =====================================================
+    // PRODUCTION LOGS COLLECTION
+    // Logs for auto-production during POS imports
+    // =====================================================
+    match /production_logs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      // Allow delete for rollback
+      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete'));
       allow update: if false;
     }
 
@@ -1075,8 +1089,10 @@ service cloud.firestore {
     match /stock_transactions/{txId} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      // No updates or deletes — immutable audit trail
-      allow update, delete: if false;
+      // Allow deletion for POS import rollback
+      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete'));
+      // No updates — immutable audit trail
+      allow update: if false;
     }
     
     // =====================================================
