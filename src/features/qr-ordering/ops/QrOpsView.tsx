@@ -43,6 +43,29 @@ const TABS: { key: OpsTab; label: string; Icon: React.ComponentType<{ size?: num
 const foodLines = (items: OpsOrderLine[]): OpsOrderLine[] => items.filter(l => !isDrinkCategory(l.category));
 const drinkLines = (items: OpsOrderLine[]): OpsOrderLine[] => items.filter(l => isDrinkCategory(l.category));
 
+// ── Live nav-tab count badges ────────────────────────────────────────────────
+interface NavCounts { awaiting: number; live: number; kitchen: number; bar: number; attention: number; }
+
+/** The count badge for a nav tab, or null when there is nothing to show. The
+ *  awaiting-payment count "lights up" amber + pulses on Live Orders (the alert a
+ *  waiting order needs a human); other tabs show a neutral live workload count. */
+function tabBadge(key: OpsTab, c?: NavCounts): { n: number; cls: string } | null {
+    if (!c) return null;
+    switch (key) {
+        case 'overview':
+            return c.attention > 0 ? { n: c.attention, cls: 'bg-red-600 text-white' } : null;
+        case 'live':
+            if (c.awaiting > 0) return { n: c.awaiting, cls: 'bg-amber-500 text-white ring-2 ring-amber-300 animate-pulse' };
+            return c.live > 0 ? { n: c.live, cls: 'bg-slate-800 text-white' } : null;
+        case 'kitchen':
+            return c.kitchen > 0 ? { n: c.kitchen, cls: 'bg-slate-800 text-white' } : null;
+        case 'bar':
+            return c.bar > 0 ? { n: c.bar, cls: 'bg-slate-800 text-white' } : null;
+        default:
+            return null;
+    }
+}
+
 /** An OpsOrder plus the live-derived fields the views need (recomputed each tick). */
 interface DerivedOrder extends OpsOrder {
     minutesInStatus: number;
@@ -128,6 +151,15 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
         };
     }), [orders, now]);
 
+    // ── Live nav counts (drive the tab badges; awaiting-payment "lights up") ──
+    const navCounts: NavCounts = useMemo(() => ({
+        awaiting: derived.filter(o => o.status === 'AWAITING_PAYMENT').length,
+        live: derived.filter(o => isActiveStatus(o.status)).length,
+        kitchen: derived.filter(o => kitchenLaneFor(o.status) && foodLines(o.items).length > 0).length,
+        bar: derived.filter(o => kitchenLaneFor(o.status) && drinkLines(o.items).length > 0).length,
+        attention: derived.filter(o => o.attention.level !== 'none').length,
+    }), [derived]);
+
     // ── Order detail selection + transition action state ───────────────────
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const selected = derived.find(o => o.id === selectedId) ?? null;
@@ -139,7 +171,7 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     // ── Non-ready gates ────────────────────────────────────────────────────
     if (conn === 'unauthorized') {
         return (
-            <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} onRetry={() => setReloadKey(k => k + 1)}>
+            <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts} onRetry={() => setReloadKey(k => k + 1)}>
                 <Centered Icon={LockKeyhole} title="Staff sign-in required"
                     body="Sign in with a staff account that has a business unit selected to view QR operations." />
             </OpsShell>
@@ -147,7 +179,7 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     }
 
     return (
-        <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} onRetry={() => setReloadKey(k => k + 1)}>
+        <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts} onRetry={() => setReloadKey(k => k + 1)}>
             {conn === 'loading' ? (
                 <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
             ) : conn === 'error' ? (
@@ -177,8 +209,8 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
 const OpsShell: React.FC<{
     tab: OpsTab; goTab: (t: OpsTab) => void; businessName: string;
     conn: 'loading' | 'live' | 'error' | 'unauthorized'; lastUpdated: number; now: number;
-    onRetry: () => void; children: React.ReactNode;
-}> = ({ tab, goTab, businessName, conn, lastUpdated, children }) => {
+    navCounts?: NavCounts; onRetry: () => void; children: React.ReactNode;
+}> = ({ tab, goTab, businessName, conn, lastUpdated, navCounts, children }) => {
     const navigate = useNavigate();
     return (
         // Full-viewport operational surface — NO ERP shell. Neutral base (white / slate),
@@ -201,10 +233,16 @@ const OpsShell: React.FC<{
                 <nav className="w-full px-1 md:px-3 flex gap-1 overflow-x-auto">
                     {TABS.map(t => {
                         const active = t.key === tab;
+                        const badge = tabBadge(t.key, navCounts);
                         return (
                             <button key={t.key} type="button" onClick={() => goTab(t.key)}
-                                className={`shrink-0 flex items-center gap-1.5 px-3 md:px-4 py-2.5 text-sm font-bold border-b-[3px] transition-colors ${active ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                                className={`relative shrink-0 flex items-center gap-1.5 px-3 md:px-4 py-2.5 text-sm font-bold border-b-[3px] transition-colors ${active ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
                                 <t.Icon size={16} strokeWidth={2.25} /> {t.label}
+                                {badge && (
+                                    <span className={`ml-0.5 min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full text-[11px] font-black tabular-nums leading-none ${badge.cls}`}>
+                                        {badge.n}
+                                    </span>
+                                )}
                             </button>
                         );
                     })}
@@ -349,15 +387,33 @@ const LiveOrdersTab: React.FC<{
         || a.statusEnteredAtMillis - b.statusEnteredAtMillis,
     );
 
+    const countFor = (key: string): number => {
+        if (key === 'all') return orders.length;
+        if (key === 'active') return orders.filter(o => isActiveStatus(o.status)).length;
+        if (key === 'attention') return orders.filter(o => o.attention.level !== 'none').length;
+        return orders.filter(o => o.status === key).length;
+    };
+
     return (
         <div>
             <div className="flex gap-1.5 overflow-x-auto pb-3">
-                {LIVE_FILTERS.map(f => (
-                    <button key={f.key} type="button" onClick={() => setFilter(f.key)}
-                        className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-bold border-2 ${filter === f.key ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}>
-                        {f.label}
-                    </button>
-                ))}
+                {LIVE_FILTERS.map(f => {
+                    const n = countFor(f.key);
+                    const isSel = filter === f.key;
+                    // Awaiting payment / attention chips light up when non-empty (alert colors).
+                    const alert = n > 0 && (f.key === 'AWAITING_PAYMENT' || f.key === 'attention');
+                    const badgeCls = isSel ? 'bg-white/25 text-white'
+                        : f.key === 'AWAITING_PAYMENT' ? 'bg-amber-500 text-white'
+                        : f.key === 'attention' ? 'bg-red-600 text-white'
+                        : 'bg-slate-200 text-slate-700';
+                    return (
+                        <button key={f.key} type="button" onClick={() => setFilter(f.key)}
+                            className={`shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold border-2 ${isSel ? 'bg-slate-900 text-white border-slate-900' : alert ? 'bg-white text-slate-800 border-amber-400' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`}>
+                            {f.label}
+                            {n > 0 && <span className={`min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center rounded-full text-[11px] font-black tabular-nums leading-none ${badgeCls}`}>{n}</span>}
+                        </button>
+                    );
+                })}
             </div>
             {filtered.length === 0 ? (
                 <div className="py-16 text-center text-slate-500 font-semibold">No orders in this view.</div>
@@ -737,6 +793,7 @@ const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: ()
                     <section>
                         <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Payment trace</h3>
                         <div className="rounded-lg border-2 border-slate-200 divide-y divide-slate-100 text-sm">
+                            <TraceRow label="Order ID"><code className="text-xs break-all">{o.id}</code></TraceRow>
                             <TraceRow label="Payment status"><PaymentChip paymentStatus={o.paymentStatus} size="sm" /></TraceRow>
                             {o.paymentReference && <TraceRow label="Reference"><code className="text-xs break-all">{o.paymentReference}</code></TraceRow>}
                             {o.xenditPaymentSessionId && <TraceRow label="Session"><code className="text-xs break-all">{o.xenditPaymentSessionId}</code></TraceRow>}
