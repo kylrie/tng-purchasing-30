@@ -36,3 +36,6 @@ export { xenditWebhook } from './qr/xenditWebhook';
 
 // QR Ordering — Operations (staff kitchen/fulfillment status transitions)
 export { updateQrOrderStatus } from './qr/updateQrOrderStatus';
+
+// Inventory — Background Recipe Recalculation
+export { onInventoryItemUpdated } from './inventory/recipeRecalculation';

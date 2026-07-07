@@ -712,17 +712,22 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
         try {
             const result = await GeminiVisionService.extractInventoryFromDocument(file);
             setExtraction(result);
-            const matched: MatchedReceivingRow[] = result.items.map(extracted => {
+            
+            // Yield to main thread during loop to prevent UI freezing on large fuzzy matches
+            const matched: MatchedReceivingRow[] = [];
+            for (const extracted of result.items) {
+                await new Promise(resolve => setTimeout(resolve, 0));
                 const { item, matchedBy } = fuzzyMatchItem(extracted.name, items);
-                return {
+                matched.push({
                     extractedItem: extracted,
                     inventoryItem: item,
                     matchedBy,
                     quantity: extracted.quantity || 1,
                     unitPrice: extracted.unitPrice || 0,
                     confirmed: !!item
-                };
-            });
+                });
+            }
+            
             setRows(matched);
             setStep(1);
         } catch (err) {
@@ -1287,7 +1292,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                                                     </td>
                                                     <td className="p-3 text-right align-top pt-5">
                                                         <span className="font-semibold text-slate-900 dark:text-white text-sm">
-                                                            ₱{((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                            ₱{(Math.round((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0) * 100) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                         </span>
                                                     </td>
                                                     <td className="p-3 text-center align-top pt-4">
@@ -1342,7 +1347,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                             <div className="space-y-2 mb-6">
                                 {confirmedRows.map((row, idx) => {
                                     const item = row.inventoryItem!;
-                                    const total = (Number(row.quantity) || 0) * (Number(row.unitPrice) || 0);
+                                    const total = Math.round((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0) * 100) / 100;
                                     return (
                                         <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
                                             <div className="flex items-center gap-3">
@@ -1373,7 +1378,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                                     <div className="text-right flex items-center gap-4">
                                         <span className="text-slate-400">Grand Total:</span>
                                         <span className="text-xl font-bold text-purple-400">
-                                            ₱{confirmedRows.reduce((sum, row) => sum + ((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0)), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            ₱{confirmedRows.reduce((sum, row) => sum + (Math.round((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0) * 100) / 100), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                     </div>
                                 </div>
