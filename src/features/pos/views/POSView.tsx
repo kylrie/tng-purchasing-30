@@ -338,6 +338,12 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                             setCartItems(bill ? bill.items.map(i => ({ ...i, isSentToKitchen: true })) : []);
                             setViewMode('counter'); // Switch to order taking mode for this table
                         }} 
+                        onCounterOrder={() => {
+                            setActiveTable(null);
+                            setActiveBill(null);
+                            clearCart();
+                            setViewMode('counter');
+                        }}
                     />
                 ) : (
                     <>

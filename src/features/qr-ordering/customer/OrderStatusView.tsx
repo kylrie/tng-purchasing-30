@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { UtensilsCrossed, CheckCircle2, Loader2, Clock, ChefHat, ConciergeBell, ReceiptText, Plus, AlertCircle, RefreshCw, SearchX } from 'lucide-react';
 import { MOCK_ORDER, mockOrderTotal } from '../data/mockOrder';
+import { formatTableLabel } from '../utils/tableUtils';
 import { isConfigValid } from '../../../config/firebase';
 import {
     fetchQrOrder, isOrderNotFound, toUserFacingReadError, presentStatus, presentPaymentStatus,
@@ -289,7 +290,7 @@ const OrderStatusView: React.FC = () => {
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-slate-900 truncate">Order {vm.orderNumber}</p>
-                        <p className="text-[11px] font-semibold text-[#ec4899] tracking-wide">Table {vm.tableNumber}</p>
+                        <p className="text-[11px] font-semibold text-[#ec4899] tracking-wide">{formatTableLabel(vm.tableNumber)}</p>
                     </div>
                     {!vm.isDemo && (
                         <button
@@ -314,7 +315,7 @@ const OrderStatusView: React.FC = () => {
                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Order number</p>
                             <p className="text-lg font-bold text-slate-900 tracking-tight">{vm.orderNumber}</p>
                             <p className="text-xs text-slate-500 mt-0.5">
-                                {vm.placedAtLabel ? `Placed ${vm.placedAtLabel} · ` : ''}Table {vm.tableNumber}
+                                {vm.placedAtLabel ? `Placed ${vm.placedAtLabel} · ` : ''}{formatTableLabel(vm.tableNumber)}
                             </p>
                         </div>
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide ${vm.badge.cls}`}>
@@ -459,7 +460,7 @@ const OrderStatusView: React.FC = () => {
                     <ConciergeBell size={17} className="text-slate-400 shrink-0 mt-0.5" />
                     <p className="text-xs text-slate-500 leading-relaxed">
                         Need help or want to change your order? Please approach our staff and mention
-                        <span className="text-slate-800 font-semibold"> Table {vm.tableNumber}</span> or order
+                        <span className="text-slate-800 font-semibold"> {formatTableLabel(vm.tableNumber)}</span> or order
                         <span className="text-slate-800 font-semibold"> {vm.orderNumber}</span>.
                     </p>
                 </section>
@@ -489,7 +490,7 @@ const StatusShell: React.FC<{ orderNumber?: string; tableNumber?: string; childr
                 </div>
                 <div className="min-w-0">
                     <p className="text-sm font-bold text-slate-900 truncate">{orderNumber ? `Order ${orderNumber}` : 'Order status'}</p>
-                    {tableNumber && <p className="text-[11px] font-semibold text-[#ec4899] tracking-wide">Table {tableNumber}</p>}
+                    {tableNumber && <p className="text-[11px] font-semibold text-[#ec4899] tracking-wide">{formatTableLabel(tableNumber)}</p>}
                 </div>
             </div>
         </header>

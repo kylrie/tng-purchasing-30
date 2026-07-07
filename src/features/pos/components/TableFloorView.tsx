@@ -8,9 +8,10 @@ import { RefreshCcw } from 'lucide-react';
 interface TableFloorViewProps {
     businessUnitId: string;
     onSelectTable: (table: POSTable, bill: RunningBill | null) => void;
+    onCounterOrder: () => void;
 }
 
-export const TableFloorView: React.FC<TableFloorViewProps> = ({ businessUnitId, onSelectTable }) => {
+export const TableFloorView: React.FC<TableFloorViewProps> = ({ businessUnitId, onSelectTable, onCounterOrder }) => {
     const [tables, setTables] = useState<POSTable[]>([]);
     const [openBills, setOpenBills] = useState<RunningBill[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -72,6 +73,12 @@ export const TableFloorView: React.FC<TableFloorViewProps> = ({ businessUnitId, 
                         <span className="text-xs text-slate-300">Reserved</span>
                     </div>
                 </div>
+                <button
+                    onClick={onCounterOrder}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors shadow-lg font-medium"
+                >
+                    Takeout / Counter Order
+                </button>
                 <button 
                     onClick={loadData}
                     className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors shadow-lg"

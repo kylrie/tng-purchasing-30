@@ -12,6 +12,7 @@ import {
 } from '../services/qrTables.service';
 import type { QrTableSummary } from '../types/qrOrder.types';
 import { MOCK_TABLES, MOCK_BUSINESS_UNIT, mockTokenFor } from '../data/mockTables';
+import { formatTableLabel } from '../utils/tableUtils';
 
 /**
  * QR Ordering — Table Management (Sprint 2 · admin)
@@ -296,7 +297,7 @@ const TableManagementView: React.FC = () => {
                             {rows.map(t => (
                                 <li key={t.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
                                     <div className="flex items-baseline gap-2 shrink-0 w-20">
-                                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Table</span>
+                                        <span className="text-sm font-black uppercase tracking-wider text-slate-400 mr-2">{formatTableLabel(t.tableNumber).replace(t.tableNumber, '').trim()}</span>
                                         <span className="text-2xl font-black text-slate-900 tabular-nums leading-none">{t.tableNumber}</span>
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -327,7 +328,7 @@ const TableManagementView: React.FC = () => {
                     <div className="relative w-full sm:max-w-md bg-white rounded-t-[1.5rem] sm:rounded-[1.5rem] shadow-2xl p-5 md:p-6">
                         <div className="flex items-start justify-between gap-3 mb-4">
                             <div>
-                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Table {tokenPanel.tableNumber}</p>
+                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">{formatTableLabel(tokenPanel.tableNumber)}</p>
                                 <h3 className="text-lg font-black text-slate-900">QR access token</h3>
                             </div>
                             <button type="button" onClick={() => setTokenPanel(null)} aria-label="Close" className="w-10 h-10 -mr-1 -mt-1 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 active:scale-95 transition-all">
@@ -359,7 +360,7 @@ const TableManagementView: React.FC = () => {
                                             <p className="text-xs text-slate-500">Couldn’t render the QR code. You can still copy the link below.</p>
                                         </div>
                                     )}
-                                    <p className="mt-2 text-[11px] text-slate-500">Scan to open Table {tokenPanel.tableNumber}’s menu</p>
+                                    <p className="mt-2 text-[11px] text-slate-500">Scan to open {formatTableLabel(tokenPanel.tableNumber)}’s menu</p>
                                 </div>
 
                                 {/* Actions: print + download (only when the QR built) */}
@@ -406,7 +407,7 @@ const TableManagementView: React.FC = () => {
 }`}</style>
                                         <div className="qr-print-root hidden flex-col items-center justify-center text-center gap-4 p-10">
                                             <p className="text-lg font-semibold text-slate-600">Scan to view the menu &amp; order</p>
-                                            <p className="text-5xl font-black tracking-tight text-slate-900">Table {tokenPanel.tableNumber}</p>
+                                            <p className="text-5xl font-black tracking-tight text-slate-900">{formatTableLabel(tokenPanel.tableNumber)}</p>
                                             <QrSvg matrix={qr.matrix} size={320} ariaLabel={`QR code for table ${tokenPanel.tableNumber}`} />
                                             <p className="font-mono text-xs text-slate-500 break-all max-w-md">{customerUrl}</p>
                                             <p className="text-sm text-slate-500">Point your phone camera at the code, then tap the link.</p>

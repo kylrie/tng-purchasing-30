@@ -8,6 +8,7 @@ import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { subscribeKitchenOrders } from '../services/kitchenOrders.service';
 import type { KitchenCard, KitchenLane } from '../services/kitchenOrders.service';
+import { formatTableLabel } from '../utils/tableUtils';
 
 /**
  * QR Ordering — Kitchen Queue (Sprint 2 · real qr_orders listener)
@@ -91,8 +92,7 @@ const OrderCard: React.FC<{
             {/* Table number + order meta */}
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-baseline gap-2 min-w-0">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-400">Table</span>
-                    <span className="text-4xl md:text-5xl font-black leading-none text-slate-900">{card.tableNumber}</span>
+                    <span className="text-4xl md:text-5xl font-black leading-none text-slate-900">{formatTableLabel(card.tableNumber)}</span>
                 </div>
                 <div className="text-right shrink-0">
                     <div className="text-sm font-bold text-slate-600">{card.orderNumber}</div>

@@ -11,6 +11,7 @@ import {
     createXenditSession, isPaymentsDisabledError, isSafePaymentLink,
     redirectToPaymentLink, toUserFacingSessionError,
 } from '../services/createSession.service';
+import { formatTableLabel } from '../utils/tableUtils';
 
 /**
  * QR Ordering — Checkout (Phase 3 · createXenditSession wiring)
@@ -217,7 +218,7 @@ const CheckoutView: React.FC = () => {
                     </button>
                     <div className="min-w-0">
                         <h1 className="text-2xl font-extrabold tracking-tight text-[#0d6e62] leading-none">Checkout</h1>
-                        <p className="text-sm font-semibold text-[#ec4899] mt-1">Table {summary?.tableNumber || '—'}</p>
+                        <p className="text-sm font-semibold text-[#ec4899] mt-1">{formatTableLabel(summary?.tableNumber)}</p>
                     </div>
                 </header>
 

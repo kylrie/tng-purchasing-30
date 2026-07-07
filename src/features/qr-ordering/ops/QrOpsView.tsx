@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { Business } from '../../procurement/types';
 import { useAuth } from '../../../contexts/useAuth';
+import { formatTableLabel } from '../utils/tableUtils';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { subscribeQrOrders, type OpsOrder, type OpsOrderLine } from '../services/qrOrders.service';
 import { isDrinkCategory } from '../services/barOrders.service';
@@ -779,7 +780,7 @@ const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: ()
                 {/* Header */}
                 <div className="sticky top-0 bg-white border-b-2 border-slate-200 px-4 py-3 flex items-center gap-3">
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline gap-2"><span className="text-lg font-black">{o.orderNumber}</span><span className="text-sm font-bold text-slate-500">Table {o.tableNumber}</span></div>
+                        <div className="flex items-baseline gap-2"><span className="text-lg font-black">{o.orderNumber}</span><span className="text-sm font-bold text-slate-500">{formatTableLabel(o.tableNumber)}</span></div>
                         <div className="text-xl font-black tabular-nums">₱{o.totalAmount.toFixed(2)}</div>
                     </div>
                     <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><X size={18} /></button>
