@@ -276,7 +276,7 @@ function ProtectedApp() {
 
                 {/* QR Operations dashboard — per-business ops control surface (Overview / Live Orders /
                     Kitchen / Tables / History). Staff-gated + BU-scoped inside the view. */}
-                <Route path="/qr-ops/:tab?" element={<QrOpsView />} />
+                <Route path="/qr-ops/:tab?" element={<QrOpsView businesses={accessibleBusinesses} />} />
 
                 <Route path="/burf" element={
                   <ProtectedRoute permission="ui:module_access:view:burf">

@@ -9,12 +9,12 @@ import { listQrTables, isPermissionDenied } from '../services/qrTables.service';
 /**
  * QR Hub — ERP-wide, cross-business entry point for QR ordering (top-level module).
  *
- * QR ordering is an operational module multiple TNG businesses will use over time;
- * Inflatable Island Beach Club is the first business live in sandbox. This hub lists
- * every business the user can access and shows each one's REAL QR state (table counts
- * from the deployed `listQrTables` callable — never fabricated), then routes into the
- * existing per-business manager at `/qr-tables/live` with the business context set
- * explicitly (no reliance on the global Business Unit switcher).
+ * QR ordering is an operational module multiple TNG businesses will use over time.
+ * This hub lists every business the user can access (by its canonical name from the
+ * real `businesses` collection — never a hardcoded label) and shows each one's REAL
+ * QR state (table counts from the deployed `listQrTables` callable — never
+ * fabricated), then routes into the per-business QR Operations dashboard with the
+ * business context set explicitly (no reliance on the global Business Unit switcher).
  *
  * Reuses the existing backend + the existing TableManagementView; adds only the
  * discovery/navigation shell. Admin-only (same gate as the manager + the callables).

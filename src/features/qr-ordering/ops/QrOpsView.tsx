@@ -5,6 +5,7 @@ import {
     AlertCircle, Loader2, ChevronLeft, ChevronRight, X, Wifi, WifiOff, Clock, Receipt,
     CheckCircle2, StickyNote,
 } from 'lucide-react';
+import type { Business } from '../../procurement/types';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { subscribeQrOrders, type OpsOrder } from '../services/qrOrders.service';
@@ -43,7 +44,7 @@ interface DerivedOrder extends OpsOrder {
 
 const TICK_MS = 10_000;
 
-const QrOpsView: React.FC = () => {
+const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     const { tab: tabParam } = useParams<{ tab?: string }>();
     const navigate = useNavigate();
     const { currentUser, loading: authLoading } = useAuth();
@@ -52,6 +53,9 @@ const QrOpsView: React.FC = () => {
     const tab: OpsTab = (TABS.find(t => t.key === tabParam)?.key) ?? 'overview';
     const businessUnitId =
         selectedBusinessUnit && selectedBusinessUnit !== 'all' ? selectedBusinessUnit : currentUser?.businessId ?? '';
+    // Canonical business-unit NAME from real TNG data (never hardcoded). Falls back
+    // to the raw id only if the business record isn't in the accessible list.
+    const businessName = businesses?.find(b => b.id === businessUnitId)?.name || businessUnitId || '—';
     const signedIn = !!currentUser;
 
     // ── Live subscription ──────────────────────────────────────────────────
@@ -102,7 +106,7 @@ const QrOpsView: React.FC = () => {
     // ── Non-ready gates ────────────────────────────────────────────────────
     if (conn === 'unauthorized') {
         return (
-            <OpsShell tab={tab} goTab={goTab} businessUnitId={businessUnitId} conn={conn} lastUpdated={lastUpdated} now={now} onRetry={() => setReloadKey(k => k + 1)}>
+            <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} onRetry={() => setReloadKey(k => k + 1)}>
                 <Centered Icon={LockKeyhole} title="Staff sign-in required"
                     body="Sign in with a staff account that has a business unit selected to view QR operations." />
             </OpsShell>
@@ -110,7 +114,7 @@ const QrOpsView: React.FC = () => {
     }
 
     return (
-        <OpsShell tab={tab} goTab={goTab} businessUnitId={businessUnitId} conn={conn} lastUpdated={lastUpdated} now={now} onRetry={() => setReloadKey(k => k + 1)}>
+        <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} onRetry={() => setReloadKey(k => k + 1)}>
             {conn === 'loading' ? (
                 <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
             ) : conn === 'error' ? (
@@ -137,10 +141,10 @@ const QrOpsView: React.FC = () => {
 // Shell: header, tab bar, connection/last-updated indicator
 // ════════════════════════════════════════════════════════════════════════════
 const OpsShell: React.FC<{
-    tab: OpsTab; goTab: (t: OpsTab) => void; businessUnitId: string;
+    tab: OpsTab; goTab: (t: OpsTab) => void; businessName: string;
     conn: 'loading' | 'live' | 'error' | 'unauthorized'; lastUpdated: number; now: number;
     onRetry: () => void; children: React.ReactNode;
-}> = ({ tab, goTab, businessUnitId, conn, lastUpdated, children }) => {
+}> = ({ tab, goTab, businessName, conn, lastUpdated, children }) => {
     const navigate = useNavigate();
     return (
         <div className="min-h-dvh bg-slate-100 text-slate-900">
@@ -152,7 +156,7 @@ const OpsShell: React.FC<{
                     </button>
                     <div className="min-w-0 flex-1">
                         <h1 className="text-lg md:text-xl font-black tracking-tight leading-none">QR Operations</h1>
-                        <p className="text-xs font-semibold text-slate-500 truncate">{businessUnitId || '—'}</p>
+                        <p className="text-xs font-semibold text-slate-500 truncate">{businessName}</p>
                     </div>
                     <ConnBadge conn={conn} lastUpdated={lastUpdated} />
                 </div>
