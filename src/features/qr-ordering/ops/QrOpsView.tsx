@@ -3,13 +3,17 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     LayoutDashboard, ListOrdered, ChefHat, Wine, Table2, History as HistoryIcon, LockKeyhole,
     AlertCircle, Loader2, LogOut, ChevronRight, X, Wifi, WifiOff, Clock, Receipt,
-    CheckCircle2, StickyNote,
+    CheckCircle2, StickyNote, Printer, Bluetooth, Power, RotateCcw,
 } from 'lucide-react';
 import type { Business } from '../../procurement/types';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { subscribeQrOrders, type OpsOrder, type OpsOrderLine } from '../services/qrOrders.service';
 import { isDrinkCategory } from '../services/barOrders.service';
+import {
+    connectPrinter, disconnectPrinter, isPrinterConnected, printTest, printStation,
+    getJobStatus, type Station, type TicketLine,
+} from '../services/qrPrinter.service';
 import { updateQrOrderStatus, toUserFacingTransitionError, NEXT_STATUS } from '../services/updateOrderStatus.service';
 import {
     kitchenLaneFor, attentionFor, sortRank, isActiveStatus, orderStatusPresentation,
@@ -165,6 +169,10 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     const selected = derived.find(o => o.id === selectedId) ?? null;
     const [liveFilter, setLiveFilter] = useState<string>('active');
 
+    // ── Bluetooth ticket printer (reuses the proven POS print path) ─────────
+    const [printerOpen, setPrinterOpen] = useState(false);
+    const [printerConnected, setPrinterConnected] = useState<boolean>(() => isPrinterConnected());
+
     const openLiveWithFilter = (f: string) => { setLiveFilter(f); goTab('live'); };
     const goTab = (t: OpsTab) => navigate(`/qr-ops/${t}`);
 
@@ -179,7 +187,8 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     }
 
     return (
-        <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts} onRetry={() => setReloadKey(k => k + 1)}>
+        <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts}
+            printerConnected={printerConnected} onOpenPrinter={() => setPrinterOpen(true)} onRetry={() => setReloadKey(k => k + 1)}>
             {conn === 'loading' ? (
                 <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
             ) : conn === 'error' ? (
@@ -198,7 +207,9 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
                 <HistoryTab orders={derived} onOpen={setSelectedId} />
             )}
 
-            {selected && <OrderDetailPanel order={selected} now={now} onClose={() => setSelectedId(null)} />}
+            {selected && <OrderDetailPanel order={selected} now={now} onClose={() => setSelectedId(null)}
+                printerConnected={printerConnected} onNeedPrinter={() => setPrinterOpen(true)} />}
+            {printerOpen && <PrinterPanel connected={printerConnected} setConnected={setPrinterConnected} onClose={() => setPrinterOpen(false)} />}
         </OpsShell>
     );
 };
@@ -209,8 +220,9 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
 const OpsShell: React.FC<{
     tab: OpsTab; goTab: (t: OpsTab) => void; businessName: string;
     conn: 'loading' | 'live' | 'error' | 'unauthorized'; lastUpdated: number; now: number;
-    navCounts?: NavCounts; onRetry: () => void; children: React.ReactNode;
-}> = ({ tab, goTab, businessName, conn, lastUpdated, navCounts, children }) => {
+    navCounts?: NavCounts; printerConnected?: boolean; onOpenPrinter?: () => void;
+    onRetry: () => void; children: React.ReactNode;
+}> = ({ tab, goTab, businessName, conn, lastUpdated, navCounts, printerConnected, onOpenPrinter, children }) => {
     const navigate = useNavigate();
     return (
         // Full-viewport operational surface — NO ERP shell. Neutral base (white / slate),
@@ -228,6 +240,14 @@ const OpsShell: React.FC<{
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none">QR Operations</div>
                         <p className="text-base md:text-lg font-black tracking-tight leading-tight truncate">{businessName}</p>
                     </div>
+                    {onOpenPrinter && (
+                        <button type="button" onClick={onOpenPrinter} title="Printer setup"
+                            className={`shrink-0 inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-sm font-bold border-2 ${printerConnected ? 'bg-emerald-50 text-emerald-800 border-emerald-400' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+                            <Printer size={16} strokeWidth={2.25} />
+                            <span className="hidden md:inline">Printer</span>
+                            <span className={`w-2 h-2 rounded-full ${printerConnected ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                        </button>
+                    )}
                     <ConnBadge conn={conn} lastUpdated={lastUpdated} />
                 </div>
                 <nav className="w-full px-1 md:px-3 flex gap-1 overflow-x-auto">
@@ -733,7 +753,7 @@ function buildTimeline(o: DerivedOrder): TimelineEvent[] {
     return ev.sort((a, b) => a.atMillis - b.atMillis);
 }
 
-const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: () => void }> = ({ order: o, now, onClose }) => {
+const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: () => void; printerConnected: boolean; onNeedPrinter: () => void }> = ({ order: o, now, onClose, printerConnected, onNeedPrinter }) => {
     const closeRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
         closeRef.current?.focus();
@@ -774,6 +794,8 @@ const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: ()
                             <div className="text-sm font-semibold mt-0.5">{o.attention.reason}</div>
                         </div>
                     )}
+
+                    <PrintButtons order={o} printerConnected={printerConnected} onNeedPrinter={onNeedPrinter} />
 
                     {/* Items */}
                     <section>
@@ -889,6 +911,119 @@ const OfflineDiagnostics: React.FC<{ diagnostics: OpsDiagnostics; onRetry: () =>
             </dl>
             <button type="button" onClick={onRetry} className="mt-4 px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-black">Retry</button>
         </div>
+    );
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Printer: setup panel (top bar) + per-order Kitchen/Bar print buttons.
+// Reuses the proven POS Bluetooth path (qrPrinter.service → POSPrinterService).
+// ════════════════════════════════════════════════════════════════════════════
+const PrinterPanel: React.FC<{ connected: boolean; setConnected: (b: boolean) => void; onClose: () => void }> = ({ connected, setConnected, onClose }) => {
+    const [busy, setBusy] = useState<'connect' | 'test' | null>(null);
+    const [error, setError] = useState('');
+    const [ok, setOk] = useState('');
+
+    const doConnect = async () => {
+        setError(''); setOk(''); setBusy('connect');
+        try { await connectPrinter(); setConnected(true); setOk('Printer paired.'); }
+        catch (e) { setConnected(isPrinterConnected()); setError((e as Error)?.message || 'Pairing failed.'); }
+        finally { setBusy(null); }
+    };
+    const doTest = async () => {
+        setError(''); setOk(''); setBusy('test');
+        try { await printTest(); setOk('Test ticket sent.'); }
+        catch (e) { setError((e as Error)?.message || 'Test print failed.'); setConnected(isPrinterConnected()); }
+        finally { setBusy(null); }
+    };
+    const doDisconnect = () => { disconnectPrinter(); setConnected(false); setOk('Disconnected.'); setError(''); };
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Printer setup">
+            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border-2 border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b-2 border-slate-200">
+                    <div className="flex items-center gap-2"><Printer size={18} /><h2 className="font-black">Ticket printer</h2></div>
+                    <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><X size={18} /></button>
+                </div>
+                <div className="p-4 space-y-3">
+                    <div className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 font-bold ${connected ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                        <span className={`w-2.5 h-2.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                        {connected ? 'Printer connected' : 'No printer connected'}
+                    </div>
+                    {error && <div role="alert" className="rounded-lg bg-red-600 text-white px-3 py-2 text-sm font-bold flex items-center gap-2"><AlertCircle size={15} />{error}</div>}
+                    {ok && <div className="rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm font-bold flex items-center gap-2"><CheckCircle2 size={15} />{ok}</div>}
+                    <button type="button" onClick={doConnect} disabled={busy === 'connect'} className="w-full py-3 rounded-lg bg-slate-900 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                        {busy === 'connect' ? <Loader2 size={18} className="animate-spin" /> : <Bluetooth size={18} />} {connected ? 'Re-pair printer' : 'Pair printer'}
+                    </button>
+                    <button type="button" onClick={doTest} disabled={busy === 'test'} className="w-full py-3 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                        {busy === 'test' ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />} Test print
+                    </button>
+                    {connected && (
+                        <button type="button" onClick={doDisconnect} className="w-full py-2.5 rounded-lg bg-white border-2 border-slate-300 text-slate-700 font-bold flex items-center justify-center gap-2">
+                            <Power size={16} /> Disconnect
+                        </button>
+                    )}
+                    <p className="text-xs text-slate-500 leading-relaxed pt-1">
+                        Reuses the POS Bluetooth printer. Pairing needs a tap (browser rule) and the connection resets on reload — just re-pair. For this MVP one printer serves both <b>Kitchen</b> and <b>Bar</b>; print from an order's detail. Works on <b>Android/desktop Chrome or Edge</b> (not iPhone/iPad).
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PrintButtons: React.FC<{ order: DerivedOrder; printerConnected: boolean; onNeedPrinter: () => void }> = ({ order, printerConnected, onNeedPrinter }) => {
+    const [busy, setBusy] = useState<Station | null>(null);
+    const [msg, setMsg] = useState<{ station: Station; ok: boolean; text: string } | null>(null);
+    const [, force] = useState(0);
+
+    const food = foodLines(order.items);
+    const drink = drinkLines(order.items);
+    const paid = order.paymentStatus === 'PAID' || (order.status !== 'AWAITING_PAYMENT' && order.status !== 'PAYMENT_FAILED');
+
+    const run = async (station: Station, lines: OpsOrderLine[]) => {
+        if (!printerConnected) { onNeedPrinter(); return; }
+        const reprint = getJobStatus(order.id, station) === 'PRINTED';
+        setBusy(station); setMsg(null);
+        const ticketLines: TicketLine[] = lines.map(l => ({ qty: l.qty, name: l.name, note: l.notes }));
+        const res = await printStation(
+            { orderNumber: order.orderNumber, tableNumber: order.tableNumber, station, lines: ticketLines, paid, atMillis: order.createdAtMillis },
+            order.id, { reprint },
+        );
+        setBusy(null);
+        setMsg({ station, ok: res.ok, text: res.ok ? (reprint ? 'Reprinted' : 'Printed') : (res.error || 'Failed') });
+        force(n => n + 1);
+    };
+
+    const verb = (station: Station) => {
+        const s = getJobStatus(order.id, station);
+        return s === 'FAILED' ? 'Retry' : s === 'PRINTED' ? 'Reprint' : 'Print';
+    };
+
+    if (food.length === 0 && drink.length === 0) return null;
+    return (
+        <section>
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5"><Printer size={14} /> Print tickets</h3>
+            <div className="grid grid-cols-2 gap-2">
+                {food.length > 0 && (
+                    <button type="button" onClick={() => run('KITCHEN', food)} disabled={busy === 'KITCHEN'}
+                        className="py-3 rounded-lg bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-1.5 disabled:opacity-60">
+                        {busy === 'KITCHEN' ? <Loader2 size={16} className="animate-spin" /> : <ChefHat size={16} />} {verb('KITCHEN')} Kitchen
+                    </button>
+                )}
+                {drink.length > 0 && (
+                    <button type="button" onClick={() => run('BAR', drink)} disabled={busy === 'BAR'}
+                        className="py-3 rounded-lg bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-1.5 disabled:opacity-60">
+                        {busy === 'BAR' ? <Loader2 size={16} className="animate-spin" /> : <Wine size={16} />} {verb('BAR')} Bar
+                    </button>
+                )}
+            </div>
+            {!printerConnected && <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700"><RotateCcw size={12} /> No printer connected — tap a button to open printer setup.</p>}
+            {msg && <p className={`mt-2 text-xs font-bold ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.station}: {msg.text}</p>}
+            {(getJobStatus(order.id, 'KITCHEN') || getJobStatus(order.id, 'BAR')) && (
+                <p className="mt-1 text-[11px] text-slate-400 tabular-nums">Kitchen: {getJobStatus(order.id, 'KITCHEN') ?? '—'} · Bar: {getJobStatus(order.id, 'BAR') ?? '—'}</p>
+            )}
+        </section>
     );
 };
 
