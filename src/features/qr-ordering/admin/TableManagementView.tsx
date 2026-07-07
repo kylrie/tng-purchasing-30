@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { QrCode, Plus, Loader2, RefreshCw, LockKeyhole, AlertCircle, CheckCircle2, X, Copy, Table2, Printer, Download } from 'lucide-react';
 import { isConfigValid } from '../../../config/firebase';
 import { buildQrMatrix, qrMatrixToSvgString } from './qrMatrix';
@@ -35,6 +35,7 @@ const StatusChip: React.FC<{ active: boolean }> = ({ active }) => (
 
 const TableManagementView: React.FC = () => {
     const { mode } = useParams<{ mode?: string }>();
+    const location = useLocation();
     const { currentUser, loading: authLoading } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
 
@@ -208,6 +209,7 @@ const TableManagementView: React.FC = () => {
                             iconCls="text-slate-500"
                             title="Admin access required"
                             body="Sign in with an admin account to manage QR tables. Use /qr-tables/demo for the sample board."
+                            signInFrom={location.pathname}
                         />
                     ) : (
                         <StateCard
@@ -427,13 +429,24 @@ const StateCard: React.FC<{
     title: string;
     body: string;
     onRetry?: () => void;
-}> = ({ Icon, iconCls, title, body, onRetry }) => (
+    /** When set, render a Sign-in link that returns here after login. */
+    signInFrom?: string;
+}> = ({ Icon, iconCls, title, body, onRetry, signInFrom }) => (
     <div className="flex flex-col items-center text-center max-w-md">
         <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
             <Icon size={26} className={iconCls} strokeWidth={1.5} />
         </div>
         <h3 className="text-base font-bold text-slate-700 mb-1">{title}</h3>
         <p className="text-slate-500 text-sm mb-5">{body}</p>
+        {signInFrom && (
+            <Link
+                to="/login"
+                state={{ from: { pathname: signInFrom } }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold active:scale-95 transition-transform"
+            >
+                <LockKeyhole size={16} strokeWidth={2.5} /> Sign in
+            </Link>
+        )}
         {onRetry && (
             <button
                 type="button"
