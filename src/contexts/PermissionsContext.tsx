@@ -4,6 +4,7 @@ import { db } from '../config/firebase';
 import { ROLES_TO_PERMISSIONS } from '../config/permissions';
 import type { Permission } from '../config/permissions';
 import { SystemRole, DEFAULT_BUSINESS_ROLES } from '../features/procurement/types';
+import { useAuth } from './useAuth';
 
 // Default roles: System roles + default business roles
 const DEFAULT_ROLES: string[] = [
@@ -44,6 +45,7 @@ export const usePermissionsContext = () => {
 };
 
 export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { currentUser } = useAuth();
     const [permissions, setPermissions] = useState<Record<string, Permission[]>>(ROLES_TO_PERMISSIONS);
     const [roles, setRoles] = useState<string[]>(DEFAULT_ROLES);
     const [loading, setLoading] = useState(true);
@@ -55,6 +57,13 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const hasInitialized = useRef(false);
 
     useEffect(() => {
+        if (!currentUser) {
+            setPermissions(ROLES_TO_PERMISSIONS);
+            setRoles(DEFAULT_ROLES);
+            setLoading(false);
+            return;
+        }
+
         // Subscribe to the permissions document for real-time updates
         const unsub = onSnapshot(doc(db, 'config', 'permissions'), (docSnap) => {
             try {
@@ -99,7 +108,7 @@ export const PermissionsProvider: React.FC<{ children: React.ReactNode }> = ({ c
         });
 
         return () => unsub();
-    }, []);
+    }, [currentUser]);
 
     // ------------------------------------------------------------------
     // Legacy single-field updaters (kept for backward compatibility)
