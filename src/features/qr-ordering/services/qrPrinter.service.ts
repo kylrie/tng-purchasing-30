@@ -20,14 +20,25 @@ export type PrintJobStatus = 'PENDING' | 'PRINTED' | 'FAILED';
 //                  already uses for receipts (ReceiptModal). No raw TCP (browsers
 //                  can't); no new infrastructure. A local bridge (raw ESC/POS to
 //                  :9100) is a later option for silent/auto printing.
-export type PrintMode = 'bluetooth' | 'system';
+export type PrintMode = 'bluetooth' | 'system' | 'qz';
 const LS_MODE = 'qr_print_mode';
 export function getPrintMode(): PrintMode {
-    try { return (localStorage.getItem(LS_MODE) as PrintMode) === 'system' ? 'system' : 'bluetooth'; }
+    try { 
+        const m = localStorage.getItem(LS_MODE) as PrintMode;
+        return (m === 'system' || m === 'qz') ? m : 'bluetooth'; 
+    }
     catch { return 'bluetooth'; }
 }
 export function setPrintMode(mode: PrintMode): void {
     try { localStorage.setItem(LS_MODE, mode); } catch { /* ignore */ }
+}
+
+const LS_IP = 'qr_print_ip';
+export function getPrinterIp(): string {
+    try { return localStorage.getItem(LS_IP) || ''; } catch { return ''; }
+}
+export function setPrinterIp(ip: string): void {
+    try { localStorage.setItem(LS_IP, ip); } catch { /* ignore */ }
 }
 
 export interface TicketLine { qty: number; name: string; note?: string; }
@@ -174,9 +185,16 @@ export async function printTicket(t: TicketData): Promise<void> {
     await POSPrinterService.print({ type: 'bluetooth' }, buildTicket(t));
 }
 
-/** Print a ticket via the currently selected transport (bluetooth or system). */
+/** Print a ticket via the currently selected transport (bluetooth, system, or qz). */
 export async function printByMode(t: TicketData): Promise<void> {
-    if (getPrintMode() === 'system') return printTicketSystem(t);
+    const mode = getPrintMode();
+    if (mode === 'system') return printTicketSystem(t);
+    if (mode === 'qz') {
+        const ip = getPrinterIp();
+        if (!ip) throw new Error('Printer IP address is required for Network/Wi-Fi printing.');
+        await POSPrinterService.print({ type: 'qz', ipAddress: ip }, buildTicket(t));
+        return;
+    }
     return printTicket(t);
 }
 

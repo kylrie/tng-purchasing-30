@@ -13,7 +13,8 @@ import { subscribeQrOrders, type OpsOrder, type OpsOrderLine } from '../services
 import { isDrinkCategory } from '../services/barOrders.service';
 import {
     connectPrinter, disconnectPrinter, isPrinterConnected, printTest, printStation,
-    getJobStatus, getPrintMode, setPrintMode, type Station, type TicketLine, type PrintMode,
+    getJobStatus, getPrintMode, setPrintMode, getPrinterIp, setPrinterIp,
+    type Station, type TicketLine, type PrintMode,
 } from '../services/qrPrinter.service';
 import { updateQrOrderStatus, toUserFacingTransitionError, NEXT_STATUS } from '../services/updateOrderStatus.service';
 import {
@@ -175,9 +176,9 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     const [printerOpen, setPrinterOpen] = useState(false);
     const [btConnected, setBtConnected] = useState<boolean>(() => isPrinterConnected());
     const [printMode, setPrintModeState] = useState<PrintMode>(() => getPrintMode());
-    // System mode needs no pairing (the OS driver is always available); Bluetooth
+    // System and Network modes need no pairing (always available); Bluetooth
     // needs an active connection.
-    const printerReady = printMode === 'system' || btConnected;
+    const printerReady = printMode === 'system' || printMode === 'qz' || btConnected;
 
     const openLiveWithFilter = (f: string) => { setLiveFilter(f); goTab('live'); };
     const goTab = (t: OpsTab) => navigate(`/qr-ops/${t}`);
@@ -929,6 +930,7 @@ const PrinterPanel: React.FC<{
     mode: PrintMode; onModeChange: (m: PrintMode) => void;
     btConnected: boolean; setBtConnected: (b: boolean) => void; onClose: () => void;
 }> = ({ mode, onModeChange, btConnected, setBtConnected, onClose }) => {
+    const [ip, setIpLocal] = useState(() => getPrinterIp());
     const [busy, setBusy] = useState<'connect' | 'test' | null>(null);
     const [error, setError] = useState('');
     const [ok, setOk] = useState('');
@@ -966,7 +968,8 @@ const PrinterPanel: React.FC<{
                     <div>
                         <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Printer type</div>
                         <div className="flex gap-2">
-                            <ModeBtn m="system" label="System / LAN" />
+                            <ModeBtn m="system" label="System" />
+                            <ModeBtn m="qz" label="IP / Network" />
                             <ModeBtn m="bluetooth" label="Bluetooth" />
                         </div>
                     </div>
@@ -993,6 +996,24 @@ const PrinterPanel: React.FC<{
                             )}
                             <p className="text-xs text-slate-500 leading-relaxed pt-1">
                                 Web Bluetooth — Fred's spare test printer. Pairing needs a tap and resets on reload. Android/desktop Chrome or Edge only (not iPhone/iPad).
+                            </p>
+                        </>
+                    ) : mode === 'qz' ? (
+                        <>
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black uppercase tracking-wide text-slate-500">Printer IP or Name</label>
+                                <input type="text" placeholder="e.g. 192.168.1.100 or XP-Q801" 
+                                    className="w-full h-11 px-3 rounded-lg border-2 border-slate-300 font-bold focus:border-slate-500 outline-none"
+                                    value={ip} onChange={e => { setIpLocal(e.target.value); setPrinterIp(e.target.value); }} />
+                            </div>
+                            <div className="rounded-lg border-2 border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 mt-2">
+                                Prints silently to a network IP or local printer via QZ Tray.
+                            </div>
+                            <button type="button" onClick={doTest} disabled={busy === 'test'} className="w-full py-3 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                                {busy === 'test' ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />} Test print
+                            </button>
+                            <p className="text-xs text-slate-500 leading-relaxed pt-1">
+                                Requires QZ Tray to be installed and running on the device. No print dialogs.
                             </p>
                         </>
                     ) : (
