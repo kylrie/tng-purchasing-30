@@ -63,8 +63,12 @@ const CustomerMenuView: React.FC = () => {
     const [errorMsg, setErrorMsg] = useState<string>('');
     const [reloadKey, setReloadKey] = useState(0);
     const [menuItems, setMenuItems] = useState<PublicMenuItem[]>([]);
+    // The visible TABLE label must NEVER show the raw qrToken (the route param).
+    // It stays a neutral placeholder until getPublicMenu resolves the real
+    // human-readable tableNumber (setTableNumber in the fetch below). Only the
+    // mock/demo route seeds a concrete number up front.
     const [tableNumber, setTableNumber] = useState<string>(
-        tableId && !usingMock ? tableId : MOCK_TABLE.tableNumber,
+        usingMock ? MOCK_TABLE.tableNumber : '',
     );
     // Resolved qr_tables document id from getPublicMenu — the key createQrOrder
     // needs (distinct from the route's opaque QR token). Empty until a real menu
@@ -137,10 +141,36 @@ const CustomerMenuView: React.FC = () => {
 
     const handleRetry = () => setReloadKey(k => k + 1);
 
-    const subcategories = useMemo(
-        () => MENU_GROUPS.find(g => g.key === activeGroup)?.subcategories ?? [],
-        [activeGroup],
-    );
+    // Real subcategory tabs are derived from the ACTUAL loaded items (grouped by
+    // their real Firestore category) so EVERY active item has a reachable tab and
+    // nothing is silently dropped by a hardcoded taxonomy. The mock/demo route keeps
+    // the approved fixed hierarchy.
+    const groupSubcategories = useMemo<Record<MenuGroup, string[]>>(() => {
+        if (usingMock) {
+            return {
+                Food: MENU_GROUPS.find(g => g.key === 'Food')?.subcategories ?? [],
+                Drinks: MENU_GROUPS.find(g => g.key === 'Drinks')?.subcategories ?? [],
+            };
+        }
+        const out: Record<MenuGroup, string[]> = { Food: [], Drinks: [] };
+        const seen: Record<MenuGroup, Set<string>> = { Food: new Set(), Drinks: new Set() };
+        for (const it of menuItems) {
+            if (it.category && !seen[it.group].has(it.category)) {
+                seen[it.group].add(it.category);
+                out[it.group].push(it.category);
+            }
+        }
+        return out;
+    }, [usingMock, menuItems]);
+
+    const subcategories = groupSubcategories[activeGroup] ?? [];
+
+    // Keep the selected subcategory valid as real tabs arrive (the default
+    // 'Appetizers' may not be one of a business's real categories).
+    useEffect(() => {
+        const subs = groupSubcategories[activeGroup] ?? [];
+        if (subs.length > 0 && !subs.includes(activeSub)) setActiveSub(subs[0]);
+    }, [groupSubcategories, activeGroup, activeSub]);
 
     const visibleItems = useMemo(
         () => menuItems.filter(item => item.group === activeGroup && item.category === activeSub),
@@ -149,7 +179,7 @@ const CustomerMenuView: React.FC = () => {
 
     const handleGroupChange = (group: MenuGroup) => {
         setActiveGroup(group);
-        const firstSub = MENU_GROUPS.find(g => g.key === group)?.subcategories[0];
+        const firstSub = (groupSubcategories[group] ?? [])[0];
         if (firstSub) setActiveSub(firstSub);
     };
 
@@ -269,10 +299,10 @@ const CustomerMenuView: React.FC = () => {
                     <div className="relative mt-5 h-20">
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                             <p className="text-[13px] font-semibold tracking-[0.35em] text-[#0d6e62]">TABLE</p>
-                            {/* max-w + truncate is a layout backstop: tableNumber briefly holds the raw
-                                qrToken as a fallback before the real fetch resolves, and must never be
-                                able to overflow the mobile header regardless of its length. */}
-                            <p className="text-[46px] leading-none font-extrabold text-[#0d6e62] mt-1 max-w-[85vw] truncate px-2">{tableNumber}</p>
+                            {/* Shows the real human table number once getPublicMenu resolves it; a
+                                neutral "…" placeholder before then. The raw qrToken is NEVER rendered
+                                here (not even for one frame). truncate stays only as a width backstop. */}
+                            <p className="text-[46px] leading-none font-extrabold text-[#0d6e62] mt-1 max-w-[85vw] truncate px-2">{tableNumber || '…'}</p>
                         </div>
                         <button
                             type="button"
@@ -405,7 +435,7 @@ const CustomerMenuView: React.FC = () => {
                                     >
                                         <div className="w-24 h-24 rounded-2xl overflow-hidden shrink-0 bg-[#f0fdf4]">
                                             {item.imageUrl ? (
-                                                <img src={item.imageUrl} alt="" loading="lazy" className={`w-full h-full object-cover ${soldOut ? 'grayscale' : ''}`} />
+                                                <img src={item.imageUrl} alt="" loading="lazy" decoding="async" width={96} height={96} className={`w-full h-full object-cover ${soldOut ? 'grayscale' : ''}`} />
                                             ) : (
                                                 <ImagePlaceholder />
                                             )}

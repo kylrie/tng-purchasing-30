@@ -40,10 +40,19 @@ export interface PublicMenuResult {
     items: PublicMenuItem[];
 }
 
-/** Items whose category doesn't match any known subcategory land here so they
- *  still carry a valid group; the fixed two-level nav only surfaces items whose
- *  category matches one of its subcategory tabs. */
+/** Group for a category the taxonomy doesn't recognize. Food is the safe default
+ *  (most menu items are food); drink categories are caught by the hints below. */
 const DEFAULT_GROUP: MenuGroup = 'Food';
+
+/** Keyword hints that classify an unknown raw category as a Drink. Real menu_items
+ *  use categories like 'Beverages' / 'Cocktails' that aren't in the approved mock
+ *  subcategory list; without this they'd default to Food and could hide under the
+ *  wrong group. Substring match, case-insensitive. */
+const DRINK_CATEGORY_HINTS = [
+    'drink', 'beverage', 'beer', 'wine', 'cocktail', 'mocktail', 'coffee', 'tea',
+    'juice', 'soda', 'shake', 'smoothie', 'water', 'spirit', 'liquor', 'alcohol',
+    'lemonade', 'frappe', 'latte', 'espresso', 'soft drink',
+];
 
 /** Build a category → group lookup from the approved two-level hierarchy. */
 export function buildCategoryGroupIndex(
@@ -59,6 +68,24 @@ export function buildCategoryGroupIndex(
 }
 
 /**
+ * Classify a raw menu category into the customer Food/Drinks group. Uses the
+ * approved taxonomy first (exact match), then drink keyword hints, then Food.
+ * This guarantees a real item is never dropped just because its Firestore
+ * `category` string isn't one of the hardcoded subcategory tabs — the item keeps
+ * its real category (used as a dynamic tab) but always lands in a sane group.
+ */
+export function groupForCategory(
+    category: string,
+    index: Map<string, MenuGroup> = buildCategoryGroupIndex(),
+): MenuGroup {
+    const known = index.get(category);
+    if (known) return known;
+    const c = (category ?? '').toLowerCase();
+    if (DRINK_CATEGORY_HINTS.some(h => c.includes(h))) return 'Drinks';
+    return DEFAULT_GROUP;
+}
+
+/**
  * Map one sanitized server DTO to a UI PublicMenuItem. Field-whitelisted:
  * only id/name/category/sellingPrice/isAvailable (+ optional description/imageUrl)
  * are ever read. `group` is derived from `category`. `bestSeller` is intentionally
@@ -71,7 +98,7 @@ export function mapMenuItem(
     const item: PublicMenuItem = {
         id: dto.id,
         name: dto.name,
-        group: index.get(dto.category) ?? DEFAULT_GROUP,
+        group: groupForCategory(dto.category, index),
         category: dto.category,
         sellingPrice: dto.sellingPrice,
         isAvailable: dto.isAvailable === true,
