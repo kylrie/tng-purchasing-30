@@ -8,7 +8,7 @@
  * (createQrTable, listQrTables) share one implementation.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.QR_RECONCILE_ROLES = exports.QR_TABLE_ADMIN_ROLES = void 0;
+exports.QR_OPS_ROLES = exports.QR_RECONCILE_ROLES = exports.QR_TABLE_ADMIN_ROLES = void 0;
 exports.requireStaffRole = requireStaffRole;
 const https_1 = require("firebase-functions/v2/https");
 /**
@@ -26,6 +26,15 @@ exports.QR_TABLE_ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
  * go-live. Fails closed for any role not listed here.
  */
 exports.QR_RECONCILE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'MANAGER', 'FINANCE'];
+/**
+ * Roles permitted to advance a QR order through kitchen/fulfillment
+ * (updateQrOrderStatus: PAID→IN_KITCHEN→READY→SERVED→COMPLETED). Front-of-house
+ * / kitchen / management duty. There is no dedicated KITCHEN role in the current
+ * dynamic role set, so this is the nearest reasonable staff set — confirm the
+ * exact allow-list with Fred before go-live. Fails closed for any role not
+ * listed here. These transitions touch NO financial fields.
+ */
+exports.QR_OPS_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'MANAGER'];
 /**
  * Assert the caller is authenticated and holds one of `allowedRoles`.
  * Returns the caller's user record (for downstream BU checks). Throws a typed

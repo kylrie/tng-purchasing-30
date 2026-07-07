@@ -34,6 +34,16 @@ export const QR_TABLE_ADMIN_ROLES = ['SUPER_ADMIN', 'ADMIN'];
 export const QR_RECONCILE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'MANAGER', 'FINANCE'];
 
 /**
+ * Roles permitted to advance a QR order through kitchen/fulfillment
+ * (updateQrOrderStatus: PAID→IN_KITCHEN→READY→SERVED→COMPLETED). Front-of-house
+ * / kitchen / management duty. There is no dedicated KITCHEN role in the current
+ * dynamic role set, so this is the nearest reasonable staff set — confirm the
+ * exact allow-list with Fred before go-live. Fails closed for any role not
+ * listed here. These transitions touch NO financial fields.
+ */
+export const QR_OPS_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'MANAGER'];
+
+/**
  * Assert the caller is authenticated and holds one of `allowedRoles`.
  * Returns the caller's user record (for downstream BU checks). Throws a typed
  * HttpsError otherwise. Fails closed — an unknown/missing role is rejected.

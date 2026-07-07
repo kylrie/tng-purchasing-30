@@ -85,11 +85,12 @@ const QrHubView: React.FC<QrHubViewProps> = ({ currentUser, businesses }) => {
         return () => { cancelled = true; };
     }, [isAdmin, list, reloadKey]);
 
-    // Enter the existing per-business manager with the business context set explicitly
-    // (req 11/12 — no manual Business Unit switcher step).
+    // Enter the per-business QR Operations dashboard with the business context set
+    // explicitly (no manual Business Unit switcher step). The ops dashboard's
+    // Tables tab links onward to the table/QR manager.
     const manage = (businessId: string) => {
         setSelectedBusinessUnit(businessId);
-        navigate('/qr-tables/live');
+        navigate('/qr-ops/overview');
     };
 
     if (!isAdmin) {

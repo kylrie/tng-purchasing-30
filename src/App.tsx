@@ -48,6 +48,7 @@ const BarQueueView = React.lazy(() => import('./features/qr-ordering/bar/BarQueu
 const CashierReconciliationView = React.lazy(() => import('./features/qr-ordering/cashier/CashierReconciliationView'));
 const TableManagementView = React.lazy(() => import('./features/qr-ordering/admin/TableManagementView'));
 const QrHubView = React.lazy(() => import('./features/qr-ordering/admin/QrHubView'));
+const QrOpsView = React.lazy(() => import('./features/qr-ordering/ops/QrOpsView'));
 const BurfView = React.lazy(() => import('./features/procurement/views/BURFView'));
 const PrfView = React.lazy(() => import('./features/procurement/views/PRFView'));
 const PRFTrackerView = React.lazy(() => import('./features/procurement/views/PRFTrackerView'));
@@ -272,6 +273,10 @@ function ProtectedApp() {
 
                 {/* QR Hub — cross-business QR ordering entry point (admin-only; guarded inside the view) */}
                 <Route path="/qr-hub" element={<QrHubView currentUser={currentUser} businesses={accessibleBusinesses} />} />
+
+                {/* QR Operations dashboard — per-business ops control surface (Overview / Live Orders /
+                    Kitchen / Tables / History). Staff-gated + BU-scoped inside the view. */}
+                <Route path="/qr-ops/:tab?" element={<QrOpsView />} />
 
                 <Route path="/burf" element={
                   <ProtectedRoute permission="ui:module_access:view:burf">

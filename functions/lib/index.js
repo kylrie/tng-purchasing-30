@@ -6,7 +6,7 @@
  * and budget management with RBAC.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.xenditWebhook = exports.createXenditSession = exports.postOfficialInvoice = exports.getQrOrder = exports.getQrTableToken = exports.listQrTables = exports.createQrTable = exports.createQrOrder = exports.getPublicMenu = exports.setBudgetLimit = exports.postTransaction = void 0;
+exports.updateQrOrderStatus = exports.xenditWebhook = exports.createXenditSession = exports.postOfficialInvoice = exports.getQrOrder = exports.getQrTableToken = exports.listQrTables = exports.createQrTable = exports.createQrOrder = exports.getPublicMenu = exports.setBudgetLimit = exports.postTransaction = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin SDK
 (0, app_1.initializeApp)();
@@ -38,4 +38,7 @@ Object.defineProperty(exports, "createXenditSession", { enumerable: true, get: f
 // QR Ordering — Phase 3 (Xendit webhook · source of truth for PAID)
 var xenditWebhook_1 = require("./qr/xenditWebhook");
 Object.defineProperty(exports, "xenditWebhook", { enumerable: true, get: function () { return xenditWebhook_1.xenditWebhook; } });
+// QR Ordering — Operations (staff kitchen/fulfillment status transitions)
+var updateQrOrderStatus_1 = require("./qr/updateQrOrderStatus");
+Object.defineProperty(exports, "updateQrOrderStatus", { enumerable: true, get: function () { return updateQrOrderStatus_1.updateQrOrderStatus; } });
 //# sourceMappingURL=index.js.map

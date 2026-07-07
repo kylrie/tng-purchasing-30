@@ -32,3 +32,6 @@ export { createXenditSession } from './qr/createXenditSession';
 
 // QR Ordering — Phase 3 (Xendit webhook · source of truth for PAID)
 export { xenditWebhook } from './qr/xenditWebhook';
+
+// QR Ordering — Operations (staff kitchen/fulfillment status transitions)
+export { updateQrOrderStatus } from './qr/updateQrOrderStatus';
