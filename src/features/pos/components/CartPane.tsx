@@ -29,6 +29,7 @@ interface CartPaneProps {
     onSendToKitchen?: () => void;
     onBackToFloor?: () => void;
     onRequireManagerAuth?: (action: () => void) => void;
+    onPrintRunningBill?: () => void;
 }
 
 const CartPane: React.FC<CartPaneProps> = ({
@@ -56,7 +57,8 @@ const CartPane: React.FC<CartPaneProps> = ({
     tableName,
     onSendToKitchen,
     onBackToFloor,
-    onRequireManagerAuth
+    onRequireManagerAuth,
+    onPrintRunningBill
 }) => {
     const manualDiscountReasons = Array.from(new Set(
         cartItems
@@ -314,18 +316,28 @@ const CartPane: React.FC<CartPaneProps> = ({
                 </div>
 
                 {tableMode ? (
-                    <div className="flex gap-3">
-                        <button
-                            onClick={onSendToKitchen}
-                            disabled={cartItems.length === 0}
-                            className="flex-1 p-3 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500/30 rounded-xl transition-all font-bold uppercase tracking-wider text-sm"
-                        >
-                            Send
-                        </button>
+                    <div className="flex flex-col gap-3">
+                        <div className="flex gap-3">
+                            <button
+                                onClick={onSendToKitchen}
+                                disabled={cartItems.length === 0}
+                                className="flex-1 p-3 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed border border-indigo-500/30 rounded-xl transition-all font-bold uppercase tracking-wider text-sm"
+                            >
+                                Send
+                            </button>
+                            <button
+                                onClick={onPrintRunningBill}
+                                disabled={cartItems.length === 0}
+                                className="flex-1 p-3 bg-slate-600/20 hover:bg-slate-600/30 text-slate-300 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-500/30 rounded-xl transition-all font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                                Print Bill
+                            </button>
+                        </div>
                         <button
                             onClick={onCheckout}
                             disabled={cartItems.length === 0}
-                            className="flex-[2] relative flex items-center justify-center p-3 disabled:bg-white/[0.02] bg-white/[0.05] disabled:border-white/[0.02] border border-white/[0.1] text-white disabled:text-slate-600 font-bold rounded-xl transition-all duration-500 hover:shadow-[0_0_30px_-10px_rgba(34,197,94,0.5)] overflow-hidden active:scale-[0.98] group"
+                            className="w-full relative flex items-center justify-center p-3 disabled:bg-white/[0.02] bg-white/[0.05] disabled:border-white/[0.02] border border-white/[0.1] text-white disabled:text-slate-600 font-bold rounded-xl transition-all duration-500 hover:shadow-[0_0_30px_-10px_rgba(34,197,94,0.5)] overflow-hidden active:scale-[0.98] group"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 via-green-500 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-[length:200%_auto] group-hover:animate-[cartGlow_3s_linear_infinite]"></div>
                             <span className="relative z-10 text-sm uppercase tracking-widest flex items-center gap-2">

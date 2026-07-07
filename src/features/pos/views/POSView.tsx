@@ -128,6 +128,45 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
         setCheckoutModalOpen(true);
     }, []);
 
+    const handlePrintRunningBill = async () => {
+        if (!activeTable) return;
+        try {
+            const savedPrinter = localStorage.getItem('pos_printer_type') as any || 'simulator';
+            const savedIp = localStorage.getItem('pos_printer_ip') || '';
+            const config = { type: savedPrinter, ipAddress: savedIp };
+
+            const { POSPrinterService } = await import('../services/pos-printer.service');
+            
+            if (config.type === 'bluetooth') {
+                await POSPrinterService.connectBluetooth();
+            }
+
+            const text = POSPrinterService.formatRunningBill({
+                orderNumber: activeBill?.orderNumber,
+                createdAt: activeBill?.createdAt,
+                cashierName: activeCashier?.name,
+                tableName: activeTable.name,
+                items: cartItems.map(item => ({
+                    menuItemId: item.menuItemId,
+                    productName: item.productName,
+                    quantity: item.quantity,
+                    subtotal: item.subtotal
+                })) as any[],
+                subtotal: subtotal,
+                taxAmount: taxAmount,
+                totalAmount: total,
+                discountAmount: (discountAmount || 0) + (globalDiscountAmount || 0)
+            });
+
+            const payload = POSPrinterService.generateReceiptPayload(text);
+            await POSPrinterService.print(config, payload);
+            alert('Running bill printed successfully!');
+        } catch (error) {
+            console.error('Failed to print running bill:', error);
+            alert('Failed to print running bill. Check printer connection.');
+        }
+    };
+
     const handleConfirmPayment = async (paymentMethod: PaymentMethod, amountTendered: number) => {
         if (!activeCashier) return;
         setIsProcessing(true);
@@ -338,6 +377,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     onRequireManagerAuth={(action) => setManagerAuthAction(() => action)}
                     tableMode={!!activeTable}
                     tableName={activeTable?.name}
+                    onPrintRunningBill={handlePrintRunningBill}
                     onSendToKitchen={async () => {
                         if (!activeCashier || !activeTable) return;
                         setIsProcessing(true);
