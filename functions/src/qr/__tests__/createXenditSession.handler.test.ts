@@ -103,7 +103,7 @@ test('createXenditSession: calls the client with the SERVER amount + PHP currenc
     assert.equal(p.successUrl, 'https://tng.example/order-status/o1?return=xendit');
     assert.equal(p.cancelUrl, 'https://tng.example/order-status/o1');
     assert.deepEqual(p.metadata, { order_id: 'o1', table_no: '12', business_unit_id: 'bu1' });
-    assert.deepEqual(p.items, [{ name: 'Sisig', quantity: 2, price: 285 }]);
+    assert.deepEqual(p.items, [{ name: 'Sisig', quantity: 2, price: 285, category: 'Mains' }]);
 });
 
 test('createXenditSession: rejects a PAID order (failed-precondition), no client call', async () => {

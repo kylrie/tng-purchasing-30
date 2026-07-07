@@ -18,7 +18,7 @@ const PARAMS: XenditCreateSessionParams = {
     referenceId: 'order123:1',
     amount: 570,
     currency: 'PHP',
-    items: [{ name: 'Sisig', quantity: 2, price: 285 }],
+    items: [{ name: 'Sisig', quantity: 2, price: 285, category: 'Mains' }],
     successUrl: 'https://tng.example/order-status/order123',
     cancelUrl: 'https://tng.example/order-status/order123',
     metadata: { order_id: 'order123', table_no: '12', business_unit_id: 'bu1' },
@@ -44,7 +44,7 @@ function okSessionBody() {
     };
 }
 
-test('xenditClient: posts to /v3/sessions with Basic auth + Idempotency-key', async () => {
+test('xenditClient: posts to /sessions (no version prefix) with Basic auth + Idempotency-key', async () => {
     let capturedUrl = '';
     let capturedInit: RequestInit = {};
     const fetchImpl = async (url: string, init: RequestInit) => {
@@ -56,7 +56,12 @@ test('xenditClient: posts to /v3/sessions with Basic auth + Idempotency-key', as
 
     await client.createSession(PARAMS);
 
-    assert.equal(capturedUrl, 'https://api.xendit.co/v3/sessions');
+    // Regression guard: the official Xendit Create Session endpoint is
+    // POST https://api.xendit.co/sessions — no /v3/ path segment ("v3" is a
+    // product-generation label, not part of the URL). A prior version of this
+    // client requested /v3/sessions, which Xendit's real API 404s (confirmed
+    // against docs.xendit.co/apidocs/create-session and live staging logs).
+    assert.equal(capturedUrl, 'https://api.xendit.co/sessions');
     assert.equal(capturedInit.method, 'POST');
     const headers = capturedInit.headers as Record<string, string>;
     const expectedAuth = 'Basic ' + Buffer.from(SECRET + ':').toString('base64');
@@ -67,7 +72,26 @@ test('xenditClient: posts to /v3/sessions with Basic auth + Idempotency-key', as
     const body = JSON.parse(capturedInit.body as string);
     assert.equal(body.reference_id, 'order123:1');
     assert.equal(body.amount, 570);
+    // Regression guard: Xendit's /sessions schema requires `country` — a live
+    // TEST-mode call without it returned 400 API_VALIDATION_ERROR
+    // ("must have required property 'country'"). This integration is PH-only.
+    assert.equal(body.country, 'PH');
     assert.equal(body.currency, 'PHP');
+    // Regression guard: Xendit's /sessions schema requires each item to carry
+    // its own `reference_id` — a live TEST-mode call without it returned 400
+    // API_VALIDATION_ERROR ("items/0 must have required property 'reference_id'").
+    // Regression guard: the full required item schema (reference_id, type, name,
+    // net_unit_amount, quantity, category), confirmed field-by-field against
+    // live TEST-mode 400 API_VALIDATION_ERROR responses and cross-checked
+    // against docs.xendit.co/apidocs/create-session. `price` is not a real
+    // Xendit field name — it must be sent as `net_unit_amount`.
+    assert.equal(body.items[0].reference_id, 'order123:1:item:0');
+    assert.equal(body.items[0].type, 'PHYSICAL_PRODUCT');
+    assert.equal(body.items[0].name, 'Sisig');
+    assert.equal(body.items[0].net_unit_amount, 285);
+    assert.equal(body.items[0].quantity, 2);
+    assert.equal(body.items[0].category, 'Mains');
+    assert.equal(body.items[0].price, undefined);
 });
 
 test('xenditClient: maps a 2xx response to the session shape', async () => {

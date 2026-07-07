@@ -55,7 +55,7 @@ interface OrderDoc {
     businessUnitId?: string;
     tableId?: string;
     tableNumber?: string;
-    items?: { productName?: string; quantity?: number; unitPrice?: number }[];
+    items?: { productName?: string; quantity?: number; unitPrice?: number; category?: string }[];
     totalAmount?: number;
     currency?: string;
     status?: string;
@@ -113,6 +113,11 @@ export function buildSessionParams(
         name: typeof i.productName === 'string' ? i.productName : '',
         quantity: Number(i.quantity ?? 0),
         price: Number(i.unitPrice ?? 0),
+        // Xendit's /sessions item schema requires `category` (confirmed live
+        // TEST-mode 400 API_VALIDATION_ERROR). Real menu-item category when the
+        // stored order line has one; a non-empty fallback otherwise so the
+        // request never resends an empty/absent required field.
+        category: typeof i.category === 'string' && i.category.length > 0 ? i.category : 'General',
     }));
     return {
         referenceId,

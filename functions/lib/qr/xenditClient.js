@@ -8,10 +8,12 @@
  * and `now` are injectable so this wrapper itself is testable with a stubbed
  * fetch — no real network, no live Xendit.
  *
- * Uses the Payments API v3 Payment Sessions endpoint
- * (`POST /v3/sessions`, session_type PAY, mode PAYMENT_LINK,
- * capture_method AUTOMATIC) — one integration for GCash/Maya/QRPH/card (PH).
- * Card data / 3DS never touch TNG servers; we only receive a hosted-checkout URL.
+ * Uses the Xendit Payment Sessions endpoint (`POST /sessions` — no version
+ * prefix; "v3" in the product name is a Xendit product-generation label, not
+ * a URL segment, confirmed against docs.xendit.co/apidocs/create-session),
+ * session_type PAY, mode PAYMENT_LINK, capture_method AUTOMATIC — one
+ * integration for GCash/Maya/QRPH/card (PH). Card data / 3DS never touch TNG
+ * servers; we only receive a hosted-checkout URL.
  *
  * SECURITY: the secret key is used ONLY to build the Basic-auth header and is
  * NEVER logged (§4). Errors log status + a truncated body, never the header.
@@ -20,7 +22,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.XenditClientError = void 0;
 exports.createXenditHttpClient = createXenditHttpClient;
 exports.createMockXenditClient = createMockXenditClient;
-const SESSIONS_PATH = '/v3/sessions';
+const SESSIONS_PATH = '/sessions';
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_SESSION_TTL_MS = 30 * 60_000; // Xendit's 30-min default (§1)
 const MAX_LOGGED_BODY = 500;
@@ -68,7 +70,33 @@ function createXenditHttpClient(config) {
             capture_method: 'AUTOMATIC',
             amount: params.amount,
             currency: params.currency,
-            items: params.items.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+            // Required by Xendit's /sessions schema (confirmed via live TEST-mode
+            // 400 API_VALIDATION_ERROR: "must have required property 'country'").
+            // This integration is PH-only by design (GCash/Maya/QRPH/card, see file
+            // header), so the ISO 3166-1 alpha-2 code is a fixed constant, not a
+            // per-order input.
+            country: 'PH',
+            // Required by Xendit's /sessions schema (confirmed via live TEST-mode
+            // 400 API_VALIDATION_ERROR: "request/body/items/0 must have required
+            // property 'reference_id'"). Xendit docs describe it only as "a
+            // merchant-provided identifier for the item" (1-255 chars, no stated
+            // cross-order uniqueness requirement) — the order-stored item shape
+            // carries no menuItemId this far, so a stable id derived from the
+            // session's own reference_id + line index satisfies that without
+            // widening unrelated order-storage code.
+            // Full required item schema (reference_id, type, name, net_unit_amount,
+            // quantity, category), confirmed field-by-field against live TEST-mode
+            // 400 API_VALIDATION_ERROR responses AND cross-checked against the
+            // complete schema at docs.xendit.co/apidocs/create-session. `price` was
+            // never a real Xendit field name — the correct one is `net_unit_amount`.
+            items: params.items.map((i, idx) => ({
+                reference_id: `${params.referenceId}:item:${idx}`,
+                type: 'PHYSICAL_PRODUCT', // enum: DIGITAL_PRODUCT | PHYSICAL_PRODUCT | DIGITAL_SERVICE | PHYSICAL_SERVICE | FEE — menu items are physical goods
+                name: i.name,
+                net_unit_amount: i.price,
+                quantity: i.quantity,
+                category: i.category,
+            })),
             success_return_url: params.successUrl,
             cancel_return_url: params.cancelUrl,
             metadata: params.metadata,
