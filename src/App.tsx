@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthProvider';
 import { useAuth } from './contexts/useAuth';
 import { PermissionsProvider } from './contexts/PermissionsContext';
@@ -28,6 +28,29 @@ import { db, isConfigValid } from './config/firebase';
 import { useUOM } from './shared/hooks/useUOM';
 
 // Lazy load views for code splitting
+const CustomerMenuView = React.lazy(() => import('./features/qr-ordering/customer/CustomerMenuView'));
+
+/**
+ * Forces a full remount of CustomerMenuView per distinct :tableId. React Router
+ * does NOT remount a matched route's element when only its dynamic segment
+ * changes, so without this, cart/tableNumber/resolvedTableId (all plain
+ * useState, keyed by nothing) can persist across two different QR tokens
+ * visited in the same browser tab — real cross-table/cross-business cart
+ * leakage. Keying by the token guarantees a fresh component instance, and
+ * therefore fresh state, per table.
+ */
+const KeyedCustomerMenuView: React.FC = () => {
+    const { tableId } = useParams<{ tableId?: string }>();
+    return <CustomerMenuView key={tableId ?? '__no_token__'} />;
+};
+const CheckoutView = React.lazy(() => import('./features/qr-ordering/customer/CheckoutView'));
+const OrderStatusView = React.lazy(() => import('./features/qr-ordering/customer/OrderStatusView'));
+const KitchenQueueView = React.lazy(() => import('./features/qr-ordering/kitchen/KitchenQueueView'));
+const BarQueueView = React.lazy(() => import('./features/qr-ordering/bar/BarQueueView'));
+const CashierReconciliationView = React.lazy(() => import('./features/qr-ordering/cashier/CashierReconciliationView'));
+const TableManagementView = React.lazy(() => import('./features/qr-ordering/admin/TableManagementView'));
+const QrHubView = React.lazy(() => import('./features/qr-ordering/admin/QrHubView'));
+const QrOpsView = React.lazy(() => import('./features/qr-ordering/ops/QrOpsView'));
 const BurfView = React.lazy(() => import('./features/procurement/views/BURFView'));
 const PrfView = React.lazy(() => import('./features/procurement/views/PRFView'));
 const PRFTrackerView = React.lazy(() => import('./features/procurement/views/PRFTrackerView'));
@@ -77,6 +100,7 @@ const PageLoader = () => (
 
 function ProtectedApp() {
   const { currentUser, logout, loading } = useAuth();
+  const location = useLocation();
   const { requisitions, createRequisition, updateRequisition } = useRequisitions();
   const { users, setUsers, updateUser } = useUsers();
   const { businesses, addBusiness, updateBusiness, deleteBusiness } = useBusinesses();
@@ -212,7 +236,10 @@ function ProtectedApp() {
   }
 
   if (!currentUser) {
-    return <Navigate to="/login" replace />;
+    // Preserve the intended destination so login can return here (see
+    // AuthProvider.postLoginTarget). Without `from`, deep links like /qr-hub
+    // fall back to '/' after sign-in.
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   const pendingUsers = users.filter(user => user.status === UserStatus.PENDING_APPROVAL);
@@ -265,6 +292,13 @@ function ProtectedApp() {
                     <POSReportsView />
                   </ProtectedRoute>
                 } />
+
+                {/* QR Hub — cross-business QR ordering entry point (admin-only; guarded inside the view) */}
+                <Route path="/qr-hub" element={<QrHubView currentUser={currentUser} businesses={accessibleBusinesses} />} />
+
+                {/* QR Operations dashboard — per-business ops control surface (Overview / Live Orders /
+                    Kitchen / Tables / History). Staff-gated + BU-scoped inside the view. */}
+                <Route path="/qr-ops/:tab?" element={<QrOpsView businesses={accessibleBusinesses} />} />
 
                 <Route path="/burf" element={
                   <ProtectedRoute permission="ui:module_access:view:burf">
@@ -689,6 +723,42 @@ VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
                     <Route path="/login" element={
                       <Suspense fallback={<PageLoader />}>
                         <LoginView />
+                      </Suspense>
+                    } />
+                    {/* QR Ordering — public customer routes (mock data prototype, no auth) */}
+                    <Route path="/order/:tableId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <KeyedCustomerMenuView />
+                      </Suspense>
+                    } />
+                    <Route path="/checkout/:sessionId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <CheckoutView />
+                      </Suspense>
+                    } />
+                    <Route path="/order-status/:orderId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <OrderStatusView />
+                      </Suspense>
+                    } />
+                    <Route path="/kitchen/:sessionId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <KitchenQueueView />
+                      </Suspense>
+                    } />
+                    <Route path="/bar/:sessionId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <BarQueueView />
+                      </Suspense>
+                    } />
+                    <Route path="/cashier/:sessionId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <CashierReconciliationView />
+                      </Suspense>
+                    } />
+                    <Route path="/qr-tables/:mode?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <TableManagementView />
                       </Suspense>
                     } />
                     <Route path="/*" element={<ProtectedApp />} />

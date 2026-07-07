@@ -32,6 +32,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [tempFirebaseUser, setTempFirebaseUser] = useState<FirebaseUser | null>(null);
     const navigate = useNavigate();
 
+    // Post-login navigation is handled DECLARATIVELY by the /login route (it
+    // redirects to location.state.from once currentUser is set). The handlers
+    // below intentionally do NOT imperatively navigate on success: doing so
+    // races the async onAuthStateChanged (which awaits a Firestore getDoc before
+    // setting currentUser), so the redirect could fire while currentUser is
+    // still null and bounce back to /login. See LoginView's authed redirect.
+
     // =====================================================
     // FIX BUG 4: Rate limiting with localStorage persistence
     // State initializes from localStorage to survive page refreshes
@@ -122,7 +129,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // FIX BUG 4: Reset attempts on successful login (also clears localStorage via useEffect)
             setLoginAttempts(0);
             setLockoutUntil(null);
-            navigate('/');
+            // Navigation handled by the /login route once currentUser is set.
         } catch (err) {
             const firebaseErr = err as FirebaseError;
             // FIX BUG 4: Increment failed attempts (persisted via useEffect)
@@ -159,7 +166,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const userData = userDoc.data() as User;
 
                 if (userData.status === UserStatus.ACTIVE) {
-                    navigate('/');
+                    // Active: onAuthStateChanged sets currentUser; the /login
+                    // route then redirects to the intended destination.
                 } else if (userData.status === UserStatus.PENDING_APPROVAL) {
                     setError('Your account is awaiting approval from an administrator.');
                     await signOut(auth);

@@ -1,227 +1,277 @@
 {
-    "indexes": [
+  "indexes": [
+    {
+      "collectionGroup": "stock_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
         {
-            "collectionGroup": "stock_transactions",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "timestamp",
-                    "order": "DESCENDING"
-                }
-            ]
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
         },
         {
-            "collectionGroup": "stock_transactions",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "type",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "timestamp",
-                    "order": "ASCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "pos_sales",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "blackBookRecipes",
-            "queryScope": "COLLECTION",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "name",
-                    "order": "ASCENDING"
-                }
-            ]
-        },
-        {
-            "collectionGroup": "activity_logs",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "timestamp",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "chart_of_accounts",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "code",
-                    "order": "ASCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "notifications",
-            "fields": [
-                {
-                    "fieldPath": "targetRoles",
-                    "arrayConfig": "CONTAINS"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "notifications",
-            "fields": [
-                {
-                    "fieldPath": "targetRoles",
-                    "arrayConfig": "CONTAINS"
-                },
-                {
-                    "fieldPath": "isRead",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "pos_orders",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "status",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "finance_transactions",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "productionRecipes",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "name",
-                    "order": "ASCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "investigations",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "wastage_reports",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "createdAt",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "inventory_recons",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "savedAt",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
-        },
-        {
-            "collectionGroup": "staff_variance_reports",
-            "fields": [
-                {
-                    "fieldPath": "businessUnitId",
-                    "order": "ASCENDING"
-                },
-                {
-                    "fieldPath": "savedAt",
-                    "order": "DESCENDING"
-                }
-            ],
-            "queryScope": "COLLECTION"
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
         }
-    ],
-    "fieldOverrides": []
+      ]
+    },
+    {
+      "collectionGroup": "stock_transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "pos_sales",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "blackBookRecipes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "activity_logs",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "chart_of_accounts",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "code",
+          "order": "ASCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "notifications",
+      "fields": [
+        {
+          "fieldPath": "targetRoles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "notifications",
+      "fields": [
+        {
+          "fieldPath": "targetRoles",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "isRead",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "pos_orders",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "finance_transactions",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "productionRecipes",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "investigations",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "wastage_reports",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "inventory_recons",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "savedAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "staff_variance_reports",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "savedAt",
+          "order": "DESCENDING"
+        }
+      ],
+      "queryScope": "COLLECTION"
+    },
+    {
+      "collectionGroup": "qr_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "qr_orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "tableId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "qr_tables",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "businessUnitId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "isActive",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
 }
