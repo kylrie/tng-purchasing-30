@@ -14,3 +14,5 @@ initializeApp();
 export { postTransaction } from './transactions';
 export { setBudgetLimit } from './admin';
 export { aggregateStockTransactions } from './inventory/aggregators';
+
+export { onInventoryItemUpdated } from './inventory/recipeRecalculation';
