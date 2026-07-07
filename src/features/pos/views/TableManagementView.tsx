@@ -40,7 +40,7 @@ export const TableManagementView: React.FC<TableManagementViewProps> = ({ busine
         
         const newTableData = {
             name: `Table ${tables.length + 1}`,
-            position: { x: 50, y: 50 },
+            position: { x: 50 + (tables.length * 30), y: 50 + (tables.length * 30) },
             seats: 4,
             shape: 'rectangle' as const
         };

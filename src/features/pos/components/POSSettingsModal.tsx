@@ -162,7 +162,7 @@ const POSSettingsModal: React.FC<POSSettingsModalProps> = ({ isOpen, onClose }) 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-2">Printer Connection</label>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                         <button
                                             type="button"
                                             onClick={() => setPrinterType('simulator')}
@@ -187,12 +187,22 @@ const POSSettingsModal: React.FC<POSSettingsModalProps> = ({ isOpen, onClose }) 
                                             <Wifi className="w-4 h-4 mb-1" />
                                             <span className="text-[10px] font-medium">LAN / IP</span>
                                         </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPrinterType('qz')}
+                                            className={`flex flex-col items-center justify-center p-2 rounded-xl border ${printerType === 'qz' ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-900/50 border-slate-600 text-slate-400 hover:bg-slate-800'}`}
+                                        >
+                                            <Printer className="w-4 h-4 mb-1" />
+                                            <span className="text-[10px] font-medium">QZ Tray</span>
+                                        </button>
                                     </div>
                                 </div>
                                 
-                                {printerType === 'lan' && (
+                                {(printerType === 'lan' || printerType === 'qz') && (
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">Printer IP Address</label>
+                                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                                            {printerType === 'qz' ? 'Printer Name or IP (e.g. 192.168.1.100)' : 'Printer IP Address'}
+                                        </label>
                                         <input
                                             type="text"
                                             value={printerIp}

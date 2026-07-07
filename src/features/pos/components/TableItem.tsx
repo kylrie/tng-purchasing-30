@@ -103,13 +103,13 @@ export const TableItem: React.FC<TableItemProps> = ({ table, isSelected, billAmo
                 ${getStatusStyles()}
             `}
         >
-            <span className="font-bold text-center text-sm px-1 truncate w-full pointer-events-none">{table.name}</span>
-            <span className="text-xs opacity-70 mt-1 pointer-events-none">
+            <span className="font-bold text-center text-sm px-1 truncate w-full pointer-events-none leading-tight">{table.name}</span>
+            <span className="text-[10px] opacity-70 mt-0.5 pointer-events-none uppercase tracking-wider">
                 {table.status === 'occupied' ? 'Occupied' : table.status === 'reserved' ? 'Reserved' : `${table.seats} Seats`}
             </span>
             {billAmount !== undefined && table.status === 'occupied' && (
-                <span className="text-xs font-bold text-amber-400 mt-1 pointer-events-none">
-                    ₱{billAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                <span className="text-[11px] font-bold text-amber-400 mt-0.5 pointer-events-none bg-black/20 px-1.5 py-0.5 rounded-md">
+                    ₱{billAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
             )}
             {table.qrEnabled && (

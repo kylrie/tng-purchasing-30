@@ -36,7 +36,7 @@ const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
     const setQuickAmount = (amount: number) => {
         if (amount === -1) { // Exact amount
-            setAmountTendered(total.toString());
+            setAmountTendered(total.toFixed(2));
         } else {
             setAmountTendered(amount.toString());
         }

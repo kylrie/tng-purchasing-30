@@ -17,41 +17,27 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
 
     if (!isOpen || !order) return null;
 
-    const handlePrint = () => {
-        const printContent = receiptRef.current?.innerHTML;
-        if (printContent) {
-            const printWindow = window.open('', '', 'width=400,height=600');
-            if (printWindow) {
-                printWindow.document.write(`
-                    <html>
-                        <head>
-                            <title>Receipt ${order.orderNumber}</title>
-                            <style>
-                                body { font-family: monospace; padding: 20px; font-size: 14px; line-height: 1.5; color: #000; }
-                                .text-center { text-align: center; }
-                                .text-right { text-align: right; }
-                                .text-left { text-align: left; }
-                                .flex { display: flex; justify-content: space-between; }
-                                .bold { font-weight: bold; }
-                                .border-b { border-bottom: 1px dashed #000; margin-bottom: 10px; padding-bottom: 10px; }
-                                .border-t { border-top: 1px dashed #000; margin-top: 10px; padding-top: 10px; }
-                                .mt-4 { margin-top: 20px; }
-                                .text-sm { font-size: 12px; }
-                                .text-xl { font-size: 18px; }
-                                table { w-full: 100%; border-collapse: collapse; width: 100%; }
-                                th, td { padding: 4px 0; }
-                            </style>
-                        </head>
-                        <body>
-                            ${printContent}
-                            <script>
-                                window.onload = function() { window.print(); window.close(); }
-                            </script>
-                        </body>
-                    </html>
-                `);
-                printWindow.document.close();
+    const handlePrint = async () => {
+        try {
+            const savedPrinter = localStorage.getItem('pos_printer_type') as import('../services/pos-printer.service').PrinterConnectionType || 'simulator';
+            const savedIp = localStorage.getItem('pos_printer_ip') || '192.168.1.100';
+            
+            const config = { type: savedPrinter, ipAddress: savedIp };
+            const { POSPrinterService } = await import('../services/pos-printer.service');
+            
+            if (savedPrinter === 'bluetooth') {
+                await POSPrinterService.connectBluetooth();
             }
+            
+            const text = POSPrinterService.formatOrderReceipt(order);
+            const payload = POSPrinterService.generateReceiptPayload(text);
+            await POSPrinterService.print(config, payload);
+            
+            // Optionally close the modal after printing, or show a toast
+            // toast.success('Printed successfully');
+        } catch (err: any) {
+            console.error('Print failed:', err);
+            alert('Print failed: ' + (err.message || 'Unknown error'));
         }
     };
 
@@ -124,7 +110,9 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Date:</span>
-                                        <span className="font-medium text-black">{order.createdAt.toDate().toLocaleString()}</span>
+                                        <span className="font-medium text-black">
+                                            {order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : new Date(order.createdAt as any).toLocaleString()}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Cashier:</span>
