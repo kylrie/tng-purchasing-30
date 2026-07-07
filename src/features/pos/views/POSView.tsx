@@ -142,7 +142,6 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
             }
 
             const text = POSPrinterService.formatRunningBill({
-                orderNumber: activeBill?.orderNumber,
                 createdAt: activeBill?.createdAt,
                 cashierName: activeCashier?.name,
                 tableName: activeTable.name,
