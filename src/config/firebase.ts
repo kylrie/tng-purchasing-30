@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 export const isConfigValid = !!import.meta.env.VITE_FIREBASE_API_KEY;
@@ -97,6 +98,6 @@ export const db = initializeFirestore(
 );
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+export const functions = getFunctions(app, 'asia-southeast1'); // or default region, let's just use getFunctions(app)
 export const googleProvider = new GoogleAuthProvider();
 export { app }; // Export app for Cloud Functions
-

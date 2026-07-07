@@ -68,20 +68,20 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
 
     const { menuItems, isLoading, sellableStockMap } = usePOSMenu(selectedBusinessUnit);
     const { 
-        cartItems,
-        setCartItems,
-        addToCart,
-        clearCart,
+        cartItems, 
+        grossSubtotal: subtotal, 
+        totalVatableSales: vatableSales, 
+        totalVatExemptSales: vatExemptSales, 
+        totalVatAmount: taxAmount, 
+        totalDiscount: discountAmount, 
+        totalScPwdDiscount: scPwdDiscountAmount, 
+        totalManualDiscount: manualItemDiscountAmount, 
         globalDiscountAmount,
-        subtotal,
-        vatableSales,
-        vatExemptSales,
-        taxAmount,
-        serviceChargeAmount,
-        discountAmount,
-        scPwdDiscountAmount,
-        manualItemDiscountAmount,
-        total,
+        serviceChargeAmount, 
+        total, 
+        clearCart,
+        addToCart,
+        setCartItems,
         setSettings
     } = usePOSStore();
 

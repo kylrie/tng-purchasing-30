@@ -7,13 +7,11 @@ import { useAuth } from '../../../contexts/useAuth';
 
 interface CashierSettingsPanelProps {
     allUsers: User[];
-    onUpdateUser: (user: User) => void;
     businesses: Business[];
 }
 
-const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
+export const CashierSettingsPanel: React.FC<CashierSettingsPanelProps> = ({
     allUsers,
-    onUpdateUser,
     businesses
 }) => {
     const { currentUser } = useAuth();

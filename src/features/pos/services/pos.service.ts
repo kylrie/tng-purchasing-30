@@ -21,8 +21,8 @@ export class POSService {
             // For the frontend to continue using it as a Timestamp:
             const returnOrder = result.data.order;
             if (typeof returnOrder.createdAt === 'string') {
-                returnOrder.createdAt = Timestamp.fromDate(new Date(returnOrder.createdAt as string));
-                returnOrder.updatedAt = Timestamp.fromDate(new Date(returnOrder.updatedAt as string));
+                returnOrder.createdAt = Timestamp.fromDate(new Date(returnOrder.createdAt as unknown as string));
+                returnOrder.updatedAt = Timestamp.fromDate(new Date(returnOrder.updatedAt as unknown as string));
             }
             
             return returnOrder;
