@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut, signInWithPopup, updatePassword } from 'firebase/auth';
 import type { User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -31,15 +31,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [isNewUser, setIsNewUser] = useState(false);
     const [tempFirebaseUser, setTempFirebaseUser] = useState<FirebaseUser | null>(null);
     const navigate = useNavigate();
-    const location = useLocation();
 
-    // After a successful sign-in, return the user to the page they were trying
-    // to reach (set as location.state.from by ProtectedRoute or a deep-link
-    // sign-in card). Falls back to '/' for a plain login — unchanged behavior.
-    const postLoginTarget = (): string => {
-        const from = (location.state as { from?: { pathname?: string } } | null)?.from;
-        return from?.pathname && from.pathname !== '/login' ? from.pathname : '/';
-    };
+    // Post-login navigation is handled DECLARATIVELY by the /login route (it
+    // redirects to location.state.from once currentUser is set). The handlers
+    // below intentionally do NOT imperatively navigate on success: doing so
+    // races the async onAuthStateChanged (which awaits a Firestore getDoc before
+    // setting currentUser), so the redirect could fire while currentUser is
+    // still null and bounce back to /login. See LoginView's authed redirect.
 
     // =====================================================
     // FIX BUG 4: Rate limiting with localStorage persistence
@@ -131,7 +129,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // FIX BUG 4: Reset attempts on successful login (also clears localStorage via useEffect)
             setLoginAttempts(0);
             setLockoutUntil(null);
-            navigate(postLoginTarget(), { replace: true });
+            // Navigation handled by the /login route once currentUser is set.
         } catch (err) {
             const firebaseErr = err as FirebaseError;
             // FIX BUG 4: Increment failed attempts (persisted via useEffect)
@@ -168,7 +166,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 const userData = userDoc.data() as User;
 
                 if (userData.status === UserStatus.ACTIVE) {
-                    navigate(postLoginTarget(), { replace: true });
+                    // Active: onAuthStateChanged sets currentUser; the /login
+                    // route then redirects to the intended destination.
                 } else if (userData.status === UserStatus.PENDING_APPROVAL) {
                     setError('Your account is awaiting approval from an administrator.');
                     await signOut(auth);

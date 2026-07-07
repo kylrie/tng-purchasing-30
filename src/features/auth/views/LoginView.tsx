@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Mail, Sparkles, ArrowRight, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { ThemeToggle } from '../../../shared/components/ThemeToggle';
 import { useAuth } from '../../../contexts/useAuth';
@@ -15,12 +16,24 @@ const GoogleIcon = () => (
 );
 
 const LoginView = () => {
-  const { loginWithEmail, loginWithGoogle, completeNewUserRegistration, isNewUser, loading, error, setError } = useAuth();
+  const { currentUser, loginWithEmail, loginWithGoogle, completeNewUserRegistration, isNewUser, loading, error, setError } = useAuth();
+  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleFlow, setIsGoogleFlow] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  // Race-proof post-login redirect: once authentication resolves (currentUser
+  // set by onAuthStateChanged after its Firestore read), leave /login for the
+  // page the user originally requested. Reading `from` HERE — where it reliably
+  // exists — avoids the imperative-navigate race that previously bounced deep
+  // links (e.g. /qr-hub) back to '/'. Declared after all hooks (Rules of Hooks).
+  if (currentUser) {
+    const from = (location.state as { from?: { pathname?: string } } | null)?.from;
+    const target = from?.pathname && from.pathname !== '/login' ? from.pathname : '/';
+    return <Navigate to={target} replace />;
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
