@@ -49,6 +49,7 @@ export interface TicketData {
     lines: TicketLine[];
     paid: boolean;
     atMillis: number;
+    isReprint?: boolean;
 }
 
 // ── ESC/POS builders ─────────────────────────────────────────────────────────
@@ -89,7 +90,9 @@ export function buildTicket(t: TicketData): Uint8Array {
         // Station heading (biggest, centered)
         ...ALIGN_CENTER, ...BOLD_ON, ...SIZE_2X,
         ...line(t.station),
-        ...SIZE_NORMAL, ...BOLD_OFF, ...ALIGN_LEFT,
+        ...SIZE_NORMAL,
+        ...(t.isReprint ? line('** REPRINT **') : []),
+        ...BOLD_OFF, ...ALIGN_LEFT,
         ...FEED(1),
         // Item lines (double height for legibility)
         ...SIZE_2H, ...BOLD_ON,
@@ -131,6 +134,7 @@ export function buildTicketHtml(t: TicketData): string {
   .hdr { font-size: 24pt; font-weight: 900; line-height: 1.05; }
   .time { font-size: 11pt; margin-top: 1mm; }
   .station { font-size: 34pt; font-weight: 900; text-align: center; margin: 3mm 0; letter-spacing: 1px; }
+  .reprint { font-size: 16pt; font-weight: 900; text-align: center; margin-bottom: 2mm; }
   .item { font-size: 19pt; font-weight: 800; line-height: 1.25; }
   .notes { font-size: 13pt; margin-top: 3mm; border: 2px solid #000; padding: 2mm; }
   .paid { font-size: 22pt; font-weight: 900; text-align: center; margin-top: 4mm; border-top: 2px dashed #000; padding-top: 3mm; }
@@ -140,6 +144,7 @@ export function buildTicketHtml(t: TicketData): string {
   <div class="hdr">TABLE ${esc(t.tableNumber)}</div>
   <div class="time">${time}</div>
   <div class="station">${t.station}</div>
+  ${t.isReprint ? `<div class="reprint">** REPRINT **</div>` : ''}
   <hr>${items}${notesHtml}
   <div class="paid">${t.paid ? 'PAID' : 'UNPAID'}</div>
 </div>
@@ -239,8 +244,10 @@ export async function printStation(
         return { ok: true }; // already printed — idempotent no-op (use reprint for an extra copy)
     }
     if (!opts.reprint) setJobStatus(orderId, t.station, 'PENDING');
+    
+    const ticketToPrint = { ...t, isReprint: !!opts.reprint };
     try {
-        await printByMode(t);
+        await printByMode(ticketToPrint);
         if (!opts.reprint) setJobStatus(orderId, t.station, 'PRINTED');
         return { ok: true };
     } catch (e) {
