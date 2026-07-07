@@ -4,7 +4,7 @@ import { writeBatch, doc, collection, runTransaction } from 'firebase/firestore'
 import { db } from '../../../config/firebase';
 import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
 import type { User } from '../../procurement/types';
-import type { StockTransaction } from '../../pos/types/pos-import.types';
+
 import type {
     InventoryItem,
     InventoryItemType,
