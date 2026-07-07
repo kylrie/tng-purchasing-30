@@ -141,36 +141,15 @@ const CustomerMenuView: React.FC = () => {
 
     const handleRetry = () => setReloadKey(k => k + 1);
 
-    // Real subcategory tabs are derived from the ACTUAL loaded items (grouped by
-    // their real Firestore category) so EVERY active item has a reachable tab and
-    // nothing is silently dropped by a hardcoded taxonomy. The mock/demo route keeps
-    // the approved fixed hierarchy.
-    const groupSubcategories = useMemo<Record<MenuGroup, string[]>>(() => {
-        if (usingMock) {
-            return {
-                Food: MENU_GROUPS.find(g => g.key === 'Food')?.subcategories ?? [],
-                Drinks: MENU_GROUPS.find(g => g.key === 'Drinks')?.subcategories ?? [],
-            };
-        }
-        const out: Record<MenuGroup, string[]> = { Food: [], Drinks: [] };
-        const seen: Record<MenuGroup, Set<string>> = { Food: new Set(), Drinks: new Set() };
-        for (const it of menuItems) {
-            if (it.category && !seen[it.group].has(it.category)) {
-                seen[it.group].add(it.category);
-                out[it.group].push(it.category);
-            }
-        }
-        return out;
-    }, [usingMock, menuItems]);
-
-    const subcategories = groupSubcategories[activeGroup] ?? [];
-
-    // Keep the selected subcategory valid as real tabs arrive (the default
-    // 'Appetizers' may not be one of a business's real categories).
-    useEffect(() => {
-        const subs = groupSubcategories[activeGroup] ?? [];
-        if (subs.length > 0 && !subs.includes(activeSub)) setActiveSub(subs[0]);
-    }, [groupSubcategories, activeGroup, activeSub]);
+    // FIXED, approved two-level navigation (product decision — never derived from
+    // whatever categories happen to exist in Firestore). Every button below is
+    // always present in its original place: Food = Appetizers / Mains / Sharing
+    // Plates / Desserts; Drinks = Soft Drinks / Fresh Juice / Cocktails / Beer /
+    // Coffee. Real items are normalized INTO these categories in the mapper.
+    const subcategories = useMemo(
+        () => MENU_GROUPS.find(g => g.key === activeGroup)?.subcategories ?? [],
+        [activeGroup],
+    );
 
     const visibleItems = useMemo(
         () => menuItems.filter(item => item.group === activeGroup && item.category === activeSub),
@@ -179,7 +158,7 @@ const CustomerMenuView: React.FC = () => {
 
     const handleGroupChange = (group: MenuGroup) => {
         setActiveGroup(group);
-        const firstSub = (groupSubcategories[group] ?? [])[0];
+        const firstSub = MENU_GROUPS.find(g => g.key === group)?.subcategories[0];
         if (firstSub) setActiveSub(firstSub);
     };
 
@@ -416,8 +395,8 @@ const CustomerMenuView: React.FC = () => {
                             <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
                                 <UtensilsCrossed size={26} className="text-slate-400" strokeWidth={1.5} />
                             </div>
-                            <h3 className="text-base font-bold text-slate-700 mb-1">Nothing here yet</h3>
-                            <p className="text-slate-400 text-sm max-w-[16rem]">This part of the menu is being prepared. Please check another category.</p>
+                            <h3 className="text-base font-bold text-slate-700 mb-1">No items available in this category.</h3>
+                            <p className="text-slate-400 text-sm max-w-[16rem]">Please try another category.</p>
                         </div>
                     ) : (
                         visibleItems.map(item => {

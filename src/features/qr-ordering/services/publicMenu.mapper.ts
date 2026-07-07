@@ -67,22 +67,64 @@ export function buildCategoryGroupIndex(
     return index;
 }
 
+/** Fallback subcategory per group for a category we can't confidently map — the
+ *  active item stays VISIBLE under the safest bucket rather than being dropped. */
+const FALLBACK_SUBCATEGORY: Record<MenuGroup, string> = { Food: 'Mains', Drinks: 'Soft Drinks' };
+
 /**
- * Classify a raw menu category into the customer Food/Drinks group. Uses the
- * approved taxonomy first (exact match), then drink keyword hints, then Food.
- * This guarantees a real item is never dropped just because its Firestore
- * `category` string isn't one of the hardcoded subcategory tabs — the item keeps
- * its real category (used as a dynamic tab) but always lands in a sane group.
+ * Explicit alias map: raw backend `menu_items.category` (lowercased + trimmed) →
+ * one of the FIXED canonical customer subcategory tabs (MENU_GROUPS). The nav is a
+ * stable product decision and never changes; real data is normalized INTO it here.
+ * Extend this list as real backend category strings are confirmed — do NOT change
+ * the tabs to match the backend.
  */
-export function groupForCategory(
-    category: string,
+const CATEGORY_ALIAS: Record<string, string> = {
+    // → Appetizers
+    'appetizer': 'Appetizers', 'appetizers': 'Appetizers', 'starter': 'Appetizers', 'starters': 'Appetizers',
+    'apps': 'Appetizers', 'small bites': 'Appetizers', 'pica pica': 'Appetizers', 'pulutan': 'Appetizers',
+    // → Mains
+    'main': 'Mains', 'mains': 'Mains', 'main course': 'Mains', 'main courses': 'Mains', 'entree': 'Mains',
+    'entrees': 'Mains', 'main dish': 'Mains', 'rice meals': 'Mains', 'specials': 'Mains', 'sides': 'Mains', 'side': 'Mains',
+    // → Sharing Plates
+    'sharing': 'Sharing Plates', 'sharing plate': 'Sharing Plates', 'sharing plates': 'Sharing Plates',
+    'to share': 'Sharing Plates', 'share': 'Sharing Plates', 'platter': 'Sharing Plates', 'platters': 'Sharing Plates', 'boodle': 'Sharing Plates',
+    // → Desserts
+    'dessert': 'Desserts', 'desserts': 'Desserts', 'sweets': 'Desserts', 'sweet': 'Desserts',
+    // → Soft Drinks
+    'soft drink': 'Soft Drinks', 'soft drinks': 'Soft Drinks', 'softdrink': 'Soft Drinks', 'softdrinks': 'Soft Drinks',
+    'soda': 'Soft Drinks', 'sodas': 'Soft Drinks', 'beverage': 'Soft Drinks', 'beverages': 'Soft Drinks', 'non-alcoholic': 'Soft Drinks',
+    // → Fresh Juice
+    'juice': 'Fresh Juice', 'juices': 'Fresh Juice', 'fresh juice': 'Fresh Juice', 'fresh juices': 'Fresh Juice',
+    'shake': 'Fresh Juice', 'shakes': 'Fresh Juice', 'smoothie': 'Fresh Juice', 'smoothies': 'Fresh Juice',
+    // → Cocktails
+    'cocktail': 'Cocktails', 'cocktails': 'Cocktails', 'mixed drink': 'Cocktails', 'mixed drinks': 'Cocktails',
+    'mocktail': 'Cocktails', 'mocktails': 'Cocktails',
+    // → Beer
+    'beer': 'Beer', 'beers': 'Beer', 'lager': 'Beer', 'pilsen': 'Beer',
+    // → Coffee
+    'coffee': 'Coffee', 'coffees': 'Coffee', 'coffee & tea': 'Coffee', 'coffee and tea': 'Coffee', 'espresso': 'Coffee', 'latte': 'Coffee',
+};
+
+/**
+ * Normalize a raw `menu_items.category` to one of the FIXED canonical customer
+ * subcategories + its group. Order: exact canonical match → alias map → a
+ * group-appropriate fallback bucket (so an active item is NEVER silently dropped
+ * by an unrecognized category string). Pure + testable. Unrecognized categories
+ * are logged once so backend data can be corrected.
+ */
+export function normalizeCategory(
+    raw: string,
     index: Map<string, MenuGroup> = buildCategoryGroupIndex(),
-): MenuGroup {
-    const known = index.get(category);
-    if (known) return known;
-    const c = (category ?? '').toLowerCase();
-    if (DRINK_CATEGORY_HINTS.some(h => c.includes(h))) return 'Drinks';
-    return DEFAULT_GROUP;
+): { category: string; group: MenuGroup } {
+    const trimmed = (raw ?? '').trim();
+    const exact = index.get(trimmed);
+    if (exact) return { category: trimmed, group: exact };
+    const aliased = CATEGORY_ALIAS[trimmed.toLowerCase()];
+    if (aliased) return { category: aliased, group: index.get(aliased) ?? DEFAULT_GROUP };
+    // Unrecognized: keep the item visible under the safest bucket for its group.
+    const group: MenuGroup = DRINK_CATEGORY_HINTS.some(h => trimmed.toLowerCase().includes(h)) ? 'Drinks' : DEFAULT_GROUP;
+    if (trimmed) console.warn(`[qr-menu] unmapped category "${trimmed}" → ${FALLBACK_SUBCATEGORY[group]} (add an alias)`);
+    return { category: FALLBACK_SUBCATEGORY[group], group };
 }
 
 /**
@@ -95,11 +137,13 @@ export function mapMenuItem(
     dto: PublicMenuItemDTO,
     index: Map<string, MenuGroup> = buildCategoryGroupIndex(),
 ): PublicMenuItem {
+    // Normalize the raw backend category INTO a fixed canonical customer tab.
+    const { category, group } = normalizeCategory(dto.category, index);
     const item: PublicMenuItem = {
         id: dto.id,
         name: dto.name,
-        group: groupForCategory(dto.category, index),
-        category: dto.category,
+        group,
+        category,
         sellingPrice: dto.sellingPrice,
         isAvailable: dto.isAvailable === true,
     };
