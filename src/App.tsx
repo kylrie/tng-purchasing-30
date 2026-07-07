@@ -33,6 +33,7 @@ const KitchenQueueView = React.lazy(() => import('./features/qr-ordering/kitchen
 const BarQueueView = React.lazy(() => import('./features/qr-ordering/bar/BarQueueView'));
 const CashierReconciliationView = React.lazy(() => import('./features/qr-ordering/cashier/CashierReconciliationView'));
 const TableManagementView = React.lazy(() => import('./features/qr-ordering/admin/TableManagementView'));
+const QrHubView = React.lazy(() => import('./features/qr-ordering/admin/QrHubView'));
 const BurfView = React.lazy(() => import('./features/procurement/views/BURFView'));
 const PrfView = React.lazy(() => import('./features/procurement/views/PRFView'));
 const PRFTrackerView = React.lazy(() => import('./features/procurement/views/PRFTrackerView'));
@@ -250,6 +251,9 @@ function ProtectedApp() {
               <Routes>
                 <Route path="/" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
                 <Route path="/dashboard" element={<MainDashboardRouter requisitions={requisitions} currentUser={currentUser} allUsers={users} suppliers={suppliers} businesses={accessibleBusinesses} onCreateRequisition={createRequisition} onUpdateRequisition={updateRequisition} />} />
+
+                {/* QR Hub — cross-business QR ordering entry point (admin-only; guarded inside the view) */}
+                <Route path="/qr-hub" element={<QrHubView currentUser={currentUser} businesses={accessibleBusinesses} />} />
 
                 <Route path="/burf" element={
                   <ProtectedRoute permission="ui:module_access:view:burf">

@@ -39,7 +39,8 @@ import {
     Store,
     Trash2,
     Calendar,
-    BookOpen
+    BookOpen,
+    QrCode
 } from 'lucide-react';
 import type { User, Business } from '../../features/procurement/types';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -252,6 +253,7 @@ const Layout: React.FC<LayoutProps> = ({
 
     const navItems: NavItem[] = [
         { path: '/', label: 'Dashboard', icon: LayoutDashboard, canView: true },
+        { path: '/qr-hub', label: 'QR Hub', icon: QrCode, canView: currentUser.role === UserRole.SUPER_ADMIN || currentUser.role === UserRole.ADMIN },
         {
             label: 'Procurement',
             icon: Briefcase,
