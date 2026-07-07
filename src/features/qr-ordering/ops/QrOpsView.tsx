@@ -12,7 +12,7 @@ import { subscribeQrOrders, type OpsOrder, type OpsOrderLine } from '../services
 import { isDrinkCategory } from '../services/barOrders.service';
 import {
     connectPrinter, disconnectPrinter, isPrinterConnected, printTest, printStation,
-    getJobStatus, type Station, type TicketLine,
+    getJobStatus, getPrintMode, setPrintMode, type Station, type TicketLine, type PrintMode,
 } from '../services/qrPrinter.service';
 import { updateQrOrderStatus, toUserFacingTransitionError, NEXT_STATUS } from '../services/updateOrderStatus.service';
 import {
@@ -169,9 +169,14 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     const selected = derived.find(o => o.id === selectedId) ?? null;
     const [liveFilter, setLiveFilter] = useState<string>('active');
 
-    // ── Bluetooth ticket printer (reuses the proven POS print path) ─────────
+    // ── Ticket printer: Bluetooth (spare test printer) or System/window.print
+    // (OS-installed XP-Q801). Both reuse existing print paths — no new bridge. ──
     const [printerOpen, setPrinterOpen] = useState(false);
-    const [printerConnected, setPrinterConnected] = useState<boolean>(() => isPrinterConnected());
+    const [btConnected, setBtConnected] = useState<boolean>(() => isPrinterConnected());
+    const [printMode, setPrintModeState] = useState<PrintMode>(() => getPrintMode());
+    // System mode needs no pairing (the OS driver is always available); Bluetooth
+    // needs an active connection.
+    const printerReady = printMode === 'system' || btConnected;
 
     const openLiveWithFilter = (f: string) => { setLiveFilter(f); goTab('live'); };
     const goTab = (t: OpsTab) => navigate(`/qr-ops/${t}`);
@@ -188,7 +193,7 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
 
     return (
         <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts}
-            printerConnected={printerConnected} onOpenPrinter={() => setPrinterOpen(true)} onRetry={() => setReloadKey(k => k + 1)}>
+            printerConnected={printerReady} onOpenPrinter={() => setPrinterOpen(true)} onRetry={() => setReloadKey(k => k + 1)}>
             {conn === 'loading' ? (
                 <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
             ) : conn === 'error' ? (
@@ -208,8 +213,9 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
             )}
 
             {selected && <OrderDetailPanel order={selected} now={now} onClose={() => setSelectedId(null)}
-                printerConnected={printerConnected} onNeedPrinter={() => setPrinterOpen(true)} />}
-            {printerOpen && <PrinterPanel connected={printerConnected} setConnected={setPrinterConnected} onClose={() => setPrinterOpen(false)} />}
+                printerConnected={printerReady} onNeedPrinter={() => setPrinterOpen(true)} />}
+            {printerOpen && <PrinterPanel mode={printMode} onModeChange={(m) => { setPrintMode(m); setPrintModeState(m); }}
+                btConnected={btConnected} setBtConnected={setBtConnected} onClose={() => setPrinterOpen(false)} />}
         </OpsShell>
     );
 };
@@ -918,24 +924,34 @@ const OfflineDiagnostics: React.FC<{ diagnostics: OpsDiagnostics; onRetry: () =>
 // Printer: setup panel (top bar) + per-order Kitchen/Bar print buttons.
 // Reuses the proven POS Bluetooth path (qrPrinter.service → POSPrinterService).
 // ════════════════════════════════════════════════════════════════════════════
-const PrinterPanel: React.FC<{ connected: boolean; setConnected: (b: boolean) => void; onClose: () => void }> = ({ connected, setConnected, onClose }) => {
+const PrinterPanel: React.FC<{
+    mode: PrintMode; onModeChange: (m: PrintMode) => void;
+    btConnected: boolean; setBtConnected: (b: boolean) => void; onClose: () => void;
+}> = ({ mode, onModeChange, btConnected, setBtConnected, onClose }) => {
     const [busy, setBusy] = useState<'connect' | 'test' | null>(null);
     const [error, setError] = useState('');
     const [ok, setOk] = useState('');
 
     const doConnect = async () => {
         setError(''); setOk(''); setBusy('connect');
-        try { await connectPrinter(); setConnected(true); setOk('Printer paired.'); }
-        catch (e) { setConnected(isPrinterConnected()); setError((e as Error)?.message || 'Pairing failed.'); }
+        try { await connectPrinter(); setBtConnected(true); setOk('Printer paired.'); }
+        catch (e) { setBtConnected(isPrinterConnected()); setError((e as Error)?.message || 'Pairing failed.'); }
         finally { setBusy(null); }
     };
     const doTest = async () => {
         setError(''); setOk(''); setBusy('test');
-        try { await printTest(); setOk('Test ticket sent.'); }
-        catch (e) { setError((e as Error)?.message || 'Test print failed.'); setConnected(isPrinterConnected()); }
+        try { await printTest(); setOk(mode === 'system' ? 'Sent to system printer.' : 'Test ticket sent.'); }
+        catch (e) { setError((e as Error)?.message || 'Test print failed.'); if (mode === 'bluetooth') setBtConnected(isPrinterConnected()); }
         finally { setBusy(null); }
     };
-    const doDisconnect = () => { disconnectPrinter(); setConnected(false); setOk('Disconnected.'); setError(''); };
+    const doDisconnect = () => { disconnectPrinter(); setBtConnected(false); setOk('Disconnected.'); setError(''); };
+
+    const ModeBtn: React.FC<{ m: PrintMode; label: string }> = ({ m, label }) => (
+        <button type="button" onClick={() => onModeChange(m)}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-black border-2 ${mode === m ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+            {label}
+        </button>
+    );
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Printer setup">
@@ -946,26 +962,51 @@ const PrinterPanel: React.FC<{ connected: boolean; setConnected: (b: boolean) =>
                     <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><X size={18} /></button>
                 </div>
                 <div className="p-4 space-y-3">
-                    <div className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 font-bold ${connected ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
-                        <span className={`w-2.5 h-2.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        {connected ? 'Printer connected' : 'No printer connected'}
+                    <div>
+                        <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Printer type</div>
+                        <div className="flex gap-2">
+                            <ModeBtn m="system" label="System / LAN" />
+                            <ModeBtn m="bluetooth" label="Bluetooth" />
+                        </div>
                     </div>
+
                     {error && <div role="alert" className="rounded-lg bg-red-600 text-white px-3 py-2 text-sm font-bold flex items-center gap-2"><AlertCircle size={15} />{error}</div>}
                     {ok && <div className="rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm font-bold flex items-center gap-2"><CheckCircle2 size={15} />{ok}</div>}
-                    <button type="button" onClick={doConnect} disabled={busy === 'connect'} className="w-full py-3 rounded-lg bg-slate-900 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
-                        {busy === 'connect' ? <Loader2 size={18} className="animate-spin" /> : <Bluetooth size={18} />} {connected ? 'Re-pair printer' : 'Pair printer'}
-                    </button>
-                    <button type="button" onClick={doTest} disabled={busy === 'test'} className="w-full py-3 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
-                        {busy === 'test' ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />} Test print
-                    </button>
-                    {connected && (
-                        <button type="button" onClick={doDisconnect} className="w-full py-2.5 rounded-lg bg-white border-2 border-slate-300 text-slate-700 font-bold flex items-center justify-center gap-2">
-                            <Power size={16} /> Disconnect
-                        </button>
+
+                    {mode === 'bluetooth' ? (
+                        <>
+                            <div className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 font-bold ${btConnected ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full ${btConnected ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                {btConnected ? 'Printer connected' : 'No printer connected'}
+                            </div>
+                            <button type="button" onClick={doConnect} disabled={busy === 'connect'} className="w-full py-3 rounded-lg bg-slate-900 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                                {busy === 'connect' ? <Loader2 size={18} className="animate-spin" /> : <Bluetooth size={18} />} {btConnected ? 'Re-pair printer' : 'Pair printer'}
+                            </button>
+                            <button type="button" onClick={doTest} disabled={busy === 'test'} className="w-full py-3 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                                {busy === 'test' ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />} Test print
+                            </button>
+                            {btConnected && (
+                                <button type="button" onClick={doDisconnect} className="w-full py-2.5 rounded-lg bg-white border-2 border-slate-300 text-slate-700 font-bold flex items-center justify-center gap-2">
+                                    <Power size={16} /> Disconnect
+                                </button>
+                            )}
+                            <p className="text-xs text-slate-500 leading-relaxed pt-1">
+                                Web Bluetooth — Fred's spare test printer. Pairing needs a tap and resets on reload. Android/desktop Chrome or Edge only (not iPhone/iPad).
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <div className="rounded-lg border-2 border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">
+                                Prints via the browser's print dialog to the OS-installed printer (the location's <b>XP-Q801</b>), 80mm.
+                            </div>
+                            <button type="button" onClick={doTest} disabled={busy === 'test'} className="w-full py-3 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                                {busy === 'test' ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />} Test print
+                            </button>
+                            <p className="text-xs text-slate-500 leading-relaxed pt-1">
+                                Set the <b>XP-Q801</b> as the default printer and enable its driver's <b>auto-cut</b>. A print dialog appears per ticket (browser rule). Silent raw ESC/POS to :9100 needs a local bridge — a later option.
+                            </p>
+                        </>
                     )}
-                    <p className="text-xs text-slate-500 leading-relaxed pt-1">
-                        Reuses the POS Bluetooth printer. Pairing needs a tap (browser rule) and the connection resets on reload — just re-pair. For this MVP one printer serves both <b>Kitchen</b> and <b>Bar</b>; print from an order's detail. Works on <b>Android/desktop Chrome or Edge</b> (not iPhone/iPad).
-                    </p>
                 </div>
             </div>
         </div>
