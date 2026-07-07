@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-    LayoutDashboard, ListOrdered, ChefHat, Table2, History as HistoryIcon, LockKeyhole,
-    AlertCircle, Loader2, ChevronLeft, ChevronRight, X, Wifi, WifiOff, Clock, Receipt,
+    LayoutDashboard, ListOrdered, ChefHat, Wine, Table2, History as HistoryIcon, LockKeyhole,
+    AlertCircle, Loader2, LogOut, ChevronRight, X, Wifi, WifiOff, Clock, Receipt,
     CheckCircle2, StickyNote,
 } from 'lucide-react';
 import type { Business } from '../../procurement/types';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
-import { subscribeQrOrders, type OpsOrder } from '../services/qrOrders.service';
+import { subscribeQrOrders, type OpsOrder, type OpsOrderLine } from '../services/qrOrders.service';
+import { isDrinkCategory } from '../services/barOrders.service';
 import { updateQrOrderStatus, toUserFacingTransitionError, NEXT_STATUS } from '../services/updateOrderStatus.service';
 import {
     kitchenLaneFor, attentionFor, sortRank, isActiveStatus, orderStatusPresentation,
@@ -26,14 +27,21 @@ import { StatusChip, PaymentChip, AttentionBadge, AccentBar, minutesSince, elaps
  * busy worker knows in ~2s what is new, late, cooking, ready, or a problem.
  */
 
-type OpsTab = 'overview' | 'live' | 'kitchen' | 'tables' | 'history';
+type OpsTab = 'overview' | 'live' | 'kitchen' | 'bar' | 'tables' | 'history';
 const TABS: { key: OpsTab; label: string; Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }> }[] = [
     { key: 'overview', label: 'Overview', Icon: LayoutDashboard },
     { key: 'live', label: 'Live Orders', Icon: ListOrdered },
     { key: 'kitchen', label: 'Kitchen', Icon: ChefHat },
+    { key: 'bar', label: 'Bar Orders', Icon: Wine },
     { key: 'tables', label: 'Tables', Icon: Table2 },
     { key: 'history', label: 'History', Icon: HistoryIcon },
 ];
+
+// ── Food / drink line routing (single source: the approved menu's Drinks group) ──
+// Kitchen shows FOOD lines only; Bar shows DRINK lines only. Both derive from the
+// SAME live order via item.category, so one order can appear on both boards.
+const foodLines = (items: OpsOrderLine[]): OpsOrderLine[] => items.filter(l => !isDrinkCategory(l.category));
+const drinkLines = (items: OpsOrderLine[]): OpsOrderLine[] => items.filter(l => isDrinkCategory(l.category));
 
 /** An OpsOrder plus the live-derived fields the views need (recomputed each tick). */
 interface DerivedOrder extends OpsOrder {
@@ -63,7 +71,20 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     const [orders, setOrders] = useState<OpsOrder[]>([]);
     const [conn, setConn] = useState<ConnState>('loading');
     const [lastUpdated, setLastUpdated] = useState<number>(0);
+    const [lastError, setLastError] = useState<{ code?: string; message?: string } | null>(null);
     const [reloadKey, setReloadKey] = useState(0);
+
+    // Phase-1 diagnostics: the exact runtime facts needed to root-cause an OFFLINE
+    // feed (surfaced in the error panel + logged), instead of silently swallowing it.
+    const diagnostics = {
+        businessUnitId,
+        databaseId: (import.meta.env.VITE_FIREBASE_DATABASE_ID as string | undefined)?.trim() || '(default)',
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined,
+        uid: currentUser?.id,
+        role: (currentUser as { role?: string } | null)?.role,
+        errorCode: lastError?.code,
+        errorMessage: lastError?.message,
+    };
 
     // Ticking clock so elapsed timers + attention refresh without re-subscribing.
     const [now, setNow] = useState<number>(() => Date.now());
@@ -76,10 +97,22 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
         if (authLoading) { setConn('loading'); return; }
         if (!signedIn || !businessUnitId) { setConn('unauthorized'); return; }
         setConn('loading');
+        setLastError(null);
         const unsub = subscribeQrOrders(
             businessUnitId,
             list => { setOrders(list); setConn('live'); setLastUpdated(Date.now()); setNow(Date.now()); },
-            () => setConn('error'),
+            (err) => {
+                const e = err as { code?: string; message?: string };
+                // Real evidence for the OFFLINE trace — the exact Firestore failure +
+                // the query context, so the cause is diagnosable without guessing.
+                console.error('[qr-ops] live feed error', {
+                    code: e?.code, message: e?.message,
+                    businessUnitId,
+                    databaseId: (import.meta.env.VITE_FIREBASE_DATABASE_ID as string | undefined)?.trim() || '(default)',
+                });
+                setLastError({ code: e?.code, message: e?.message });
+                setConn('error');
+            },
         );
         return () => unsub();
     }, [authLoading, signedIn, businessUnitId, reloadKey]);
@@ -118,14 +151,15 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
             {conn === 'loading' ? (
                 <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
             ) : conn === 'error' ? (
-                <Centered Icon={AlertCircle} iconRed title="Couldn’t reach live orders"
-                    body="The operations feed dropped. Check your connection and retry." onRetry={() => setReloadKey(k => k + 1)} />
+                <OfflineDiagnostics diagnostics={diagnostics} onRetry={() => setReloadKey(k => k + 1)} />
             ) : tab === 'overview' ? (
                 <OverviewTab orders={derived} now={now} onCount={openLiveWithFilter} onOpen={setSelectedId} goTab={goTab} />
             ) : tab === 'live' ? (
                 <LiveOrdersTab orders={derived} now={now} filter={liveFilter} setFilter={setLiveFilter} onOpen={setSelectedId} />
             ) : tab === 'kitchen' ? (
                 <KitchenTab orders={derived} now={now} onOpen={setSelectedId} />
+            ) : tab === 'bar' ? (
+                <BarTab orders={derived} now={now} onOpen={setSelectedId} />
             ) : tab === 'tables' ? (
                 <TablesTab />
             ) : (
@@ -147,20 +181,24 @@ const OpsShell: React.FC<{
 }> = ({ tab, goTab, businessName, conn, lastUpdated, children }) => {
     const navigate = useNavigate();
     return (
-        <div className="min-h-dvh bg-slate-100 text-slate-900">
+        // Full-viewport operational surface — NO ERP shell. Neutral base (white / slate),
+        // color used only for status meaning. Fills the screen edge-to-edge (KDS-style).
+        <div className="min-h-dvh w-full bg-slate-100 text-slate-900 flex flex-col">
             <header className="sticky top-0 z-20 bg-white border-b-2 border-slate-200">
-                <div className="max-w-[1500px] mx-auto px-3 md:px-6 py-2.5 flex items-center gap-3">
-                    <button type="button" onClick={() => navigate('/qr-hub')} aria-label="Back to QR Hub"
-                        className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center">
-                        <ChevronLeft size={20} className="text-slate-700" strokeWidth={2.5} />
+                <div className="w-full px-3 md:px-5 py-2 flex items-center gap-3">
+                    {/* Exit Operations — the one clear way back to QR Hub (no ERP sidebar). */}
+                    <button type="button" onClick={() => navigate('/qr-hub')}
+                        className="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold">
+                        <LogOut size={16} className="rotate-180" strokeWidth={2.5} />
+                        <span className="hidden sm:inline">Exit Operations</span>
                     </button>
                     <div className="min-w-0 flex-1">
-                        <h1 className="text-lg md:text-xl font-black tracking-tight leading-none">QR Operations</h1>
-                        <p className="text-xs font-semibold text-slate-500 truncate">{businessName}</p>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none">QR Operations</div>
+                        <p className="text-base md:text-lg font-black tracking-tight leading-tight truncate">{businessName}</p>
                     </div>
                     <ConnBadge conn={conn} lastUpdated={lastUpdated} />
                 </div>
-                <nav className="max-w-[1500px] mx-auto px-2 md:px-4 flex gap-1 overflow-x-auto">
+                <nav className="w-full px-1 md:px-3 flex gap-1 overflow-x-auto">
                     {TABS.map(t => {
                         const active = t.key === tab;
                         return (
@@ -172,7 +210,7 @@ const OpsShell: React.FC<{
                     })}
                 </nav>
             </header>
-            <main className="max-w-[1500px] mx-auto px-3 md:px-6 py-4">{children}</main>
+            <main className="flex-1 w-full px-3 md:px-5 py-4">{children}</main>
         </div>
     );
 };
@@ -180,11 +218,11 @@ const OpsShell: React.FC<{
 const ConnBadge: React.FC<{ conn: string; lastUpdated: number }> = ({ conn, lastUpdated }) => {
     const time = lastUpdated ? new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
     if (conn === 'error') {
-        return <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-red-600 text-white text-xs font-black"><WifiOff size={13} /> OFFLINE</span>;
+        return <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-red-600 text-white text-xs font-black"><WifiOff size={13} /> OFFLINE</span>;
     }
     return (
-        <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 border border-emerald-400 text-xs font-bold">
-            <Wifi size={13} /> <span className="hidden sm:inline">Live ·</span> {time}
+        <span className="shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-400 text-xs font-black">
+            <Wifi size={13} /> ONLINE <span className="hidden sm:inline font-bold text-emerald-600">· {time}</span>
         </span>
     );
 };
@@ -400,8 +438,10 @@ const KitchenTab: React.FC<{ orders: DerivedOrder[]; now: number; onOpen: (id: s
         }
     };
 
+    // Kitchen shows FOOD work only — orders with no food line (drinks-only) live on
+    // the Bar board instead. Item lines are filtered to food below.
     const byLane = (lane: KitchenLane) => orders
-        .filter(o => kitchenLaneFor(o.status) === lane)
+        .filter(o => kitchenLaneFor(o.status) === lane && foodLines(o.items).length > 0)
         .sort((a, b) => a.statusEnteredAtMillis - b.statusEnteredAtMillis);
 
     return (
@@ -439,7 +479,7 @@ const KitchenTab: React.FC<{ orders: DerivedOrder[]; now: number; onOpen: (id: s
                                                 </div>
                                             </div>
                                             <ul className="mt-2 space-y-1">
-                                                {o.items.map((l, i) => (
+                                                {foodLines(o.items).map((l, i) => (
                                                     <li key={i}>
                                                         <div className="flex items-baseline gap-1.5">
                                                             <span className="font-black tabular-nums">{l.qty}×</span>
@@ -449,6 +489,118 @@ const KitchenTab: React.FC<{ orders: DerivedOrder[]; now: number; onOpen: (id: s
                                                     </li>
                                                 ))}
                                             </ul>
+                                            {drinkLines(o.items).length > 0 && (
+                                                <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-slate-500"><Wine size={12} /> +{drinkLines(o.items).length} drink item{drinkLines(o.items).length === 1 ? '' : 's'} at bar</div>
+                                            )}
+                                            <div className="mt-2"><PaymentChip paymentStatus={o.paymentStatus} size="sm" /></div>
+                                            {action && (
+                                                <button type="button" onClick={() => advance(o)} disabled={pending[o.id]}
+                                                    className={`mt-2.5 w-full py-3 rounded-lg text-white text-base font-black flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 ${SOLID_CLS[lane.color]}`}>
+                                                    {pending[o.id] ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} strokeWidth={2.5} />}
+                                                    {action.toLabel}
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Bar Board (drinks only) — beside Kitchen. Reuses the SAME live feed, the SAME
+// transition callable, and the drink/food split from barOrders.service.
+//
+// IMPORTANT (honest limitation): an order has ONE server status. Bar and Kitchen
+// therefore share it — advancing a mixed order on either board moves the whole
+// order. True independent bar/kitchen progress needs a backend per-station status
+// model (a Cloud Function + data-model change); it is NOT faked here.
+// ════════════════════════════════════════════════════════════════════════════
+const BAR_LANES: { key: KitchenLane; title: string; color: OpsColor }[] = [
+    { key: 'new', title: 'New · Paid', color: orderStatusPresentation('PAID').color },
+    { key: 'preparing', title: 'Preparing', color: orderStatusPresentation('IN_KITCHEN').color },
+    { key: 'ready', title: 'Ready', color: orderStatusPresentation('READY').color },
+    { key: 'served', title: 'Served', color: orderStatusPresentation('SERVED').color },
+];
+
+const BarTab: React.FC<{ orders: DerivedOrder[]; now: number; onOpen: (id: string) => void }> = ({ orders, now, onOpen }) => {
+    const [pending, setPending] = useState<Record<string, boolean>>({});
+    const [error, setError] = useState<string>('');
+
+    const advance = async (o: DerivedOrder) => {
+        const to = NEXT_STATUS[o.status];
+        if (!to || pending[o.id]) return;
+        setPending(p => ({ ...p, [o.id]: true }));
+        setError('');
+        try {
+            await updateQrOrderStatus(o.id, to);
+        } catch (e) {
+            setError(toUserFacingTransitionError(e));
+        } finally {
+            setPending(p => ({ ...p, [o.id]: false }));
+        }
+    };
+
+    // Bar shows DRINK work only — orders with no drink line never appear here.
+    const byLane = (lane: KitchenLane) => orders
+        .filter(o => kitchenLaneFor(o.status) === lane && drinkLines(o.items).length > 0)
+        .sort((a, b) => a.statusEnteredAtMillis - b.statusEnteredAtMillis);
+
+    return (
+        <div>
+            {error && (
+                <div role="alert" className="mb-3 flex items-center gap-2 rounded-lg bg-red-600 text-white px-3 py-2 text-sm font-bold">
+                    <AlertCircle size={16} /> {error}
+                </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {BAR_LANES.map(lane => {
+                    const laneOrders = byLane(lane.key);
+                    const action = LANE_ACTION[lane.key];
+                    return (
+                        <section key={lane.key} className="flex flex-col rounded-xl overflow-hidden bg-white border-2 border-slate-200 min-h-[200px]">
+                            <header className={`${SOLID_CLS[lane.color]} px-3 py-2.5 flex items-center justify-between`}>
+                                <h2 className="text-base font-black uppercase tracking-wide">{lane.title}</h2>
+                                <span className="min-w-7 h-7 px-2 rounded-full bg-white/25 text-white font-black flex items-center justify-center tabular-nums">{laneOrders.length}</span>
+                            </header>
+                            <div className="flex-1 p-2.5 space-y-2.5 bg-slate-50">
+                                {laneOrders.length === 0 ? (
+                                    <div className="py-10 text-center text-slate-400 text-sm font-bold">Empty</div>
+                                ) : laneOrders.map(o => {
+                                    const late = o.attention.level === 'critical';
+                                    const drinks = drinkLines(o.items);
+                                    const hasFood = foodLines(o.items).length > 0;
+                                    return (
+                                        <div key={o.id} className={`rounded-lg bg-white border-2 p-3 ${late ? 'border-red-500 ring-2 ring-red-200' : 'border-slate-200'}`}>
+                                            <div className="flex items-start justify-between gap-2">
+                                                <button type="button" onClick={() => onOpen(o.id)} className="flex items-baseline gap-2 min-w-0 text-left">
+                                                    <span className="text-[10px] font-black uppercase text-slate-400">T</span>
+                                                    <span className="text-3xl font-black leading-none">{o.tableNumber}</span>
+                                                </button>
+                                                <div className="text-right shrink-0">
+                                                    <div className="text-xs font-bold text-slate-500">{o.orderNumber}</div>
+                                                    <div className={`inline-flex items-center gap-1 text-sm font-black tabular-nums ${late ? 'text-red-600' : 'text-slate-700'}`}><Clock size={13} />{clockLabel(o.statusEnteredAtMillis, now)}</div>
+                                                </div>
+                                            </div>
+                                            <ul className="mt-2 space-y-1">
+                                                {drinks.map((l, i) => (
+                                                    <li key={i}>
+                                                        <div className="flex items-baseline gap-1.5">
+                                                            <span className="font-black tabular-nums">{l.qty}×</span>
+                                                            <span className="font-semibold leading-tight">{l.name}</span>
+                                                        </div>
+                                                        {l.notes && <div className="ml-6 inline-flex items-start gap-1 bg-yellow-100 border border-yellow-300 text-yellow-900 rounded px-1.5 py-0.5 text-xs font-semibold"><StickyNote size={12} className="mt-0.5" />{l.notes}</div>}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            {hasFood && (
+                                                <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-slate-500"><ChefHat size={12} /> Food also in kitchen</div>
+                                            )}
                                             <div className="mt-2"><PaymentChip paymentStatus={o.paymentStatus} size="sm" /></div>
                                             {action && (
                                                 <button type="button" onClick={() => advance(o)} disabled={pending[o.id]}
@@ -639,5 +791,48 @@ const Centered: React.FC<{
         {onRetry && <button type="button" onClick={onRetry} className="mt-4 px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-black">Retry</button>}
     </div>
 );
+
+// ════════════════════════════════════════════════════════════════════════════
+// OFFLINE diagnostics — surfaces the exact runtime evidence needed to root-cause a
+// dropped live feed (Firestore error code/message + the query context), instead of
+// the old opaque "feed dropped" message. Also mirrored to the console.
+// ════════════════════════════════════════════════════════════════════════════
+interface OpsDiagnostics {
+    businessUnitId: string;
+    databaseId: string;
+    projectId?: string;
+    uid?: string;
+    role?: string;
+    errorCode?: string;
+    errorMessage?: string;
+}
+
+const OfflineDiagnostics: React.FC<{ diagnostics: OpsDiagnostics; onRetry: () => void }> = ({ diagnostics, onRetry }) => {
+    const rows: [string, string][] = [
+        ['Error code', diagnostics.errorCode || '(none reported)'],
+        ['Error message', diagnostics.errorMessage || '(none reported)'],
+        ['Business unit', diagnostics.businessUnitId || '(empty)'],
+        ['Firestore database', diagnostics.databaseId],
+        ['Project', diagnostics.projectId || '(unknown)'],
+        ['Signed-in uid', diagnostics.uid || '(none)'],
+        ['Role', diagnostics.role || '(none)'],
+    ];
+    return (
+        <div className="py-12 flex flex-col items-center text-center max-w-lg mx-auto">
+            <WifiOff size={30} className="text-red-500" strokeWidth={1.75} />
+            <h3 className="mt-4 text-base font-black text-slate-800">Couldn’t reach live orders</h3>
+            <p className="mt-1 text-sm text-slate-500">The operations feed dropped. The exact failure is below — share it if it persists.</p>
+            <dl className="mt-4 w-full text-left rounded-xl border-2 border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
+                {rows.map(([k, v]) => (
+                    <div key={k} className="px-3 py-2 flex items-start justify-between gap-3">
+                        <dt className="text-xs font-bold uppercase tracking-wide text-slate-500 shrink-0">{k}</dt>
+                        <dd className="text-xs font-mono text-slate-800 text-right break-all min-w-0">{v}</dd>
+                    </div>
+                ))}
+            </dl>
+            <button type="button" onClick={onRetry} className="mt-4 px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-black">Retry</button>
+        </div>
+    );
+};
 
 export default QrOpsView;

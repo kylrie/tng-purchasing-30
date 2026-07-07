@@ -983,13 +983,17 @@ service cloud.firestore {
 
     // =====================================================
     // QR ORDERING — ORDERS (Sprint 1: Real Order Persistence)
-    // Reads are business-unit scoped (remediation M4): a signed-in user may
-    // only read orders in their own BU; ADMIN/SUPER_ADMIN are cross-BU per
-    // `belongsToSameBU`. ALL writes go through the createQrOrder Cloud Function
-    // (Admin SDK) — no client writes — mirroring the `transactions` pattern.
+    // Read access (owner decision 2026-07-07): the QR Operations live feed must be
+    // readable by ALL signed-in TNG staff — NOT business-unit scoped. The prior
+    // `belongsToSameBU(resource)` rule denied the ops feed (permission-denied) for
+    // signed-in staff (incl. SUPER_ADMIN), which surfaced as the OFFLINE dashboard.
+    // Trade-off accepted by owner: any authenticated TNG account can read orders
+    // across business units (BU isolation removed for qr_orders reads).
+    // ALL writes still go ONLY through the createQrOrder / updateQrOrderStatus Cloud
+    // Functions (Admin SDK) — no client writes — mirroring the `transactions` pattern.
     // =====================================================
     match /qr_orders/{orderId} {
-      allow read: if belongsToSameBU(resource);
+      allow read: if isSignedIn();
       allow write: if false;
     }
 

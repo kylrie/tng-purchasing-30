@@ -267,6 +267,14 @@ function ProtectedApp() {
             </ProtectedRoute>
           } />
 
+          {/* QR Operations dashboard — FULL-SCREEN operational mode (Overview / Live Orders /
+              Kitchen / Bar Orders / Tables / History). Routed OUTSIDE the ERP <Layout> on
+              purpose: restaurant/bar staff must see ONLY the live order system — no ERP
+              sidebar, top header, or blue chrome. Auth + BusinessUnit contexts wrap the app
+              root, so the selected business carries in and staff/BU scoping still applies
+              inside the view. */}
+          <Route path="/qr-ops/:tab?" element={<QrOpsView businesses={accessibleBusinesses} />} />
+
           {/* Internal Routes (With Layout) */}
           <Route path="/*" element={
             <Layout {...layoutProps}>
@@ -296,9 +304,9 @@ function ProtectedApp() {
                 {/* QR Hub — cross-business QR ordering entry point (admin-only; guarded inside the view) */}
                 <Route path="/qr-hub" element={<QrHubView currentUser={currentUser} businesses={accessibleBusinesses} />} />
 
-                {/* QR Operations dashboard — per-business ops control surface (Overview / Live Orders /
-                    Kitchen / Tables / History). Staff-gated + BU-scoped inside the view. */}
-                <Route path="/qr-ops/:tab?" element={<QrOpsView businesses={accessibleBusinesses} />} />
+                {/* NOTE: /qr-ops/:tab? is intentionally NOT here. QR Operations is a full-screen
+                    operational mode routed OUTSIDE this ERP <Layout> (see the "External Routes
+                    (No Layout)" block above) so kitchen/bar staff never see ERP chrome. */}
 
                 <Route path="/burf" element={
                   <ProtectedRoute permission="ui:module_access:view:burf">
