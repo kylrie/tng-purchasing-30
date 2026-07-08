@@ -27,6 +27,7 @@ import {
     SOLID_CLS, type KitchenLane, type OpsColor,
 } from './qrOpsStatus';
 import { StatusChip, PaymentChip, AttentionBadge, AccentBar, minutesSince, elapsedLabel, clockLabel } from './OpsShared';
+import { opsNavCounts } from './opsNavCounts';
 
 /**
  * QR Operations dashboard — the staff control surface, attached under QR Hub.
@@ -38,7 +39,7 @@ import { StatusChip, PaymentChip, AttentionBadge, AccentBar, minutesSince, elaps
  * busy worker knows in ~2s what is new, late, cooking, ready, or a problem.
  */
 
-type OpsTab = 'overview' | 'live' | 'kitchen' | 'bar' | 'tables' | 'history';
+export type OpsTab = 'overview' | 'live' | 'kitchen' | 'bar' | 'tables' | 'history';
 const TABS: { key: OpsTab; label: string; Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }> }[] = [
     { key: 'overview', label: 'Overview', Icon: LayoutDashboard },
     { key: 'live', label: 'Live Orders', Icon: ListOrdered },
@@ -86,15 +87,33 @@ interface DerivedOrder extends OpsOrder {
 
 const TICK_MS = 10_000;
 
-const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
+const QrOpsView: React.FC<{
+    businesses?: Business[];
+    /** Embedded mode: mount inside the unified POS operations shell — no OpsShell
+     *  chrome; the POS shell owns the header + tab nav + business selection. When
+     *  false (default) this is the standalone /qr-ops experience (unchanged). */
+    embedded?: boolean;
+    /** Business unit to scope to when embedded (the POS-selected business). */
+    businessUnitId?: string;
+    /** Externally-controlled active tab when embedded. */
+    activeTab?: OpsTab;
+    /** Tab-change callback when embedded (parent updates its nav state). */
+    onNavigate?: (t: OpsTab) => void;
+}> = ({ businesses, embedded = false, businessUnitId: businessUnitIdProp, activeTab, onNavigate }) => {
     const { tab: tabParam } = useParams<{ tab?: string }>();
     const navigate = useNavigate();
     const { currentUser, loading: authLoading } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
 
-    const tab: OpsTab = (TABS.find(t => t.key === tabParam)?.key) ?? 'overview';
+    const tab: OpsTab = embedded
+        ? (activeTab ?? 'overview')
+        : ((TABS.find(t => t.key === tabParam)?.key) ?? 'overview');
+    // When embedded, scope to the POS-selected business (prop). Otherwise use the
+    // BusinessUnit context / signed-in user's BU (standalone /qr-ops behavior).
     const businessUnitId =
-        selectedBusinessUnit && selectedBusinessUnit !== 'all' ? selectedBusinessUnit : currentUser?.businessId ?? '';
+        (embedded && typeof businessUnitIdProp === 'string' && businessUnitIdProp)
+            ? businessUnitIdProp
+            : (selectedBusinessUnit && selectedBusinessUnit !== 'all' ? selectedBusinessUnit : currentUser?.businessId ?? '');
     // Canonical business-unit NAME from real TNG data (never hardcoded). Falls back
     // to the raw id only if the business record isn't in the accessible list.
     const businessName = businesses?.find(b => b.id === businessUnitId)?.name || businessUnitId || '—';
@@ -163,13 +182,9 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     }), [orders, now]);
 
     // ── Live nav counts (drive the tab badges; awaiting-payment "lights up") ──
-    const navCounts: NavCounts = useMemo(() => ({
-        awaiting: derived.filter(o => o.status === 'AWAITING_PAYMENT').length,
-        live: derived.filter(o => isActiveStatus(o.status)).length,
-        kitchen: derived.filter(o => kitchenLaneFor(o.status) && foodLines(o.items).length > 0).length,
-        bar: derived.filter(o => kitchenLaneFor(o.status) && drinkLines(o.items).length > 0).length,
-        attention: derived.filter(o => o.attention.level !== 'none').length,
-    }), [derived]);
+    // Shared pure helper so the standalone QR dashboard and the embedded POS shell
+    // compute identical badge counts.
+    const navCounts: NavCounts = useMemo(() => opsNavCounts(derived, now), [derived, now]);
 
     // ── Order detail selection + transition action state ───────────────────
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -186,9 +201,67 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     const printerReady = printMode === 'system' || printMode === 'qz' || btConnected;
 
     const openLiveWithFilter = (f: string) => { setLiveFilter(f); goTab('live'); };
-    const goTab = (t: OpsTab) => navigate(`/qr-ops/${t}`);
+    const goTab = (t: OpsTab) => { if (embedded && onNavigate) onNavigate(t); else navigate(`/qr-ops/${t}`); };
 
-    // ── Non-ready gates ────────────────────────────────────────────────────
+    // ── The tab content (shared by standalone + embedded renders) ──────────
+    const content = conn === 'loading' ? (
+        <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
+    ) : conn === 'error' ? (
+        <OfflineDiagnostics diagnostics={diagnostics} onRetry={() => setReloadKey(k => k + 1)} />
+    ) : tab === 'overview' ? (
+        <OverviewTab orders={derived} now={now} onCount={openLiveWithFilter} onOpen={setSelectedId} goTab={goTab} />
+    ) : tab === 'live' ? (
+        <LiveOrdersTab orders={derived} now={now} filter={liveFilter} setFilter={setLiveFilter} onOpen={setSelectedId} />
+    ) : tab === 'kitchen' ? (
+        <KitchenTab orders={derived} now={now} onOpen={setSelectedId} />
+    ) : tab === 'bar' ? (
+        <BarTab orders={derived} now={now} onOpen={setSelectedId} />
+    ) : tab === 'tables' ? (
+        <TablesTab />
+    ) : (
+        <HistoryTab orders={derived} onOpen={setSelectedId} />
+    );
+
+    // Overlays (order detail + printer panel) — identical in both modes.
+    const overlays = (
+        <>
+            {selected && <OrderDetailPanel order={selected} now={now} onClose={() => setSelectedId(null)}
+                printerConnected={printerReady} onNeedPrinter={() => setPrinterOpen(true)} />}
+            {printerOpen && <PrinterPanel mode={printMode} onModeChange={(m) => { setPrintMode(m); setPrintModeState(m); }}
+                btConnected={btConnected} setBtConnected={setBtConnected} businessUnitId={businessUnitId} onClose={() => setPrinterOpen(false)} />}
+        </>
+    );
+
+    // ── Embedded (inside the unified POS operations shell) ─────────────────
+    // The POS shell provides the header + tab nav; here we render only a slim
+    // status strip (printer + connection) and the tab content. No Exit button.
+    if (embedded) {
+        if (conn === 'unauthorized') {
+            return (
+                <div className="flex-1 flex items-center justify-center bg-slate-100">
+                    <Centered Icon={LockKeyhole} title="Staff sign-in required"
+                        body="Sign in with a staff account to view live orders." />
+                </div>
+            );
+        }
+        return (
+            <div className="flex-1 flex flex-col min-h-0 bg-slate-100 text-slate-900">
+                <div className="flex items-center justify-end gap-2 px-3 md:px-5 py-1.5 bg-white border-b border-slate-200 shrink-0">
+                    <button type="button" onClick={() => setPrinterOpen(true)} title="Printer setup"
+                        className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-sm font-bold border-2 ${printerReady ? 'bg-emerald-50 text-emerald-800 border-emerald-400' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+                        <Printer size={15} strokeWidth={2.25} />
+                        <span className="hidden md:inline">Printer</span>
+                        <span className={`w-2 h-2 rounded-full ${printerReady ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    </button>
+                    <ConnBadge conn={conn} lastUpdated={lastUpdated} />
+                </div>
+                <main className="flex-1 min-h-0 overflow-y-auto w-full px-3 md:px-5 py-4">{content}</main>
+                {overlays}
+            </div>
+        );
+    }
+
+    // ── Standalone (/qr-ops) — unchanged behavior ─────────────────────────
     if (conn === 'unauthorized') {
         return (
             <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts} onRetry={() => setReloadKey(k => k + 1)}>
@@ -201,28 +274,8 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     return (
         <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts}
             printerConnected={printerReady} onOpenPrinter={() => setPrinterOpen(true)} onRetry={() => setReloadKey(k => k + 1)}>
-            {conn === 'loading' ? (
-                <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
-            ) : conn === 'error' ? (
-                <OfflineDiagnostics diagnostics={diagnostics} onRetry={() => setReloadKey(k => k + 1)} />
-            ) : tab === 'overview' ? (
-                <OverviewTab orders={derived} now={now} onCount={openLiveWithFilter} onOpen={setSelectedId} goTab={goTab} />
-            ) : tab === 'live' ? (
-                <LiveOrdersTab orders={derived} now={now} filter={liveFilter} setFilter={setLiveFilter} onOpen={setSelectedId} />
-            ) : tab === 'kitchen' ? (
-                <KitchenTab orders={derived} now={now} onOpen={setSelectedId} />
-            ) : tab === 'bar' ? (
-                <BarTab orders={derived} now={now} onOpen={setSelectedId} />
-            ) : tab === 'tables' ? (
-                <TablesTab />
-            ) : (
-                <HistoryTab orders={derived} onOpen={setSelectedId} />
-            )}
-
-            {selected && <OrderDetailPanel order={selected} now={now} onClose={() => setSelectedId(null)}
-                printerConnected={printerReady} onNeedPrinter={() => setPrinterOpen(true)} />}
-            {printerOpen && <PrinterPanel mode={printMode} onModeChange={(m) => { setPrintMode(m); setPrintModeState(m); }}
-                btConnected={btConnected} setBtConnected={setBtConnected} businessUnitId={businessUnitId} onClose={() => setPrinterOpen(false)} />}
+            {content}
+            {overlays}
         </OpsShell>
     );
 };

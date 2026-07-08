@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../../contexts/useAuth';
 import { usePOSMenu } from '../hooks/usePOSMenu';
 import { usePOSStore } from '../store/posStore';
@@ -6,7 +7,7 @@ import { POSService } from '../services/pos.service';
 import type { POSOrder, PaymentMethod, POSOrderCreateInput, POSTable, RunningBill } from '../types/pos.types';
 import type { User } from '../../../shared/types';
 import type { MenuItem } from '../../menu/types/menu.types';
-import { LogOut, Settings, BarChart3, LayoutDashboard } from 'lucide-react';
+import { LogOut, Settings, BarChart3, LayoutDashboard, ShoppingCart, ListOrdered, ChefHat, Wine, Table2, History as HistoryIcon } from 'lucide-react';
 import { SettingsService } from '../../../shared/services/settings.service';
 
 import ProductGrid from '../components/ProductGrid';
@@ -20,6 +21,22 @@ import { TableManagementView } from './TableManagementView';
 import { TableFloorView } from '../components/TableFloorView';
 import { RunningBillService } from '../services/running-bill.service';
 import { ManagerAuthModal } from '../components/ManagerAuthModal';
+// Unified operations shell: mount the PROVEN QR Operations views (live/kitchen/bar/
+// history) inside the POS full-screen shell — reuse, no logic duplication.
+import QrOpsView, { type OpsTab } from '../../qr-ordering/ops/QrOpsView';
+
+// The unified staff-operations tabs. "POS" = the ordering terminal + table floor;
+// the rest reuse the QR Operations views. "Tables" only shows for table businesses.
+type PosOpsTab = 'pos' | 'live' | 'kitchen' | 'bar' | 'tables' | 'history';
+const OPS_TABS: { key: PosOpsTab; label: string; Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>; tableOnly?: boolean }[] = [
+    { key: 'pos', label: 'POS', Icon: ShoppingCart },
+    { key: 'live', label: 'Live Orders', Icon: ListOrdered },
+    { key: 'kitchen', label: 'Kitchen', Icon: ChefHat },
+    { key: 'bar', label: 'Bar', Icon: Wine },
+    { key: 'tables', label: 'Tables', Icon: Table2, tableOnly: true },
+    { key: 'history', label: 'History', Icon: HistoryIcon },
+];
+const QR_OPS_TABS: PosOpsTab[] = ['live', 'kitchen', 'bar', 'history'];
 
 interface POSViewProps {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,25 +115,42 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     const [completedOrder, setCompletedOrder] = useState<POSOrder | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     
+    // Unified operations tab (POS / Live / Kitchen / Bar / Tables / History), synced
+    // to the URL (?tab=) for deep-link + reload. "POS"/"Tables" render the terminal;
+    // QR tabs mount the embedded, proven QR Operations views.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [opsTab, setOpsTab] = useState<PosOpsTab>(() => {
+        const t = searchParams.get('tab');
+        return (OPS_TABS.some(x => x.key === t) ? t : 'pos') as PosOpsTab;
+    });
+
     // Table mode state
-    const [viewMode, setViewMode] = useState<'counter' | 'table'>('counter');
     const [activeTable, setActiveTable] = useState<POSTable | null>(null);
     const [activeBill, setActiveBill] = useState<RunningBill | null>(null);
+
+    // Keep the URL in sync with the active tab (deep-link / reload), replace-only.
+    useEffect(() => {
+        const cur = searchParams.get('tab') ?? 'pos';
+        if (cur !== opsTab) {
+            const next = new URLSearchParams(searchParams);
+            if (opsTab === 'pos') next.delete('tab'); else next.set('tab', opsTab);
+            setSearchParams(next, { replace: true });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [opsTab]);
     
     // Manager Auth
     const [managerAuthAction, setManagerAuthAction] = useState<(() => void) | null>(null);
 
-    // Watch business unit to set initial view mode if it has table management
+    // On business change: clear the current table/bill/cart. If we're in the POS
+    // ordering/tables area, land table-management businesses on the floor (as before).
+    // A QR tab (live/kitchen/bar/history) is left in place — it just re-scopes.
     useEffect(() => {
-        const currentBiz = businesses.find(b => b.id === selectedBusinessUnit);
-        if (currentBiz?.hasTableManagement) {
-            setViewMode('table');
-        } else {
-            setViewMode('counter');
-        }
         setActiveTable(null);
         setActiveBill(null);
         clearCart();
+        const hasTables = !!businesses.find(b => b.id === selectedBusinessUnit)?.hasTableManagement;
+        setOpsTab(prev => (prev === 'pos' || prev === 'tables') ? (hasTables ? 'tables' : 'pos') : prev);
     }, [selectedBusinessUnit, businesses, clearCart]);
 
     const handleAddItem = React.useCallback((item: MenuItem) => {
@@ -219,7 +253,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 // Clear active bill and return to floor
                 setActiveBill(null);
                 setActiveTable(null);
-                setViewMode('table');
+                setOpsTab('tables');
             } else {
                 newOrder = await POSService.createOrder(orderInput);
             }
@@ -326,22 +360,44 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                 </div>
             </div>
 
+            {/* Unified operations navigation (light QR-Operations style). "Tables" only
+                shows for table-management businesses. QR tabs mount the proven QR views. */}
+            <nav className="shrink-0 w-full px-1 md:px-3 flex gap-1 overflow-x-auto bg-white border-b-2 border-slate-200">
+                {OPS_TABS.filter(t => !t.tableOnly || currentBusiness?.hasTableManagement).map(t => {
+                    const active = t.key === opsTab;
+                    return (
+                        <button key={t.key} type="button" onClick={() => setOpsTab(t.key)}
+                            className={`shrink-0 flex items-center gap-1.5 px-3 md:px-4 py-2.5 text-sm font-bold border-b-[3px] transition-colors ${active ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                            <t.Icon size={16} strokeWidth={2.25} /> {t.label}
+                        </button>
+                    );
+                })}
+            </nav>
+
             {/* Main Application Area */}
-            <div className="flex flex-1 overflow-hidden">
-                {viewMode === 'table' && currentBusiness?.hasTableManagement ? (
-                    <TableFloorView 
+            <div className="flex flex-1 overflow-hidden min-h-0">
+                {QR_OPS_TABS.includes(opsTab) ? (
+                    <QrOpsView
+                        embedded
+                        activeTab={opsTab as OpsTab}
+                        businessUnitId={selectedBusinessUnit}
+                        businesses={businesses}
+                        onNavigate={(t) => { if (t === 'live' || t === 'kitchen' || t === 'bar' || t === 'history') setOpsTab(t); }}
+                    />
+                ) : opsTab === 'tables' && currentBusiness?.hasTableManagement ? (
+                    <TableFloorView
                         businessUnitId={selectedBusinessUnit} 
                         onSelectTable={(table, bill) => {
                             setActiveTable(table);
                             setActiveBill(bill);
                             setCartItems(bill ? bill.items.map(i => ({ ...i, isSentToKitchen: true })) : []);
-                            setViewMode('counter'); // Switch to order taking mode for this table
+                            setOpsTab('pos'); // Switch to order taking for this table
                         }} 
                         onCounterOrder={() => {
                             setActiveTable(null);
                             setActiveBill(null);
                             clearCart();
-                            setViewMode('counter');
+                            setOpsTab('pos');
                         }}
                     />
                 ) : (
@@ -389,7 +445,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                             setActiveTable(null);
                             setActiveBill(null);
                             clearCart();
-                            setViewMode('table');
+                            setOpsTab('tables');
                         } catch (e) {
                             console.error(e);
                             alert("Failed to send to kitchen.");
@@ -401,7 +457,7 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                         setActiveTable(null);
                         setActiveBill(null);
                         clearCart();
-                        setViewMode('table');
+                        setOpsTab('tables');
                     }}
                 />
                 </>
