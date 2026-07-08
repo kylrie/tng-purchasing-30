@@ -847,7 +847,7 @@ export class InventoryService {
             // 2a. Deduct full consumed quantity from raw material
             const rawItemRef = doc(db, 'inventory_items', rawItem.id);
             const rawNewStock = rawItem.currentStock - totalConsumed;
-            batch.update(rawItemRef, { currentStock: rawNewStock, updatedAt: now });
+            batch.update(rawItemRef, { currentStock: rawNewStock, theoreticalStock: rawNewStock, updatedAt: now });
 
             // 2b. Stock transaction audit for the deduction
             const deductTxnId = doc(collection(db, 'stock_transactions')).id;
@@ -913,7 +913,7 @@ export class InventoryService {
         const outputAdded = productionItem.units.conversion * batchMultiplier;
         const prodNewStock = productionItem.currentStock + outputAdded;
         const prodItemRef = doc(db, 'inventory_items', productionItem.id);
-        batch.update(prodItemRef, { currentStock: prodNewStock, updatedAt: now });
+        batch.update(prodItemRef, { currentStock: prodNewStock, theoreticalStock: prodNewStock, updatedAt: now });
 
         // 3a. Stock transaction for the production output
         const prodTxnId = doc(collection(db, 'stock_transactions')).id;

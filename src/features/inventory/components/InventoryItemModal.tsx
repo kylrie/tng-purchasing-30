@@ -195,6 +195,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 units,
                 parLevel: Math.round((formData.parLevel || 0) * (formData.conversion || 1)),
                 currentStock: formData.currentStock || 0,
+                theoreticalStock: formData.currentStock || 0,
                 costPerUnit: baseCost, // Legacy fallback
                 buyCost: formData.buyCost || 0,
                 baseCost: baseCost,    // Crucial: baseCost is the primary value used by POS BOM explosion and Recipe builder

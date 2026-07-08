@@ -73,6 +73,7 @@ export class WastageService {
         const itemRef = doc(db, 'inventory_items', item.id);
         batch.update(itemRef, {
             currentStock: newStock,
+            theoreticalStock: newStock,
             updatedAt: now
         });
 
