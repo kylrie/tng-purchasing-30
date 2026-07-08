@@ -5,29 +5,19 @@
 // needs: the qr_tables DOC ID (createQrOrder's `tableId`), the human tableNumber,
 // and the businessUnitId. The menu itself is the curated Fun Roof snapshot, so the
 // callable's `items` are intentionally ignored here — we only need the table.
+//
+// The pure b1 guard lives in funRoofTableGuard.ts (firebase-free, unit-tested);
+// it is re-exported here so existing importers keep a single entry point.
 
 import { httpsCallable } from 'firebase/functions';
 import { getQrFunctions } from '../services/qrFunctions';
-import { FUN_ROOF_BUSINESS_ID } from '../utils/customerMenuUrl';
+import {
+    toFunRoofTable, isWrongBusinessError,
+    type FunRoofTable, type RawGetPublicMenuResponse,
+} from './funRoofTableGuard';
 
-export interface FunRoofTable {
-    /** qr_tables document id — the `tableId` createQrOrder expects (NOT the token). */
-    tableId: string;
-    tableNumber: string;
-    businessUnitId: string;
-}
-
-interface RawGetPublicMenuResponse {
-    tableId: string;
-    tableNumber: string;
-    businessUnitId: string;
-}
-
-/** Error thrown when a scanned token belongs to a DIFFERENT business — it must
- *  never open the Fun Roof experience with someone else's table. */
-export function isWrongBusinessError(err: unknown): boolean {
-    return (err as { wrongBusiness?: boolean } | null)?.wrongBusiness === true;
-}
+export { isWrongBusinessError };
+export type { FunRoofTable };
 
 /**
  * Resolve a Fun Roof QR token to its table. Throws (with a callable-style `code`)
@@ -40,8 +30,5 @@ export async function resolveFunRoofTable(qrToken: string): Promise<FunRoofTable
         'getPublicMenu',
     );
     const { data } = await callable({ qrToken });
-    if (data.businessUnitId !== FUN_ROOF_BUSINESS_ID) {
-        throw { code: 'functions/failed-precondition', wrongBusiness: true };
-    }
-    return { tableId: data.tableId, tableNumber: data.tableNumber, businessUnitId: data.businessUnitId };
+    return toFunRoofTable(data);
 }

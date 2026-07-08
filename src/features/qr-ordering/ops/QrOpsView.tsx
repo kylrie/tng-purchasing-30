@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, ListOrdered, ChefHat, Wine, Table2, History as HistoryIcon, LockKeyhole,
     AlertCircle, Loader2, LogOut, ChevronRight, X, Wifi, WifiOff, Clock, Receipt,
@@ -9,6 +9,7 @@ import type { Business } from '../../procurement/types';
 import { useAuth } from '../../../contexts/useAuth';
 import { formatTableLabel } from '../utils/tableUtils';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { readBusinessParam, resolveAdminBusinessUnit, withBusinessParam } from '../utils/adminBusinessParam';
 import { subscribeQrOrders, type OpsOrder, type OpsOrderLine } from '../services/qrOrders.service';
 import { isDrinkCategory } from '../services/barOrders.service';
 import {
@@ -101,6 +102,7 @@ const QrOpsView: React.FC<{
     onNavigate?: (t: OpsTab) => void;
 }> = ({ businesses, embedded = false, businessUnitId: businessUnitIdProp, activeTab, onNavigate }) => {
     const { tab: tabParam } = useParams<{ tab?: string }>();
+    const location = useLocation();
     const navigate = useNavigate();
     const { currentUser, loading: authLoading } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
@@ -108,12 +110,18 @@ const QrOpsView: React.FC<{
     const tab: OpsTab = embedded
         ? (activeTab ?? 'overview')
         : ((TABS.find(t => t.key === tabParam)?.key) ?? 'overview');
-    // When embedded, scope to the POS-selected business (prop). Otherwise use the
-    // BusinessUnit context / signed-in user's BU (standalone /qr-ops behavior).
+    // When embedded, scope to the POS-selected business (prop). Standalone /qr-ops
+    // reads a DURABLE business id from the URL (?bu=) so the selection survives a
+    // hard refresh / new tab / cold open — instead of being lost with the transient
+    // context and silently reverting to the admin's home business (Fun Roof→b3).
+    // Driven entirely by the URL (?bu=) when standalone — it never writes back to
+    // the shared global switcher (that would leak this page's business into the
+    // rest of the ERP session).
+    const urlBusinessUnitId = readBusinessParam(location.search);
     const businessUnitId =
         (embedded && typeof businessUnitIdProp === 'string' && businessUnitIdProp)
             ? businessUnitIdProp
-            : (selectedBusinessUnit && selectedBusinessUnit !== 'all' ? selectedBusinessUnit : currentUser?.businessId ?? '');
+            : resolveAdminBusinessUnit({ urlBusinessUnitId, selectedBusinessUnit });
     // Canonical business-unit NAME from real TNG data (never hardcoded). Falls back
     // to the raw id only if the business record isn't in the accessible list.
     const businessName = businesses?.find(b => b.id === businessUnitId)?.name || businessUnitId || '—';
@@ -201,7 +209,7 @@ const QrOpsView: React.FC<{
     const printerReady = printMode === 'system' || printMode === 'qz' || btConnected;
 
     const openLiveWithFilter = (f: string) => { setLiveFilter(f); goTab('live'); };
-    const goTab = (t: OpsTab) => { if (embedded && onNavigate) onNavigate(t); else navigate(`/qr-ops/${t}`); };
+    const goTab = (t: OpsTab) => { if (embedded && onNavigate) onNavigate(t); else navigate(withBusinessParam(`/qr-ops/${t}`, businessUnitId)); };
 
     // ── The tab content (shared by standalone + embedded renders) ──────────
     const content = conn === 'loading' ? (
@@ -217,7 +225,7 @@ const QrOpsView: React.FC<{
     ) : tab === 'bar' ? (
         <BarTab orders={derived} now={now} onOpen={setSelectedId} />
     ) : tab === 'tables' ? (
-        <TablesTab />
+        <TablesTab businessUnitId={businessUnitId} />
     ) : (
         <HistoryTab orders={derived} onOpen={setSelectedId} />
     );
@@ -261,12 +269,22 @@ const QrOpsView: React.FC<{
         );
     }
 
-    // ── Standalone (/qr-ops) — unchanged behavior ─────────────────────────
+    // ── Standalone (/qr-ops) — 'unauthorized' covers both "not signed in" and
+    // "signed in but no business durably selected". Distinguish them so a signed-in
+    // admin who arrived without a ?bu= is told to CHOOSE a business (via Exit
+    // Operations → QR Hub) rather than the misleading "sign in" message — and is
+    // NEVER silently defaulted to a business.
     if (conn === 'unauthorized') {
+        const noBusiness = signedIn && !businessUnitId;
         return (
             <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts} onRetry={() => setReloadKey(k => k + 1)}>
-                <Centered Icon={LockKeyhole} title="Staff sign-in required"
-                    body="Sign in with a staff account that has a business unit selected to view QR operations." />
+                {noBusiness ? (
+                    <Centered Icon={LockKeyhole} title="No business selected"
+                        body="Open QR Hub (Exit Operations, above) and choose a business to view its QR operations." />
+                ) : (
+                    <Centered Icon={LockKeyhole} title="Staff sign-in required"
+                        body="Sign in with a staff account to view QR operations." />
+                )}
             </OpsShell>
         );
     }
@@ -766,14 +784,14 @@ const BarTab: React.FC<{ orders: DerivedOrder[]; now: number; onOpen: (id: strin
 // ════════════════════════════════════════════════════════════════════════════
 // Tables (reuse existing manager)
 // ════════════════════════════════════════════════════════════════════════════
-const TablesTab: React.FC = () => {
+const TablesTab: React.FC<{ businessUnitId: string }> = ({ businessUnitId }) => {
     const navigate = useNavigate();
     return (
         <div className="rounded-xl border-2 border-slate-200 bg-white p-6 text-center">
             <Table2 size={30} className="mx-auto text-slate-500 mb-3" />
             <h2 className="text-base font-black mb-1">Table & QR management</h2>
             <p className="text-sm text-slate-500 mb-4 max-w-md mx-auto">Create tables, reveal QR tokens, and print customer QR codes in the dedicated table manager for this business.</p>
-            <button type="button" onClick={() => navigate('/qr-tables/live')}
+            <button type="button" onClick={() => navigate(withBusinessParam('/qr-tables/live', businessUnitId))}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-black">
                 Open table manager <ChevronRight size={16} />
             </button>

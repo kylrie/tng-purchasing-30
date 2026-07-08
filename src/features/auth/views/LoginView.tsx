@@ -30,8 +30,13 @@ const LoginView = () => {
   // exists — avoids the imperative-navigate race that previously bounced deep
   // links (e.g. /qr-hub) back to '/'. Declared after all hooks (Rules of Hooks).
   if (currentUser) {
-    const from = (location.state as { from?: { pathname?: string } } | null)?.from;
-    const target = from?.pathname && from.pathname !== '/login' ? from.pathname : '/';
+    const from = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+    // Preserve the FULL original location (query + hash), not just the pathname —
+    // deep links carry state there (e.g. the QR admin's ?bu=<businessUnitId>, which
+    // must survive the login round-trip or the page reopens with no business).
+    const target = from?.pathname && from.pathname !== '/login'
+      ? `${from.pathname}${from.search ?? ''}${from.hash ?? ''}`
+      : '/';
     return <Navigate to={target} replace />;
   }
 
