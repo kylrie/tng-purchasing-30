@@ -43,6 +43,16 @@ const KeyedCustomerMenuView: React.FC = () => {
     const { tableId } = useParams<{ tableId?: string }>();
     return <CustomerMenuView key={tableId ?? '__no_token__'} />;
 };
+// The Fun Roof — standalone public QR menu (business unit b1). Its own module,
+// route, branding and menu-data boundary; reuses the shared QR design language.
+const FunRoofMenuView = React.lazy(() => import('./features/qr-ordering/funroof/FunRoofMenuView'));
+// Keyed by :tableId for the same reason as KeyedCustomerMenuView above — a fresh
+// component instance per table so local "My picks"/nav state can never leak
+// across two tables opened in the same tab.
+const KeyedFunRoofMenuView: React.FC = () => {
+  const { tableId } = useParams<{ tableId?: string }>();
+  return <FunRoofMenuView key={tableId ?? '__no_table__'} />;
+};
 const CheckoutView = React.lazy(() => import('./features/qr-ordering/customer/CheckoutView'));
 const OrderStatusView = React.lazy(() => import('./features/qr-ordering/customer/OrderStatusView'));
 const KitchenQueueView = React.lazy(() => import('./features/qr-ordering/kitchen/KitchenQueueView'));
@@ -737,6 +747,13 @@ VITE_FIREBASE_MEASUREMENT_ID="your_measurement_id"`}</pre>
                     <Route path="/order/:tableId?" element={
                       <Suspense fallback={<PageLoader />}>
                         <KeyedCustomerMenuView />
+                      </Suspense>
+                    } />
+                    {/* The Fun Roof — standalone public QR menu (b1). Resolves ONLY to The Fun
+                        Roof; POS-free; loads the stored b1 menu (read-only). Separate module + route. */}
+                    <Route path="/funroof/:tableId?" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <KeyedFunRoofMenuView />
                       </Suspense>
                     } />
                     <Route path="/checkout/:sessionId?" element={
