@@ -631,9 +631,11 @@ export class InventoryService {
 
                 // Process Cost Updates using Weighted Average Cost (WAC)
                 if (received.unitPrice > 0 && received.unitPrice !== inventoryItem.buyCost) {
-                    const oldTotalValue = oldStock * (inventoryItem.buyCost || 0);
+                    // Convert old stock from base units to buy units for the calculation
+                    const oldStockBuyUnits = oldStock / conversion;
+                    const oldTotalValue = oldStockBuyUnits * (inventoryItem.buyCost || 0);
                     const newTotalValue = received.qtyReceived * received.unitPrice;
-                    const totalQty = oldStock + received.qtyReceived; // In buy units
+                    const totalQty = oldStockBuyUnits + received.qtyReceived; // In buy units
                     
                     // Calculate WAC
                     const newBuyCost = totalQty > 0 ? (oldTotalValue + newTotalValue) / totalQty : received.unitPrice;
@@ -642,6 +644,8 @@ export class InventoryService {
                     const newBaseCost = newBuyCost / conversion;
                     updateData.baseCost = newBaseCost;
                     updateData.costPerUnit = newBaseCost; 
+                    // Note: We intentionally DO NOT update inventoryItem.units.conversion here.
+                    // Conversion can only be updated manually by the user.
                 }
 
                 const itemRef = doc(db, COLLECTIONS.INVENTORY_ITEMS, itemId);
