@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import type { MenuItem } from '../../menu/types/menu.types';
 import { MENU_CATEGORIES } from '../../menu/types/menu.types';
 import { SERVICE_TYPES } from '../../inventory/types/InventoryItem';
-import { Search, Sparkles, AlertCircle, Filter } from 'lucide-react';
+import { Search, Filter, Plus } from 'lucide-react';
+import { sortByAvailability, isOutOfStock } from '../utils/menuSort';
 
 interface ProductGridProps {
     menuItems: MenuItem[];
@@ -11,6 +12,8 @@ interface ProductGridProps {
     sellableStockMap?: Map<string, number>;
 }
 
+// QR-Operations design language (light, high-contrast, fast to scan). The POS
+// engine (filters, sellable-stock rules, onAddItem) is unchanged — only presentation.
 const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddItem, sellableStockMap }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearchQuery = React.useDeferredValue(searchQuery);
@@ -18,211 +21,119 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
     const [activeServiceType, setActiveServiceType] = useState<string>('All');
 
     const filteredItems = React.useMemo(() => {
-        return menuItems.filter(item => {
+        const matched = menuItems.filter(item => {
             const matchesSearch = item.name.toLowerCase().includes(deferredSearchQuery.toLowerCase());
             const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
             const matchesServiceType = activeServiceType === 'All' || item.serviceType === activeServiceType;
             return matchesSearch && matchesCategory && matchesServiceType;
         });
-    }, [menuItems, deferredSearchQuery, activeCategory, activeServiceType]);
+        // Available items first, out-of-stock last (stable within each group).
+        return sortByAvailability(matched, sellableStockMap);
+    }, [menuItems, deferredSearchQuery, activeCategory, activeServiceType, sellableStockMap]);
 
     if (isLoading) {
         return (
-            <div className="flex-1 p-6 flex flex-col items-center justify-center bg-[#020203]">
-                <div className="relative">
-                    <div className="absolute inset-0 rounded-full blur-xl bg-indigo-500/30 animate-pulse"></div>
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-r-2 border-indigo-400 relative z-10"></div>
-                </div>
-                <p className="text-indigo-200/50 font-medium animate-pulse mt-6 tracking-widest text-xs uppercase">Initializing UI</p>
+            <div className="flex-1 flex flex-col items-center justify-center bg-slate-100">
+                <div className="animate-spin rounded-full h-11 w-11 border-b-2 border-slate-900" />
+                <p className="mt-4 text-sm font-bold text-slate-500">Loading menu…</p>
             </div>
         );
     }
 
-    return (
-        <div className="flex-1 flex flex-col h-full bg-[#020203] relative z-0 overflow-hidden selection:bg-indigo-500/30">
-            {/* Ultra-Premium Ambient Background (Nebula) */}
-            <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-gradient-to-br from-indigo-900/20 via-purple-900/10 to-transparent blur-[120px] -z-10 pointer-events-none rounded-full transform -translate-y-1/2 transition-all duration-[10000ms] ease-in-out hover:scale-110"></div>
-            <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-gradient-to-tl from-blue-900/10 via-transparent to-transparent blur-[150px] -z-10 pointer-events-none rounded-full transform translate-y-1/3 translate-x-1/3 transition-all duration-[10000ms] ease-in-out hover:scale-110 hidden md:block"></div>
+    const chipCls = (active: boolean): string =>
+        `shrink-0 whitespace-nowrap px-3.5 py-2 rounded-full text-sm font-bold border-2 transition-colors ${active
+            ? 'bg-slate-900 text-white border-slate-900'
+            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'}`;
 
-            {/* Top Bar - Search, Service Types & Categories */}
-            <div className="pt-6 pb-4 px-6 relative z-10">
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                    <div className="relative flex-1 max-w-2xl">
-                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-md opacity-0 transition-opacity duration-500 focus-within:opacity-100"></div>
-                        <div className="relative flex items-center group">
-                            <Search className="absolute left-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors duration-500" size={18} strokeWidth={2.5} />
-                            <input
-                                type="text"
-                                placeholder="Find extraordinary products..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-4 bg-white/[0.03] border border-white/[0.05] rounded-2xl text-slate-200 placeholder-slate-600 focus:outline-none focus:bg-white/[0.04] focus:border-indigo-500/40 transition-all duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.03)] text-sm tracking-wide font-medium"
-                            />
-                            <div className="absolute right-4 px-2 py-1 rounded bg-white/[0.05] text-[10px] text-slate-400 border border-white/[0.05] pointer-events-none tracking-widest font-mono hidden sm:block">⌘K</div>
-                        </div>
+    return (
+        <div className="flex-1 flex flex-col h-full bg-slate-100 overflow-hidden">
+            {/* Search + filters */}
+            <div className="px-4 md:px-5 pt-4 pb-3 border-b-2 border-slate-200 bg-white space-y-3">
+                <div className="flex flex-col md:flex-row md:items-center gap-3">
+                    <div className="relative flex-1 max-w-xl">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} strokeWidth={2.25} />
+                        <input
+                            type="text"
+                            placeholder="Search products…"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full h-12 pl-11 pr-4 rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-semibold placeholder-slate-400 focus:outline-none focus:border-slate-400"
+                        />
                     </div>
 
-                    {/* Service Types */}
-                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide mask-linear-fade pr-4">
-                        <div className="flex items-center text-slate-500 mr-2 shrink-0">
-                            <Filter size={14} className="mr-1" />
-                            <span className="text-[10px] font-black tracking-widest uppercase">Type</span>
-                        </div>
-                        <button
-                            onClick={() => setActiveServiceType('All')}
-                            className={`relative whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all duration-300 overflow-hidden shrink-0 ${activeServiceType === 'All'
-                                ? 'text-white border border-teal-500/50'
-                                : 'text-slate-400 hover:text-slate-200 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05]'
-                                }`}
-                        >
-                            {activeServiceType === 'All' && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-teal-600/40 to-emerald-600/40"></div>
-                            )}
-                            <span className="relative z-10 flex items-center gap-1.5">
-                                {activeServiceType === 'All' && <Sparkles size={12} className="text-teal-300" />}
-                                All Types
-                            </span>
+                    {/* Service type filter */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+                        <span className="shrink-0 inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-wide text-slate-400">
+                            <Filter size={13} strokeWidth={2.5} /> Type
+                        </span>
+                        <button type="button" onClick={() => setActiveServiceType('All')} className={chipCls(activeServiceType === 'All')}>
+                            All
                         </button>
                         {SERVICE_TYPES.map(type => (
-                            <button
-                                key={type}
-                                onClick={() => setActiveServiceType(type)}
-                                className={`relative whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all duration-300 overflow-hidden shrink-0 ${activeServiceType === type
-                                    ? 'text-white border border-teal-500/50'
-                                    : 'text-slate-400 hover:text-slate-200 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05]'
-                                    }`}
-                            >
-                                {activeServiceType === type && (
-                                    <div className="absolute inset-0 bg-gradient-to-br from-teal-500/30 to-emerald-500/30"></div>
-                                )}
-                                <span className="relative z-10">{type}</span>
+                            <button key={type} type="button" onClick={() => setActiveServiceType(type)} className={chipCls(activeServiceType === type)}>
+                                {type}
                             </button>
                         ))}
                     </div>
                 </div>
 
                 {/* Categories */}
-                <div className="flex overflow-x-auto pb-2 gap-3 scrollbar-hide mask-linear-fade">
-                    <button
-                        onClick={() => setActiveCategory('All')}
-                        className={`relative whitespace-nowrap px-6 py-2.5 rounded-full text-xs font-bold tracking-widest uppercase transition-all duration-500 overflow-hidden group ${activeCategory === 'All'
-                            ? 'text-white'
-                            : 'text-slate-400 hover:text-slate-200 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05]'
-                            }`}
-                    >
-                        {activeCategory === 'All' && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-600 opacity-90"></div>
-                        )}
-                        {activeCategory === 'All' && (
-                            <div className="absolute inset-0 opacity-50 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-white/40 to-transparent mix-blend-overlay"></div>
-                        )}
-                        <span className="relative z-10 flex items-center gap-2">
-                            {activeCategory === 'All' && <Sparkles size={14} className="text-indigo-200" />}
-                            All
-                        </span>
-                        {activeCategory === 'All' && (
-                            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-white blur-sm"></div>
-                        )}
+                <div className="flex gap-2 overflow-x-auto pb-0.5">
+                    <button type="button" onClick={() => setActiveCategory('All')} className={chipCls(activeCategory === 'All')}>
+                        All
                     </button>
                     {MENU_CATEGORIES.map(category => (
-                        <button
-                            key={category}
-                            onClick={() => setActiveCategory(category)}
-                            className={`relative whitespace-nowrap px-6 py-2.5 rounded-full text-xs font-bold tracking-widest uppercase transition-all duration-500 overflow-hidden ${activeCategory === category
-                                ? 'text-white'
-                                : 'text-slate-400 hover:text-slate-200 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05]'
-                                }`}
-                        >
-                            {activeCategory === category && (
-                                <div className="absolute inset-0 bg-white/[0.1] backdrop-blur-md border border-white/[0.2]"></div>
-                            )}
-                            {activeCategory === category && (
-                                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/20 to-purple-500/20"></div>
-                            )}
-                            <span className="relative z-10">{category}</span>
+                        <button key={category} type="button" onClick={() => setActiveCategory(category)} className={chipCls(activeCategory === category)}>
+                            {category}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Products Grid */}
-            <div className="flex-1 overflow-y-auto px-6 pb-6 z-10 scrollbar-hide">
-                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-5 md:gap-6 auto-rows-max">
+            {/* Product grid */}
+            <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-3">
                     {filteredItems.map(item => {
-                        // Check sellable stock
                         const sellableStock = sellableStockMap?.get(item.id);
-                        const isOutOfStock = sellableStock !== undefined && sellableStock <= 0;
+                        const outOfStock = isOutOfStock(item.id, sellableStockMap);
 
                         return (
                             <button
                                 key={item.id}
-                                onClick={() => !isOutOfStock && onAddItem(item)}
-                                disabled={isOutOfStock}
-                                className={`group relative rounded-3xl text-left flex flex-col h-[180px] md:h-[200px] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#020203] ${isOutOfStock
-                                        ? 'opacity-50 cursor-not-allowed'
-                                        : 'hover:-translate-y-2 hover:scale-[1.03]'
-                                    }`}
+                                onClick={() => !outOfStock && onAddItem(item)}
+                                disabled={outOfStock}
+                                className={`group relative flex flex-col text-left rounded-xl border-2 p-3 min-h-[128px] transition-all outline-none focus-visible:ring-2 focus-visible:ring-slate-400 ${outOfStock
+                                    ? 'bg-slate-50 border-slate-200 opacity-70 cursor-not-allowed'
+                                    : 'bg-white border-slate-200 hover:border-slate-400 hover:shadow-sm active:scale-[0.98]'}`}
                             >
-                                {/* Card Background & Borders */}
-                                <div className="absolute inset-0 bg-[#0a0a0f]/80 backdrop-blur-xl border border-white/[0.05] rounded-3xl overflow-hidden group-hover:bg-white/[0.04] transition-colors duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.02)]">
-                                    {/* Top highlight border */}
-                                    <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-white/[0.15] to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                <div className="flex items-start justify-between gap-2 mb-1.5">
+                                    <p className={`text-[10px] font-black uppercase tracking-wide truncate ${outOfStock ? 'text-slate-400' : 'text-slate-400'}`}>
+                                        {item.category}{item.serviceType ? ` · ${item.serviceType}` : ''}
+                                    </p>
+                                    {outOfStock ? (
+                                        <span className="shrink-0 text-[9px] font-black uppercase tracking-wide bg-red-100 text-red-700 border border-red-200 px-1.5 py-0.5 rounded-full">
+                                            Out of stock
+                                        </span>
+                                    ) : sellableStock !== undefined && sellableStock > 0 ? (
+                                        <span className="shrink-0 text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded-full tabular-nums">
+                                            {sellableStock} left
+                                        </span>
+                                    ) : null}
                                 </div>
 
-                                {/* Out of Stock Overlay */}
-                                {isOutOfStock && (
-                                    <div className="absolute inset-0 z-20 flex items-center justify-center rounded-3xl bg-black/40">
-                                        <span className="px-3 py-1.5 bg-red-500/90 text-white text-xs font-black tracking-widest uppercase rounded-full flex items-center gap-1.5 shadow-lg">
-                                            <AlertCircle size={12} /> OUT OF STOCK
+                                <h3 className={`font-bold text-sm md:text-[15px] leading-snug line-clamp-3 ${outOfStock ? 'text-slate-400' : 'text-slate-900'}`}>
+                                    {item.name}
+                                </h3>
+
+                                <div className="mt-auto pt-2 flex items-end justify-between">
+                                    <div className={`text-lg md:text-xl font-black tabular-nums ${outOfStock ? 'text-slate-400' : 'text-slate-900'}`}>
+                                        <span className="text-slate-400 text-sm font-bold mr-0.5">₱</span>{item.sellingPrice.toFixed(2)}
+                                    </div>
+                                    {!outOfStock && (
+                                        <span className="shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center group-hover:bg-slate-800 transition-colors">
+                                            <Plus size={16} strokeWidth={3} />
                                         </span>
-                                    </div>
-                                )}
-
-                                {/* Hover Reveal Mesh */}
-                                {!isOutOfStock && (
-                                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none overflow-hidden rounded-3xl">
-                                        <div className="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/30 rounded-full blur-[40px] transform group-hover:translate-x-5 group-hover:translate-y-5 transition-transform duration-1000 ease-out"></div>
-                                        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-purple-500/20 rounded-full blur-[40px] transform group-hover:-translate-x-5 group-hover:-translate-y-5 transition-transform duration-1000 ease-out"></div>
-                                    </div>
-                                )}
-
-                                <div className="flex-1 relative z-10 w-full p-4 md:p-5 flex flex-col">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] opacity-60 group-hover:opacity-100 transition-opacity">
-                                            {item.category}
-                                            {item.serviceType && <span className="text-teal-400/80 ml-1">· {item.serviceType}</span>}
-                                        </p>
-                                        {/* Sellable stock pill */}
-                                        {sellableStock !== undefined && sellableStock > 0 && (
-                                            <span className="text-[9px] font-bold text-green-400 bg-green-500/10 border border-green-500/20 px-1.5 py-0.5 rounded-full">
-                                                {sellableStock} left
-                                            </span>
-                                        )}
-                                    </div>
-                                    <h3 className="font-semibold text-slate-300 text-sm md:text-base leading-snug group-hover:text-white transition-colors duration-300 drop-shadow-sm line-clamp-3">
-                                        {item.name}
-                                    </h3>
-
-                                    <div className="mt-auto relative w-full flex items-end justify-between">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] text-slate-600 font-medium tracking-widest uppercase mb-0.5">Price</span>
-                                            <div className="font-bold text-slate-200 text-lg md:text-xl tracking-tighter group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-indigo-300 group-hover:to-purple-300 transition-all duration-300">
-                                                <span className="text-zinc-600 mr-1 text-sm md:text-base group-hover:text-indigo-400/50 transition-colors">₱</span>
-                                                {item.sellingPrice.toFixed(2)}
-                                            </div>
-                                        </div>
-
-                                        {/* Liquid Action Button - hidden when out of stock */}
-                                        {!isOutOfStock && (
-                                            <div className="relative w-8 h-8 md:w-10 md:h-10">
-                                                <div className="absolute inset-0 rounded-full bg-indigo-500 blur-md opacity-0 group-hover:opacity-40 transition-opacity duration-500"></div>
-                                                <div className="absolute inset-0 rounded-full bg-white/[0.05] border border-white/[0.05] flex items-center justify-center group-hover:bg-indigo-500 group-hover:border-indigo-400/50 transition-colors duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] overflow-hidden">
-                                                    <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500 group-hover:text-white transition-colors duration-500 transform group-hover:scale-110 relative z-10"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
                             </button>
                         );
@@ -230,21 +141,22 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
                 </div>
 
                 {filteredItems.length === 0 && (
-                    <div className="h-full flex flex-col items-center justify-center py-20 px-4 relative">
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900/40 via-transparent to-transparent blur-3xl -z-10"></div>
-                        <div className="w-16 h-16 md:w-20 md:h-20 bg-white/[0.02] border border-white/[0.05] shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] rounded-3xl flex items-center justify-center mb-6 transform rotate-3">
-                            <Search className="text-slate-600" size={28} strokeWidth={1.5} />
+                    <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center px-4">
+                        <div className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center mb-4">
+                            <Search className="text-slate-400" size={24} strokeWidth={2} />
                         </div>
-                        <h3 className="text-lg md:text-xl font-bold text-slate-300 mb-2 tracking-tight">Void of Results</h3>
-                        <p className="text-slate-500 max-w-sm text-center text-xs md:text-sm leading-relaxed mb-8">
-                            Our deep scan couldn't locate "{searchQuery}" within the {activeCategory === 'All' ? 'entire catalogue' : `bounds of ${activeCategory}`} {activeServiceType !== 'All' && `for ${activeServiceType}`}.
+                        <h3 className="text-base font-black text-slate-800">No items found</h3>
+                        <p className="mt-1 text-sm text-slate-500 max-w-xs">
+                            Nothing matches {searchQuery ? `“${searchQuery}”` : 'these filters'}
+                            {activeCategory !== 'All' ? ` in ${activeCategory}` : ''}
+                            {activeServiceType !== 'All' ? ` · ${activeServiceType}` : ''}.
                         </p>
                         <button
+                            type="button"
                             onClick={() => { setSearchQuery(''); setActiveCategory('All'); setActiveServiceType('All'); }}
-                            className="relative px-8 py-3 bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold tracking-widest text-[10px] md:text-xs uppercase rounded-full border border-white/[0.05] transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:-translate-y-0.5 active:translate-y-0 overflow-hidden group"
+                            className="mt-4 px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-black"
                         >
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
-                            <span className="relative z-10">Reset Filters</span>
+                            Reset filters
                         </button>
                     </div>
                 )}
@@ -254,4 +166,3 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
 };
 
 export default React.memo(ProductGrid);
-

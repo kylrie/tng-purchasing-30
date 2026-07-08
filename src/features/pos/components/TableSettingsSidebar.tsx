@@ -38,86 +38,86 @@ export const TableSettingsSidebar: React.FC<TableSettingsSidebarProps> = ({ tabl
     };
 
     return (
-        <div className="w-80 bg-slate-800 border-l border-slate-700 h-full flex flex-col shadow-2xl absolute right-0 top-0 z-20 transition-transform">
-            <div className="flex items-center justify-between p-4 border-b border-slate-700 shrink-0">
-                <h3 className="font-bold text-white text-lg">Table Settings</h3>
-                <button onClick={onClose} className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700">
-                    <X size={20} />
+        <div className="w-80 bg-white border-l-2 border-slate-200 h-full flex flex-col shadow-xl absolute right-0 top-0 z-20 transition-transform">
+            <div className="flex items-center justify-between p-4 border-b-2 border-slate-200 shrink-0">
+                <h3 className="font-black text-slate-900 text-lg">Table Settings</h3>
+                <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors">
+                    <X size={20} strokeWidth={2.5} />
                 </button>
             </div>
 
             <div className="p-6 flex-1 overflow-y-auto space-y-6">
                 <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Table Name</label>
+                    <label className="block text-[11px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Table Name</label>
                     <input
                         type="text"
                         value={table.name}
                         onChange={(e) => onUpdate({ name: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none transition-colors"
                         placeholder="e.g. Table 1"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Seats</label>
+                    <label className="block text-[11px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Seats</label>
                     <input
                         type="number"
                         min="1"
                         value={table.seats}
                         onChange={(e) => onUpdate({ seats: parseInt(e.target.value) || 1 })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 tabular-nums focus:border-slate-400 focus:outline-none transition-colors"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-1">Shape</label>
+                    <label className="block text-[11px] font-black uppercase tracking-wide text-slate-400 mb-1.5">Shape</label>
                     <select
                         value={table.shape}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         onChange={(e) => onUpdate({ shape: e.target.value as any })}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 focus:border-slate-400 focus:outline-none transition-colors"
                     >
                         <option value="rectangle">Rectangle</option>
                         <option value="circle">Circle</option>
                     </select>
                 </div>
 
-                <div className="pt-4 border-t border-slate-700">
+                <div className="pt-4 border-t-2 border-slate-200">
                     <div className="flex items-center justify-between mb-4">
-                        <label className="text-sm font-medium text-slate-300">Enable QR Ordering</label>
+                        <label className="text-sm font-bold text-slate-700">Enable QR Ordering</label>
                         <button
                             onClick={() => onUpdate({ qrEnabled: !table.qrEnabled })}
-                            className={`w-12 h-6 rounded-full transition-colors relative ${table.qrEnabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${table.qrEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
                         >
-                            <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${table.qrEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                            <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${table.qrEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
                         </button>
                     </div>
 
                     {table.qrEnabled && (
                         <div className="space-y-4">
                             <div>
-                                <label className="block text-xs font-medium text-slate-400 mb-1">QR Destination URL</label>
+                                <label className="block text-[11px] font-black uppercase tracking-wide text-slate-400 mb-1.5">QR Destination URL</label>
                                 <input
                                     type="text"
                                     value={table.qrUrl || `https://tng-systems.web.app/order?table=${table.id}`}
                                     onChange={(e) => onUpdate({ qrUrl: e.target.value })}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    className="w-full bg-white border-2 border-slate-200 rounded-xl px-4 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-slate-400 focus:outline-none transition-colors"
                                 />
                             </div>
-                            
-                            <div className="bg-white p-4 rounded-2xl flex flex-col items-center justify-center">
-                                <QRCodeSVG 
+
+                            <div className="bg-white border-2 border-slate-200 p-4 rounded-2xl flex flex-col items-center justify-center">
+                                <QRCodeSVG
                                     id={`qr-${table.id}`}
-                                    value={table.qrUrl || `https://tng-systems.web.app/order?table=${table.id}`} 
-                                    size={150} 
+                                    value={table.qrUrl || `https://tng-systems.web.app/order?table=${table.id}`}
+                                    size={150}
                                     level="H"
                                     includeMargin={true}
                                 />
                                 <button
                                     onClick={handleSaveQr}
-                                    className="mt-4 flex items-center gap-2 text-indigo-600 font-semibold hover:text-indigo-700"
+                                    className="mt-4 flex items-center gap-2 text-slate-900 font-black hover:text-slate-700 transition-colors"
                                 >
-                                    <QrCode size={18} />
+                                    <QrCode size={18} strokeWidth={2.5} />
                                     Download QR
                                 </button>
                             </div>
@@ -126,16 +126,16 @@ export const TableSettingsSidebar: React.FC<TableSettingsSidebarProps> = ({ tabl
                 </div>
             </div>
 
-            <div className="p-4 border-t border-slate-700">
+            <div className="p-4 border-t-2 border-slate-200">
                 <button
                     onClick={() => {
                         if (confirm('Are you sure you want to delete this table?')) {
                             onDelete(table.id);
                         }
                     }}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-xl font-semibold transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 hover:bg-red-100 border-2 border-red-200 rounded-xl font-bold transition-colors"
                 >
-                    <Trash2 size={18} />
+                    <Trash2 size={18} strokeWidth={2.25} />
                     Delete Table
                 </button>
             </div>

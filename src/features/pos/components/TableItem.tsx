@@ -74,15 +74,15 @@ export const TableItem: React.FC<TableItemProps> = ({ table, isSelected, billAmo
     }, [table.position.x, table.position.y]);
 
     const getStatusStyles = () => {
-        if (isSelected) return 'border-indigo-500 bg-indigo-500/20 text-white shadow-indigo-500/20 ring-2 ring-indigo-400';
-        
+        if (isSelected) return 'border-slate-900 bg-white ring-2 ring-slate-300';
+
         switch (table.status) {
             case 'occupied':
-                return 'border-amber-500/50 bg-amber-500/10 text-amber-500 hover:border-amber-400';
+                return 'border-amber-400 bg-amber-50 hover:border-amber-500';
             case 'reserved':
-                return 'border-sky-500/50 bg-sky-500/10 text-sky-400 hover:border-sky-400';
+                return 'border-sky-300 bg-sky-50 hover:border-sky-500';
             default: // available
-                return 'border-slate-600 bg-slate-800 text-slate-300 hover:border-slate-500';
+                return 'border-emerald-300 bg-white hover:border-emerald-500';
         }
     };
 
@@ -97,23 +97,23 @@ export const TableItem: React.FC<TableItemProps> = ({ table, isSelected, billAmo
                 cursor: 'grab'
             }}
             className={`
-                w-24 h-24 flex flex-col items-center justify-center 
-                rounded-2xl border-2 transition-all shadow-md active:cursor-grabbing
+                w-24 h-24 flex flex-col items-center justify-center
+                rounded-2xl border-2 transition-all shadow-sm active:cursor-grabbing
                 ${table.shape === 'circle' ? 'rounded-full' : 'rounded-xl'}
                 ${getStatusStyles()}
             `}
         >
-            <span className="font-bold text-center text-sm px-1 truncate w-full pointer-events-none leading-tight">{table.name}</span>
-            <span className="text-[10px] opacity-70 mt-0.5 pointer-events-none uppercase tracking-wider">
+            <span className="font-black text-slate-900 text-center text-sm px-1 truncate w-full pointer-events-none leading-tight">{table.name}</span>
+            <span className="text-[10px] font-black text-slate-500 mt-0.5 pointer-events-none uppercase tracking-wide tabular-nums">
                 {table.status === 'occupied' ? 'Occupied' : table.status === 'reserved' ? 'Reserved' : `${table.seats} Seats`}
             </span>
             {billAmount !== undefined && table.status === 'occupied' && (
-                <span className="text-[11px] font-bold text-amber-400 mt-0.5 pointer-events-none bg-black/20 px-1.5 py-0.5 rounded-md">
+                <span className="text-[11px] font-black text-amber-700 mt-0.5 pointer-events-none bg-amber-100 px-1.5 py-0.5 rounded-md tabular-nums">
                     ₱{billAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </span>
             )}
             {table.qrEnabled && (
-                <div className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full border-2 border-slate-900" title="QR Enabled" />
+                <div className="absolute -top-2 -right-2 w-5 h-5 bg-emerald-500 rounded-full border-2 border-white" title="QR Enabled" />
             )}
         </div>
     );

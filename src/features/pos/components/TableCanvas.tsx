@@ -22,10 +22,10 @@ export const TableCanvas: React.FC<TableCanvasProps> = ({ tables, selectedTableI
     return (
         <div 
             ref={canvasRef}
-            className="flex-1 relative bg-slate-900 overflow-auto"
+            className="flex-1 relative bg-slate-100 overflow-auto"
             onClick={handleCanvasClick}
             style={{
-                backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)',
+                backgroundImage: 'radial-gradient(#cbd5e1 1px, transparent 1px)',
                 backgroundSize: '20px 20px',
                 minWidth: '800px',
                 minHeight: '600px'

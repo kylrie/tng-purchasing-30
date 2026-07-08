@@ -258,45 +258,45 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
     const currentBusiness = displayBusinesses.find(b => b.id === selectedBusinessUnit);
 
     return (
-        <div className="flex flex-col h-screen w-screen bg-slate-900 overflow-hidden relative">
-            {/* Fixed Header */}
-            <div className="h-16 flex items-center justify-between px-6 bg-slate-800 border-b border-slate-700 z-10 shrink-0">
-                <div className="flex items-center">
-                    <h1 className="text-xl font-bold text-white">Point of Sale</h1>
-                    {displayBusinesses.length > 1 ? (
-                        <select
-                            value={selectedBusinessUnit}
-                            onChange={(e) => {
-                                setSelectedBusinessUnit(e.target.value);
-                                clearCart();
-                            }}
-                            className="ml-4 px-3 py-1 bg-slate-700/50 border border-slate-600 rounded-full text-sm font-medium text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 appearance-none"
-                            style={{ backgroundImage: 'url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3E%3Cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'m6 8 4 4 4-4\'/%3E%3C/svg%3E")', backgroundPosition: 'right 0.5rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.5em 1.5em', paddingRight: '2rem' }}
-                        >
-                            {displayBusinesses.map(b => (
-                                <option key={b.id} value={b.id}>
-                                    {b.name}
-                                </option>
-                            ))}
-                        </select>
-                    ) : (
-                        displayBusinesses.find(b => b.id === selectedBusinessUnit) && (
-                            <span className="ml-4 px-3 py-1 bg-slate-700 rounded-full text-sm font-medium text-slate-300">
-                                {displayBusinesses.find(b => b.id === selectedBusinessUnit)?.name}
-                            </span>
-                        )
-                    )}
+        <div className="flex flex-col h-screen w-screen bg-slate-100 text-slate-900 overflow-hidden relative">
+            {/* Fixed Header — QR Operations design language (light, full-screen, no ERP chrome) */}
+            <div className="h-16 flex items-center justify-between px-4 md:px-6 bg-white border-b-2 border-slate-200 z-10 shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="min-w-0">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none">Point of Sale</div>
+                        {displayBusinesses.length > 1 ? (
+                            <select
+                                value={selectedBusinessUnit}
+                                onChange={(e) => {
+                                    setSelectedBusinessUnit(e.target.value);
+                                    clearCart();
+                                }}
+                                className="mt-0.5 -ml-0.5 max-w-[220px] md:max-w-[320px] bg-transparent text-base md:text-lg font-black tracking-tight text-slate-900 focus:outline-none appearance-none cursor-pointer"
+                                style={{ backgroundImage: 'url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3E%3Cpath stroke=\'%2394a3b8\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'m6 8 4 4 4-4\'/%3E%3C/svg%3E")', backgroundPosition: 'right 0.25rem center', backgroundRepeat: 'no-repeat', backgroundSize: '1.25em 1.25em', paddingRight: '1.75rem' }}
+                            >
+                                {displayBusinesses.map(b => (
+                                    <option key={b.id} value={b.id}>
+                                        {b.name}
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <p className="text-base md:text-lg font-black tracking-tight text-slate-900 leading-tight truncate max-w-[220px] md:max-w-[320px]">
+                                {displayBusinesses.find(b => b.id === selectedBusinessUnit)?.name || 'Point of Sale'}
+                            </p>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="text-sm text-right">
-                        <div className="font-medium text-white">{activeCashier.name}</div>
-                        <div className="text-slate-400 capitalize">{activeCashier.role.replace(/_/g, ' ').toLowerCase()}</div>
+                <div className="flex items-center gap-2 md:gap-3">
+                    <div className="text-sm text-right hidden sm:block">
+                        <div className="font-black text-slate-900 leading-tight">{activeCashier.name}</div>
+                        <div className="text-slate-500 font-semibold capitalize leading-tight">{activeCashier.role.replace(/_/g, ' ').toLowerCase()}</div>
                     </div>
                     {currentBusiness?.hasTableManagement && (
                         <button
                             onClick={() => setIsTableManagementOpen(true)}
-                            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg border-2 border-transparent hover:border-slate-200 transition-colors"
                             title="Table Management"
                         >
                             <LayoutDashboard className="w-5 h-5" />
@@ -304,21 +304,21 @@ const POSView: React.FC<POSViewProps> = ({ businesses, allUsers }) => {
                     )}
                     <button
                         onClick={() => setReportsModalOpen(true)}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                        className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg border-2 border-transparent hover:border-slate-200 transition-colors"
                         title="Shift & Reports"
                     >
                         <BarChart3 className="w-5 h-5" />
                     </button>
                     <button
                         onClick={() => setSettingsModalOpen(true)}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                        className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg border-2 border-transparent hover:border-slate-200 transition-colors"
                         title="POS Settings"
                     >
                         <Settings className="w-5 h-5" />
                     </button>
                     <button
                         onClick={handleLockTerminal}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                        className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg border-2 border-transparent hover:border-red-200 transition-colors"
                         title="Lock Terminal"
                     >
                         <LogOut className="w-5 h-5" />
