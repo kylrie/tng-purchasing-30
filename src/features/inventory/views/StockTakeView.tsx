@@ -527,19 +527,22 @@ const ReviewPanel: React.FC<{
     activeDepartmentTab: InventoryDepartment | 'ALL';
 }> = ({ session, countStates, items, onSubmit, onSaveDraft, onCancel, isSubmitting, isSavingDraft, activeDepartmentTab }) => {
     const [selectedCountType, setSelectedCountType] = useState<string>('');
+    const [freeText, setFreeText] = useState<string>('');
     const countedItemsCount = countStates.size;
     const totalItems = items.length;
 
-    // Build the full session name: "Cycle Count [06-4-2026]"
+    // Build the full session name: "Cycle Count - All Departments [06-4-2026]"
     const buildSessionName = () => {
         if (!selectedCountType) return '';
         const now = new Date();
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const d = now.getDate();
         const y = now.getFullYear();
+        const time = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
         
         const departmentLabel = activeDepartmentTab === 'ALL' ? 'All Departments' : activeDepartmentTab;
-        return `${selectedCountType} - ${departmentLabel} [${mm}-${d}-${y}]`;
+        const note = freeText.trim() ? ` - ${freeText.trim()}` : '';
+        return `${selectedCountType} - ${departmentLabel}${note} [${mm}-${d}-${y} ${time}]`;
     };
 
     let totalValue = 0;
@@ -574,8 +577,23 @@ const ReviewPanel: React.FC<{
                         <option key={type} value={type}>{type}</option>
                     ))}
                 </select>
+
+                {/* Optional Free Text Note */}
+                <div className="mt-3">
+                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-2">
+                        Notes (Optional)
+                    </label>
+                    <input
+                        type="text"
+                        value={freeText}
+                        onChange={(e) => setFreeText(e.target.value)}
+                        placeholder="e.g. End of month reconciliation"
+                        className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-colors"
+                    />
+                </div>
+
                 {selectedCountType && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1.5">
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
                         Will be saved as: <span className="text-cyan-600 dark:text-cyan-400 font-medium">{buildSessionName()}</span>
                     </p>
                 )}
