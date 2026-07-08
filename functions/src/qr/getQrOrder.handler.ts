@@ -7,9 +7,12 @@
  * staff-only (Master Plan §6.4 / A9) — customers never read `qr_orders` directly
  * (the rule requires signed-in, same-BU staff).
  *
- * Whitelisted projection: never returns businessUnitId, tableId, xendit* or
- * officialInvoice* fields. db is injected for testing; the onCall wrapper passes
- * the real `qrDb`. Read-only — no writes, no payment, no kitchen transitions.
+ * Whitelisted projection: returns businessUnitId (the venue id — the customer is
+ * already at that venue; used by the customer pages to resolve the correct
+ * business BRANDING/theme durably from authoritative order data) but never
+ * tableId, xendit* or officialInvoice* fields. db is injected for testing; the
+ * onCall wrapper passes the real `qrDb`. Read-only — no writes, no payment, no
+ * kitchen transitions.
  */
 
 import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
@@ -31,6 +34,9 @@ export interface PublicQrOrderLine {
 
 export interface PublicQrOrderDTO {
     orderId: string;
+    /** Venue id (e.g. 'b1' The Fun Roof, 'b3' Inflatable Island). Non-sensitive —
+     *  drives the customer pages' business branding/theme from authoritative data. */
+    businessUnitId: string;
     orderNumber: string;
     tableNumber: string;
     status: string;
@@ -91,6 +97,7 @@ export async function getQrOrderHandler(db: Firestore, request: CallableRequest<
 
     const dto: PublicQrOrderDTO = {
         orderId: id,
+        businessUnitId: typeof order.businessUnitId === 'string' ? order.businessUnitId : '',
         orderNumber: typeof order.orderNumber === 'string' ? order.orderNumber : '',
         tableNumber,
         status: typeof order.status === 'string' ? order.status : '',

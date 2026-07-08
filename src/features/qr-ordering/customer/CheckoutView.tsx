@@ -12,6 +12,8 @@ import {
     redirectToPaymentLink, toUserFacingSessionError,
 } from '../services/createSession.service';
 import { formatTableLabel } from '../utils/tableUtils';
+import { readBusinessParam } from '../utils/adminBusinessParam';
+import { resolveQrTransactionTheme } from '../theme/qrTransactionTheme';
 
 /**
  * QR Ordering — Checkout (Phase 3 · createXenditSession wiring)
@@ -27,12 +29,12 @@ import { formatTableLabel } from '../utils/tableUtils';
  *    client never sees the Xendit secret (the link is minted server-side) and
  *    NEVER marks the order paid — payment truth comes only from the webhook.
  *
- * Light, glossy Inflatable Island theme. Mobile-first, large touch targets,
- * high daylight readability. Sticky bottom payment CTA.
+ * BRANDING: shared engine, per-venue skin. The business is resolved from
+ * AUTHORITATIVE order data (order.businessUnitId), with the ?bu URL param as an
+ * instant-paint hint, so the correct brand survives refresh / new tab / cold open
+ * / paste (see theme/qrTransactionTheme.ts). Logic below is unchanged.
  */
 
-const PINK = '#ec4899';
-const TEAL = '#0d6e62';
 const CONFIRM_MS = 1900; // demo-only confirm animation
 
 interface PaymentMethod {
@@ -56,6 +58,8 @@ interface CheckoutSummary {
     tableNumber: string;
     total: number;
     lines: { name: string; qty: number; unitPrice: number; note?: string }[];
+    /** Venue id — drives the brand theme (authoritative when from a real order). */
+    businessUnitId?: string;
 }
 
 /** Identity + summary handed over by CustomerMenuView after createQrOrder. */
@@ -65,6 +69,7 @@ interface CheckoutHandoff {
     totalAmount?: number;
     tableNumber?: string;
     qrToken?: string;
+    businessUnitId?: string;
     lines?: { name: string; qty: number; unitPrice: number; note?: string }[];
 }
 
@@ -94,6 +99,7 @@ const CheckoutView: React.FC = () => {
             tableNumber: handoff.tableNumber ?? '',
             total: handoff.totalAmount,
             lines: Array.isArray(handoff.lines) ? handoff.lines : [],
+            businessUnitId: handoff.businessUnitId,
         };
     }, [isDemo, handoff]);
 
@@ -113,6 +119,7 @@ const CheckoutView: React.FC = () => {
                     tableNumber: order.tableNumber ?? '',
                     total: order.totalAmount,
                     lines: order.items.map(it => ({ name: it.productName, qty: it.quantity, unitPrice: it.unitPrice, note: it.notes })),
+                    businessUnitId: order.businessUnitId,
                 });
                 setLoadState('ready');
             })
@@ -129,6 +136,13 @@ const CheckoutView: React.FC = () => {
     useEffect(() => () => window.clearTimeout(timer.current), []);
 
     const total = summary?.total ?? 0;
+
+    // ── Theme (business-specific presentation) ─────────────────────────────
+    const buHint = useMemo(() => readBusinessParam(location.search), [location.search]);
+    const theme = useMemo(
+        () => resolveQrTransactionTheme((summary?.businessUnitId?.trim()) || buHint),
+        [summary?.businessUnitId, buHint],
+    );
 
     const handlePay = async () => {
         if (confirming) return;
@@ -167,23 +181,23 @@ const CheckoutView: React.FC = () => {
     // ── Real-order summary loading / error gates ──────────────────────────
     if (!isDemo && loadState === 'loading') {
         return (
-            <div className="min-h-dvh bg-white flex flex-col items-center justify-center px-8 text-center" role="status" aria-live="polite">
-                <Loader2 size={30} className="animate-spin text-[#0d6e62]" />
-                <p className="mt-4 text-base font-bold text-slate-800">Loading your order…</p>
+            <div className="min-h-dvh flex flex-col items-center justify-center px-8 text-center" role="status" aria-live="polite" style={{ background: theme.pageBackground }}>
+                <Loader2 size={30} className="animate-spin" style={{ color: theme.cta }} />
+                <p className="mt-4 text-base font-bold" style={{ color: theme.text }}>Loading your order…</p>
             </div>
         );
     }
     if (!isDemo && loadState === 'error') {
         return (
-            <div className="min-h-dvh bg-white flex flex-col items-center justify-center px-8 text-center">
-                <AlertCircle size={30} className="text-red-500" />
-                <p className="mt-4 text-base font-bold text-slate-800">We couldn’t load your order</p>
-                <p className="mt-1 text-sm text-slate-500 max-w-[18rem]">Please check your connection and try again.</p>
+            <div className="min-h-dvh flex flex-col items-center justify-center px-8 text-center" style={{ background: theme.pageBackground }}>
+                <AlertCircle size={30} style={{ color: theme.tone.red.includes('rose') ? '#fb7185' : '#ef4444' }} />
+                <p className="mt-4 text-base font-bold" style={{ color: theme.text }}>We couldn’t load your order</p>
+                <p className="mt-1 text-sm max-w-[18rem]" style={{ color: theme.textMuted }}>Please check your connection and try again.</p>
                 <button
                     type="button"
                     onClick={() => setReloadKey(k => k + 1)}
-                    className="mt-5 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-white font-bold"
-                    style={{ backgroundColor: TEAL }}
+                    className="mt-5 inline-flex items-center gap-2 rounded-2xl px-5 py-3 font-bold"
+                    style={{ background: theme.cta, color: theme.onCta }}
                 >
                     <RefreshCw size={18} /> Try again
                 </button>
@@ -192,17 +206,12 @@ const CheckoutView: React.FC = () => {
     }
 
     return (
-        <div className="min-h-dvh bg-white text-slate-800 relative overflow-x-hidden">
+        <div className="min-h-dvh relative overflow-x-hidden" style={{ background: theme.pageBackground, color: theme.text }}>
             {/* Soft top glow (matches the menu header) */}
             <div
                 aria-hidden
                 className="pointer-events-none absolute inset-x-0 top-0 h-64 -z-0"
-                style={{
-                    background:
-                        'radial-gradient(90% 60% at 50% -8%, #ffd6e6 0%, rgba(255,214,230,0) 60%),' +
-                        'radial-gradient(78% 55% at 90% 0%, #b9f0e2 0%, rgba(185,240,226,0) 58%),' +
-                        'linear-gradient(#ffffff00, #ffffff 82%)',
-                }}
+                style={{ background: theme.topGlow }}
             />
 
             <div className="relative z-10 max-w-md mx-auto w-full px-5">
@@ -212,49 +221,53 @@ const CheckoutView: React.FC = () => {
                         type="button"
                         onClick={goBack}
                         aria-label="Back to menu"
-                        className="w-11 h-11 rounded-full bg-white shadow-[0_6px_18px_-6px_rgba(15,23,42,0.25)] flex items-center justify-center active:scale-95 transition-transform shrink-0"
+                        className="w-11 h-11 rounded-full flex items-center justify-center active:scale-95 transition-transform shrink-0 border"
+                        style={{ background: theme.surface, borderColor: theme.surfaceBorder, boxShadow: theme.surfaceShadow }}
                     >
-                        <ChevronLeft size={24} className="text-[#0d6e62]" strokeWidth={2.25} />
+                        <ChevronLeft size={24} strokeWidth={2.25} style={{ color: theme.cta }} />
                     </button>
-                    <div className="min-w-0">
-                        <h1 className="text-2xl font-extrabold tracking-tight text-[#0d6e62] leading-none">Checkout</h1>
-                        <p className="text-sm font-semibold text-[#ec4899] mt-1">{formatTableLabel(summary?.tableNumber)}</p>
+                    <div className="min-w-0 flex items-center gap-3">
+                        {theme.logoSrc && <img src={theme.logoSrc} alt={theme.brandName} className="h-9 w-auto object-contain shrink-0" />}
+                        <div className="min-w-0">
+                            <h1 className="text-2xl font-extrabold tracking-tight leading-none" style={{ color: theme.isDark ? theme.text : theme.cta }}>Checkout</h1>
+                            <p className="text-sm font-semibold mt-1" style={{ color: theme.primary }}>{formatTableLabel(summary?.tableNumber)}</p>
+                        </div>
                     </div>
                 </header>
 
                 {/* Order summary */}
-                <section className="mt-4 bg-white rounded-[20px] p-5 shadow-[0_10px_30px_-8px_rgba(15,23,42,0.12)] border border-black/[0.04]">
+                <section className="mt-4 rounded-[20px] p-5 border" style={{ background: theme.surface, borderColor: theme.surfaceBorder, boxShadow: theme.surfaceShadow }}>
                     <div className="flex items-center gap-2 mb-4">
-                        <ReceiptText size={18} className="text-[#ec4899]" />
-                        <h2 className="text-[15px] font-extrabold tracking-wide uppercase text-slate-800">Order summary</h2>
+                        <ReceiptText size={18} style={{ color: theme.primary }} />
+                        <h2 className="text-[15px] font-extrabold tracking-wide uppercase" style={{ color: theme.text }}>Order summary</h2>
                     </div>
 
                     <ul className="space-y-3.5">
                         {(summary?.lines ?? []).map((line, i) => (
                             <li key={i} className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                    <p className="text-[15px] text-slate-800 leading-snug">
-                                        <span className="font-bold text-[#0d6e62]">{line.qty}×</span> {line.name}
+                                    <p className="text-[15px] leading-snug" style={{ color: theme.text }}>
+                                        <span className="font-bold" style={{ color: theme.cta }}>{line.qty}×</span> {line.name}
                                     </p>
                                     {line.note && (
-                                        <p className="text-[13px] text-slate-500 mt-0.5 leading-snug">{line.note}</p>
+                                        <p className="text-[13px] mt-0.5 leading-snug" style={{ color: theme.textMuted }}>{line.note}</p>
                                     )}
                                 </div>
-                                <span className="text-[15px] font-bold text-slate-800 tabular-nums shrink-0">
-                                    <span className="text-slate-400 text-xs mr-0.5">₱</span>{(line.unitPrice * line.qty).toFixed(2)}
+                                <span className="text-[15px] font-bold tabular-nums shrink-0" style={{ color: theme.text }}>
+                                    <span className="text-xs mr-0.5" style={{ color: theme.textFaint }}>₱</span>{(line.unitPrice * line.qty).toFixed(2)}
                                 </span>
                             </li>
                         ))}
                     </ul>
 
-                    <div className="mt-5 pt-4 border-t border-dashed border-black/[0.1] space-y-2">
-                        <div className="flex items-center justify-between text-sm text-slate-500">
+                    <div className="mt-5 pt-4 border-t border-dashed space-y-2" style={{ borderColor: theme.surfaceBorder }}>
+                        <div className="flex items-center justify-between text-sm" style={{ color: theme.textMuted }}>
                             <span>Subtotal</span>
                             <span className="tabular-nums">₱{total.toFixed(2)}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                            <span className="text-base font-bold text-slate-800">Total</span>
-                            <span className="text-2xl font-extrabold tracking-tight tabular-nums text-[#0d6e62]">
+                            <span className="text-base font-bold" style={{ color: theme.text }}>Total</span>
+                            <span className="text-2xl font-extrabold tracking-tight tabular-nums" style={{ color: theme.isDark ? theme.priceAccent : theme.cta }}>
                                 ₱{total.toFixed(2)}
                             </span>
                         </div>
@@ -263,7 +276,7 @@ const CheckoutView: React.FC = () => {
 
                 {/* Payment method */}
                 <section className="mt-6">
-                    <h2 className="text-[15px] font-extrabold tracking-wide uppercase text-slate-800 mb-3">Payment method</h2>
+                    <h2 className="text-[15px] font-extrabold tracking-wide uppercase mb-3" style={{ color: theme.text }}>Payment method</h2>
                     <div className="grid grid-cols-2 gap-3">
                         {METHODS.map(m => {
                             const isSel = selected === m.id;
@@ -273,11 +286,12 @@ const CheckoutView: React.FC = () => {
                                     type="button"
                                     onClick={() => setSelected(m.id)}
                                     aria-pressed={isSel}
-                                    className={`relative flex flex-col gap-3 p-4 rounded-[18px] bg-white text-left transition-all duration-200 active:scale-[0.97] ${isSel
-                                        ? 'shadow-[0_10px_26px_-8px_rgba(236,72,153,0.45)]'
-                                        : 'border border-black/[0.08] shadow-[0_4px_14px_-6px_rgba(15,23,42,0.12)]'
-                                        }`}
-                                    style={isSel ? { boxShadow: `inset 0 0 0 2px ${PINK}, 0 10px 26px -8px rgba(236,72,153,0.45)` } : undefined}
+                                    className="relative flex flex-col gap-3 p-4 rounded-[18px] text-left transition-all duration-200 active:scale-[0.97] border"
+                                    style={{
+                                        background: theme.surface,
+                                        borderColor: isSel ? 'transparent' : theme.surfaceBorder,
+                                        boxShadow: isSel ? `inset 0 0 0 2px ${theme.primary}, 0 10px 26px -8px ${theme.primaryGlow}` : theme.surfaceShadow,
+                                    }}
                                 >
                                     <span
                                         className="w-11 h-11 rounded-xl flex items-center justify-center"
@@ -286,12 +300,12 @@ const CheckoutView: React.FC = () => {
                                         <m.Icon size={22} strokeWidth={2} />
                                     </span>
                                     <span className="min-w-0">
-                                        <span className="block text-[16px] font-bold text-slate-800 leading-tight">{m.name}</span>
-                                        <span className="block text-[13px] text-slate-500">{m.blurb}</span>
+                                        <span className="block text-[16px] font-bold leading-tight" style={{ color: theme.text }}>{m.name}</span>
+                                        <span className="block text-[13px]" style={{ color: theme.textMuted }}>{m.blurb}</span>
                                     </span>
                                     <span
-                                        className={`absolute top-3.5 right-3.5 w-6 h-6 rounded-full flex items-center justify-center transition-all ${isSel ? 'text-white' : 'border-2 border-slate-300'}`}
-                                        style={isSel ? { backgroundColor: PINK } : undefined}
+                                        className="absolute top-3.5 right-3.5 w-6 h-6 rounded-full flex items-center justify-center transition-all"
+                                        style={isSel ? { backgroundColor: theme.primary, color: theme.onPrimary } : { border: `2px solid ${theme.stepPendingBorder}` }}
                                         aria-hidden
                                     >
                                         {isSel && <Check size={15} strokeWidth={3} />}
@@ -300,7 +314,7 @@ const CheckoutView: React.FC = () => {
                             );
                         })}
                     </div>
-                    <p className="mt-2 text-[12px] text-slate-400">You’ll choose your exact payment method on the secure Xendit page.</p>
+                    <p className="mt-2 text-[12px]" style={{ color: theme.textFaint }}>You’ll choose your exact payment method on the secure Xendit page.</p>
                 </section>
 
                 {/* spacer so content clears the sticky CTA */}
@@ -308,23 +322,24 @@ const CheckoutView: React.FC = () => {
             </div>
 
             {/* Sticky bottom payment CTA */}
-            <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-sm border-t border-black/[0.06] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="fixed bottom-0 inset-x-0 z-40 backdrop-blur-sm border-t px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]" style={{ background: theme.stickyBarBg, borderColor: theme.surfaceBorder }}>
                 <div className="max-w-md mx-auto">
                     {payError && (
-                        <div role="alert" className="mb-2.5 flex items-start gap-2 rounded-2xl bg-red-50 border border-red-200 px-3.5 py-2.5 text-[13px] text-red-700">
+                        <div role="alert" className={`mb-2.5 flex items-start gap-2 rounded-2xl px-3.5 py-2.5 text-[13px] ${theme.tone.red}`}>
                             <AlertCircle size={16} className="shrink-0 mt-0.5" />
                             <span className="leading-snug">{payError}</span>
                         </div>
                     )}
-                    <p className="flex items-center justify-center gap-1.5 text-[13px] text-slate-500 mb-2.5">
-                        <ShieldCheck size={15} className="text-[#0d6e62] shrink-0" />
+                    <p className="flex items-center justify-center gap-1.5 text-[13px] mb-2.5" style={{ color: theme.textMuted }}>
+                        <ShieldCheck size={15} className="shrink-0" style={{ color: theme.isDark ? theme.priceAccent : theme.cta }} />
                         Payment will be securely processed by Xendit
                     </p>
                     {disabled ? (
                         <button
                             type="button"
                             onClick={goBack}
-                            className="w-full flex items-center justify-center gap-2.5 rounded-[20px] px-5 py-4 text-[#0d6e62] font-bold text-[16px] border-2 border-[#0d6e62]/30 active:scale-[0.98] transition-transform duration-200"
+                            className="w-full flex items-center justify-center gap-2.5 rounded-[20px] px-5 py-4 font-bold text-[16px] border-2 active:scale-[0.98] transition-transform duration-200"
+                            style={{ color: theme.isDark ? theme.text : theme.cta, borderColor: theme.surfaceBorder }}
                         >
                             Back to menu
                         </button>
@@ -334,8 +349,8 @@ const CheckoutView: React.FC = () => {
                             onClick={handlePay}
                             disabled={confirming}
                             aria-busy={confirming}
-                            className="w-full flex items-center justify-center gap-2.5 rounded-[20px] px-5 py-4 text-white font-bold text-[16px] shadow-[0_16px_36px_-8px_rgba(13,110,98,0.55)] active:scale-[0.98] transition-transform duration-200 disabled:active:scale-100 disabled:opacity-90"
-                            style={{ backgroundColor: TEAL }}
+                            className="w-full flex items-center justify-center gap-2.5 rounded-[20px] px-5 py-4 font-bold text-[16px] active:scale-[0.98] transition-transform duration-200 disabled:active:scale-100 disabled:opacity-90"
+                            style={{ background: theme.ctaGradient ?? theme.cta, color: theme.onCta, boxShadow: theme.ctaShadow }}
                         >
                             {confirming ? (
                                 <>
@@ -350,7 +365,7 @@ const CheckoutView: React.FC = () => {
                             ) : (
                                 <>
                                     Pay with Xendit
-                                    <span className="text-white/70">·</span>
+                                    <span style={{ color: theme.onCta, opacity: 0.7 }}>·</span>
                                     <span className="tabular-nums">₱{total.toFixed(2)}</span>
                                 </>
                             )}
@@ -361,13 +376,13 @@ const CheckoutView: React.FC = () => {
 
             {/* Connecting overlay (demo confirm OR real redirect handoff) */}
             {confirming && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm px-8" role="status" aria-live="polite">
-                    <div className="flex flex-col items-center text-center bg-white rounded-[24px] px-8 py-8 shadow-[0_24px_60px_-12px_rgba(15,23,42,0.3)] border border-black/[0.05]">
-                        <span className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: `${TEAL}14` }}>
-                            <Loader2 size={28} className="animate-spin text-[#0d6e62]" />
+                <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm px-8" role="status" aria-live="polite" style={{ background: theme.isDark ? 'rgba(11,7,19,0.7)' : 'rgba(255,255,255,0.7)' }}>
+                    <div className="flex flex-col items-center text-center rounded-[24px] px-8 py-8 border" style={{ background: theme.surface, borderColor: theme.surfaceBorder, boxShadow: theme.modalShadow }}>
+                        <span className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: theme.ctaSoft }}>
+                            <Loader2 size={28} className="animate-spin" style={{ color: theme.cta }} />
                         </span>
-                        <p className="text-base font-bold text-slate-800">Connecting to Xendit</p>
-                        <p className="text-sm text-slate-500 mt-1 max-w-[15rem]">Taking you to secure payment. Please don’t close this page.</p>
+                        <p className="text-base font-bold" style={{ color: theme.text }}>Connecting to Xendit</p>
+                        <p className="text-sm mt-1 max-w-[15rem]" style={{ color: theme.textMuted }}>Taking you to secure payment. Please don’t close this page.</p>
                     </div>
                 </div>
             )}

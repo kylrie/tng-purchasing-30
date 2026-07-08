@@ -189,10 +189,14 @@ export interface PublicQrOrderLine {
     category: string;
 }
 
-/** Sanitized customer-facing order projection (getQrOrder output). NEVER
- *  includes businessUnitId / tableId / xendit* / officialInvoice* fields. */
+/** Sanitized customer-facing order projection (getQrOrder output). Exposes the
+ *  (non-sensitive) businessUnitId for branding; NEVER includes tableId / xendit* /
+ *  officialInvoice* fields. */
 export interface GetQrOrderResult {
     orderId: string;
+    /** Venue id (e.g. 'b1' The Fun Roof, 'b3' Inflatable Island) — drives the
+     *  customer pages' business branding/theme from authoritative order data. */
+    businessUnitId: string;
     orderNumber: string;
     tableNumber: string;
     status: QrOrderStatus;

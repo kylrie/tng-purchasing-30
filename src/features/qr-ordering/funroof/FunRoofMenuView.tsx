@@ -10,6 +10,8 @@ import { resolveFunRoofTable, isWrongBusinessError } from './funRoofTable.servic
 import { isCallableUnavailable, toUserFacingMenuError } from '../services/publicMenu.service';
 import { submitQrOrder, toUserFacingOrderError, newIdempotencyKey } from '../services/createOrder.service';
 import { isQrPaymentsEnabled } from '../services/createSession.service';
+import { FUN_ROOF_BUSINESS_ID } from '../utils/customerMenuUrl';
+import { withBusinessParam } from '../utils/adminBusinessParam';
 import FunRoofProductSheet from './FunRoofProductSheet';
 import FunRoofCartDrawer, { type FunRoofPick } from './FunRoofCartDrawer';
 
@@ -147,9 +149,11 @@ const FunRoofMenuView: React.FC = () => {
             idempotencyKeyRef.current = '';
             setPicks([]);
             setPicksOpen(false);
-            const handoff = { orderId: result.orderId, orderNumber: result.orderNumber, totalAmount: result.totalAmount, tableNumber, qrToken, lines: summaryLines };
-            if (isQrPaymentsEnabled()) navigate(`/checkout/${result.orderId}`, { state: handoff });
-            else navigate(`/order-status/${result.orderId}`, { state: handoff });
+            // Carry the venue id (b1) so the shared checkout/order-status pages paint
+            // the Fun Roof brand instantly; the order's businessUnitId stays authoritative.
+            const handoff = { orderId: result.orderId, orderNumber: result.orderNumber, totalAmount: result.totalAmount, tableNumber, qrToken, businessUnitId: FUN_ROOF_BUSINESS_ID, lines: summaryLines };
+            if (isQrPaymentsEnabled()) navigate(withBusinessParam(`/checkout/${result.orderId}`, FUN_ROOF_BUSINESS_ID), { state: handoff });
+            else navigate(withBusinessParam(`/order-status/${result.orderId}`, FUN_ROOF_BUSINESS_ID), { state: handoff });
         } catch (err) {
             setSubmitting(false);
             setSubmitError(toUserFacingOrderError(err));

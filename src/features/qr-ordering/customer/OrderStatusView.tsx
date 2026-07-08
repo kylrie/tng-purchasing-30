@@ -9,6 +9,8 @@ import {
     isXenditReturn, isPaymentPending, type StatusTone,
 } from '../services/getOrder.service';
 import type { GetQrOrderResult } from '../types/qrOrder.types';
+import { readBusinessParam } from '../utils/adminBusinessParam';
+import { resolveQrTransactionTheme, type QrTransactionTheme, type TxnTone } from '../theme/qrTransactionTheme';
 
 /**
  * QR Ordering — Order Status (Sprint 2 · real qr_order read)
@@ -21,6 +23,11 @@ import type { GetQrOrderResult } from '../types/qrOrder.types';
  * Firebase configured) preserves the original mock prototype, including its
  * simulated "Confirming payment…" → "Preparing" progression. Read-only — no
  * payment, no Xendit, no kitchen writes.
+ *
+ * BRANDING: the shared engine is re-skinned per venue. The business is resolved
+ * from AUTHORITATIVE order data (order.businessUnitId), with the ?bu URL param as
+ * an instant-paint hint, so the correct brand survives refresh / new tab / cold
+ * open / paste / the Xendit redirect (see theme/qrTransactionTheme.ts).
  */
 
 // Timeline steps (spec §5 stepper).
@@ -57,9 +64,9 @@ interface StatusVM {
     tableNumber: string;
     items: { name: string; qty: number; unitPrice: number; subtotal: number; note?: string }[];
     totalAmount: number;
-    badge: { label: string; cls: string; Icon: React.ComponentType<{ size?: number; className?: string }>; spin: boolean };
+    badge: { label: string; tone: TxnTone; Icon: React.ComponentType<{ size?: number; className?: string }>; spin: boolean };
     /** Real payment-lifecycle chip (real read only; absent for the demo mock). */
-    paymentStatus?: { label: string; cls: string };
+    paymentStatus?: { label: string; tone: TxnTone };
     currentStep: number;
     confirming: boolean;
     /** Real return-flow: the bounded poll elapsed without a settled payment. */
@@ -70,14 +77,6 @@ interface StatusVM {
     paidAtLabel?: string;
     orderMorePath?: string;
 }
-
-const TONE_CLS: Record<StatusTone, string> = {
-    amber: 'bg-amber-100 text-amber-700 border border-amber-200',
-    blue: 'bg-blue-100 text-blue-700 border border-blue-200',
-    emerald: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
-    red: 'bg-red-100 text-red-700 border border-red-200',
-    slate: 'bg-slate-100 text-slate-600 border border-slate-200',
-};
 
 const TONE_ICON: Record<StatusTone, StatusVM['badge']['Icon']> = {
     amber: Clock,
@@ -204,6 +203,16 @@ const OrderStatusView: React.FC = () => {
         return () => window.clearInterval(id);
     }, [isDemo, readState, order?.paymentStatus, returnedFromPayment, orderId]);
 
+    // ── Theme (business-specific presentation) ─────────────────────────────
+    // Authoritative source = the loaded order's businessUnitId; the ?bu URL param
+    // is an instant-paint hint for the pre-load / demo states. Resolving from the
+    // order means the brand survives refresh / new tab / cold open / Xendit return.
+    const buHint = useMemo(() => readBusinessParam(location.search), [location.search]);
+    const theme = useMemo(
+        () => resolveQrTransactionTheme((order?.businessUnitId?.trim()) || buHint),
+        [order?.businessUnitId, buHint],
+    );
+
     // ── Build the view-model ──────────────────────────────────────────────
     const vm: StatusVM | null = (() => {
         if (isDemo) {
@@ -214,8 +223,8 @@ const OrderStatusView: React.FC = () => {
                 items: o.lines.map(l => ({ name: l.name, qty: l.qty, unitPrice: l.unitPrice, subtotal: l.unitPrice * l.qty, note: l.note })),
                 totalAmount: typeof handoff?.totalAmount === 'number' ? handoff.totalAmount : mockOrderTotal(o),
                 badge: confirming
-                    ? { label: 'Confirming payment', cls: TONE_CLS.amber, Icon: Loader2, spin: true }
-                    : { label: 'Preparing', cls: TONE_CLS.blue, Icon: ChefHat, spin: false },
+                    ? { label: 'Confirming payment', tone: 'amber', Icon: Loader2, spin: true }
+                    : { label: 'Preparing', tone: 'blue', Icon: ChefHat, spin: false },
                 currentStep: demoStep,
                 confirming,
                 isDemo: true,
@@ -235,9 +244,9 @@ const OrderStatusView: React.FC = () => {
             // While confirming a return, show the amber "Confirming payment" chip
             // instead of the plain status badge; otherwise the real status badge.
             badge: polling
-                ? { label: 'Confirming payment', cls: TONE_CLS.amber, Icon: Loader2, spin: true }
-                : { label: p.label, cls: TONE_CLS[p.tone], Icon: TONE_ICON[p.tone], spin: false },
-            paymentStatus: (() => { const pp = presentPaymentStatus(order.paymentStatus); return { label: pp.label, cls: TONE_CLS[pp.tone] }; })(),
+                ? { label: 'Confirming payment', tone: 'amber', Icon: Loader2, spin: true }
+                : { label: p.label, tone: p.tone, Icon: TONE_ICON[p.tone], spin: false },
+            paymentStatus: (() => { const pp = presentPaymentStatus(order.paymentStatus); return { label: pp.label, tone: pp.tone }; })(),
             currentStep: p.step,
             confirming: polling,
             payTimedOut: pollTimedOut,
@@ -251,24 +260,26 @@ const OrderStatusView: React.FC = () => {
     // ── Non-ready real states ─────────────────────────────────────────────
     if (!isDemo && readState !== 'ready') {
         return (
-            <StatusShell orderNumber={handoff?.orderNumber} tableNumber={handoff?.tableNumber}>
+            <StatusShell theme={theme} orderNumber={handoff?.orderNumber} tableNumber={handoff?.tableNumber}>
                 {readState === 'loading' ? (
                     <div className="flex flex-col items-center justify-center py-24 text-center" role="status" aria-live="polite">
-                        <Loader2 size={30} className="text-[#ec4899] animate-spin" />
-                        <p className="mt-4 text-sm font-semibold text-slate-600">Loading your order…</p>
+                        <Loader2 size={30} className="animate-spin" style={{ color: theme.primary }} />
+                        <p className="mt-4 text-sm font-semibold" style={{ color: theme.textMuted }}>Loading your order…</p>
                     </div>
                 ) : readState === 'notfound' ? (
                     <StateCard
+                        theme={theme}
                         Icon={SearchX}
-                        iconCls="text-slate-400"
+                        iconColor={theme.stateIconMuted}
                         title="Order not found"
                         body="We couldn’t find this order. Please double-check the link, or ask our staff for help."
                         onRetry={handleRetry}
                     />
                 ) : (
                     <StateCard
+                        theme={theme}
                         Icon={AlertCircle}
-                        iconCls="text-rose-400"
+                        iconColor={theme.stateIconError}
                         title="Couldn’t load your order"
                         body={errorMsg}
                         onRetry={handleRetry}
@@ -281,16 +292,14 @@ const OrderStatusView: React.FC = () => {
     if (!vm) return null; // unreachable — demo/ready always builds a vm
 
     return (
-        <div className="min-h-dvh flex flex-col bg-[#ffffff] text-slate-900 selection:bg-[#ec4899]/20">
+        <div className="min-h-dvh flex flex-col" style={{ background: theme.pageBackground, color: theme.text }}>
             {/* Header */}
-            <header className="sticky top-0 z-30 bg-[#ffffff]/90 backdrop-blur-sm border-b border-black/[0.06]">
+            <header className="sticky top-0 z-30 backdrop-blur-sm border-b" style={{ background: theme.headerBg, borderColor: theme.surfaceBorder }}>
                 <div className="flex items-center gap-3 px-4 md:px-6 py-3.5 max-w-md mx-auto w-full">
-                    <div className="p-2 bg-[#ec4899]/10 rounded-xl border border-[#ec4899]/20 shrink-0">
-                        <UtensilsCrossed size={18} className="text-[#ec4899]" />
-                    </div>
+                    <BrandMark theme={theme} />
                     <div className="min-w-0 flex-1">
-                        <p className="text-sm font-bold text-slate-900 truncate">Order {vm.orderNumber}</p>
-                        <p className="text-[11px] font-semibold text-[#ec4899] tracking-wide">{formatTableLabel(vm.tableNumber)}</p>
+                        <p className="text-sm font-bold truncate" style={{ color: theme.text }}>Order {vm.orderNumber}</p>
+                        <p className="text-[11px] font-semibold tracking-wide" style={{ color: theme.primary }}>{formatTableLabel(vm.tableNumber)}</p>
                     </div>
                     {!vm.isDemo && (
                         <button
@@ -299,7 +308,8 @@ const OrderStatusView: React.FC = () => {
                             disabled={refreshing}
                             aria-busy={refreshing}
                             aria-label="Refresh order status"
-                            className="shrink-0 w-11 h-11 -mr-1 flex items-center justify-center rounded-full text-[#ec4899] hover:bg-[#ec4899]/10 active:scale-95 transition-all disabled:opacity-50"
+                            className="shrink-0 w-11 h-11 -mr-1 flex items-center justify-center rounded-full active:scale-95 transition-all disabled:opacity-50"
+                            style={{ color: theme.primary }}
                         >
                             <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} aria-hidden />
                         </button>
@@ -309,16 +319,16 @@ const OrderStatusView: React.FC = () => {
 
             <main className="flex-1 w-full max-w-md mx-auto px-4 md:px-6 py-5 space-y-4">
                 {/* Order summary + big status card */}
-                <section className="relative p-5 rounded-[1.5rem] bg-white border border-black/[0.05] shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
+                <section className="relative p-5 rounded-[1.5rem] border" style={{ background: theme.surface, borderColor: theme.surfaceBorder, boxShadow: theme.surfaceShadow }}>
                     <div className="flex items-start justify-between gap-3">
                         <div>
-                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Order number</p>
-                            <p className="text-lg font-bold text-slate-900 tracking-tight">{vm.orderNumber}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">
+                            <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: theme.textFaint }}>Order number</p>
+                            <p className="text-lg font-bold tracking-tight" style={{ color: theme.text }}>{vm.orderNumber}</p>
+                            <p className="text-xs mt-0.5" style={{ color: theme.textMuted }}>
                                 {vm.placedAtLabel ? `Placed ${vm.placedAtLabel} · ` : ''}{formatTableLabel(vm.tableNumber)}
                             </p>
                         </div>
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide ${vm.badge.cls}`}>
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide ${theme.tone[vm.badge.tone]}`}>
                             <vm.badge.Icon size={13} className={vm.badge.spin ? 'animate-spin' : ''} />
                             {vm.badge.label}
                         </span>
@@ -326,9 +336,9 @@ const OrderStatusView: React.FC = () => {
 
                     {/* Payment status (real read only) */}
                     {vm.paymentStatus && (
-                        <div className="mt-4 flex items-center gap-2 text-sm bg-[#f9fafb] border border-black/[0.05] rounded-xl px-3.5 py-2.5">
-                            <span className="text-slate-500 font-semibold">Payment</span>
-                            <span className={`ml-auto inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${vm.paymentStatus.cls}`}>
+                        <div className="mt-4 flex items-center gap-2 text-sm border rounded-xl px-3.5 py-2.5" style={{ background: theme.subtleFill, borderColor: theme.surfaceBorder }}>
+                            <span className="font-semibold" style={{ color: theme.textMuted }}>Payment</span>
+                            <span className={`ml-auto inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide ${theme.tone[vm.paymentStatus.tone]}`}>
                                 {vm.paymentStatus.label}
                             </span>
                         </div>
@@ -336,10 +346,10 @@ const OrderStatusView: React.FC = () => {
 
                     {/* Estimated prep time (demo prototype only) */}
                     {vm.estPrepMinutes !== undefined && (
-                        <div className="mt-4 flex items-center gap-2 text-sm text-slate-700 bg-[#f9fafb] border border-black/[0.05] rounded-xl px-3.5 py-2.5">
-                            <Clock size={15} className="text-[#ec4899] shrink-0" />
+                        <div className="mt-4 flex items-center gap-2 text-sm border rounded-xl px-3.5 py-2.5" style={{ color: theme.text, background: theme.subtleFill, borderColor: theme.surfaceBorder }}>
+                            <Clock size={15} className="shrink-0" style={{ color: theme.primary }} />
                             <span>Estimated prep time</span>
-                            <span className="ml-auto font-bold text-slate-900 tabular-nums">≈ {vm.estPrepMinutes} min</span>
+                            <span className="ml-auto font-bold tabular-nums" style={{ color: theme.text }}>≈ {vm.estPrepMinutes} min</span>
                         </div>
                     )}
                 </section>
@@ -347,11 +357,11 @@ const OrderStatusView: React.FC = () => {
                 {/* Confirming-payment banner: demo mock (spec §5.10) AND the real
                     return-from-Xendit poll while payment is not yet PAID. */}
                 {vm.confirming && (
-                    <section className="flex items-center gap-3 p-4 rounded-[1.25rem] bg-amber-50 border border-amber-200" role="status" aria-live="polite">
-                        <Loader2 size={18} className="text-amber-600 animate-spin shrink-0" />
+                    <section className="flex items-center gap-3 p-4 rounded-[1.25rem] border" role="status" aria-live="polite" style={{ background: theme.infoBannerBg, borderColor: theme.infoBannerBorder }}>
+                        <Loader2 size={18} className="animate-spin shrink-0" style={{ color: theme.infoBannerText }} />
                         <div className="min-w-0">
-                            <p className="text-sm font-semibold text-amber-800">Confirming payment…</p>
-                            <p className="text-[11px] text-amber-700/80">This can take a few seconds for e-wallets &amp; QRPH.</p>
+                            <p className="text-sm font-semibold" style={{ color: theme.infoBannerText }}>Confirming payment…</p>
+                            <p className="text-[11px]" style={{ color: theme.infoBannerText, opacity: 0.8 }}>This can take a few seconds for e-wallets &amp; QRPH.</p>
                         </div>
                     </section>
                 )}
@@ -359,15 +369,16 @@ const OrderStatusView: React.FC = () => {
                 {/* Real return flow: the bounded poll elapsed without a settled
                     payment. Keep the page + the manual refresh; never assert paid. */}
                 {vm.payTimedOut && (
-                    <section className="flex items-start gap-3 p-4 rounded-[1.25rem] bg-slate-50 border border-slate-200" role="status" aria-live="polite">
-                        <Clock size={18} className="text-slate-500 shrink-0 mt-0.5" />
+                    <section className="flex items-start gap-3 p-4 rounded-[1.25rem] border" role="status" aria-live="polite" style={{ background: theme.subtleFill, borderColor: theme.surfaceBorder }}>
+                        <Clock size={18} className="shrink-0 mt-0.5" style={{ color: theme.textMuted }} />
                         <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-700">{POLL_TIMEOUT_MESSAGE}</p>
+                            <p className="text-sm font-semibold" style={{ color: theme.text }}>{POLL_TIMEOUT_MESSAGE}</p>
                             <button
                                 type="button"
                                 onClick={handleRefresh}
                                 disabled={refreshing}
-                                className="mt-1.5 inline-flex items-center gap-1.5 text-[12px] font-bold text-[#ec4899] disabled:opacity-50"
+                                className="mt-1.5 inline-flex items-center gap-1.5 text-[12px] font-bold disabled:opacity-50"
+                                style={{ color: theme.primary }}
                             >
                                 <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> Check again
                             </button>
@@ -376,8 +387,8 @@ const OrderStatusView: React.FC = () => {
                 )}
 
                 {/* Status stepper (spec §5.4–5.5) */}
-                <section className="p-5 rounded-[1.5rem] bg-white border border-black/[0.05] shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
-                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-4">Order progress</p>
+                <section className="p-5 rounded-[1.5rem] border" style={{ background: theme.surface, borderColor: theme.surfaceBorder, boxShadow: theme.surfaceShadow }}>
+                    <p className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: theme.textFaint }}>Order progress</p>
                     <ol className="space-y-0">
                         {STEPS.map((step, i) => {
                             const isDone = i < vm.currentStep;
@@ -391,28 +402,28 @@ const OrderStatusView: React.FC = () => {
                                     <div className="flex flex-col items-center">
                                         <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
                                             {isDone ? (
-                                                <CheckCircle2 size={22} className="text-emerald-500" />
+                                                <CheckCircle2 size={22} style={{ color: theme.stepDone }} />
                                             ) : isCurrent ? (
                                                 <>
-                                                    <span className="absolute inset-0 rounded-full bg-[#ec4899]/30 animate-ping" />
-                                                    <span className="relative w-3.5 h-3.5 rounded-full bg-[#ec4899] ring-4 ring-[#ec4899]/20" />
+                                                    <span className="absolute inset-0 rounded-full animate-ping" style={{ background: theme.primaryPing }} />
+                                                    <span className="relative w-3.5 h-3.5 rounded-full" style={{ background: theme.primary, boxShadow: `0 0 0 4px ${theme.primaryRing}` }} />
                                                 </>
                                             ) : (
-                                                <span className="w-3.5 h-3.5 rounded-full border-2 border-slate-300" />
+                                                <span className="w-3.5 h-3.5 rounded-full border-2" style={{ borderColor: theme.stepPendingBorder }} />
                                             )}
                                         </div>
                                         {!isLast && (
-                                            <span className={`w-[2px] flex-1 min-h-[26px] my-1 rounded-full ${i < vm.currentStep ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                                            <span className="w-[2px] flex-1 min-h-[26px] my-1 rounded-full" style={{ background: i < vm.currentStep ? theme.railDone : theme.railPending }} />
                                         )}
                                     </div>
 
                                     {/* Label */}
                                     <div className={`pb-6 ${isLast ? 'pb-0' : ''}`}>
-                                        <p className={`text-sm font-semibold leading-tight ${isDone ? 'text-slate-700' : isCurrent ? 'text-slate-900' : 'text-slate-400'}`}>
+                                        <p className="text-sm font-semibold leading-tight" style={{ color: isDone ? theme.textMuted : isCurrent ? theme.text : theme.textFaint }}>
                                             {isConfirmingPayment ? 'Confirming payment…' : step.label}
-                                            {isCurrent && !isConfirmingPayment && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-[#ec4899] animate-pulse align-middle" />}
+                                            {isCurrent && !isConfirmingPayment && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full animate-pulse align-middle" style={{ background: theme.primary }} />}
                                         </p>
-                                        <p className={`text-[11px] mt-0.5 ${isDone ? 'text-slate-500' : isCurrent ? 'text-slate-500' : 'text-slate-400'}`}>
+                                        <p className="text-[11px] mt-0.5" style={{ color: isDone ? theme.textMuted : isCurrent ? theme.textMuted : theme.textFaint }}>
                                             {step.key === 'payment' && isDone && vm.paidAtLabel ? `Paid online · ${vm.paidAtLabel}` : step.sub}
                                         </p>
                                     </div>
@@ -423,45 +434,45 @@ const OrderStatusView: React.FC = () => {
                 </section>
 
                 {/* Items summary (spec §5.9) */}
-                <section className="p-5 rounded-[1.5rem] bg-white border border-black/[0.05] shadow-[0_2px_12px_rgba(0,0,0,0.05)]">
+                <section className="p-5 rounded-[1.5rem] border" style={{ background: theme.surface, borderColor: theme.surfaceBorder, boxShadow: theme.surfaceShadow }}>
                     <div className="flex items-center gap-2 mb-3">
-                        <ReceiptText size={15} className="text-[#ec4899]" />
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Your order</p>
+                        <ReceiptText size={15} style={{ color: theme.primary }} />
+                        <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: theme.textFaint }}>Your order</p>
                     </div>
                     {vm.items.length === 0 ? (
-                        <p className="text-sm text-slate-400">No items on this order.</p>
+                        <p className="text-sm" style={{ color: theme.textFaint }}>No items on this order.</p>
                     ) : (
                         <ul className="space-y-2.5">
                             {vm.items.map((line, i) => (
                                 <li key={i} className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="text-sm text-slate-800 leading-snug">
-                                            <span className="text-[#ec4899] font-bold">{line.qty}×</span> {line.name}
+                                        <p className="text-sm leading-snug" style={{ color: theme.text }}>
+                                            <span className="font-bold" style={{ color: theme.primary }}>{line.qty}×</span> {line.name}
                                         </p>
-                                        {line.note && <p className="text-[11px] text-amber-700 mt-0.5">{line.note}</p>}
+                                        {line.note && <p className="text-[11px] mt-0.5" style={{ color: theme.isDark ? theme.priceAccent : '#b45309' }}>{line.note}</p>}
                                     </div>
-                                    <span className="text-sm font-semibold text-slate-700 tabular-nums shrink-0">
-                                        <span className="text-slate-400 mr-0.5 text-xs">₱</span>{line.subtotal.toFixed(2)}
+                                    <span className="text-sm font-semibold tabular-nums shrink-0" style={{ color: theme.textMuted }}>
+                                        <span className="mr-0.5 text-xs" style={{ color: theme.textFaint }}>₱</span>{line.subtotal.toFixed(2)}
                                     </span>
                                 </li>
                             ))}
                         </ul>
                     )}
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-black/[0.06]">
-                        <span className="text-sm font-semibold text-slate-700">Total</span>
-                        <span className="text-xl font-black tracking-tight tabular-nums text-slate-900">
+                    <div className="flex items-center justify-between mt-4 pt-3 border-t" style={{ borderColor: theme.surfaceBorder }}>
+                        <span className="text-sm font-semibold" style={{ color: theme.textMuted }}>Total</span>
+                        <span className="text-xl font-black tracking-tight tabular-nums" style={{ color: theme.isDark ? theme.priceAccent : theme.text }}>
                             ₱{vm.totalAmount.toFixed(2)}
                         </span>
                     </div>
                 </section>
 
                 {/* Help / contact message (spec §5) */}
-                <section className="flex items-start gap-3 p-4 rounded-[1.25rem] bg-white border border-black/[0.05]">
-                    <ConciergeBell size={17} className="text-slate-400 shrink-0 mt-0.5" />
-                    <p className="text-xs text-slate-500 leading-relaxed">
+                <section className="flex items-start gap-3 p-4 rounded-[1.25rem] border" style={{ background: theme.surface, borderColor: theme.surfaceBorder }}>
+                    <ConciergeBell size={17} className="shrink-0 mt-0.5" style={{ color: theme.textFaint }} />
+                    <p className="text-xs leading-relaxed" style={{ color: theme.textMuted }}>
                         Need help or want to change your order? Please approach our staff and mention
-                        <span className="text-slate-800 font-semibold"> {formatTableLabel(vm.tableNumber)}</span> or order
-                        <span className="text-slate-800 font-semibold"> {vm.orderNumber}</span>.
+                        <span className="font-semibold" style={{ color: theme.text }}> {formatTableLabel(vm.tableNumber)}</span> or order
+                        <span className="font-semibold" style={{ color: theme.text }}> {vm.orderNumber}</span>.
                     </p>
                 </section>
 
@@ -470,7 +481,8 @@ const OrderStatusView: React.FC = () => {
                     <button
                         type="button"
                         onClick={() => navigate(vm.orderMorePath!)}
-                        className="w-full flex items-center justify-center gap-2 py-4 rounded-[1.25rem] bg-[#ec4899] hover:bg-[#db2777] active:scale-[0.99] text-white font-bold tracking-wide transition-all duration-200 shadow-sm"
+                        className="w-full flex items-center justify-center gap-2 py-4 rounded-[1.25rem] active:scale-[0.99] font-bold tracking-wide transition-all duration-200"
+                        style={{ background: theme.primary, color: theme.onPrimary, boxShadow: theme.surfaceShadow }}
                     >
                         <Plus size={17} /> Order more
                     </button>
@@ -480,17 +492,28 @@ const OrderStatusView: React.FC = () => {
     );
 };
 
+/** Brand mark: the venue's logo when the theme supplies one, else the icon tile. */
+const BrandMark: React.FC<{ theme: QrTransactionTheme }> = ({ theme }) => (
+    theme.logoSrc ? (
+        <span className="shrink-0 h-9 flex items-center" aria-label={theme.brandName}>
+            <img src={theme.logoSrc} alt={theme.brandName} className="h-8 w-auto object-contain" />
+        </span>
+    ) : (
+        <div className="p-2 rounded-xl border shrink-0" style={{ background: theme.primarySoft, borderColor: theme.surfaceBorder }}>
+            <UtensilsCrossed size={18} style={{ color: theme.primary }} />
+        </div>
+    )
+);
+
 /** Minimal header + centered-content shell reused by the loading/not-found/error states. */
-const StatusShell: React.FC<{ orderNumber?: string; tableNumber?: string; children: React.ReactNode }> = ({ orderNumber, tableNumber, children }) => (
-    <div className="min-h-dvh flex flex-col bg-[#ffffff] text-slate-900">
-        <header className="sticky top-0 z-30 bg-[#ffffff]/90 backdrop-blur-sm border-b border-black/[0.06]">
+const StatusShell: React.FC<{ theme: QrTransactionTheme; orderNumber?: string; tableNumber?: string; children: React.ReactNode }> = ({ theme, orderNumber, tableNumber, children }) => (
+    <div className="min-h-dvh flex flex-col" style={{ background: theme.pageBackground, color: theme.text }}>
+        <header className="sticky top-0 z-30 backdrop-blur-sm border-b" style={{ background: theme.headerBg, borderColor: theme.surfaceBorder }}>
             <div className="flex items-center gap-3 px-4 md:px-6 py-3.5 max-w-md mx-auto w-full">
-                <div className="p-2 bg-[#ec4899]/10 rounded-xl border border-[#ec4899]/20 shrink-0">
-                    <UtensilsCrossed size={18} className="text-[#ec4899]" />
-                </div>
+                <BrandMark theme={theme} />
                 <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">{orderNumber ? `Order ${orderNumber}` : 'Order status'}</p>
-                    {tableNumber && <p className="text-[11px] font-semibold text-[#ec4899] tracking-wide">{formatTableLabel(tableNumber)}</p>}
+                    <p className="text-sm font-bold truncate" style={{ color: theme.text }}>{orderNumber ? `Order ${orderNumber}` : 'Order status'}</p>
+                    {tableNumber && <p className="text-[11px] font-semibold tracking-wide" style={{ color: theme.primary }}>{formatTableLabel(tableNumber)}</p>}
                 </div>
             </div>
         </header>
@@ -500,23 +523,24 @@ const StatusShell: React.FC<{ orderNumber?: string; tableNumber?: string; childr
 
 /** Centered icon + title + body + retry, shared by the not-found and error states. */
 const StateCard: React.FC<{
-    Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
-    iconCls: string;
+    theme: QrTransactionTheme;
+    Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number; style?: React.CSSProperties }>;
+    iconColor: string;
     title: string;
     body: string;
     onRetry: () => void;
-}> = ({ Icon, iconCls, title, body, onRetry }) => (
+}> = ({ theme, Icon, iconColor, title, body, onRetry }) => (
     <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
-        <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
-            <Icon size={26} className={iconCls} strokeWidth={1.5} />
+        <div className="w-16 h-16 rounded-3xl border flex items-center justify-center mb-4" style={{ background: theme.surface, borderColor: theme.surfaceBorder }}>
+            <Icon size={26} strokeWidth={1.5} style={{ color: iconColor }} />
         </div>
-        <h3 className="text-base font-bold text-slate-700 mb-1">{title}</h3>
-        <p className="text-slate-400 text-sm max-w-[18rem] mb-5">{body}</p>
+        <h3 className="text-base font-bold mb-1" style={{ color: theme.stateTitle }}>{title}</h3>
+        <p className="text-sm max-w-[18rem] mb-5" style={{ color: theme.textFaint }}>{body}</p>
         <button
             type="button"
             onClick={onRetry}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-white text-sm font-bold shadow-[0_8px_20px_-4px_rgba(239,78,140,0.45)] active:scale-95 transition-transform"
-            style={{ backgroundColor: '#ec4899' }}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold active:scale-95 transition-transform"
+            style={{ background: theme.primary, color: theme.onPrimary, boxShadow: theme.surfaceShadow }}
         >
             <RefreshCw size={16} strokeWidth={2.5} /> Try again
         </button>
