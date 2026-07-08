@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import type { MenuItem } from '../../menu/types/menu.types';
 import { MENU_CATEGORIES } from '../../menu/types/menu.types';
-import { Search, Sparkles, AlertCircle } from 'lucide-react';
+import { SERVICE_TYPES } from '../../inventory/types/InventoryItem';
+import { Search, Sparkles, AlertCircle, Filter } from 'lucide-react';
 
 interface ProductGridProps {
     menuItems: MenuItem[];
@@ -14,14 +15,16 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearchQuery = React.useDeferredValue(searchQuery);
     const [activeCategory, setActiveCategory] = useState<string>('All');
+    const [activeServiceType, setActiveServiceType] = useState<string>('All');
 
     const filteredItems = React.useMemo(() => {
         return menuItems.filter(item => {
             const matchesSearch = item.name.toLowerCase().includes(deferredSearchQuery.toLowerCase());
             const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
-            return matchesSearch && matchesCategory;
+            const matchesServiceType = activeServiceType === 'All' || item.serviceType === activeServiceType;
+            return matchesSearch && matchesCategory && matchesServiceType;
         });
-    }, [menuItems, deferredSearchQuery, activeCategory]);
+    }, [menuItems, deferredSearchQuery, activeCategory, activeServiceType]);
 
     if (isLoading) {
         return (
@@ -41,20 +44,60 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
             <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-gradient-to-br from-indigo-900/20 via-purple-900/10 to-transparent blur-[120px] -z-10 pointer-events-none rounded-full transform -translate-y-1/2 transition-all duration-[10000ms] ease-in-out hover:scale-110"></div>
             <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-gradient-to-tl from-blue-900/10 via-transparent to-transparent blur-[150px] -z-10 pointer-events-none rounded-full transform translate-y-1/3 translate-x-1/3 transition-all duration-[10000ms] ease-in-out hover:scale-110 hidden md:block"></div>
 
-            {/* Top Bar - Search & Categories */}
+            {/* Top Bar - Search, Service Types & Categories */}
             <div className="pt-6 pb-4 px-6 relative z-10">
-                <div className="relative mb-6 max-w-2xl">
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-md opacity-0 transition-opacity duration-500 focus-within:opacity-100"></div>
-                    <div className="relative flex items-center group">
-                        <Search className="absolute left-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors duration-500" size={18} strokeWidth={2.5} />
-                        <input
-                            type="text"
-                            placeholder="Find extraordinary products..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-12 pr-4 py-4 bg-white/[0.03] border border-white/[0.05] rounded-2xl text-slate-200 placeholder-slate-600 focus:outline-none focus:bg-white/[0.04] focus:border-indigo-500/40 transition-all duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.03)] text-sm tracking-wide font-medium"
-                        />
-                        <div className="absolute right-4 px-2 py-1 rounded bg-white/[0.05] text-[10px] text-slate-400 border border-white/[0.05] pointer-events-none tracking-widest font-mono hidden sm:block">⌘K</div>
+                <div className="flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="relative flex-1 max-w-2xl">
+                        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-md opacity-0 transition-opacity duration-500 focus-within:opacity-100"></div>
+                        <div className="relative flex items-center group">
+                            <Search className="absolute left-4 text-slate-500 group-focus-within:text-indigo-400 transition-colors duration-500" size={18} strokeWidth={2.5} />
+                            <input
+                                type="text"
+                                placeholder="Find extraordinary products..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full pl-12 pr-4 py-4 bg-white/[0.03] border border-white/[0.05] rounded-2xl text-slate-200 placeholder-slate-600 focus:outline-none focus:bg-white/[0.04] focus:border-indigo-500/40 transition-all duration-500 shadow-[inset_0_1px_1px_rgba(255,255,255,0.03)] text-sm tracking-wide font-medium"
+                            />
+                            <div className="absolute right-4 px-2 py-1 rounded bg-white/[0.05] text-[10px] text-slate-400 border border-white/[0.05] pointer-events-none tracking-widest font-mono hidden sm:block">⌘K</div>
+                        </div>
+                    </div>
+
+                    {/* Service Types */}
+                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide mask-linear-fade pr-4">
+                        <div className="flex items-center text-slate-500 mr-2 shrink-0">
+                            <Filter size={14} className="mr-1" />
+                            <span className="text-[10px] font-black tracking-widest uppercase">Type</span>
+                        </div>
+                        <button
+                            onClick={() => setActiveServiceType('All')}
+                            className={`relative whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all duration-300 overflow-hidden shrink-0 ${activeServiceType === 'All'
+                                ? 'text-white border border-teal-500/50'
+                                : 'text-slate-400 hover:text-slate-200 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05]'
+                                }`}
+                        >
+                            {activeServiceType === 'All' && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-teal-600/40 to-emerald-600/40"></div>
+                            )}
+                            <span className="relative z-10 flex items-center gap-1.5">
+                                {activeServiceType === 'All' && <Sparkles size={12} className="text-teal-300" />}
+                                All Types
+                            </span>
+                        </button>
+                        {SERVICE_TYPES.map(type => (
+                            <button
+                                key={type}
+                                onClick={() => setActiveServiceType(type)}
+                                className={`relative whitespace-nowrap px-4 py-2 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all duration-300 overflow-hidden shrink-0 ${activeServiceType === type
+                                    ? 'text-white border border-teal-500/50'
+                                    : 'text-slate-400 hover:text-slate-200 bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.05]'
+                                    }`}
+                            >
+                                {activeServiceType === type && (
+                                    <div className="absolute inset-0 bg-gradient-to-br from-teal-500/30 to-emerald-500/30"></div>
+                                )}
+                                <span className="relative z-10">{type}</span>
+                            </button>
+                        ))}
                     </div>
                 </div>
 
@@ -147,6 +190,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
                                     <div className="flex justify-between items-start mb-2">
                                         <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] opacity-60 group-hover:opacity-100 transition-opacity">
                                             {item.category}
+                                            {item.serviceType && <span className="text-teal-400/80 ml-1">· {item.serviceType}</span>}
                                         </p>
                                         {/* Sellable stock pill */}
                                         {sellableStock !== undefined && sellableStock > 0 && (
@@ -193,10 +237,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
                         </div>
                         <h3 className="text-lg md:text-xl font-bold text-slate-300 mb-2 tracking-tight">Void of Results</h3>
                         <p className="text-slate-500 max-w-sm text-center text-xs md:text-sm leading-relaxed mb-8">
-                            Our deep scan couldn't locate "{searchQuery}" within the {activeCategory === 'All' ? 'entire catalogue' : `bounds of ${activeCategory}`}.
+                            Our deep scan couldn't locate "{searchQuery}" within the {activeCategory === 'All' ? 'entire catalogue' : `bounds of ${activeCategory}`} {activeServiceType !== 'All' && `for ${activeServiceType}`}.
                         </p>
                         <button
-                            onClick={() => { setSearchQuery(''); setActiveCategory('All'); }}
+                            onClick={() => { setSearchQuery(''); setActiveCategory('All'); setActiveServiceType('All'); }}
                             className="relative px-8 py-3 bg-white/[0.03] hover:bg-white/[0.08] text-slate-300 font-bold tracking-widest text-[10px] md:text-xs uppercase rounded-full border border-white/[0.05] transition-all duration-300 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)] hover:-translate-y-0.5 active:translate-y-0 overflow-hidden group"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div>
@@ -210,3 +254,4 @@ const ProductGrid: React.FC<ProductGridProps> = ({ menuItems, isLoading, onAddIt
 };
 
 export default React.memo(ProductGrid);
+
