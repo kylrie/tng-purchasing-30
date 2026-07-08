@@ -13,6 +13,7 @@ import {
 import type { QrTableSummary } from '../types/qrOrder.types';
 import { MOCK_TABLES, MOCK_BUSINESS_UNIT, mockTokenFor } from '../data/mockTables';
 import { formatTableLabel } from '../utils/tableUtils';
+import { buildCustomerMenuUrl } from '../utils/customerMenuUrl';
 
 /**
  * QR Ordering — Table Management (Sprint 2 · admin)
@@ -143,7 +144,9 @@ const TableManagementView: React.FC = () => {
         }
     };
 
-    const customerUrl = tokenValue ? `${window.location.origin}/order/${tokenValue}` : '';
+    // Business-aware customer link: Fun Roof (b1) tables open the standalone
+    // /funroof/<tableNumber> menu; all others use the token-based /order/<token>.
+    const customerUrl = buildCustomerMenuUrl(window.location.origin, businessUnitId, tokenPanel?.tableNumber ?? '', tokenValue);
     const copyUrl = () => {
         if (!customerUrl) return;
         navigator.clipboard?.writeText(customerUrl).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1800); }).catch(() => { /* clipboard unavailable */ });
