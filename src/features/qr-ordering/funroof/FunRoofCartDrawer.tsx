@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { X, Minus, Plus, Trash2, Sparkles, Martini } from 'lucide-react';
-import { FUN_ROOF_THEME as T, FUN_ROOF_COLORS } from './funRoofTheme';
+import { X, Minus, Plus, Trash2, Sparkles, Martini, Loader2, AlertCircle } from 'lucide-react';
+import { FUN_ROOF_THEME as T, FUN_ROOF_COLORS, FUN_ROOF_CTA_GRADIENT } from './funRoofTheme';
 import { peso } from './funRoofFormat';
 import { formatTableLabel } from '../utils/tableUtils';
 
@@ -21,6 +21,12 @@ interface Props {
     onChangeQty: (lineId: string, nextQty: number) => void;
     onRemove: (lineId: string) => void;
     onClear: () => void;
+    /** When provided, enables the real "Proceed to checkout" CTA (createQrOrder). */
+    onCheckout?: () => void;
+    /** True while the order is being submitted — disables the CTA + shows a spinner. */
+    submitting?: boolean;
+    /** Diner-friendly error from a failed submit; shown above the CTA. */
+    submitError?: string;
 }
 
 const LEAVE_MS = 250;
@@ -33,7 +39,7 @@ const LEAVE_MS = 250;
  * POS — online ordering is a deliberate future boundary (mirrors the dormant
  * checkout in the Inflatable Island module). The footer states that plainly.
  */
-const FunRoofCartDrawer: React.FC<Props> = ({ open, lines, tableNumber, onClose, onChangeQty, onRemove, onClear }) => {
+const FunRoofCartDrawer: React.FC<Props> = ({ open, lines, tableNumber, onClose, onChangeQty, onRemove, onClear, onCheckout, submitting = false, submitError = '' }) => {
     const [mounted, setMounted] = useState(false);
     const [entered, setEntered] = useState(false);
 
@@ -151,17 +157,39 @@ const FunRoofCartDrawer: React.FC<Props> = ({ open, lines, tableNumber, onClose,
                     )}
                 </div>
 
-                {/* Footer — total + DORMANT ordering boundary (no submit, no POS, no payment) */}
+                {/* Footer — totals + real checkout (createQrOrder → Xendit), same flow as Inflatable */}
                 {!isEmpty && (
                     <div className="relative z-10 shrink-0 px-5 sm:px-6 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]" style={{ borderTop: `1px solid ${T.border}` }}>
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-semibold" style={{ color: T.textMuted }}>Estimated total</span>
+                        <div className="flex items-center justify-between text-sm mb-1.5" style={{ color: T.textMuted }}>
+                            <span>Subtotal</span>
+                            <span className="tabular-nums">{peso(subtotal)}</span>
+                        </div>
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-sm font-semibold" style={{ color: T.text }}>Total</span>
                             <span className="text-2xl font-black tracking-tight tabular-nums" style={{ color: FUN_ROOF_COLORS.lime }}>{peso(subtotal)}</span>
                         </div>
-                        <div className="rounded-[1.25rem] px-4 py-3.5 text-center" style={{ background: T.primarySoft, border: `1px solid ${T.borderStrong}` }}>
-                            <p className="text-sm font-bold" style={{ color: T.text }}>Table service</p>
-                            <p className="text-xs mt-0.5" style={{ color: T.textMuted }}>Show your picks to a server to order. Online ordering is coming soon.</p>
-                        </div>
+                        {submitError && (
+                            <p role="alert" className="mb-3 flex items-start gap-2 text-xs font-medium rounded-xl px-3 py-2" style={{ color: '#ffd0e0', background: 'rgba(245,32,155,0.12)', border: '1px solid rgba(245,32,155,0.3)' }}>
+                                <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                                <span className="min-w-0">{submitError}</span>
+                            </p>
+                        )}
+                        {onCheckout ? (
+                            <button
+                                type="button"
+                                onClick={onCheckout}
+                                disabled={submitting}
+                                aria-busy={submitting}
+                                className="w-full py-4 rounded-[1.25rem] text-white font-extrabold text-base transition-all duration-200 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center gap-2"
+                                style={{ background: FUN_ROOF_CTA_GRADIENT, boxShadow: '0 12px 30px -8px rgba(245,32,155,0.55)' }}
+                            >
+                                {submitting ? (<><Loader2 size={18} className="animate-spin" /> Placing order…</>) : submitError ? 'Try again' : 'Proceed to checkout'}
+                            </button>
+                        ) : (
+                            <button type="button" disabled title="Scan a table QR to order" className="w-full py-4 rounded-[1.25rem] font-semibold text-sm cursor-not-allowed" style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`, color: T.textFaint }}>
+                                Scan a table QR to order
+                            </button>
+                        )}
                     </div>
                 )}
             </div>

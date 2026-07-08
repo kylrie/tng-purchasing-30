@@ -1,12 +1,12 @@
 // QR Ordering — public customer-menu URL for a table's QR code.
 //
-// The Fun Roof (business unit b1) has a STANDALONE, browse-only customer menu at
-// /funroof/<tableNumber> (see features/qr-ordering/funroof). It is deliberately NOT
-// part of the token-based ordering flow, so its QR links carry the human-readable
-// table number directly (no order/payment, nothing private to protect). Every other
-// business uses the shared token-based ordering route /order/<qrToken>
-// (features/qr-ordering/customer/CustomerMenuView), which resolves the token to the
-// business + menu server-side.
+// The Fun Roof (business unit b1) has its own standalone customer menu module at
+// /funroof/<qrToken> (see features/qr-ordering/funroof). Like every other business
+// it is TOKEN-based: the token resolves to the real table + business server-side
+// (getPublicMenu), which the Fun Roof order flow needs to create orders. It differs
+// from other businesses only in the route prefix (/funroof vs /order) and its
+// curated menu/branding. Every other business uses /order/<qrToken>
+// (features/qr-ordering/customer/CustomerMenuView).
 //
 // This is the single source of truth for "what URL does a table's QR encode?" —
 // TableManagementView builds the QR/customer link from it.
@@ -20,19 +20,18 @@ export function isFunRoofQrBusiness(businessUnitId: string | undefined | null): 
 }
 
 /**
- * Build the public customer-menu URL a table's QR code should encode.
- * - Fun Roof (b1): `${origin}/funroof/<tableNumber>` (browse-only; no token needed).
- * - Everyone else: `${origin}/order/<qrToken>` (token-based ordering flow).
- * Returns '' when the required input for the chosen route is missing.
+ * Build the public customer-menu URL a table's QR code should encode (token-based).
+ * - Fun Roof (b1): `${origin}/funroof/<qrToken>`.
+ * - Everyone else: `${origin}/order/<qrToken>`.
+ * Returns '' when the token isn't available yet.
  */
 export function buildCustomerMenuUrl(
     origin: string,
     businessUnitId: string | undefined | null,
-    tableNumber: string,
+    _tableNumber: string,
     qrToken: string,
 ): string {
-    if (isFunRoofQrBusiness(businessUnitId)) {
-        return tableNumber ? `${origin}/funroof/${encodeURIComponent(tableNumber)}` : '';
-    }
-    return qrToken ? `${origin}/order/${qrToken}` : '';
+    if (!qrToken) return '';
+    const prefix = isFunRoofQrBusiness(businessUnitId) ? '/funroof/' : '/order/';
+    return `${origin}${prefix}${encodeURIComponent(qrToken)}`;
 }
