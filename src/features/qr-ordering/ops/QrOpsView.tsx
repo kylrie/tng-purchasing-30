@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     LayoutDashboard, ListOrdered, ChefHat, Wine, Table2, History as HistoryIcon, LockKeyhole,
     AlertCircle, Loader2, LogOut, ChevronRight, X, Wifi, WifiOff, Clock, Receipt,
-    CheckCircle2, StickyNote, Printer, Bluetooth, Power, RotateCcw,
+    CheckCircle2, StickyNote, Printer, Bluetooth, Power, RotateCcw, Zap, RefreshCw,
 } from 'lucide-react';
 import type { Business } from '../../procurement/types';
 import { useAuth } from '../../../contexts/useAuth';
@@ -16,6 +16,11 @@ import {
     getJobStatus, getPrintMode, setPrintMode, getPrinterIp, setPrinterIp,
     type Station, type TicketLine, type PrintMode,
 } from '../services/qrPrinter.service';
+import {
+    subscribeBridgeStatus, subscribeOrderPrintJobs, setAutoPrint, retryPrintJob,
+    isBridgeOnline, overallPrinterState,
+    type BridgeStatus, type PrintJobView, type PrinterState,
+} from '../services/qrPrintStatus.service';
 import { updateQrOrderStatus, toUserFacingTransitionError, NEXT_STATUS } from '../services/updateOrderStatus.service';
 import {
     kitchenLaneFor, attentionFor, sortRank, isActiveStatus, orderStatusPresentation,
@@ -217,7 +222,7 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
             {selected && <OrderDetailPanel order={selected} now={now} onClose={() => setSelectedId(null)}
                 printerConnected={printerReady} onNeedPrinter={() => setPrinterOpen(true)} />}
             {printerOpen && <PrinterPanel mode={printMode} onModeChange={(m) => { setPrintMode(m); setPrintModeState(m); }}
-                btConnected={btConnected} setBtConnected={setBtConnected} onClose={() => setPrinterOpen(false)} />}
+                btConnected={btConnected} setBtConnected={setBtConnected} businessUnitId={businessUnitId} onClose={() => setPrinterOpen(false)} />}
         </OpsShell>
     );
 };
@@ -923,13 +928,93 @@ const OfflineDiagnostics: React.FC<{ diagnostics: OpsDiagnostics; onRetry: () =>
 };
 
 // ════════════════════════════════════════════════════════════════════════════
+// Automatic printing (Phase 6): live status of the local Print Bridge + the
+// per-BU Auto Print ON/OFF toggle. Additive — the manual modes below are unchanged.
+// ════════════════════════════════════════════════════════════════════════════
+const StatePill: React.FC<{ label: string; tone: 'ok' | 'bad' | 'unknown' }> = ({ label, tone }) => {
+    const cls = tone === 'ok' ? 'bg-emerald-100 text-emerald-800 border-emerald-400'
+        : tone === 'bad' ? 'bg-red-100 text-red-700 border-red-300'
+        : 'bg-slate-100 text-slate-500 border-slate-300';
+    return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black border ${cls}`}>{label}</span>;
+};
+
+const StatRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div className="flex items-center justify-between gap-3">
+        <span className="text-slate-500 font-semibold">{label}</span>
+        <span className="text-right">{children}</span>
+    </div>
+);
+
+const AutoPrintSection: React.FC<{ businessUnitId: string }> = ({ businessUnitId }) => {
+    const [status, setStatus] = useState<BridgeStatus | null>(null);
+    const [now, setNow] = useState<number>(() => Date.now());
+    const [optimistic, setOptimistic] = useState<boolean | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+
+    useEffect(() => {
+        if (!businessUnitId) return;
+        const unsub = subscribeBridgeStatus(businessUnitId, setStatus, () => setStatus(null));
+        const id = window.setInterval(() => setNow(Date.now()), 5000);
+        return () => { unsub(); window.clearInterval(id); };
+    }, [businessUnitId]);
+
+    const online = isBridgeOnline(status, now);
+    const printer: PrinterState = overallPrinterState(status, now);
+    const reported = status?.autoPrint !== false; // default ON unless explicitly OFF
+    const autoOn = optimistic !== null ? optimistic : reported;
+    const lastPrint = status?.lastPrint ?? null;
+
+    // Clear the optimistic override once the bridge's heartbeat confirms it.
+    useEffect(() => { if (optimistic !== null && reported === optimistic) setOptimistic(null); }, [reported, optimistic]);
+
+    const toggle = async () => {
+        const next = !autoOn;
+        setBusy(true); setErr(''); setOptimistic(next);
+        try { await setAutoPrint(businessUnitId, next); }
+        catch (e) { setOptimistic(null); setErr((e as Error)?.message || 'Could not change auto print.'); }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="rounded-xl border-2 border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2.5 bg-slate-900 text-white">
+                <div className="flex items-center gap-2 font-black"><Zap size={16} /> Automatic printing</div>
+                <button type="button" onClick={toggle} disabled={busy}
+                    className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-black border-2 ${autoOn ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-slate-700 border-slate-600 text-slate-200'} disabled:opacity-50`}>
+                    {busy ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />} {autoOn ? 'ON' : 'OFF'}
+                </button>
+            </div>
+            <div className="p-3 space-y-2 text-sm">
+                <StatRow label="Bridge"><StatePill label={online ? 'ONLINE' : 'OFFLINE'} tone={online ? 'ok' : 'bad'} /></StatRow>
+                <StatRow label="Printer"><StatePill label={printer} tone={printer === 'ONLINE' ? 'ok' : printer === 'OFFLINE' ? 'bad' : 'unknown'} /></StatRow>
+                <StatRow label="Auto print"><StatePill label={autoOn ? 'ON' : 'OFF'} tone={autoOn ? 'ok' : 'unknown'} /></StatRow>
+                <StatRow label="Last print">
+                    {lastPrint ? (
+                        <span className={`font-bold ${lastPrint.status === 'PRINTED' ? 'text-emerald-700' : 'text-red-600'}`}>
+                            {lastPrint.station} {lastPrint.order} · {lastPrint.status} · {new Date(lastPrint.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    ) : <span className="text-slate-400">—</span>}
+                </StatRow>
+                {err && <div role="alert" className="rounded bg-red-600 text-white px-2 py-1 text-xs font-bold">{err}</div>}
+                {!online && (
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                        The print bridge on the POS computer isn't reporting in — tickets won't print automatically until it's running. Use the manual buttons below meanwhile.
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ════════════════════════════════════════════════════════════════════════════
 // Printer: setup panel (top bar) + per-order Kitchen/Bar print buttons.
 // Reuses the proven POS Bluetooth path (qrPrinter.service → POSPrinterService).
 // ════════════════════════════════════════════════════════════════════════════
 const PrinterPanel: React.FC<{
     mode: PrintMode; onModeChange: (m: PrintMode) => void;
-    btConnected: boolean; setBtConnected: (b: boolean) => void; onClose: () => void;
-}> = ({ mode, onModeChange, btConnected, setBtConnected, onClose }) => {
+    btConnected: boolean; setBtConnected: (b: boolean) => void; businessUnitId: string; onClose: () => void;
+}> = ({ mode, onModeChange, btConnected, setBtConnected, businessUnitId, onClose }) => {
     const [ip, setIpLocal] = useState(() => getPrinterIp());
     const [busy, setBusy] = useState<'connect' | 'test' | null>(null);
     const [error, setError] = useState('');
@@ -965,8 +1050,12 @@ const PrinterPanel: React.FC<{
                     <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><X size={18} /></button>
                 </div>
                 <div className="p-4 space-y-3">
+                    {/* Automatic printing (Phase 6) — the headless bridge prints on PAID.
+                        The manual modes below remain as a fallback / diagnostics. */}
+                    <AutoPrintSection businessUnitId={businessUnitId} />
+
                     <div>
-                        <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Printer type</div>
+                        <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Manual print (fallback)</div>
                         <div className="flex gap-2">
                             <ModeBtn m="system" label="System" />
                             <ModeBtn m="qz" label="IP / Network" />
@@ -1040,6 +1129,20 @@ const PrintButtons: React.FC<{ order: DerivedOrder; printerConnected: boolean; o
     const [msg, setMsg] = useState<{ station: Station; ok: boolean; text: string } | null>(null);
     const [, force] = useState(0);
 
+    // Live AUTOMATIC-print job status for this order (the bridge). Separate from the
+    // manual browser-print ledger below.
+    const [autoJobs, setAutoJobs] = useState<PrintJobView[]>([]);
+    const [retrying, setRetrying] = useState<Station | null>(null);
+    useEffect(() => {
+        const unsub = subscribeOrderPrintJobs(order.id, setAutoJobs, () => { /* status only */ });
+        return () => unsub();
+    }, [order.id]);
+    const autoJobFor = (station: Station): PrintJobView | null => autoJobs.find(j => j.station === station) ?? null;
+    const doRetry = async (station: Station, jobId: string) => {
+        setRetrying(station);
+        try { await retryPrintJob(jobId); } catch { /* status reflects the outcome */ } finally { setRetrying(null); }
+    };
+
     const food = foodLines(order.items);
     const drink = drinkLines(order.items);
     const paid = order.paymentStatus === 'PAID' || (order.status !== 'AWAITING_PAYMENT' && order.status !== 'PAYMENT_FAILED');
@@ -1083,8 +1186,40 @@ const PrintButtons: React.FC<{ order: DerivedOrder; printerConnected: boolean; o
             </div>
             {!printerConnected && <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700"><RotateCcw size={12} /> No printer connected — tap a button to open printer setup.</p>}
             {msg && <p className={`mt-2 text-xs font-bold ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.station}: {msg.text}</p>}
+
+            {/* Automatic-print status (the bridge). Shows per station once a paid
+                order has generated jobs; FAILED offers a one-tap Retry. */}
+            {(autoJobFor('KITCHEN') || autoJobFor('BAR')) && (
+                <div className="mt-2.5 rounded-lg border-2 border-slate-200 p-2 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-slate-500"><Zap size={12} /> Auto-print</div>
+                    {(['KITCHEN', 'BAR'] as Station[]).map(st => {
+                        const j = autoJobFor(st);
+                        if (!j) return null;
+                        const s = j.status || 'PENDING';
+                        const tone = s === 'PRINTED' ? 'ok' : s === 'FAILED' ? 'bad' : 'unknown';
+                        return (
+                            <div key={st} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="font-semibold text-slate-600">{st === 'KITCHEN' ? 'Kitchen' : 'Bar'}</span>
+                                <span className="flex items-center gap-2">
+                                    <StatePill label={s} tone={tone} />
+                                    {s === 'FAILED' && (
+                                        <button type="button" onClick={() => doRetry(st, j.id)} disabled={retrying === st}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 text-white text-xs font-bold disabled:opacity-60">
+                                            {retrying === st ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Retry
+                                        </button>
+                                    )}
+                                </span>
+                            </div>
+                        );
+                    })}
+                    {autoJobFor('KITCHEN')?.status === 'FAILED' || autoJobFor('BAR')?.status === 'FAILED' ? (
+                        <p className="text-[11px] text-amber-700 font-semibold">Auto-print failed — retry, or use the manual buttons above.</p>
+                    ) : null}
+                </div>
+            )}
+
             {(getJobStatus(order.id, 'KITCHEN') || getJobStatus(order.id, 'BAR')) && (
-                <p className="mt-1 text-[11px] text-slate-400 tabular-nums">Kitchen: {getJobStatus(order.id, 'KITCHEN') ?? '—'} · Bar: {getJobStatus(order.id, 'BAR') ?? '—'}</p>
+                <p className="mt-1 text-[11px] text-slate-400 tabular-nums">Manual: Kitchen {getJobStatus(order.id, 'KITCHEN') ?? '—'} · Bar {getJobStatus(order.id, 'BAR') ?? '—'}</p>
             )}
         </section>
     );

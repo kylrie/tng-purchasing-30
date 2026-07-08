@@ -37,6 +37,9 @@ export { xenditWebhook } from './qr/xenditWebhook';
 // QR Ordering — Operations (staff kitchen/fulfillment status transitions)
 export { updateQrOrderStatus } from './qr/updateQrOrderStatus';
 
+// QR Ordering — Automatic printing (staff control of the local Print Bridge)
+export { setAutoPrint, retryPrintJob } from './qr/printControl';
+
 // Inventory — Background Recipe Recalculation
 export { onInventoryItemUpdated } from './inventory/recipeRecalculation';
 export { setPosPin, verifyPosPin } from './posAuth';

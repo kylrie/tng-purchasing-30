@@ -1,0 +1,11 @@
+# Secrets & machine-specific config — NEVER commit these
+service-account.json
+config.json
+
+# Build output & deps
+node_modules/
+dist/
+*.log
+
+# node-windows service wrapper artifacts
+daemon/

@@ -1041,6 +1041,41 @@ service cloud.firestore {
     }
 
     // =====================================================
+    // QR ORDERING — PRINT JOBS (automatic Kitchen/Bar ticket printing)
+    // Durable print queue: one INITIAL job per station is created (server-side, in
+    // the release transaction) when a PAID order is released. Signed-in staff READ
+    // jobs so the Ops UI can show print status (PENDING/PRINTING/PRINTED/FAILED).
+    // ALL writes are server-only: the releaseQrOrder service (Admin SDK) creates
+    // jobs; the local Print Bridge (Admin SDK service account, bypasses rules)
+    // claims + completes them. No client may forge/alter a print job.
+    // =====================================================
+    match /qr_print_jobs/{jobId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // =====================================================
+    // QR ORDERING — PRINT BRIDGE STATUS (heartbeat)
+    // The local Print Bridge writes a per-BU heartbeat (Admin SDK) so the Ops UI
+    // can show Bridge ONLINE/OFFLINE + last activity. Staff read; no client writes.
+    // =====================================================
+    match /qr_print_bridge_status/{businessUnitId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // =====================================================
+    // QR ORDERING — PRINT CONFIG (auto-print ON/OFF per business unit)
+    // Staff read the current auto-print setting; the local Print Bridge honors it.
+    // The toggle is written ONLY by the setAutoPrint callable (Admin SDK), so a
+    // client can neither forge nor silently flip another location's setting.
+    // =====================================================
+    match /qr_print_config/{businessUnitId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // =====================================================
     // POS TABLES COLLECTION
     // Table layouts for POS
     // =====================================================
