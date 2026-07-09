@@ -85,6 +85,7 @@ const VarianceReconReport = React.lazy(() => import('./features/inventory/views/
 const GoodsReceivingView = React.lazy(() => import('./features/inventory/views/GoodsReceivingView'));
 const StockTakeView = React.lazy(() => import('./features/inventory/views/StockTakeView'));
 const InventoryIntegrityMonitor = React.lazy(() => import('./features/inventory/views/InventoryIntegrityMonitor'));
+const SalesDeductionsView = React.lazy(() => import('./features/inventory/views/SalesDeductionsView').then(m => ({ default: m.SalesDeductionsView })));
 const MenuDashboard = React.lazy(() => import('./features/menu/views/MenuDashboard'));
 const DigitalBlackBookView = React.lazy(() => import('./features/menu/views/DigitalBlackBookView'));
 const DigitalBlackBookDetailsView = React.lazy(() => import('./features/menu/views/DigitalBlackBookDetailsView'));
@@ -572,6 +573,11 @@ function ProtectedApp() {
                 } />
                 <Route path="/inventory/stock-take" element={
                   <StockTakeView currentUser={currentUser} businesses={accessibleBusinesses} />
+                } />
+                <Route path="/inventory/sales-deductions" element={
+                  <ProtectedRoute permission="ui:module_access:view:inventory">
+                    <SalesDeductionsView />
+                  </ProtectedRoute>
                 } />
                 <Route path="/inventory/reports" element={
                   <InventoryReports currentUser={currentUser} />

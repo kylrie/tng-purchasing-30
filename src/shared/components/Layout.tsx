@@ -354,6 +354,7 @@ const Layout: React.FC<LayoutProps> = ({
                     children: [
                         { path: '/inventory/items', label: 'All Items', icon: Package, canView: hasPermission('inventory:item:view:all') || hasPermission('inventory:item:view:bu') },
                         { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:stock_take:view:all') || hasPermission('inventory:stock_take:view:bu') },
+                        { path: '/inventory/sales-deductions', label: 'Sales Deductions', icon: Receipt, canView: true },
                         { path: '/inventory/wastage', label: 'Wastage', icon: Trash2, canView: hasPermission('inventory:wastage:view:all') || hasPermission('inventory:wastage:view:bu') }
                     ]
                 },
