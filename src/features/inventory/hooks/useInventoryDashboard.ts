@@ -1,34 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
 import { InventoryDashboardService } from '../services/inventory-dashboard.service';
 import type { DashboardKPIs, DashboardPeriod } from '../services/inventory-dashboard.service';
 import { getRollingStaffVariance } from '../services/staff-variance.service';
 import type { StaffVarianceRecord } from '../services/staff-variance.service';
 import { InvestigationsService } from '../services/investigations.service';
 import type { InvestigationCase } from '../services/investigations.service';
-import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+
 import type { User } from '../../procurement/types';
 
-function getDateRangeFromPeriod(period: DashboardPeriod, customRange?: { start: Date; end: Date }): [Date, Date] {
-    if (period === 'custom' && customRange) {
-        return [customRange.start, customRange.end];
-    }
-    const now = new Date();
-    const end = new Date(now);
-    end.setHours(23, 59, 59, 999);
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-
-    if (period === 'week') {
-        const day = start.getDay();
-        const diff = day === 0 ? 6 : day - 1;
-        start.setDate(start.getDate() - diff);
-    } else if (period === 'month') {
-        start.setDate(1);
-    }
-    return [start, end];
-}
 
 export function useInventoryDashboard(
     userOrBuId: User | string | undefined,
