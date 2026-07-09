@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     ClipboardCheck,
     Save,
@@ -17,7 +17,9 @@ import {
     History,
     Eye,
     X,
-    Search
+    Search,
+    Zap,
+    Trash2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ReconService, type ReconRow, type ReconHistoryRecord } from '../services/recon.service';
@@ -131,6 +133,14 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
     const [saveResult, setSaveResult] = useState<{ updatedItems: number; adjustmentsCreated: number; historyId: string } | null>(null);
     const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
     const [searchQuery, setSearchQuery] = useState('');
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNCOUNTED' | 'VARIANCES'>('ALL');
+
+    // Inline calculator: keep raw expression strings per item
+    const [expressionMap, setExpressionMap] = useState<Record<string, string>>({});
+
+    // Draft tracking
+    const [hasDraft, setHasDraft] = useState(false);
+    const draftKeyRef = useRef('');
 
     // History
     const [history, setHistory] = useState<ReconHistoryRecord[]>([]);
@@ -139,6 +149,59 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
     const [viewingRecord, setViewingRecord] = useState<ReconHistoryRecord | null>(null);
 
     const periodLabel = `${dateRange.start}→${dateRange.end}`;
+
+    // ================================================================
+    // DRAFT PERSISTENCE HELPERS
+    // ================================================================
+    const getDraftKey = useCallback(() => {
+        return `recon_draft_${selectedBU}_${periodLabel}`;
+    }, [selectedBU, periodLabel]);
+
+    const saveDraftToStorage = useCallback((updatedRows: ReconRow[]) => {
+        try {
+            const key = getDraftKey();
+            const draft: Record<string, number | null> = {};
+            let hasAny = false;
+            for (const row of updatedRows) {
+                if (row.endingActual !== null) {
+                    draft[row.itemId] = row.endingActual;
+                    hasAny = true;
+                }
+            }
+            if (hasAny) {
+                localStorage.setItem(key, JSON.stringify(draft));
+                setHasDraft(true);
+            } else {
+                localStorage.removeItem(key);
+                setHasDraft(false);
+            }
+        } catch { /* localStorage may be full / unavailable */ }
+    }, [getDraftKey]);
+
+    const loadDraftFromStorage = useCallback((freshRows: ReconRow[]): ReconRow[] => {
+        try {
+            const key = getDraftKey();
+            const stored = localStorage.getItem(key);
+            if (!stored) { setHasDraft(false); return freshRows; }
+            const draft: Record<string, number | null> = JSON.parse(stored);
+            setHasDraft(true);
+            return freshRows.map(row => {
+                const saved = draft[row.itemId];
+                if (saved !== undefined && saved !== null) {
+                    const variance = saved - row.endingSystem;
+                    return { ...row, endingActual: saved, variance };
+                }
+                return row;
+            });
+        } catch { setHasDraft(false); return freshRows; }
+    }, [getDraftKey]);
+
+    const clearDraft = useCallback(() => {
+        try { localStorage.removeItem(getDraftKey()); } catch { /* noop */ }
+        setHasDraft(false);
+        setExpressionMap({});
+        setRows(prev => prev.map(row => ({ ...row, endingActual: null, variance: null })));
+    }, [getDraftKey]);
 
     // ================================================================
     // LOAD DATA
@@ -157,16 +220,21 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
             end.setHours(23, 59, 59, 999);
 
             const data = await ReconService.getReconData(selectedBU, start, end);
-            setRows(data);
+            // Restore any saved draft from localStorage
+            const restored = loadDraftFromStorage(data);
+            setRows(restored);
         } catch (err) {
             console.error('Error loading recon data:', err);
             setError('Failed to load reconciliation data');
         } finally {
             setIsLoading(false);
         }
-    }, [selectedBU, dateRange]);
+    }, [selectedBU, dateRange, loadDraftFromStorage]);
 
     useEffect(() => { loadData(); }, [loadData]);
+
+    // Update draftKeyRef whenever the key changes
+    useEffect(() => { draftKeyRef.current = getDraftKey(); }, [getDraftKey]);
 
     // ================================================================
     // LOAD HISTORY
@@ -189,15 +257,56 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
     }, [showHistory, loadHistory]);
 
     // ================================================================
-    // HANDLE ACTUAL COUNT INPUT
+    // INLINE CALCULATOR — safe expression evaluator
     // ================================================================
-    const handleActualCountChange = (itemId: string, value: string) => {
-        setRows(prev => prev.map((row) => {
-            if (row.itemId !== itemId) return row;
-            const actualCount = value === '' ? null : parseFloat(value);
-            const variance = actualCount !== null ? actualCount - row.endingSystem : null;
-            return { ...row, endingActual: actualCount, variance };
-        }));
+    const evaluateExpression = (expr: string): number | null => {
+        try {
+            const sanitized = expr.replace(/[^0-9+\-*/.() ]/g, '');
+            if (!sanitized || /[+\-*/.]$/.test(sanitized.trim())) return null; // incomplete
+            const result = new Function(`return (${sanitized})`)();
+            return Number.isFinite(result) ? Number(Number(result).toFixed(4)) : null;
+        } catch { return null; }
+    };
+
+    // ================================================================
+    // HANDLE ACTUAL COUNT INPUT (with expression + draft persistence)
+    // ================================================================
+    const handleActualCountChange = (itemId: string, rawValue: string) => {
+        // Store raw expression
+        setExpressionMap(prev => ({ ...prev, [itemId]: rawValue }));
+
+        const evaluated = rawValue === '' ? null : evaluateExpression(rawValue);
+        // If it's a plain number, also accept it directly
+        const numericParsed = rawValue === '' ? null : (evaluated ?? (isNaN(Number(rawValue)) ? null : Number(rawValue)));
+
+        setRows(prev => {
+            const updated = prev.map((row) => {
+                if (row.itemId !== itemId) return row;
+                const actualCount = numericParsed;
+                const variance = actualCount !== null ? actualCount - row.endingSystem : null;
+                return { ...row, endingActual: actualCount, variance };
+            });
+            // Auto-save draft
+            saveDraftToStorage(updated);
+            return updated;
+        });
+        setSaveResult(null);
+    };
+
+    // ================================================================
+    // AUTOFILL SYSTEM COUNTS
+    // ================================================================
+    const handleAutofill = () => {
+        setRows(prev => {
+            const updated = prev.map(row => {
+                if (row.endingActual !== null) return row; // don't overwrite existing entries
+                return { ...row, endingActual: row.endingSystem, variance: 0 };
+            });
+            saveDraftToStorage(updated);
+            return updated;
+        });
+        // Clear expression map for autofilled items
+        setExpressionMap({});
         setSaveResult(null);
     };
 
@@ -223,6 +332,10 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                 periodLabel
             );
             setSaveResult(result);
+            // Clear draft after successful save
+            try { localStorage.removeItem(getDraftKey()); } catch { /* noop */ }
+            setHasDraft(false);
+            setExpressionMap({});
             // Refresh history if panel is open
             if (showHistory) loadHistory();
         } catch (err: unknown) {
@@ -258,11 +371,24 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
             const q = searchQuery.toLowerCase();
             result = result.filter(r => r.itemName?.toLowerCase().includes(q));
         }
+        // Status filter
+        if (statusFilter === 'UNCOUNTED') {
+            result = result.filter(r => r.endingActual === null);
+        } else if (statusFilter === 'VARIANCES') {
+            result = result.filter(r => r.variance !== null && Math.abs(r.variance) > 0.001);
+        }
         return result;
-    }, [displayRows, categoryFilter, searchQuery]);
+    }, [displayRows, categoryFilter, searchQuery, statusFilter]);
 
     const countedRows = filteredRows.filter(r => r.endingActual !== null);
     const varianceRows = filteredRows.filter(r => r.variance !== null && Math.abs(r.variance) > 0.001);
+
+    // High-variance warning helper
+    const getHighVariance = (row: ReconRow): boolean => {
+        if (row.endingActual === null || row.variance === null) return false;
+        if (row.endingSystem <= 0) return false;
+        return (Math.abs(row.variance) / Math.abs(row.endingSystem)) * 100 > 20;
+    };
 
     // ================================================================
     // RENDER
@@ -379,6 +505,49 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {/* Status Filter Toggles */}
+                    {!viewingRecord && (
+                        <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5 mr-2">
+                            {(['ALL', 'UNCOUNTED', 'VARIANCES'] as const).map(mode => (
+                                <button
+                                    key={mode}
+                                    onClick={() => setStatusFilter(mode)}
+                                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                                        statusFilter === mode
+                                            ? 'bg-white dark:bg-slate-600 text-indigo-700 dark:text-indigo-300 shadow-sm'
+                                            : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                                    }`}
+                                >
+                                    {mode === 'ALL' ? 'All' : mode === 'UNCOUNTED' ? 'Uncounted' : 'Variances'}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Autofill Button */}
+                    {!viewingRecord && (
+                        <button
+                            onClick={handleAutofill}
+                            className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 rounded-lg text-xs font-bold hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors flex items-center gap-1.5"
+                            title="Copy system values into all empty Actual fields"
+                        >
+                            <Zap size={13} /> Autofill
+                        </button>
+                    )}
+
+                    {/* Clear Draft Button */}
+                    {!viewingRecord && hasDraft && (
+                        <button
+                            onClick={clearDraft}
+                            className="px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center gap-1.5"
+                            title="Clear all entered counts and remove saved draft"
+                        >
+                            <Trash2 size={13} /> Clear Draft
+                        </button>
+                    )}
+
+                    <span className="text-slate-200 dark:text-slate-700">|</span>
+
                     {/* Export Buttons */}
                     <div className="flex items-center gap-1 mr-2">
                         <button
@@ -508,6 +677,22 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                 </div>
             )}
 
+            {/* Draft Restoration Banner */}
+            {hasDraft && !viewingRecord && (
+                <div className="flex items-center justify-between px-5 py-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-2xl">
+                    <div className="flex items-center gap-3 text-blue-700 dark:text-blue-400 text-sm">
+                        <Save size={16} />
+                        <span><strong>Draft Restored</strong> — Your previously entered counts have been loaded from a saved draft.</span>
+                    </div>
+                    <button
+                        onClick={clearDraft}
+                        className="px-3 py-1 bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded-lg text-xs font-bold hover:bg-blue-300 dark:hover:bg-blue-700"
+                    >
+                        <Trash2 size={14} className="inline mr-1" />Clear Draft
+                    </button>
+                </div>
+            )}
+
             {/* Error */}
             {error && (
                 <div className="flex items-center gap-3 px-5 py-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl text-red-700 dark:text-red-400 text-sm">
@@ -590,15 +775,30 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                                                         {row.endingActual !== null ? formatQty(row.endingActual) : '—'}
                                                     </span>
                                                 ) : (
-                                                    <input
-                                                        type="number"
-                                                        step="0.1"
-                                                        min="0"
-                                                        placeholder="—"
-                                                        value={row.endingActual ?? ''}
-                                                        onChange={(e) => handleActualCountChange(row.itemId, e.target.value)}
-                                                        className="w-24 mx-auto block px-3 py-1.5 bg-white dark:bg-slate-900 border-2 border-amber-300 dark:border-amber-700 rounded-lg text-center text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                                                    />
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            inputMode="decimal"
+                                                            placeholder="—"
+                                                            value={expressionMap[row.itemId] !== undefined ? expressionMap[row.itemId] : (row.endingActual ?? '')}
+                                                            onChange={(e) => handleActualCountChange(row.itemId, e.target.value)}
+                                                            className={`w-28 mx-auto block px-3 py-1.5 bg-white dark:bg-slate-900 border-2 rounded-lg text-center text-sm font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 placeholder:text-slate-300 dark:placeholder:text-slate-600 ${
+                                                                getHighVariance(row)
+                                                                    ? 'border-red-400 dark:border-red-600 focus:ring-red-500/50 focus:border-red-500'
+                                                                    : 'border-amber-300 dark:border-amber-700 focus:ring-amber-500/50 focus:border-amber-500'
+                                                            }`}
+                                                            title={expressionMap[row.itemId] && row.endingActual !== null ? `= ${row.endingActual}` : ''}
+                                                        />
+                                                        {getHighVariance(row) && (
+                                                            <span className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 bg-red-500 rounded-full" title={`High variance: ${row.variance !== null ? Math.round((Math.abs(row.variance) / Math.abs(row.endingSystem)) * 100) : 0}% off`}>
+                                                                <AlertTriangle size={10} className="text-white" />
+                                                            </span>
+                                                        )}
+                                                        {/* Evaluated expression hint */}
+                                                        {expressionMap[row.itemId] && /[+\-*/]/.test(expressionMap[row.itemId]) && row.endingActual !== null && (
+                                                            <span className="block text-center text-[10px] text-slate-400 mt-0.5">= {row.endingActual}</span>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </td>
 

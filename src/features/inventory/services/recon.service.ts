@@ -77,7 +77,7 @@ const COL = {
 export class ReconService {
 
     /**
-     * Aggregate all data needed for the reconciliation table
+     * Aggregate all data needed for the reconciliation table in a single optimized pass.
      */
     static async getReconData(
         businessUnitId: string,
@@ -85,45 +85,52 @@ export class ReconService {
         endDate: Date
     ): Promise<ReconRow[]> {
 
-        // 1. Fetch all active inventory items for this BU
+        // 1. Fetch active inventory items
         const itemsQ = query(
             collection(db, COL.INVENTORY_ITEMS),
             where('businessUnitId', '==', businessUnitId),
             where('isActive', '==', true)
         );
         const itemsSnap = await getDocs(itemsQ);
-        const items = itemsSnap.docs.map(d => ({
-            id: d.id,
-            ...d.data()
-        })) as (InventoryItem & { id: string })[];
+        const items = itemsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as (InventoryItem & { id: string })[];
 
-        // 2. Aggregate purchases (goods receiving writes type = 'RECEIVE')
-        //    Also include PRODUCTION_OUTPUT (production batches that yield new stock)
-        const purchasesMap = await this.aggregateTransactions(
-            businessUnitId, startDate, endDate, ['RECEIVE', 'PRODUCTION_OUTPUT']
+        // 2. Perform a SINGLE PASS query for all transactions within the date range
+        // IMPORTANT: This relies on the existing composite index { businessUnitId: ASC, timestamp: DESC }
+        const txQuery = query(
+            collection(db, COL.STOCK_TRANSACTIONS),
+            where('businessUnitId', '==', businessUnitId),
+            where('timestamp', '>=', Timestamp.fromDate(startDate)),
+            where('timestamp', '<=', Timestamp.fromDate(endDate)),
+            orderBy('timestamp', 'desc')
         );
+        
+        const txSnap = await getDocs(txQuery);
+        
+        const purchasesMap = new Map<string, number>();
+        const returnsMap = new Map<string, number>();
+        const posSalesMap = new Map<string, number>();
+        const eventSalesMap = new Map<string, number>();
 
-        // 3. Aggregate returns/outgoing
-        const returnsMap = await this.aggregateTransactions(
-            businessUnitId, startDate, endDate, ['RETURN', 'TRANSFER_OUT']
-        );
+        // Single pass O(N) aggregation of filtered documents
+        for (const docSnap of txSnap.docs) {
+            const data = docSnap.data();
+            const type = data.type as string;
+            const itemId = data.itemId as string;
+            const qty = Math.abs((data.quantity as number) || 0);
 
-        // 4. Aggregate POS sales from stock_transactions (THEORETICAL_USAGE / POS_SALE)
-        const posSalesMap = await this.aggregatePosSales(businessUnitId, startDate, endDate);
+            if (['RECEIVE', 'PRODUCTION_OUTPUT'].includes(type)) {
+                purchasesMap.set(itemId, (purchasesMap.get(itemId) || 0) + qty);
+            } else if (['RETURN', 'TRANSFER_OUT'].includes(type)) {
+                returnsMap.set(itemId, (returnsMap.get(itemId) || 0) + qty);
+            } else if (['THEORETICAL_USAGE', 'POS_SALE'].includes(type)) {
+                posSalesMap.set(itemId, (posSalesMap.get(itemId) || 0) + qty);
+            } else if (['PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
+                eventSalesMap.set(itemId, (eventSalesMap.get(itemId) || 0) + qty);
+            }
+        }
 
-        // 5. Aggregate production consumption + wastage from stock_transactions
-        //    PRODUCTION_CONSUMPTION = inventory.service.ts batch production
-        //    PRODUCTION_CONSUME     = production-recipe.service.ts recipe runs
-        //    WASTAGE                = wastage.service.ts manual wastage entries
-        const eventSalesMap = await this.aggregateTransactions(
-            businessUnitId, startDate, endDate, ['PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE']
-        );
-
-        // 6. Build rows
-        // CRITICAL: FINISHED_GOOD items are intentionally excluded from physical counting.
-        // FG stock is managed virtually (via BOM explosion from POS sales), not physically counted.
-        // Only RAW_MATERIAL and PRODUCTION items require a physical count.
-        const rows: ReconRow[] = items
+        // 3. Build and return rows
+        return items
             .filter(item => item.type === 'RAW_MATERIAL' || item.type === 'PRODUCTION')
             .map(item => {
                 const purchasesIn = purchasesMap.get(item.id) || 0;
@@ -131,19 +138,11 @@ export class ReconService {
                 const posSales = posSalesMap.get(item.id) || 0;
                 const eventSales = eventSalesMap.get(item.id) || 0;
 
-                // Beginning inventory = currentStock (the last verified physical count / manual entry).
-                // We intentionally do NOT use theoreticalStock here because it is a running
-                // deduction tracker (decremented by POS sales & production) and can drift deeply
-                // negative over time, producing impossible opening balances.
-                // currentStock always reflects the last physical or manually-set value shown
-                // in the Inventory Items view — so both screens will agree.
                 let beginningInventory = item.currentStock ?? 0;
                 if (Number.isNaN(beginningInventory)) beginningInventory = 0;
 
-                // Calculated columns
                 const stockOnHand = beginningInventory + purchasesIn - purchasesOut;
                 const endingSystem = stockOnHand - posSales - eventSales;
-
                 const categoryLabel = item.type === 'RAW_MATERIAL' ? 'RAW MAT' : 'PROD';
 
                 return {
@@ -164,69 +163,10 @@ export class ReconService {
                 };
             })
             .sort((a, b) => a.itemName.localeCompare(b.itemName));
-
-        return rows;
     }
 
     /**
-     * Aggregate stock_transactions by type(s) for a date range
-     * Returns Map<itemId, totalQuantity>
-     */
-    private static async aggregateTransactions(
-        businessUnitId: string,
-        startDate: Date,
-        endDate: Date,
-        types: string[]
-    ): Promise<Map<string, number>> {
-        const result = new Map<string, number>();
-
-        try {
-            const q = query(
-                collection(db, COL.STOCK_TRANSACTIONS),
-                where('businessUnitId', '==', businessUnitId)
-            );
-            const snap = await getDocs(q);
-
-            for (const docSnap of snap.docs) {
-                const data = docSnap.data();
-                const txType = data.type as string;
-                if (!types.includes(txType)) continue;
-
-                // Client-side date filter to avoid composite index
-                const txDate = data.timestamp?.toDate?.() || new Date(data.timestamp);
-                if (txDate < startDate || txDate > endDate) continue;
-
-                const itemId = data.itemId as string;
-                const qty = Math.abs(data.quantity as number || 0);
-                result.set(itemId, (result.get(itemId) || 0) + qty);
-            }
-        } catch (error) {
-            console.error('Error aggregating transactions:', error);
-        }
-
-        return result;
-    }
-
-    /**
-     * Aggregate POS sales deductions from stock_transactions.
-     * BOM-exploded deductions are stored as THEORETICAL_USAGE (raw materials)
-     * and direct FG deductions as POS_SALE — both are the real inventory movements.
-     * Returns Map<itemId, totalQuantity>
-     */
-    private static async aggregatePosSales(
-        businessUnitId: string,
-        startDate: Date,
-        endDate: Date
-    ): Promise<Map<string, number>> {
-        return this.aggregateTransactions(
-            businessUnitId, startDate, endDate, ['THEORETICAL_USAGE', 'POS_SALE']
-        );
-    }
-
-    /**
-     * Save physical counts:
-     * 1. Update currentStock to the new actual count
-     * 2. Create ADJUSTMENT stock_transactions for variance audit trail
+     * Save physical counts safely using chunked batches to respect Firestore's 500 op limit
      */
     static async savePhysicalCounts(
         rows: ReconRow[],
@@ -240,9 +180,14 @@ export class ReconService {
             throw new Error('No physical counts entered. Please enter at least one actual count.');
         }
 
-        const batch = writeBatch(db);
         let updatedItems = 0;
         let adjustmentsCreated = 0;
+        
+        // Firestore batch limit is 500. We use 450 to be safe.
+        const BATCH_LIMIT = 450; 
+        const batches: ReturnType<typeof writeBatch>[] = [];
+        let currentBatch = writeBatch(db);
+        let opCount = 0;
 
         for (const row of rowsWithCounts) {
             const actualCount = row.endingActual!;
@@ -250,19 +195,19 @@ export class ReconService {
 
             // 1. Update currentStock on the inventory item
             const itemRef = doc(db, COL.INVENTORY_ITEMS, row.itemId);
-            batch.update(itemRef, {
+            currentBatch.update(itemRef, {
                 currentStock: actualCount,
                 theoreticalStock: actualCount, // Reset theoretical to match physical
                 updatedAt: Timestamp.now(),
-                lastReconAt: Timestamp.now(), // Sentinel: POS import should skip deductions for
-                                               // transactions timestamped before this value
+                lastReconAt: Timestamp.now(), // Sentinel: POS import should skip deductions for transactions before this
             });
             updatedItems++;
+            opCount++;
 
             // 2. If there's a variance, create an ADJUSTMENT transaction
             if (Math.abs(variance) > 0.001) {
                 const txRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
-                batch.set(txRef, {
+                currentBatch.set(txRef, {
                     itemId: row.itemId,
                     itemName: row.itemName,
                     businessUnitId,
@@ -276,16 +221,26 @@ export class ReconService {
                     timestamp: Timestamp.now(),
                 });
                 adjustmentsCreated++;
+                opCount++;
+            }
+
+            // Chunk management
+            if (opCount >= BATCH_LIMIT) {
+                batches.push(currentBatch);
+                currentBatch = writeBatch(db);
+                opCount = 0;
             }
         }
+        
+        if (opCount > 0) batches.push(currentBatch);
 
-        await batch.commit();
+        // Commit all batches
+        await Promise.all(batches.map(batch => batch.commit()));
 
         // 3. Save a history snapshot
         const varianceItems = rowsWithCounts.filter(r => Math.abs((r.endingActual! - r.endingSystem)) > 0.001);
         const totalVarianceCost = varianceItems.reduce((sum, r) => {
-            const v = r.endingActual! - r.endingSystem;
-            return sum + (v * r.costPerUnit);
+            return sum + ((r.endingActual! - r.endingSystem) * r.costPerUnit);
         }, 0);
 
         const historyDoc = await addDoc(collection(db, COL.RECON_HISTORY), {
@@ -298,10 +253,7 @@ export class ReconService {
             totalItems: rowsWithCounts.length,
             itemsWithVariance: varianceItems.length,
             totalVarianceCost,
-            rows: rowsWithCounts.map(r => ({
-                ...r,
-                variance: r.endingActual! - r.endingSystem,
-            })),
+            rows: rowsWithCounts.map(r => ({ ...r, variance: r.endingActual! - r.endingSystem })),
         });
 
         const result = { updatedItems, adjustmentsCreated, historyId: historyDoc.id };
