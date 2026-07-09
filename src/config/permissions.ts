@@ -244,6 +244,7 @@ export const ALL_PERMISSIONS = [
   // ─── POINT OF SALE: IMPORT ────────────────────────────────────────────
   'pos:import:view:all',
   'pos:import:create',
+  'pos:import:edit',
   'pos:import:delete',
 
   // ─── UI: MODULE ACCESS ────────────────────────────────────────────────
@@ -532,6 +533,7 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   // ─── POINT OF SALE: IMPORT ────────────────────────────────────────────
   'pos:import:view:all':                { label: 'View POS Imports',          category: 'Point of Sale',         description: 'View imported POS data dashboards.' },
   'pos:import:create':                  { label: 'Import POS Data',           category: 'Point of Sale',         description: 'Import POS/event data from external sources.' },
+  'pos:import:edit':                    { label: 'Edit POS Import',           category: 'Point of Sale',         description: 'Edit imported POS data/matched items.' },
   'pos:import:delete':                  { label: 'Delete POS Import',         category: 'Point of Sale',         description: 'Delete imported POS data records.' },
 
   // ─── UI: MODULE ACCESS ────────────────────────────────────────────────
@@ -1029,6 +1031,7 @@ export const PERMISSION_GROUPS: ResourceGroup[] = [
     category: 'Point of Sale',
     read:   { permission: 'pos:import:view:all' },
     create: { permission: 'pos:import:create' },
+    edit:   { permission: 'pos:import:edit' },
     delete: { permission: 'pos:import:delete' },
   },
 

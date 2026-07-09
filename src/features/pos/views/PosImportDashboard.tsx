@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar, Info, Search } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, ChevronDown, Trash2, BarChart3, Eye, DollarSign, Package, TrendingUp, Calendar, Info, Search, Edit } from 'lucide-react';
 import { PosImportService } from '../services/pos-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
@@ -138,6 +138,7 @@ const PosImportDashboard: React.FC<Props> = () => {
         : selectedBusinessUnit;
     const [activeTab, setActiveTab] = useState<Tab>('import');
     const [viewState, setViewState] = useState<ViewState>('UPLOAD');
+    const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
     const [file, setFile] = useState<File | null>(null);
     const [fileHash, setFileHash] = useState<string>('');
     const [, setParsedRows] = useState<PosImportRow[]>([]);
@@ -476,6 +477,117 @@ const PosImportDashboard: React.FC<Props> = () => {
         }));
     };
 
+    const handleQtySoldChange = (rowIndex: number, rawValue: string) => {
+        const qtySold = Math.max(0, parseInt(rawValue, 10) || 0);
+        setMappedRows(prev => prev.map(row => {
+            if (row.rowIndex !== rowIndex) return row;
+
+            const matchedItem = row.matchedItemId
+                ? inventoryItems.find(i => i.id === row.matchedItemId)
+                : null;
+
+            const srp = matchedItem?.sellingPrice ?? 0;
+            const baseCost = matchedItem?.baseCost ?? 0;
+
+            const billedQty = Math.max(0, qtySold - (row.qtyFoc ?? 0));
+            
+            let newAmount = row.amount;
+            if (srp > 0) {
+                newAmount = Math.max(0, (srp * billedQty) - (row.discount || 0));
+            } else if (row.amountSource === 'file') {
+                const prevQty = row.qtySold || 1;
+                newAmount = (row.amount / prevQty) * qtySold;
+            }
+
+            const newCosts = baseCost > 0 ? baseCost * qtySold : (row.costs / (row.qtySold || 1)) * qtySold;
+            const newProfit = newAmount - newCosts;
+
+            let negativeStockFlag = false;
+            if (matchedItem && !row.isDirectSale) {
+                const theoStock = matchedItem.theoreticalStock ?? matchedItem.currentStock ?? 0;
+                const hasRecipe = matchedItem.recipe && matchedItem.recipe.length > 0;
+                const newStock = hasRecipe ? null : theoStock - qtySold;
+                negativeStockFlag = newStock !== null ? newStock < 0 : false;
+            }
+
+            return {
+                ...row,
+                qtySold,
+                amount: newAmount,
+                costs: newCosts,
+                profit: newProfit,
+                negativeStockFlag
+            };
+        }));
+    };
+
+    const handleAmountChange = (rowIndex: number, rawValue: string) => {
+        const amount = Math.max(0, parseFloat(rawValue) || 0);
+        setMappedRows(prev => prev.map(row => {
+            if (row.rowIndex !== rowIndex) return row;
+            const newProfit = amount - row.costs;
+            return {
+                ...row,
+                amount,
+                profit: newProfit,
+                amountSource: 'file'
+            };
+        }));
+    };
+
+    const handleEditBatch = async (batch: PosImportBatch) => {
+        setLoading(true);
+        setError(null);
+        try {
+            let items = inventoryItems;
+            if (items.length === 0 && selectedBU) {
+                const q = query(collection(db, 'inventory_items'), where('businessUnitId', '==', selectedBU), where('isActive', '==', true));
+                const snap = await getDocs(q);
+                items = snap.docs.map(d => ({ id: d.id, ...d.data() } as InventoryItem & { id: string }));
+                setInventoryItems(items);
+            }
+
+            const sales = await PosImportService.getSalesByBatchId(batch.id);
+
+            const mapped: PosImportMappedRow[] = sales.map((sale, index) => {
+                const matchedItem = items.find(i => i.id === sale.inventoryItemId);
+                return {
+                    rowIndex: index,
+                    category: sale.category || 'Unknown',
+                    itemName: sale.inventoryItemName,
+                    qtySold: sale.qtySold,
+                    qtyFoc: sale.qtyFoc ?? 0,
+                    discount: sale.discount ?? 0,
+                    isDirectSale: sale.isDirectSale || false,
+                    amount: sale.amount,
+                    costs: sale.costs,
+                    profit: sale.profit,
+                    matchedItemId: sale.inventoryItemId,
+                    matchedItemName: sale.inventoryItemName,
+                    matchStatus: 'MATCHED' as const,
+                    currentStock: matchedItem ? (matchedItem.theoreticalStock ?? matchedItem.currentStock ?? 0) : 0,
+                    negativeStockFlag: sale.negativeStockFlag ?? false,
+                    amountSource: 'file' as const
+                };
+            });
+
+            setEditingBatchId(batch.id);
+            setFile({ name: batch.fileName, size: 0 } as File);
+            setFileHash(batch.fileHash);
+            setImportDate(batch.importDate || new Date().toISOString().split('T')[0]);
+            setMappedRows(mapped);
+            setRawRowCount(mapped.length);
+            setConsolidatedCount(mapped.length);
+            setViewState('PREVIEW');
+            setActiveTab('import');
+        } catch (err) {
+            console.error('Failed to load batch for editing:', err);
+            setError(err instanceof Error ? err.message : 'Failed to load batch details for editing.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     // ================================================================
     // COMMIT IMPORT
     // ================================================================
@@ -507,6 +619,10 @@ const PosImportDashboard: React.FC<Props> = () => {
         setError(null);
 
         try {
+            if (editingBatchId) {
+                await PosImportService.deleteImportBatch(editingBatchId, currentUser.id, currentUser.name);
+            }
+
             const batchId = await PosImportService.commitImport({
                 mappedRows,
                 businessUnitId: selectedBU,
@@ -522,11 +638,14 @@ const PosImportDashboard: React.FC<Props> = () => {
             ActivityLogService.log(
                 'POS',
                 'POS Sales Imported',
-                `${file?.name || 'file'} imported — ${mappedRows.length} row(s) for ${importDate}`,
+                editingBatchId
+                    ? `POS Import Batch edited — ${mappedRows.length} row(s) for ${importDate}`
+                    : `${file?.name || 'file'} imported — ${mappedRows.length} row(s) for ${importDate}`,
                 { id: currentUser.id, name: currentUser.name },
                 selectedBU,
                 { entityId: batchId, entityType: 'POS Batch', severity: 'success' }
             );
+            setEditingBatchId(null);
             PosImportService.getImportHistory(selectedBU).then(setImportHistory).catch(console.error);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Import failed');
@@ -544,6 +663,7 @@ const PosImportDashboard: React.FC<Props> = () => {
         setViewState('UPLOAD');
         setError(null);
         setSuccessId(null);
+        setEditingBatchId(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     }, []);
 
@@ -759,13 +879,17 @@ const PosImportDashboard: React.FC<Props> = () => {
                                 <div className="flex items-center gap-3">
                                     <FileSpreadsheet className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                                     <div>
-                                        <p className="text-slate-900 dark:text-white font-medium">{file?.name}</p>
-                                        <p className="text-xs text-slate-500 dark:text-slate-400">{file ? `${(file.size / 1024).toFixed(1)} KB` : ''} • POS Sales Date: {importDate}</p>
+                                        <p className="text-slate-900 dark:text-white font-medium">
+                                            {editingBatchId ? `Editing Import Batch: ${file?.name}` : file?.name}
+                                        </p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                                            {editingBatchId ? 'Replacing existing batch' : (file ? `${(file.size / 1024).toFixed(1)} KB` : '')} • POS Sales Date: {importDate}
+                                        </p>
                                     </div>
                                 </div>
                                 <button onClick={resetAll} className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700/60 hover:bg-red-500/20 text-slate-500 dark:text-slate-400 hover:text-red-400 rounded-lg transition-colors text-sm">
                                     <Trash2 className="w-4 h-4" />
-                                    Clear
+                                    {editingBatchId ? 'Cancel Edit' : 'Clear'}
                                 </button>
                             </div>
 
@@ -817,7 +941,15 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                         <td className="py-2.5 px-4 text-slate-400 dark:text-slate-500">{row.rowIndex + 1}</td>
                                                     <td className="py-2.5 px-4 text-slate-600 dark:text-slate-300">{row.category}</td>
                                                     <td className="py-2.5 px-4 text-slate-900 dark:text-white font-medium">{row.itemName}</td>
-                                                    <td className="py-2.5 px-4 text-right text-slate-900 dark:text-white">{row.qtySold}</td>
+                                                    <td className="py-2.5 px-4 text-right">
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            value={row.qtySold}
+                                                            onChange={(e) => handleQtySoldChange(row.rowIndex, e.target.value)}
+                                                            className="w-16 text-right bg-white dark:bg-slate-700/80 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-600 rounded-md px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 font-medium"
+                                                        />
+                                                    </td>
                                                     {/* FOC Qty input */}
                                                     <td className="py-2.5 px-2 text-right">
                                                         <div className="flex items-center justify-end gap-1">
@@ -848,15 +980,25 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                         />
                                                     </td>
                                                     <td className="py-2.5 px-4 text-right text-emerald-600 dark:text-emerald-400">
-                                                        <span>₱{row.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                                                        {row.amountSource === 'selling_price' && (
-                                                            <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-500" title="Auto-filled from FG selling price">SP</span>
-                                                        )}
+                                                        <div className="flex items-center justify-end gap-1">
+                                                            <span className="text-slate-400">₱</span>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                step="0.01"
+                                                                value={row.amount}
+                                                                onChange={(e) => handleAmountChange(row.rowIndex, e.target.value)}
+                                                                className="w-24 text-right bg-white dark:bg-slate-700/80 text-emerald-600 dark:text-emerald-400 border border-slate-200 dark:border-slate-600 rounded-md px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 font-semibold"
+                                                            />
+                                                            {row.amountSource === 'selling_price' && (
+                                                                <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-amber-500/20 text-amber-500" title="Auto-filled from FG selling price">SP</span>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td className="py-2.5 px-4 text-right text-slate-600 dark:text-slate-300">₱{row.costs.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
                                                     <td className={`py-2.5 px-4 text-right ${row.profit < 0 ? 'text-red-500' : 'text-blue-600 dark:text-blue-400'}`}>
                                                         ₱{row.profit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
-                                                        {row.profit < 0 && <span className="ml-1 text-[10px]">⚠ negative</span>}
+                                                        {row.profit < 0 && <span className="ml-1 text-[10px] text-red-500 font-medium">⚠ negative</span>}
                                                     </td>
                                                     <td className="py-2.5 px-4 text-center">
                                                         <label className="relative inline-flex items-center cursor-pointer justify-center">
@@ -882,11 +1024,33 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                     </td>
                                                     <td className="py-2.5 px-4">
                                                         {row.matchStatus === 'MATCHED' ? (
-                                                            <div>
-                                                                <span className="text-emerald-600 dark:text-emerald-300 text-sm">{row.matchedItemName}</span>
-                                                                {row.negativeStockFlag && (
-                                                                    <span className="ml-2 text-xs text-amber-500 dark:text-amber-400" title="Stock will go negative">⚠️ negative</span>
-                                                                )}
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div>
+                                                                    <span className="text-emerald-600 dark:text-emerald-300 text-sm font-medium">{row.matchedItemName}</span>
+                                                                    {row.negativeStockFlag && (
+                                                                        <span className="ml-2 text-xs text-amber-500 dark:text-amber-400" title="Stock will go negative">⚠️ negative</span>
+                                                                    )}
+                                                                </div>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setMappedRows(prev => prev.map(r => {
+                                                                            if (r.rowIndex !== row.rowIndex) return r;
+                                                                            return {
+                                                                                ...r,
+                                                                                matchedItemId: null,
+                                                                                matchedItemName: null,
+                                                                                matchStatus: 'UNMATCHED',
+                                                                                currentStock: null,
+                                                                                negativeStockFlag: false,
+                                                                                amountSource: 'file'
+                                                                            };
+                                                                        }));
+                                                                    }}
+                                                                    className="text-xs text-rose-500 hover:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 px-2 py-1 rounded transition-colors"
+                                                                >
+                                                                    Change
+                                                                </button>
                                                             </div>
                                                         ) : (
                                                             <SearchableItemSelect
@@ -1026,6 +1190,18 @@ const PosImportDashboard: React.FC<Props> = () => {
                                                 <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">₱{batch.totalAmount.toLocaleString()}</p>
                                                 <p className="text-xs text-blue-500 dark:text-blue-400">Profit: ₱{batch.totalProfit.toLocaleString()}</p>
                                             </div>
+                                            {hasPermission('pos:import:edit') && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleEditBatch(batch);
+                                                    }}
+                                                    className="p-2 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 rounded-lg transition-colors"
+                                                    title="Edit Import Batch"
+                                                >
+                                                    <Edit className="w-5 h-5" />
+                                                </button>
+                                            )}
                                             {hasPermission('pos:import:delete') && (
                                                 <button
                                                     onClick={(e) => handleDeleteBatch(batch.id, e)}

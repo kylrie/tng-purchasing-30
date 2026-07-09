@@ -10,7 +10,10 @@ import type { InvestigationCase } from '../services/investigations.service';
 import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
 import type { User } from '../../procurement/types';
 
-function getDateRangeFromPeriod(period: DashboardPeriod): [Date, Date] {
+function getDateRangeFromPeriod(period: DashboardPeriod, customRange?: { start: Date; end: Date }): [Date, Date] {
+    if (period === 'custom' && customRange) {
+        return [customRange.start, customRange.end];
+    }
     const now = new Date();
     const end = new Date(now);
     end.setHours(23, 59, 59, 999);
@@ -27,12 +30,18 @@ function getDateRangeFromPeriod(period: DashboardPeriod): [Date, Date] {
     return [start, end];
 }
 
-export function useInventoryDashboard(userOrBuId: User | string | undefined, timeFilter: DashboardPeriod) {
+export function useInventoryDashboard(
+    userOrBuId: User | string | undefined,
+    timeFilter: DashboardPeriod,
+    customRange?: { start: Date; end: Date }
+) {
     const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
     const [shiftVariances, setShiftVariances] = useState<StaffVarianceRecord[]>([]);
     const [investigations, setInvestigations] = useState<InvestigationCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const customRangeKey = customRange ? `${customRange.start.getTime()}-${customRange.end.getTime()}` : '';
 
     const fetchDashboardData = useCallback(async () => {
         if (!userOrBuId) return;
@@ -41,7 +50,7 @@ export function useInventoryDashboard(userOrBuId: User | string | undefined, tim
         try {
             // ── Single source of truth: let the service compute all KPIs ──
             const [kpiData, varianceData] = await Promise.all([
-                InventoryDashboardService.getDashboardKPIs(userOrBuId, timeFilter),
+                InventoryDashboardService.getDashboardKPIs(userOrBuId, timeFilter, customRange),
                 getRollingStaffVariance(userOrBuId, 7)
             ]);
 
@@ -51,7 +60,7 @@ export function useInventoryDashboard(userOrBuId: User | string | undefined, tim
                 // (e.g. 'Food', 'Beverage') — NOT by the raw-material inventory
                 // category ('Dry Goods', 'Mixers'). POS sales records already carry
                 // the FG category, so we query them directly.
-                const dateRange = getDateRangeFromPeriod(timeFilter);
+                const dateRange = getDateRangeFromPeriod(timeFilter, customRange);
                 const startTs = Timestamp.fromDate(dateRange[0]);
                 const endTs = Timestamp.fromDate(dateRange[1]);
                 const tenantConstraints = typeof userOrBuId === 'string'
@@ -115,7 +124,7 @@ export function useInventoryDashboard(userOrBuId: User | string | undefined, tim
         } finally {
             setTimeout(() => setLoading(false), 300);
         }
-    }, [userOrBuId, timeFilter]);
+    }, [userOrBuId, timeFilter, customRangeKey]);
 
     // Fetch KPI and Variance data on mount/filter change
     useEffect(() => {
