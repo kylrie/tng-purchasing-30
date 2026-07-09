@@ -283,7 +283,6 @@ export function simulateRecursiveBOM(
                             newTheoreticalStock: subNewStock,
                             parentItemId,
                             parentItemName,
-                            alert: `Auto-produced from ${ingredientItem.name} — no production record found`,
                         });
                     }
                 }
@@ -407,7 +406,6 @@ export function simulateRecursiveBOMForEvent(
                             parentItemId,
                             parentItemName,
                             eventName,
-                            alert: `Auto-produced from ${iItem.name} — no production record found`,
                         });
                     }
                 }
