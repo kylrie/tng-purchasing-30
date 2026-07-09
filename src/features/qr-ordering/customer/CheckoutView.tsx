@@ -37,6 +37,14 @@ import { resolveQrTransactionTheme } from '../theme/qrTransactionTheme';
 
 const CONFIRM_MS = 1900; // demo-only confirm animation
 
+/** One official brand mark, with an optional height override (defaults to h-7).
+ *  Visa's wordmark reads visually larger than the others at the same height, so
+ *  it's nudged down a step to sit at the same weight as the QR Ph / Maya marks. */
+interface BrandLogo {
+    src: string;
+    heightClass?: string;
+}
+
 interface PaymentMethod {
     id: string;
     name: string;
@@ -45,16 +53,16 @@ interface PaymentMethod {
      *  Dark-inked marks (GCash, Visa, QR Ph) use their official white/reverse variant
      *  so they stay recognizable on the dark neon surface; Maya & Mastercard are
      *  already legible on dark and keep their full-colour marks. */
-    logos: string[];
+    logos: BrandLogo[];
 }
 
 // Official brand assets, downloaded and stored locally (public/payment/*.svg) —
 // no runtime hotlinking, marks shown unaltered.
 const METHODS: PaymentMethod[] = [
-    { id: 'gcash', name: 'GCash', blurb: 'e-wallet', logos: ['/payment/gcash.svg'] },
-    { id: 'maya', name: 'Maya', blurb: 'e-wallet', logos: ['/payment/maya.svg'] },
-    { id: 'qrph', name: 'QRPH', blurb: 'scan to pay', logos: ['/payment/qrph.svg'] },
-    { id: 'card', name: 'Card', blurb: 'credit / debit', logos: ['/payment/visa-white.svg', '/payment/mastercard.svg'] },
+    { id: 'gcash', name: 'GCash', blurb: 'e-wallet', logos: [{ src: '/payment/gcash.svg' }] },
+    { id: 'maya', name: 'Maya', blurb: 'e-wallet', logos: [{ src: '/payment/maya.svg' }] },
+    { id: 'qrph', name: 'QRPH', blurb: 'scan to pay', logos: [{ src: '/payment/qrph.svg' }] },
+    { id: 'card', name: 'Card', blurb: 'credit / debit', logos: [{ src: '/payment/visa-white.svg', heightClass: 'h-5' }, { src: '/payment/mastercard.svg' }] },
 ];
 
 /** Normalized summary both the mock and the real read render from. */
@@ -292,28 +300,26 @@ const CheckoutView: React.FC = () => {
                                     type="button"
                                     onClick={() => setSelected(m.id)}
                                     aria-pressed={isSel}
-                                    className="relative flex flex-col gap-3 p-4 rounded-[18px] text-left transition-all duration-200 active:scale-[0.97] border"
+                                    aria-label={m.name}
+                                    className="relative flex items-center justify-center p-4 min-h-[84px] rounded-[18px] transition-all duration-200 active:scale-[0.97] border"
                                     style={{
                                         background: theme.surface,
                                         borderColor: isSel ? 'transparent' : theme.surfaceBorder,
                                         boxShadow: isSel ? `inset 0 0 0 2px ${theme.primary}, 0 10px 26px -8px ${theme.primaryGlow}` : theme.surfaceShadow,
                                     }}
                                 >
-                                    <span className="h-9 flex items-center justify-start gap-3 overflow-hidden pr-8">
-                                        {m.logos.map(src => (
+                                    {/* Logo only — the official mark already carries the brand name. */}
+                                    <span className="flex items-center justify-center gap-3 w-full h-7 pr-6 overflow-hidden">
+                                        {m.logos.map(logo => (
                                             <img
-                                                key={src}
-                                                src={src}
+                                                key={logo.src}
+                                                src={logo.src}
                                                 alt=""
                                                 aria-hidden
                                                 draggable={false}
-                                                className="h-6 w-auto max-w-full object-contain"
+                                                className={`${logo.heightClass ?? 'h-7'} w-auto max-w-full object-contain`}
                                             />
                                         ))}
-                                    </span>
-                                    <span className="min-w-0">
-                                        <span className="block text-[16px] font-bold leading-tight" style={{ color: theme.text }}>{m.name}</span>
-                                        <span className="block text-[13px]" style={{ color: theme.textMuted }}>{m.blurb}</span>
                                     </span>
                                     <span
                                         className="absolute top-3.5 right-3.5 w-6 h-6 rounded-full flex items-center justify-center transition-all"
