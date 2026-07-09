@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
-    ChevronLeft, ReceiptText, Wallet, Smartphone, QrCode, CreditCard,
+    ChevronLeft, ReceiptText,
     ShieldCheck, Loader2, Check, AlertCircle, RefreshCw,
 } from 'lucide-react';
 import { MOCK_ORDER, mockOrderTotal } from '../data/mockOrder';
@@ -41,16 +41,20 @@ interface PaymentMethod {
     id: string;
     name: string;
     blurb: string;
-    Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
-    tint: string;
-    color: string;
+    /** Official brand mark(s), floated directly on the card (public/payment/*.svg).
+     *  Dark-inked marks (GCash, Visa, QR Ph) use their official white/reverse variant
+     *  so they stay recognizable on the dark neon surface; Maya & Mastercard are
+     *  already legible on dark and keep their full-colour marks. */
+    logos: string[];
 }
 
+// Official brand assets, downloaded and stored locally (public/payment/*.svg) —
+// no runtime hotlinking, marks shown unaltered.
 const METHODS: PaymentMethod[] = [
-    { id: 'gcash', name: 'GCash', blurb: 'e-wallet', Icon: Wallet, tint: '#eaf2ff', color: '#1a73e8' },
-    { id: 'maya', name: 'Maya', blurb: 'e-wallet', Icon: Smartphone, tint: '#eafaf0', color: '#12b76a' },
-    { id: 'qrph', name: 'QRPH', blurb: 'scan to pay', Icon: QrCode, tint: '#f0fdf4', color: '#0d6e62' },
-    { id: 'card', name: 'Card', blurb: 'credit / debit', Icon: CreditCard, tint: '#f1f5f9', color: '#334155' },
+    { id: 'gcash', name: 'GCash', blurb: 'e-wallet', logos: ['/payment/gcash.svg'] },
+    { id: 'maya', name: 'Maya', blurb: 'e-wallet', logos: ['/payment/maya.svg'] },
+    { id: 'qrph', name: 'QRPH', blurb: 'scan to pay', logos: ['/payment/qrph.svg'] },
+    { id: 'card', name: 'Card', blurb: 'credit / debit', logos: ['/payment/visa-white.svg', '/payment/mastercard.svg'] },
 ];
 
 /** Normalized summary both the mock and the real read render from. */
@@ -295,11 +299,17 @@ const CheckoutView: React.FC = () => {
                                         boxShadow: isSel ? `inset 0 0 0 2px ${theme.primary}, 0 10px 26px -8px ${theme.primaryGlow}` : theme.surfaceShadow,
                                     }}
                                 >
-                                    <span
-                                        className="w-11 h-11 rounded-xl flex items-center justify-center"
-                                        style={{ backgroundColor: m.tint, color: m.color }}
-                                    >
-                                        <m.Icon size={22} strokeWidth={2} />
+                                    <span className="h-9 flex items-center justify-start gap-3 overflow-hidden pr-8">
+                                        {m.logos.map(src => (
+                                            <img
+                                                key={src}
+                                                src={src}
+                                                alt=""
+                                                aria-hidden
+                                                draggable={false}
+                                                className="h-6 w-auto max-w-full object-contain"
+                                            />
+                                        ))}
                                     </span>
                                     <span className="min-w-0">
                                         <span className="block text-[16px] font-bold leading-tight" style={{ color: theme.text }}>{m.name}</span>
