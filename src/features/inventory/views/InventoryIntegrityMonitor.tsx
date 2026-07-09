@@ -187,12 +187,33 @@ const InventoryIntegrityMonitor: React.FC = () => {
       varQty: Math.round(varQty * 100) / 100,
       varPeso: Math.round((item.varianceValue || (varQty * item.costPerUnit)) * 100) / 100,
       status: item.status,
+      costPerUnit: item.costPerUnit,
+      itemId: item.itemId,
+    };
+  }) || [];
+
+  const spotCheckRows: SuspiciousRow[] = dashboardKPIs?.spotCheckRecommendations.map((item: SuspiciousItem, index) => {
+    const varQty = item.actualClosing - item.expectedClosing;
+    return {
+      id: `spotcheck-${index}`,
+      item: item.itemName,
+      category: `${item.category || 'Inventory'}${item.recipeUnit ? ' • ' + item.recipeUnit : ''}`,
+      open: Math.round((item.openQty || 0) * 100) / 100,
+      recv: Math.round((item.recvQty || 0) * 100) / 100,
+      sold: Math.round((item.soldQty || 0) * 100) / 100,
+      expClose: Math.round(item.expectedClosing * 100) / 100,
+      actClose: Math.round(item.actualClosing * 100) / 100,
+      varQty: Math.round(varQty * 100) / 100,
+      varPeso: Math.round((item.varianceValue || (varQty * item.costPerUnit)) * 100) / 100,
+      status: item.status,
+      costPerUnit: item.costPerUnit,
+      itemId: item.itemId,
     };
   }) || [];
 
   const handleAssign = (row: SuspiciousRow) => {
     setModalData({
-      itemId: row.id,
+      itemId: row.itemId,
       itemName: row.item,
       category: row.category,
       estimatedLoss: Math.abs(row.varPeso),
@@ -340,7 +361,11 @@ const InventoryIntegrityMonitor: React.FC = () => {
             <CategoryRiskGrid categories={liveCategories} />
 
             {/* Suspicious Items Table */}
-            <SuspiciousItemsTable suspiciousItems={suspiciousItemsRows} onAssign={handleAssign} />
+            <SuspiciousItemsTable 
+              suspiciousItems={suspiciousItemsRows} 
+              spotCheckRecommendations={spotCheckRows} 
+              onAssign={handleAssign} 
+            />
           </div>
         )}
 

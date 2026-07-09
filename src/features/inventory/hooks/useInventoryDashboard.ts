@@ -47,6 +47,14 @@ export function useInventoryDashboard(
                         // Only show items with a real variance — hide perfectly balanced rows
                         .filter(item => item.varianceQty !== 0 || item.varianceValue !== 0);
                 }
+
+                if (kpiData.spotCheckRecommendations) {
+                    const TRACKABLE_TYPES = new Set(['RAW_MATERIAL', 'PRODUCTION']);
+                    kpiData.spotCheckRecommendations = kpiData.spotCheckRecommendations
+                        .filter((item) => TRACKABLE_TYPES.has(item.type))
+                        // Only show items that have been used (expected closing usage > 0)
+                        .filter(item => item.expectedClosing > 0);
+                }
             }
 
             setKpis(kpiData);

@@ -53,6 +53,7 @@ export interface DashboardKPIs {
     periodLabel: string;
     recordedWaste: number;
     suspiciousItems: SuspiciousItem[];
+    spotCheckRecommendations: SuspiciousItem[];
     categoryRisks: CategoryRiskRecord[];
     itemCategoryMap: Record<string, string>;  // itemId → category for hook grouping
 }
@@ -164,7 +165,7 @@ export class InventoryDashboardService {
         userOrBuId: User | string,
         period: DashboardPeriod,
         customRange?: DateRange
-    ): Promise<{ suspiciousItems: SuspiciousItem[]; categoryRisks: CategoryRiskRecord[]; itemCategoryMap: Record<string, string> }> {
+    ): Promise<{ suspiciousItems: SuspiciousItem[]; spotCheckRecommendations: SuspiciousItem[]; categoryRisks: CategoryRiskRecord[]; itemCategoryMap: Record<string, string> }> {
         const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
         const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
 
@@ -280,7 +281,11 @@ export class InventoryDashboardService {
             .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue))
             .slice(0, 10);
 
-        return { suspiciousItems, categoryRisks, itemCategoryMap };
+        const spotCheckRecommendations = [...allItems]
+            .sort((a, b) => (b.expectedClosing * b.costPerUnit) - (a.expectedClosing * a.costPerUnit))
+            .slice(0, 10);
+
+        return { suspiciousItems, spotCheckRecommendations, categoryRisks, itemCategoryMap };
     }
 
     /**
@@ -335,6 +340,7 @@ export class InventoryDashboardService {
             periodLabel,
             recordedWaste: 0,
             suspiciousItems: inventoryAnalysis.suspiciousItems,
+            spotCheckRecommendations: inventoryAnalysis.spotCheckRecommendations,
             categoryRisks: inventoryAnalysis.categoryRisks,
             itemCategoryMap: inventoryAnalysis.itemCategoryMap,
         };
