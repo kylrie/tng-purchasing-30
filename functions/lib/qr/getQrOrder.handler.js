@@ -8,9 +8,12 @@
  * staff-only (Master Plan §6.4 / A9) — customers never read `qr_orders` directly
  * (the rule requires signed-in, same-BU staff).
  *
- * Whitelisted projection: never returns businessUnitId, tableId, xendit* or
- * officialInvoice* fields. db is injected for testing; the onCall wrapper passes
- * the real `qrDb`. Read-only — no writes, no payment, no kitchen transitions.
+ * Whitelisted projection: returns businessUnitId (the venue id — the customer is
+ * already at that venue; used by the customer pages to resolve the correct
+ * business BRANDING/theme durably from authoritative order data) but never
+ * tableId, xendit* or officialInvoice* fields. db is injected for testing; the
+ * onCall wrapper passes the real `qrDb`. Read-only — no writes, no payment, no
+ * kitchen transitions.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getQrOrderHandler = getQrOrderHandler;
@@ -59,6 +62,7 @@ async function getQrOrderHandler(db, request) {
     const rawItems = Array.isArray(order.items) ? order.items : [];
     const dto = {
         orderId: id,
+        businessUnitId: typeof order.businessUnitId === 'string' ? order.businessUnitId : '',
         orderNumber: typeof order.orderNumber === 'string' ? order.orderNumber : '',
         tableNumber,
         status: typeof order.status === 'string' ? order.status : '',

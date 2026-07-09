@@ -9,6 +9,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.QR_OPS_ROLES = exports.QR_RECONCILE_ROLES = exports.QR_TABLE_ADMIN_ROLES = void 0;
+exports.callerCoversBU = callerCoversBU;
 exports.requireStaffRole = requireStaffRole;
 const https_1 = require("firebase-functions/v2/https");
 /**
@@ -35,6 +36,22 @@ exports.QR_RECONCILE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'MANAGE
  * listed here. These transitions touch NO financial fields.
  */
 exports.QR_OPS_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'MANAGER'];
+/**
+ * Whether the caller may act on a resource in this business unit. SUPER_ADMIN /
+ * ADMIN are cross-BU by design; other staff must be provisioned for the BU
+ * (`businessId` match or `businessUnitIds` membership). Mirrors the check in
+ * updateQrOrderStatus / postOfficialInvoice so BU boundaries are enforced the
+ * same way everywhere. Fails closed.
+ */
+function callerCoversBU(user, businessUnitId) {
+    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN')
+        return true;
+    if (user.businessId && user.businessId === businessUnitId)
+        return true;
+    if (Array.isArray(user.businessUnitIds) && user.businessUnitIds.includes(businessUnitId))
+        return true;
+    return false;
+}
 /**
  * Assert the caller is authenticated and holds one of `allowedRoles`.
  * Returns the caller's user record (for downstream BU checks). Throws a typed

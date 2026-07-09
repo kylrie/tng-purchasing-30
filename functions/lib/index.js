@@ -6,7 +6,7 @@
  * and budget management with RBAC.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.checkoutOrder = exports.verifyPosPin = exports.setPosPin = exports.onInventoryItemUpdated = exports.updateQrOrderStatus = exports.xenditWebhook = exports.createXenditSession = exports.postOfficialInvoice = exports.getQrOrder = exports.getQrTableToken = exports.listQrTables = exports.createQrTable = exports.createQrOrder = exports.getPublicMenu = exports.aggregateStockTransactions = exports.setBudgetLimit = exports.postTransaction = void 0;
+exports.checkoutOrder = exports.verifyPosPin = exports.setPosPin = exports.onInventoryItemUpdated = exports.retryPrintJob = exports.setAutoPrint = exports.updateQrOrderStatus = exports.xenditWebhook = exports.createXenditSession = exports.postOfficialInvoice = exports.getQrOrder = exports.createQrReservation = exports.getQrTableToken = exports.listQrTables = exports.createQrTable = exports.createQrOrder = exports.getPublicMenu = exports.aggregateStockTransactions = exports.setBudgetLimit = exports.postTransaction = void 0;
 const app_1 = require("firebase-admin/app");
 // Initialize Firebase Admin SDK
 (0, app_1.initializeApp)();
@@ -28,6 +28,8 @@ var listQrTables_1 = require("./qr/listQrTables");
 Object.defineProperty(exports, "listQrTables", { enumerable: true, get: function () { return listQrTables_1.listQrTables; } });
 var getQrTableToken_1 = require("./qr/getQrTableToken");
 Object.defineProperty(exports, "getQrTableToken", { enumerable: true, get: function () { return getQrTableToken_1.getQrTableToken; } });
+var createQrReservation_1 = require("./qr/createQrReservation");
+Object.defineProperty(exports, "createQrReservation", { enumerable: true, get: function () { return createQrReservation_1.createQrReservation; } });
 // QR Ordering — Sprint 2 (customer order-status read)
 var getQrOrder_1 = require("./qr/getQrOrder");
 Object.defineProperty(exports, "getQrOrder", { enumerable: true, get: function () { return getQrOrder_1.getQrOrder; } });
@@ -43,6 +45,10 @@ Object.defineProperty(exports, "xenditWebhook", { enumerable: true, get: functio
 // QR Ordering — Operations (staff kitchen/fulfillment status transitions)
 var updateQrOrderStatus_1 = require("./qr/updateQrOrderStatus");
 Object.defineProperty(exports, "updateQrOrderStatus", { enumerable: true, get: function () { return updateQrOrderStatus_1.updateQrOrderStatus; } });
+// QR Ordering — Automatic printing (staff control of the local Print Bridge)
+var printControl_1 = require("./qr/printControl");
+Object.defineProperty(exports, "setAutoPrint", { enumerable: true, get: function () { return printControl_1.setAutoPrint; } });
+Object.defineProperty(exports, "retryPrintJob", { enumerable: true, get: function () { return printControl_1.retryPrintJob; } });
 // Inventory — Background Recipe Recalculation
 var recipeRecalculation_1 = require("./inventory/recipeRecalculation");
 Object.defineProperty(exports, "onInventoryItemUpdated", { enumerable: true, get: function () { return recipeRecalculation_1.onInventoryItemUpdated; } });

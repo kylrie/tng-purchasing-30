@@ -189,7 +189,18 @@ export class InventoryDashboardService {
         );
 
         const snapshot = await getDocs(q);
-        const itemMap = new Map<string, any>();
+        interface AggregateItemEntry {
+            itemName: string;
+            category: string;
+            type: string;
+            recipeUnit: string;
+            conversionRate: number;
+            costPerUnit: number;
+            expectedClosing: number;
+            varianceQty: number;
+            varianceValue: number;
+        }
+        const itemMap = new Map<string, AggregateItemEntry>();
         const itemCategoryMap: Record<string, string> = {};
 
         // O(1) loop over ~30-31 documents maximum for a month
