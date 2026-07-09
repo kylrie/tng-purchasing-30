@@ -162,10 +162,14 @@ export interface CreateQrOrderResult {
     status: QrOrderStatus;         // always 'AWAITING_PAYMENT' in Sprint 1
 }
 
-/** createXenditSession input — only the orderId; amount/price is never trusted
- *  from the client (read from the server order document). */
+/** createXenditSession input — the orderId (amount/price is never trusted from
+ *  the client; read from the server order document) plus the optional method the
+ *  customer already picked in checkout (gcash/maya/qrph/card), carried through so
+ *  Xendit opens straight into it. The server validates the method against a fixed
+ *  allowlist; an unknown value is rejected and a missing one offers all channels. */
 export interface CreateXenditSessionInput {
     orderId: string;
+    paymentMethod?: string;
 }
 
 /** createXenditSession output — the hosted-checkout link the phone redirects to. */

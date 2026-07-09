@@ -157,10 +157,12 @@ const CheckoutView: React.FC = () => {
             return;
         }
 
-        // REAL: create the session and redirect to the hosted checkout.
+        // REAL: create the session and redirect to the hosted checkout. Carry the
+        // method the diner already selected so Xendit opens straight into it (no
+        // duplicate payment-method choice); the server validates it authoritatively.
         setConfirming(true);
         try {
-            const session = await createXenditSession((orderId ?? '').trim());
+            const session = await createXenditSession((orderId ?? '').trim(), selected);
             if (!isSafePaymentLink(session.paymentLinkUrl)) {
                 throw { code: 'functions/internal' };
             }

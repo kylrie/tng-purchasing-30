@@ -26,12 +26,17 @@ import { HttpsError, CallableRequest } from 'firebase-functions/v2/https';
 import { Firestore, FieldValue, Transaction } from 'firebase-admin/firestore';
 import { enforceRateLimit, SESSION_CREATE_LIMIT } from './rateLimit';
 import { XenditClient, XenditClientError, XenditCreateSessionParams } from './xenditClient';
+import { resolveAllowedPaymentChannels } from './paymentChannel';
 
 // I/O contract — mirrors src/features/qr-ordering/types/qrOrder.types.ts
 // (CreateXenditSessionInput / CreateXenditSessionResult). Defined locally so the
 // functions build stays self-contained, matching the getQrOrder.handler pattern.
 export interface CreateXenditSessionInput {
     orderId?: string;
+    /** The method the customer chose in the app (gcash/maya/qrph/card). Carried
+     *  into the session so Xendit opens straight into it. Validated server-side
+     *  against a fixed allowlist; unknown ⇒ rejected, missing ⇒ all channels. */
+    paymentMethod?: string;
 }
 
 export interface CreateXenditSessionResult {
@@ -101,6 +106,7 @@ export function buildSessionParams(
     orderId: string,
     attempt: number,
     publicBaseUrl: string,
+    allowedPaymentChannels?: string[],
 ): XenditCreateSessionParams {
     const referenceId = referenceIdFor(orderId, attempt);
     const returnUrl = `${publicBaseUrl.replace(/\/+$/, '')}/order-status/${orderId}`;
@@ -130,8 +136,13 @@ export function buildSessionParams(
             order_id: orderId,
             table_no: typeof order.tableNumber === 'string' ? order.tableNumber : '',
             business_unit_id: typeof order.businessUnitId === 'string' ? order.businessUnitId : '',
+            // Observability only: which channel the customer preselected (if any).
+            ...(allowedPaymentChannels && allowedPaymentChannels.length > 0
+                ? { payment_channel: allowedPaymentChannels.join(',') }
+                : {}),
         },
         idempotencyKey: `session:${referenceId}`,
+        allowedPaymentChannels,
     };
 }
 
@@ -149,6 +160,18 @@ export async function createXenditSessionHandler(
         throw new HttpsError('invalid-argument', 'orderId is required');
     }
     const orderId = rawId.trim();
+
+    // 1b. Payment-method → channel restriction (server authority). The client may
+    //     preselect one method so Xendit opens straight into it; we validate that
+    //     token against a fixed allowlist and never trust a raw channel string.
+    //     Unknown non-blank ⇒ reject; missing/blank ⇒ unrestricted (all channels).
+    const channelResolution = resolveAllowedPaymentChannels(request.data?.paymentMethod);
+    if (channelResolution.kind === 'invalid') {
+        throw new HttpsError('invalid-argument', 'Unsupported payment method');
+    }
+    const allowedPaymentChannels = channelResolution.kind === 'restricted'
+        ? channelResolution.channels
+        : undefined;
 
     // 2. Kill switch — refuse before any read or Xendit call (instant rollback).
     if (!config.paymentsEnabled) {
@@ -198,7 +221,7 @@ export async function createXenditSessionHandler(
     // 8. Call Xendit OUTSIDE any transaction (network I/O). On failure the session
     //    fields are never written, so the order is not left half-written; the
     //    bumped attempt simply rolls forward so the next retry uses a fresh ref.
-    const params = buildSessionParams(order, orderId, attempt, config.publicBaseUrl);
+    const params = buildSessionParams(order, orderId, attempt, config.publicBaseUrl, allowedPaymentChannels);
     let session;
     try {
         session = await xenditClient.createSession(params);

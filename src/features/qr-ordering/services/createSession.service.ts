@@ -36,13 +36,16 @@ export function isQrPaymentsEnabled(businessId?: string): boolean {
     );
 }
 
-/** Create a payment session for an existing order and return the hosted-checkout link. */
-export async function createXenditSession(orderId: string): Promise<CreateXenditSessionResult> {
+/** Create a payment session for an existing order and return the hosted-checkout
+ *  link. `paymentMethod` (the diner's checkout choice: gcash/maya/qrph/card) is
+ *  passed through so Xendit opens straight into that channel; the server validates
+ *  it and, when omitted, falls back to offering all channels. */
+export async function createXenditSession(orderId: string, paymentMethod?: string): Promise<CreateXenditSessionResult> {
     const callable = httpsCallable<CreateXenditSessionInput, CreateXenditSessionResult>(
         getQrFunctions(),
         'createXenditSession',
     );
-    const { data } = await callable({ orderId });
+    const { data } = await callable({ orderId, paymentMethod });
     return data;
 }
 
