@@ -55,54 +55,9 @@ export function useInventoryDashboard(
             ]);
 
             if (kpiData) {
-                // ── POS Sales by FG/Menu Category ──
-                // Category Risk Panel must group by the Finished Good's category
-                // (e.g. 'Food', 'Beverage') — NOT by the raw-material inventory
-                // category ('Dry Goods', 'Mixers'). POS sales records already carry
-                // the FG category, so we query them directly.
-                const dateRange = getDateRangeFromPeriod(timeFilter, customRange);
-                const startTs = Timestamp.fromDate(dateRange[0]);
-                const endTs = Timestamp.fromDate(dateRange[1]);
-                const tenantConstraints = typeof userOrBuId === 'string'
-                    ? (userOrBuId === 'ALL' ? [] : [where('businessUnitId', '==', userOrBuId)])
-                    : getTenantConstraints(userOrBuId, 'businessUnitId');
-
-                const posSalesQuery = query(
-                    collection(db, 'pos_sales'),
-                    ...tenantConstraints,
-                    where('createdAt', '>=', startTs),
-                    where('createdAt', '<=', endTs)
-                );
-                const posSalesSnap = await getDocs(posSalesQuery);
-
-                const categoryRiskMap: Record<string, { sales: number; expected: number; loss: number }> = {};
-                posSalesSnap.forEach(doc => {
-                    const data = doc.data();
-                    const cat = (data.category || 'Other').trim();
-                    if (!categoryRiskMap[cat]) categoryRiskMap[cat] = { sales: 0, expected: 0, loss: 0 };
-                    categoryRiskMap[cat].sales += (data.amount || 0);
-                    categoryRiskMap[cat].expected += (data.costs || 0);
-                });
-
-                // Attribute ADJUSTMENT (unexplained gap/loss) to 'Kitchen Loss'
-                if (kpiData.unexplainedVariance > 0) {
-                    if (!categoryRiskMap['Kitchen Loss']) categoryRiskMap['Kitchen Loss'] = { sales: 0, expected: 0, loss: 0 };
-                    categoryRiskMap['Kitchen Loss'].loss += kpiData.unexplainedVariance;
-                }
-
-                // Replace service-level inventory-category grouping with POS-derived
-                // FG categories so Sales, Expected, and Loss all align.
-                kpiData.categoryRisks = Object.entries(categoryRiskMap).map(([name, data]) => ({
-                    id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                    name,
-                    salesValue: data.sales,
-                    expectedValue: data.expected,
-                    actualValue: data.expected - data.loss,
-                    lossValue: data.loss,
-                    variancePercent: data.expected > 0
-                        ? (data.loss / data.expected) * 100
-                        : 0,
-                })).sort((a, b) => Math.abs(b.salesValue) - Math.abs(a.salesValue));
+                // We rely on the backend service's kpiData.categoryRisks (derived from inventory_aggregates)
+                // to supply accurate Expected Usage, Actual Usage, and Loss Value.
+                // We do NOT overwrite it with pos_sales since pos_sales does not have costs.
 
                 if (kpiData.suspiciousItems) {
                     // DEFENSIVE: Strip out any FINISHED_GOOD items that might have leaked

@@ -1185,7 +1185,13 @@ service cloud.firestore {
     // Multi-tenant aggregate data for inventory dashboard
     // =====================================================
     match /inventory_aggregates/{aggId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        isSuperAdminOrAdmin() ||
+        hasPermission('inventory:stock_take:view:all') ||
+        (hasPermission('inventory:stock_take:view:bu') && belongsToSameBU(resource)) ||
+        // Fallback for backwards compatibility if no explicit permission
+        (!hasPermission('inventory:stock_take:view:all') && !hasPermission('inventory:stock_take:view:bu') && belongsToSameBU(resource))
+      );
       allow write: if false;
     }
 

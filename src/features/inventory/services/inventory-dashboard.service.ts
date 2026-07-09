@@ -175,11 +175,17 @@ export class InventoryDashboardService {
             console.warn('[InventoryDashboardService] Executing cross-tenant ALL query. Security rules must enforce this.');
         }
 
+        const formatLocalDate = (d: Date) => {
+            const date = new Date(d);
+            date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+            return date.toISOString().split('T')[0];
+        };
+
         const q = query(
             collection(db, 'inventory_aggregates'),
             ...tenantConstraints,
-            where('date', '>=', start.toISOString().split('T')[0]),
-            where('date', '<=', end.toISOString().split('T')[0])
+            where('date', '>=', formatLocalDate(start)),
+            where('date', '<=', formatLocalDate(end))
         );
 
         const snapshot = await getDocs(q);
