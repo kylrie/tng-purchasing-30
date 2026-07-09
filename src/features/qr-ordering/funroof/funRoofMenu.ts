@@ -12,6 +12,7 @@
 
 import { FUN_ROOF_MENU_SNAPSHOT } from './data/funRoofMenu.snapshot';
 import type { FunRoofMenuRecord } from './data/funRoofMenu.snapshot';
+import { funRoofImageFor } from './data/funRoofMenuImages';
 
 export type FunRoofGroup = 'Drinks' | 'Food' | 'Play';
 
@@ -95,6 +96,8 @@ export function mapFunRoofRecord(rec: FunRoofMenuRecord): FunRoofItem {
     if (typeof rec.description === 'string' && rec.description.trim() !== '') item.description = rec.description;
     if (typeof rec.serving === 'string' && rec.serving.trim() !== '') item.serving = rec.serving;
     if (typeof rec.tag === 'string' && rec.tag.trim() !== '') item.tag = rec.tag;
+    const image = funRoofImageFor(rec.id);
+    if (image) item.imageUrl = image;
     return item;
 }
 
