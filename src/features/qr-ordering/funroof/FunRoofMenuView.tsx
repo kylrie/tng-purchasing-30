@@ -152,7 +152,7 @@ const FunRoofMenuView: React.FC = () => {
             // Carry the venue id (b1) so the shared checkout/order-status pages paint
             // the Fun Roof brand instantly; the order's businessUnitId stays authoritative.
             const handoff = { orderId: result.orderId, orderNumber: result.orderNumber, totalAmount: result.totalAmount, tableNumber, qrToken, businessUnitId: FUN_ROOF_BUSINESS_ID, lines: summaryLines };
-            if (isQrPaymentsEnabled()) navigate(withBusinessParam(`/checkout/${result.orderId}`, FUN_ROOF_BUSINESS_ID), { state: handoff });
+            if (isQrPaymentsEnabled(FUN_ROOF_BUSINESS_ID)) navigate(withBusinessParam(`/checkout/${result.orderId}`, FUN_ROOF_BUSINESS_ID), { state: handoff });
             else navigate(withBusinessParam(`/order-status/${result.orderId}`, FUN_ROOF_BUSINESS_ID), { state: handoff });
         } catch (err) {
             setSubmitting(false);

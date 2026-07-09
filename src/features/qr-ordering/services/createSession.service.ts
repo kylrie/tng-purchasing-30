@@ -11,6 +11,7 @@
 
 import { httpsCallable } from 'firebase/functions';
 import { getQrFunctions } from './qrFunctions';
+import { resolveQrPaymentsEnabled } from './qrPaymentsGate';
 import type { CreateXenditSessionInput, CreateXenditSessionResult } from '../types/qrOrder.types';
 
 /**
@@ -19,9 +20,20 @@ import type { CreateXenditSessionInput, CreateXenditSessionResult } from '../typ
  * through Xendit checkout — otherwise the pre-payment flow is preserved. The
  * server callable ALSO refuses when its flag is off, so this is a UX gate, not a
  * security control.
+ *
+ * Scope: the global `VITE_QR_PAYMENTS_ENABLED` flag turns checkout routing on for
+ * ALL venues. To enable a single venue's sandbox/canary run without touching the
+ * others, add its business id to the comma-separated `VITE_QR_PAYMENTS_BUSINESSES`
+ * allowlist and pass `businessId` here. Callers with no `businessId` (or a venue
+ * not on the allowlist) still honour only the global flag — so unrelated venues
+ * stay on the pre-payment flow while the global flag is off.
  */
-export function isQrPaymentsEnabled(): boolean {
-    return String(import.meta.env.VITE_QR_PAYMENTS_ENABLED ?? '').toLowerCase() === 'true';
+export function isQrPaymentsEnabled(businessId?: string): boolean {
+    return resolveQrPaymentsEnabled(
+        import.meta.env.VITE_QR_PAYMENTS_ENABLED,
+        import.meta.env.VITE_QR_PAYMENTS_BUSINESSES,
+        businessId,
+    );
 }
 
 /** Create a payment session for an existing order and return the hosted-checkout link. */
