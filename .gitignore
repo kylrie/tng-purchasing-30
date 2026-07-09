@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vite/
 *.local
 
 # Editor directories and files
@@ -31,6 +32,7 @@ firebase-adminsdk.json
 .env
 .env.local
 .env.production
+functions/.env.*
 *-key.json
 
 # Firebase Admin SDK service-account keys (NEVER commit) — robust ASCII rule
