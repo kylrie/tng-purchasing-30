@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { History, Search, Calendar, ChevronDown, Package, FileSpreadsheet, Eye, Loader2 } from 'lucide-react';
+import { History, Calendar, Package, FileSpreadsheet, Eye, Loader2 } from 'lucide-react';
 import { PosImportService } from '../../pos/services/pos-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
-import type { PosImportBatch, PosImportMappedRow, PosSaleRecord, SimulatedDeduction } from '../../pos/types/pos-import.types';
+import type { PosImportBatch, PosImportMappedRow, SimulatedDeduction } from '../../pos/types/pos-import.types';
 import type { InventoryItem } from '../types/InventoryItem';
 import { PosImportPreviewModal } from '../../pos/components/PosImportPreviewModal';
 
@@ -266,6 +266,7 @@ export const SalesDeductionsView: React.FC = () => {
 
             {isPreviewOpen && (
                 <PosImportPreviewModal
+                    isOpen={isPreviewOpen}
                     simulatedDeductions={simulatedDeductions}
                     onConfirm={() => setIsPreviewOpen(false)}
                     onCancel={() => setIsPreviewOpen(false)}

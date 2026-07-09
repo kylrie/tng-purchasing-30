@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { db } from '../../../../config/firebase';
+import { db } from '../../../config/firebase';
 import { Loader2, Receipt } from 'lucide-react';
-import { PosImportService } from '../../../pos/services/pos-import.service';
-import type { InventoryItem } from '../../types/InventoryItem';
-import type { PosImportMappedRow, SimulatedDeduction } from '../../../pos/types/pos-import.types';
-import { PosImportPreviewModal } from '../../../pos/components/PosImportPreviewModal';
+import { PosImportService } from '../../pos/services/pos-import.service';
+import type { InventoryItem } from '../types/InventoryItem';
+import type { PosImportMappedRow, SimulatedDeduction } from '../../pos/types/pos-import.types';
+import { PosImportPreviewModal } from '../../pos/components/PosImportPreviewModal';
 
 export const ItemSalesHistoryTab: React.FC<{ item: InventoryItem & { id: string } }> = ({ item }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -140,11 +140,10 @@ export const ItemSalesHistoryTab: React.FC<{ item: InventoryItem & { id: string 
             {isPreviewOpen && (
                 <PosImportPreviewModal
                     isOpen={isPreviewOpen}
-                    onClose={() => setIsPreviewOpen(false)}
+                    onCancel={() => setIsPreviewOpen(false)}
                     simulatedDeductions={simulatedDeductions}
-                    isSimulating={isSimulating}
+                    isSubmitting={isSimulating}
                     onConfirm={async () => {}}
-                    isCommitting={false}
                     readOnly={true}
                 />
             )}
