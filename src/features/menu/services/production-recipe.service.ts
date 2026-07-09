@@ -19,9 +19,27 @@ import type {
     RecipeIngredient
 } from '../types/menu.types';
 import { InventoryService } from '../../inventory/services/inventory.service';
+import type { BomIngredient } from '../../inventory/types/InventoryItem';
 import { convertUnits } from './recipes.service';
 
 const COLLECTION = 'productionRecipes';
+
+function buildBomRecipe(
+    ingredients: RecipeIngredient[],
+    yieldQuantity: number
+): BomIngredient[] {
+    return ingredients.map(ri => {
+        // We use ri.unit as fallback. To be fully accurate we'd fetch the item, 
+        // but baseQuantity and unit are already saved accurately in productionRecipes
+        return {
+            ingredientId: ri.inventoryItemId,
+            ingredientName: ri.inventoryItemName,
+            quantityUsed: yieldQuantity > 0 ? (ri.baseQuantity / yieldQuantity) : 0,
+            unit: ri.unit, // Just pass the unit shown
+            wastagePercent: ri.wastagePercent ?? 0,
+        };
+    });
+}
 
 export class ProductionRecipeService {
     /**
@@ -123,7 +141,8 @@ export class ProductionRecipeService {
                 },
                 costPerUnit,
                 parLevel: 0,
-                currentStock: 0
+                currentStock: 0,
+                recipe: buildBomRecipe(ingredientsWithCost, input.yieldQuantity)
             });
 
             // Link the inventory item to the recipe
@@ -194,7 +213,8 @@ export class ProductionRecipeService {
                 await InventoryService.updateInventoryItem(recipe.linkedInventoryItemId, {
                     name: input.name,
                     costPerUnit,
-                    ...(input.serviceType ? { serviceType: input.serviceType } : {})
+                    ...(input.serviceType ? { serviceType: input.serviceType } : {}),
+                    recipe: buildBomRecipe(ingredientsWithCost, input.yieldQuantity)
                 }, { skipRecipeRecalculation: true });
             } catch (err) {
                 console.error('Error updating linked inventory item:', err);
