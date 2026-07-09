@@ -29,6 +29,7 @@ import {
 } from './qrOpsStatus';
 import { StatusChip, PaymentChip, AttentionBadge, AccentBar, minutesSince, elapsedLabel, clockLabel } from './OpsShared';
 import { opsNavCounts } from './opsNavCounts';
+import OpsTablesTab from './OpsTablesTab';
 
 /**
  * QR Operations dashboard — the staff control surface, attached under QR Hub.
@@ -225,7 +226,8 @@ const QrOpsView: React.FC<{
     ) : tab === 'bar' ? (
         <BarTab orders={derived} now={now} onOpen={setSelectedId} />
     ) : tab === 'tables' ? (
-        <TablesTab businessUnitId={businessUnitId} />
+        <OpsTablesTab businessUnitId={businessUnitId} orders={derived} now={now}
+            onOpenManager={() => navigate(withBusinessParam('/qr-tables/live', businessUnitId))} />
     ) : (
         <HistoryTab orders={derived} onOpen={setSelectedId} />
     );
@@ -777,24 +779,6 @@ const BarTab: React.FC<{ orders: DerivedOrder[]; now: number; onOpen: (id: strin
                     );
                 })}
             </div>
-        </div>
-    );
-};
-
-// ════════════════════════════════════════════════════════════════════════════
-// Tables (reuse existing manager)
-// ════════════════════════════════════════════════════════════════════════════
-const TablesTab: React.FC<{ businessUnitId: string }> = ({ businessUnitId }) => {
-    const navigate = useNavigate();
-    return (
-        <div className="rounded-xl border-2 border-slate-200 bg-white p-6 text-center">
-            <Table2 size={30} className="mx-auto text-slate-500 mb-3" />
-            <h2 className="text-base font-black mb-1">Table & QR management</h2>
-            <p className="text-sm text-slate-500 mb-4 max-w-md mx-auto">Create tables, reveal QR tokens, and print customer QR codes in the dedicated table manager for this business.</p>
-            <button type="button" onClick={() => navigate(withBusinessParam('/qr-tables/live', businessUnitId))}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-black">
-                Open table manager <ChevronRight size={16} />
-            </button>
         </div>
     );
 };

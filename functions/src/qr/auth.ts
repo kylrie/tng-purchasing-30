@@ -44,6 +44,20 @@ export const QR_RECONCILE_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'M
 export const QR_OPS_ROLES = ['SUPER_ADMIN', 'ADMIN', 'GENERAL_MANAGER', 'MANAGER'];
 
 /**
+ * Whether the caller may act on a resource in this business unit. SUPER_ADMIN /
+ * ADMIN are cross-BU by design; other staff must be provisioned for the BU
+ * (`businessId` match or `businessUnitIds` membership). Mirrors the check in
+ * updateQrOrderStatus / postOfficialInvoice so BU boundaries are enforced the
+ * same way everywhere. Fails closed.
+ */
+export function callerCoversBU(user: StaffUser, businessUnitId: string): boolean {
+    if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') return true;
+    if (user.businessId && user.businessId === businessUnitId) return true;
+    if (Array.isArray(user.businessUnitIds) && user.businessUnitIds.includes(businessUnitId)) return true;
+    return false;
+}
+
+/**
  * Assert the caller is authenticated and holds one of `allowedRoles`.
  * Returns the caller's user record (for downstream BU checks). Throws a typed
  * HttpsError otherwise. Fails closed — an unknown/missing role is rejected.

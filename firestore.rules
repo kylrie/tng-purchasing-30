@@ -1011,6 +1011,19 @@ service cloud.firestore {
     }
 
     // =====================================================
+    // QR ORDERING — TABLE RESERVATIONS (Ops → Tables quick reservations)
+    // Read: any signed-in TNG staff (mirrors the qr_orders ops-feed decision — the
+    // Operations dashboard must show live table status/reservations). Writes go
+    // ONLY through the createQrReservation Cloud Function (Admin SDK), which derives
+    // the businessUnitId + tableNumber from the authoritative qr_tables record and
+    // rejects conflicts — so a client can never book across BUs or double-book.
+    // =====================================================
+    match /qr_reservations/{reservationId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // =====================================================
     // QR ORDERING — RATE LIMITS (abuse protection · H2 fallback)
     // Internal fixed-window counters written by the public QR callables via the
     // Admin SDK only. No client access at all (covered by default-deny too;

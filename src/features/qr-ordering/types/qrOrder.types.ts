@@ -252,3 +252,38 @@ export interface GetQrTableTokenResult {
     tableNumber: string;
     qrToken: string;
 }
+
+// ── qr_reservations/{reservationId} — quick table reservations (Ops → Tables) ──
+export type QrReservationStatus = 'BOOKED' | 'CANCELLED';
+
+export interface QrReservation {
+    id: string;
+    businessUnitId: string;        // authoritative — derived from the table record, never the client
+    tableId: string;
+    tableNumber: string;           // denormalized from the table record at creation
+    customerName: string;
+    customerPhone: string;         // normalized PH mobile (09XXXXXXXXX)
+    reservationAtMillis: number;   // reservation start (epoch ms)
+    holdMinutes: number;           // hold window from start (v1: fixed)
+    status: QrReservationStatus;
+    createdAtMillis: number;
+    createdBy?: string;            // uid of the staff who booked it
+}
+
+/** createQrReservation input — the server derives businessUnitId + tableNumber
+ *  from the authoritative qr_tables record; the client only names the table +
+ *  the when/who. */
+export interface CreateQrReservationInput {
+    tableId: string;
+    reservationAtMillis: number;
+    customerName: string;
+    customerPhone: string;
+}
+
+export interface CreateQrReservationResult {
+    reservationId: string;
+    tableId: string;
+    tableNumber: string;
+    businessUnitId: string;
+    reservationAtMillis: number;
+}

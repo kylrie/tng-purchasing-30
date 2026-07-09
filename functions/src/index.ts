@@ -21,6 +21,7 @@ export { createQrOrder } from './qr/createQrOrder';
 export { createQrTable } from './qr/createQrTable';
 export { listQrTables } from './qr/listQrTables';
 export { getQrTableToken } from './qr/getQrTableToken';
+export { createQrReservation } from './qr/createQrReservation';
 
 // QR Ordering — Sprint 2 (customer order-status read)
 export { getQrOrder } from './qr/getQrOrder';

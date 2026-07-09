@@ -36,6 +36,9 @@ export interface OpsOrder {
     id: string;
     orderNumber: string;
     tableNumber: string;
+    /** qr_tables doc id this order belongs to — authoritative table match for the
+     *  Operations → Tables occupancy resolver (tableNumber is the human fallback). */
+    tableId?: string;
     businessUnitId: string;
 
     status: QrOrderStatus | string;
@@ -142,6 +145,7 @@ export function toOpsOrder(doc: RawQrOrderDoc): OpsOrder {
         id: doc.id,
         orderNumber: typeof doc.orderNumber === 'string' ? doc.orderNumber : '',
         tableNumber: (typeof doc.tableNumber === 'string' && doc.tableNumber) || doc.tableId || '—',
+        tableId: typeof doc.tableId === 'string' && doc.tableId ? doc.tableId : undefined,
         businessUnitId: typeof doc.businessUnitId === 'string' ? doc.businessUnitId : '',
         status: doc.status ?? '',
         paymentStatus: doc.paymentStatus ?? '',
