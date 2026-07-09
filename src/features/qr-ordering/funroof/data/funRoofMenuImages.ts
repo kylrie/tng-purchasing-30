@@ -9,11 +9,8 @@
 // project-owned static files — NEVER hotlink the owner's OneDrive or a remote
 // host from production. Scope is b1 only; nothing here touches b3/Inflatable.
 //
-// Sources:
-//  - Owner-provided folder "TFR MENU IMAGES" (Drinks/Food/Games), matched to
-//    existing snapshot items by label. Optimized to ~1000px JPEG for mobile.
-//  - Branded alcohol product shots sourced from official/reputable pages (see
-//    funRoofImageSources for the per-asset provenance record) and stored locally.
+// Source: owner-provided folder "TFR MENU IMAGES" (Drinks/Food/Games), matched
+// to existing snapshot items by label. Optimized to ~1000px JPEG for mobile.
 
 export const FUN_ROOF_MENU_IMAGES: Readonly<Record<string, string>> = {
     // ── Owner-provided food/drink photos (exact existing-item matches) ──
