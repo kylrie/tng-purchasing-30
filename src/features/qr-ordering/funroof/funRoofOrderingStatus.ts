@@ -1,18 +1,16 @@
-// TEMPORARY P0 CONTAINMENT (2026-07-10) — The Fun Roof (b1) online-ordering pause.
+// The Fun Roof (b1) online-ordering pause switch.
 //
-// A live checkout on Table 1 skipped the Xendit payment step: an order (QR-00019)
-// was created but never paid, and the customer was sent straight to order-status.
-// Until the checkout + order-status fixes are verified, Fun Roof online ordering is
-// paused AT THE SOURCE: diners can still browse the full menu and build their picks,
-// but the checkout CTA is blocked with a call-staff message and NO qr_orders
-// document is created (no new unpaid order, no silent redirect to order-status).
+// History: a 2026-07-10 live checkout (QR-00019) created an unpaid order but
+// skipped Xendit because a stale build baked the b1 payment gate to false. That
+// root cause is now fixed durably — b1 checkout routing is enabled from tracked
+// SOURCE (see PAYMENTS_ENABLED_BUSINESSES in services/qrPaymentsGate.ts), so no
+// build can silently skip Xendit for the Fun Roof — and ordering is RE-OPENED.
 //
-// SCOPE: this flag is read ONLY by the Fun Roof module (business unit b1). Inflatable
-// Island (b3), the POS, tables and reservations are entirely untouched.
-//
-// TO LIFT: set FUN_ROOF_ORDERING_PAUSED = false, rebuild `--mode production`, and
-// redeploy `hosting:production` once the payment flow is validated end-to-end.
-export const FUN_ROOF_ORDERING_PAUSED = true;
+// Flip back to `true` to instantly pause Fun Roof online ordering again (browse
+// stays available; the checkout CTA becomes a call-staff notice and no qr_orders
+// doc is created). This flag is read ONLY by the Fun Roof module (b1); Inflatable
+// Island (b3), the POS, tables and reservations are untouched.
+export const FUN_ROOF_ORDERING_PAUSED = false;
 
 // Exact copy the owner approved for the containment block.
 export const FUN_ROOF_ORDERING_PAUSED_MESSAGE =

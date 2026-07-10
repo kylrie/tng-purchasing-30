@@ -11,7 +11,7 @@
 
 import { httpsCallable } from 'firebase/functions';
 import { getQrFunctions } from './qrFunctions';
-import { resolveQrPaymentsEnabled } from './qrPaymentsGate';
+import { resolveQrPaymentsEnabledWithDefaults } from './qrPaymentsGate';
 import type { CreateXenditSessionInput, CreateXenditSessionResult } from '../types/qrOrder.types';
 
 /**
@@ -21,15 +21,16 @@ import type { CreateXenditSessionInput, CreateXenditSessionResult } from '../typ
  * server callable ALSO refuses when its flag is off, so this is a UX gate, not a
  * security control.
  *
- * Scope: the global `VITE_QR_PAYMENTS_ENABLED` flag turns checkout routing on for
- * ALL venues. To enable a single venue's sandbox/canary run without touching the
- * others, add its business id to the comma-separated `VITE_QR_PAYMENTS_BUSINESSES`
- * allowlist and pass `businessId` here. Callers with no `businessId` (or a venue
- * not on the allowlist) still honour only the global flag — so unrelated venues
- * stay on the pre-payment flow while the global flag is off.
+ * Scope: The Fun Roof (b1) is enabled by default from tracked SOURCE
+ * (`PAYMENTS_ENABLED_BUSINESSES` in qrPaymentsGate.ts), so its routing survives a
+ * build with no payment env at all. The global `VITE_QR_PAYMENTS_ENABLED` flag
+ * still turns routing on for ALL venues, and the `VITE_QR_PAYMENTS_BUSINESSES`
+ * allowlist remains an optional additive override to canary another venue without
+ * a code change. Venues neither in the source default nor the env allowlist stay
+ * on the pre-payment flow while the global flag is off.
  */
 export function isQrPaymentsEnabled(businessId?: string): boolean {
-    return resolveQrPaymentsEnabled(
+    return resolveQrPaymentsEnabledWithDefaults(
         import.meta.env.VITE_QR_PAYMENTS_ENABLED,
         import.meta.env.VITE_QR_PAYMENTS_BUSINESSES,
         businessId,
