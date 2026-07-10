@@ -11,7 +11,8 @@ import {
     Timestamp,
     orderBy,
     limit as firestoreLimit,
-    addDoc
+    addDoc,
+    type QueryConstraint
 } from 'firebase/firestore';
 import type { InventoryItem } from '../types/InventoryItem';
 import { getUserVisibleBuIds } from '../../../shared/utils/tenantFilters';
@@ -338,7 +339,7 @@ export class ReconService {
         const allowedBUs = getUserVisibleBuIds(user);
 
         // Build robust multi-tenant queries
-        const queryConstraints: any[] = [];
+        const queryConstraints: QueryConstraint[] = [];
 
         if (businessUnitId) {
             // Verify access to specific BU
