@@ -708,12 +708,6 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
         try {
             const result = await GeminiVisionService.extractInventoryFromDocument(file);
             setExtraction(result);
-            if (result.documentDate) {
-                const parsedDate = Date.parse(result.documentDate);
-                if (!isNaN(parsedDate)) {
-                    setReceivedDate(new Date(parsedDate).toISOString().split('T')[0]);
-                }
-            }
             
             // Yield to main thread during loop to prevent UI freezing on large fuzzy matches
             const matched: MatchedReceivingRow[] = [];
