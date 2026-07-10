@@ -14,7 +14,7 @@ import {
     addDoc
 } from 'firebase/firestore';
 import type { InventoryItem } from '../types/InventoryItem';
-import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+import { getTenantConstraints, getUserVisibleBuIds } from '../../../shared/utils/tenantFilters';
 import type { User } from '../../procurement/types';
 
 // ============================================================
@@ -80,10 +80,20 @@ export class ReconService {
      * Aggregate all data needed for the reconciliation table in a single optimized pass.
      */
     static async getReconData(
+        user: User,
         businessUnitId: string,
         startDate: Date,
         endDate: Date
     ): Promise<ReconRow[]> {
+        if (!user) {
+            throw new Error('Access denied: Authentication context is missing');
+        }
+
+        // Validate business unit access (Multi-Tenancy)
+        const allowedBUs = getUserVisibleBuIds(user);
+        if (allowedBUs !== null && !allowedBUs.includes(businessUnitId)) {
+            throw new Error('Access denied: Unauthorized access to this business unit');
+        }
 
         // 1. Fetch active inventory items
         const itemsQ = query(
@@ -95,7 +105,6 @@ export class ReconService {
         const items = itemsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as (InventoryItem & { id: string })[];
 
         // 2. Perform a SINGLE PASS query for all transactions within the date range
-        // IMPORTANT: This relies on the existing composite index { businessUnitId: ASC, timestamp: DESC }
         const txQuery = query(
             collection(db, COL.STOCK_TRANSACTIONS),
             where('businessUnitId', '==', businessUnitId),
@@ -149,7 +158,7 @@ export class ReconService {
                     itemId: item.id,
                     itemName: item.name,
                     category: categoryLabel,
-                    uom: item.units.recipeUnit,
+                    uom: item.units?.recipeUnit || (item.units as { countUnit?: string })?.countUnit || 'pcs',
                     beginningInventory,
                     purchasesIn,
                     purchasesOut,
@@ -169,15 +178,35 @@ export class ReconService {
      * Save physical counts safely using chunked batches to respect Firestore's 500 op limit
      */
     static async savePhysicalCounts(
+        user: User,
         rows: ReconRow[],
         businessUnitId: string,
-        userId: string,
-        userName: string,
         periodLabel: string
     ): Promise<ReconSaveResult> {
+        if (!user) {
+            throw new Error('Access denied: Authentication context is missing');
+        }
+
+        // Validate business unit access (Multi-Tenancy)
+        const allowedBUs = getUserVisibleBuIds(user);
+        if (allowedBUs !== null && !allowedBUs.includes(businessUnitId)) {
+            throw new Error('Access denied: Unauthorized access to this business unit');
+        }
+
         const rowsWithCounts = rows.filter(r => r.endingActual !== null);
         if (rowsWithCounts.length === 0) {
             throw new Error('No physical counts entered. Please enter at least one actual count.');
+        }
+
+        // Validate counts are safe, valid positive numbers
+        for (const row of rowsWithCounts) {
+            const val = row.endingActual;
+            if (val === null || typeof val !== 'number' || isNaN(val) || !isFinite(val)) {
+                throw new Error(`Invalid actual count value for item: ${row.itemName}`);
+            }
+            if (val < 0) {
+                throw new Error(`Actual count value cannot be negative for item: ${row.itemName}`);
+            }
         }
 
         let updatedItems = 0;
@@ -216,8 +245,8 @@ export class ReconService {
                     balanceAfter: actualCount,
                     referenceId: `RECON-${periodLabel}`,
                     notes: `Inventory Recon: System expected ${row.endingSystem.toFixed(1)}, actual count ${actualCount}. Variance: ${variance > 0 ? '+' : ''}${variance.toFixed(1)}`,
-                    performedBy: userId,
-                    performedByName: userName,
+                    performedBy: user.id,
+                    performedByName: user.name,
                     timestamp: Timestamp.now(),
                 });
                 adjustmentsCreated++;
@@ -243,17 +272,36 @@ export class ReconService {
             return sum + ((r.endingActual! - r.endingSystem) * r.costPerUnit);
         }, 0);
 
+        const periodParts = periodLabel.split('→');
+        const periodStart = periodParts[0] || periodLabel;
+        const periodEnd = periodParts[1] || periodLabel;
+
         const historyDoc = await addDoc(collection(db, COL.RECON_HISTORY), {
-            businessUnitId,
-            periodStart: periodLabel.split('→')[0] || periodLabel,
-            periodEnd: periodLabel.split('→')[1] || periodLabel,
+            businessUnitId: businessUnitId || '',
+            periodStart: periodStart || '',
+            periodEnd: periodEnd || '',
             savedAt: Timestamp.now(),
-            savedBy: userId,
-            savedByName: userName,
+            savedBy: user.id || 'unknown',
+            savedByName: user.name || 'Unknown User',
             totalItems: rowsWithCounts.length,
             itemsWithVariance: varianceItems.length,
-            totalVarianceCost,
-            rows: rowsWithCounts.map(r => ({ ...r, variance: r.endingActual! - r.endingSystem })),
+            totalVarianceCost: totalVarianceCost || 0,
+            rows: rowsWithCounts.map(r => ({
+                itemId: r.itemId || '',
+                itemName: r.itemName || '',
+                category: r.category || '',
+                uom: r.uom || 'pcs',
+                beginningInventory: r.beginningInventory ?? 0,
+                purchasesIn: r.purchasesIn ?? 0,
+                purchasesOut: r.purchasesOut ?? 0,
+                stockOnHand: r.stockOnHand ?? 0,
+                posSales: r.posSales ?? 0,
+                eventSales: r.eventSales ?? 0,
+                endingSystem: r.endingSystem ?? 0,
+                endingActual: r.endingActual ?? null,
+                variance: r.endingActual !== null ? r.endingActual - r.endingSystem : null,
+                costPerUnit: r.costPerUnit ?? 0,
+            })),
         });
 
         const result = { updatedItems, adjustmentsCreated, historyId: historyDoc.id };
@@ -263,7 +311,7 @@ export class ReconService {
             'Reconciliation',
             'Recon Saved',
             `${updatedItems} item(s) reconciled, ${adjustmentsCreated} adjustment(s) created — ${periodLabel}`,
-            { id: userId, name: userName },
+            { id: user.id || 'unknown', name: user.name || 'Unknown User' },
             businessUnitId,
             { entityId: historyDoc.id, entityType: 'Recon Session', severity: adjustmentsCreated > 0 ? 'warning' : 'success' }
         );
@@ -274,38 +322,51 @@ export class ReconService {
     /**
      * Get recon history records.
      *
-     * @param userOrBuId - Pass a `User` for cross-BU history, or a `string` BU ID
-     *                     to scope to a single business unit.
+     * @param user         - Authenticated user context
+     * @param businessUnitId - Selected business unit ID to filter on.
      * @param maxRecords  - Max records to return (default 20).
      */
     static async getHistory(
-        userOrBuId: User | string,
+        user: User,
+        businessUnitId?: string,
         maxRecords = 20
     ): Promise<ReconHistoryRecord[]> {
-        try {
-            const tenantConstraints = typeof userOrBuId === 'string'
-                ? [where('businessUnitId', '==', userOrBuId)]
-                : getTenantConstraints(userOrBuId, 'businessUnitId');
-
-            const q = query(
-                collection(db, COL.RECON_HISTORY),
-                ...tenantConstraints,
-                orderBy('savedAt', 'desc'),
-                firestoreLimit(maxRecords)
-            );
-            const snap = await getDocs(q);
-            return snap.docs.map(d => {
-                const data = d.data();
-                return {
-                    id: d.id,
-                    ...data,
-                    savedAt: data.savedAt?.toDate?.() || new Date(data.savedAt),
-                } as ReconHistoryRecord;
-            });
-        } catch (error) {
-            console.error('Error fetching recon history:', error);
-            return [];
+        if (!user) {
+            throw new Error('Access denied: Authentication context is missing');
         }
+
+        const allowedBUs = getUserVisibleBuIds(user);
+
+        // Build robust multi-tenant queries
+        const queryConstraints: any[] = [];
+
+        if (businessUnitId) {
+            // Verify access to specific BU
+            if (allowedBUs !== null && !allowedBUs.includes(businessUnitId)) {
+                throw new Error('Access denied: Unauthorized access to this business unit');
+            }
+            queryConstraints.push(where('businessUnitId', '==', businessUnitId));
+        } else if (allowedBUs !== null) {
+            if (allowedBUs.length === 0) return [];
+            queryConstraints.push(where('businessUnitId', 'in', allowedBUs));
+        }
+
+        const q = query(
+            collection(db, COL.RECON_HISTORY),
+            ...queryConstraints,
+            orderBy('savedAt', 'desc'),
+            firestoreLimit(maxRecords)
+        );
+
+        const snap = await getDocs(q);
+        return snap.docs.map(d => {
+            const data = d.data();
+            return {
+                id: d.id,
+                ...data,
+                savedAt: data.savedAt?.toDate?.() || new Date(data.savedAt),
+            } as ReconHistoryRecord;
+        });
     }
 }
 
