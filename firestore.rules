@@ -764,6 +764,7 @@ service cloud.firestore {
         hasPermission('inventory:item:edit') ||
         (hasPermission('ui:module_access:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentStock', 'theoreticalStock', 'updatedAt'])) ||
         hasPermission('pos:import:delete') ||
+        hasPermission('pos:import:edit') ||
         hasPermission('pos:import:create')
       );
       
@@ -1118,7 +1119,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       // Allow delete for rollback
-      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete'));
+      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete') || hasPermission('pos:import:edit'));
       allow update: if false;
     }
     
@@ -1130,7 +1131,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       // Allow delete for rollback
-      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete'));
+      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete') || hasPermission('pos:import:edit'));
       allow update: if false;
     }
     
@@ -1154,7 +1155,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       // Allow delete for rollback
-      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete'));
+      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete') || hasPermission('pos:import:edit'));
       allow update: if false;
     }
 
@@ -1203,7 +1204,7 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
       // Allow deletion for POS import rollback
-      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete'));
+      allow delete: if isSignedIn() && (isSuperAdminOrAdmin() || hasPermission('pos:import:delete') || hasPermission('pos:import:edit'));
       // No updates — immutable audit trail
       allow update: if false;
     }
