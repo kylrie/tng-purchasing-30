@@ -14,7 +14,7 @@ import {
     addDoc
 } from 'firebase/firestore';
 import type { InventoryItem } from '../types/InventoryItem';
-import { getTenantConstraints, getUserVisibleBuIds } from '../../../shared/utils/tenantFilters';
+import { getUserVisibleBuIds } from '../../../shared/utils/tenantFilters';
 import type { User } from '../../procurement/types';
 
 // ============================================================
