@@ -6,7 +6,7 @@
 
 import { httpsCallable } from 'firebase/functions';
 import { getQrFunctions } from './qrFunctions';
-import type { GetQrOrderInput, GetQrOrderResult, QrOrderStatus, QrPaymentStatus } from '../types/qrOrder.types';
+import type { GetQrOrderInput, GetQrOrderResult, QrPaymentStatus } from '../types/qrOrder.types';
 
 /** Fetch the sanitized customer-facing order projection. */
 export async function fetchQrOrder(orderId: string): Promise<GetQrOrderResult> {
@@ -76,74 +76,10 @@ export function isPaymentPending(
     return false;
 }
 
-export type StatusTone = 'amber' | 'blue' | 'emerald' | 'red' | 'slate';
-
-export interface StatusPresentation {
-    /** Human-friendly badge label. */
-    label: string;
-    tone: StatusTone;
-    /** Current index into the 5-step timeline (received/payment/preparing/ready/served). */
-    step: number;
-    /** True for terminal-negative outcomes (cancelled / expired / failed / refunded). */
-    negative: boolean;
-}
-
-/**
- * Pure map from a real order status to its timeline presentation. Kept out of the
- * component so it's deterministic and unit-testable. Sprint 2 orders sit at
- * AWAITING_PAYMENT (no payment wired yet); the rest are declared so the screen
- * already reflects the full lifecycle once later phases advance the status.
- */
-export function presentStatus(status: QrOrderStatus): StatusPresentation {
-    switch (status) {
-        case 'AWAITING_PAYMENT':
-            return { label: 'Awaiting payment', tone: 'amber', step: 1, negative: false };
-        case 'PAID':
-            return { label: 'Paid', tone: 'blue', step: 2, negative: false };
-        case 'IN_KITCHEN':
-            return { label: 'In the kitchen', tone: 'blue', step: 2, negative: false };
-        case 'IN_BAR':
-            return { label: 'At the bar', tone: 'blue', step: 2, negative: false };
-        case 'READY':
-            return { label: 'Ready', tone: 'emerald', step: 3, negative: false };
-        case 'SERVED':
-            return { label: 'Served', tone: 'emerald', step: 4, negative: false };
-        case 'COMPLETED':
-            return { label: 'Completed', tone: 'emerald', step: 5, negative: false };
-        case 'PAYMENT_FAILED':
-            return { label: 'Payment failed', tone: 'red', step: 1, negative: true };
-        case 'EXPIRED':
-            return { label: 'Order expired', tone: 'red', step: 1, negative: true };
-        case 'CANCELLED':
-            return { label: 'Cancelled', tone: 'red', step: 1, negative: true };
-        case 'REFUNDED':
-            return { label: 'Refunded', tone: 'slate', step: 1, negative: true };
-        default:
-            return { label: String(status || 'Order'), tone: 'slate', step: 0, negative: false };
-    }
-}
-
-/**
- * Pure map from a real payment status to a diner-friendly label + tone. Sprint 2
- * orders are UNPAID (no payment wired yet); the rest are declared so the chip
- * already reflects the full lifecycle once payment lands. Never asserts "paid"
- * for an unpaid order.
- */
-export function presentPaymentStatus(paymentStatus: QrPaymentStatus): { label: string; tone: StatusTone } {
-    switch (paymentStatus) {
-        case 'PAID':
-            return { label: 'Paid', tone: 'emerald' };
-        case 'AWAITING_PAYMENT':
-            return { label: 'Awaiting payment', tone: 'amber' };
-        case 'UNPAID':
-            return { label: 'Not paid yet', tone: 'amber' };
-        case 'FAILED':
-            return { label: 'Payment failed', tone: 'red' };
-        case 'EXPIRED':
-            return { label: 'Payment expired', tone: 'red' };
-        case 'REFUNDED':
-            return { label: 'Refunded', tone: 'slate' };
-        default:
-            return { label: String(paymentStatus || 'Unknown'), tone: 'slate' };
-    }
-}
+// The pure order/payment presentation maps live in a Firebase-free module so they
+// stay unit-testable (this file imports config/firebase). Re-exported here so the
+// existing `getOrder.service` import surface is unchanged for every call site.
+export {
+    presentStatus, presentPaymentStatus, presentTimeline, PAYMENT_STEP_INDEX,
+} from './qrOrderPresenter';
+export type { StatusTone, StatusPresentation, TimelinePresentation } from './qrOrderPresenter';

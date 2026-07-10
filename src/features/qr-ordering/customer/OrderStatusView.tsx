@@ -6,7 +6,7 @@ import { formatTableLabel } from '../utils/tableUtils';
 import { isConfigValid } from '../../../config/firebase';
 import {
     fetchQrOrder, isOrderNotFound, toUserFacingReadError, presentStatus, presentPaymentStatus,
-    isXenditReturn, isPaymentPending, type StatusTone,
+    presentTimeline, isXenditReturn, isPaymentPending, type StatusTone,
 } from '../services/getOrder.service';
 import type { GetQrOrderResult } from '../types/qrOrder.types';
 import { readBusinessParam } from '../utils/adminBusinessParam';
@@ -69,6 +69,9 @@ interface StatusVM {
     paymentStatus?: { label: string; tone: TxnTone };
     currentStep: number;
     confirming: boolean;
+    /** Authoritative: payment is PAID. The ONLY gate for the "Payment confirmed"
+     *  timeline node — an unpaid order never renders that node as done/active. */
+    isPaid: boolean;
     /** Real return-flow: the bounded poll elapsed without a settled payment. */
     payTimedOut?: boolean;
     isDemo: boolean;
@@ -227,6 +230,8 @@ const OrderStatusView: React.FC = () => {
                     : { label: 'Preparing', tone: 'blue', Icon: ChefHat, spin: false },
                 currentStep: demoStep,
                 confirming,
+                // Demo prototype: the simulated confirm completing stands in for PAID.
+                isPaid: !confirming,
                 isDemo: true,
                 estPrepMinutes: o.estPrepMinutes,
                 placedAtLabel: o.placedAtLabel,
@@ -236,6 +241,9 @@ const OrderStatusView: React.FC = () => {
         }
         if (readState !== 'ready' || !order) return null;
         const p = presentStatus(order.status);
+        // Timeline is gated on AUTHORITATIVE payment state: the "Payment confirmed"
+        // node (and anything after it) can only light up when paymentStatus === 'PAID'.
+        const timeline = presentTimeline(order.status, order.paymentStatus);
         return {
             orderNumber: order.orderNumber,
             tableNumber: order.tableNumber || handoff?.tableNumber || '—',
@@ -247,8 +255,9 @@ const OrderStatusView: React.FC = () => {
                 ? { label: 'Confirming payment', tone: 'amber', Icon: Loader2, spin: true }
                 : { label: p.label, tone: p.tone, Icon: TONE_ICON[p.tone], spin: false },
             paymentStatus: (() => { const pp = presentPaymentStatus(order.paymentStatus); return { label: pp.label, tone: pp.tone }; })(),
-            currentStep: p.step,
+            currentStep: timeline.currentStep,
             confirming: polling,
+            isPaid: timeline.paymentConfirmed,
             payTimedOut: pollTimedOut,
             isDemo: false,
             // Only offer "Order more" when we know the table's QR token (from the
@@ -394,7 +403,36 @@ const OrderStatusView: React.FC = () => {
                             const isDone = i < vm.currentStep;
                             const isCurrent = i === vm.currentStep;
                             const isLast = i === STEPS.length - 1;
-                            const isConfirmingPayment = vm.confirming && step.key === 'payment';
+                            const isPaymentStep = step.key === 'payment';
+                            const isConfirmingPayment = vm.confirming && isPaymentStep;
+                            // Payment node is authoritative on PAID only. When the timeline has
+                            // reached the payment step but it isn't PAID (and we're not in the
+                            // brief return-from-Xendit confirm poll), it renders as an amber
+                            // "awaiting" node — never a green "Payment confirmed / Paid online".
+                            const paymentAwaiting = isPaymentStep && isCurrent && !vm.isPaid && !isConfirmingPayment;
+
+                            // Label: honest payment wording drawn from the authoritative payment
+                            // status when unpaid; the confirmed "Payment confirmed" label only
+                            // appears once vm.isPaid.
+                            const label = isConfirmingPayment
+                                ? 'Confirming payment…'
+                                : (isPaymentStep && !vm.isPaid)
+                                    ? (vm.paymentStatus?.label ?? 'Awaiting payment')
+                                    : step.label;
+                            // Real orders get honest payment wording; the demo prototype keeps
+                            // its original subtitle behaviour byte-for-byte (owner rule: don't
+                            // change unrelated demo UX).
+                            const sub = vm.isDemo
+                                ? (isPaymentStep && isDone && vm.paidAtLabel ? `Paid online · ${vm.paidAtLabel}` : step.sub)
+                                : isPaymentStep
+                                    ? (vm.isPaid ? (vm.paidAtLabel ? `Paid online · ${vm.paidAtLabel}` : step.sub) : 'Payment not received yet')
+                                    : step.sub;
+                            // Awaiting-payment node visual keyed to the authoritative payment tone
+                            // so terminal-negative states (failed/expired/refunded) don't read as
+                            // an in-progress amber "waiting". Never green — paid is handled above.
+                            const AwaitIcon = vm.paymentStatus?.tone === 'red' ? AlertCircle : Clock;
+                            const awaitColor = vm.paymentStatus?.tone === 'red' ? '#ef4444'
+                                : vm.paymentStatus?.tone === 'slate' ? '#94a3b8' : '#f59e0b';
 
                             return (
                                 <li key={step.key} className="flex gap-3.5">
@@ -403,6 +441,8 @@ const OrderStatusView: React.FC = () => {
                                         <div className="relative w-7 h-7 flex items-center justify-center shrink-0">
                                             {isDone ? (
                                                 <CheckCircle2 size={22} style={{ color: theme.stepDone }} />
+                                            ) : paymentAwaiting ? (
+                                                <AwaitIcon size={20} style={{ color: awaitColor }} />
                                             ) : isCurrent ? (
                                                 <>
                                                     <span className="absolute inset-0 rounded-full animate-ping" style={{ background: theme.primaryPing }} />
@@ -419,12 +459,12 @@ const OrderStatusView: React.FC = () => {
 
                                     {/* Label */}
                                     <div className={`pb-6 ${isLast ? 'pb-0' : ''}`}>
-                                        <p className="text-sm font-semibold leading-tight" style={{ color: isDone ? theme.textMuted : isCurrent ? theme.text : theme.textFaint }}>
-                                            {isConfirmingPayment ? 'Confirming payment…' : step.label}
-                                            {isCurrent && !isConfirmingPayment && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full animate-pulse align-middle" style={{ background: theme.primary }} />}
+                                        <p className="text-sm font-semibold leading-tight" style={{ color: isDone ? theme.textMuted : (isCurrent || paymentAwaiting) ? theme.text : theme.textFaint }}>
+                                            {label}
+                                            {isCurrent && !isConfirmingPayment && !paymentAwaiting && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full animate-pulse align-middle" style={{ background: theme.primary }} />}
                                         </p>
-                                        <p className="text-[11px] mt-0.5" style={{ color: isDone ? theme.textMuted : isCurrent ? theme.textMuted : theme.textFaint }}>
-                                            {step.key === 'payment' && isDone && vm.paidAtLabel ? `Paid online · ${vm.paidAtLabel}` : step.sub}
+                                        <p className="text-[11px] mt-0.5" style={{ color: isDone ? theme.textMuted : (isCurrent || paymentAwaiting) ? theme.textMuted : theme.textFaint }}>
+                                            {sub}
                                         </p>
                                     </div>
                                 </li>
