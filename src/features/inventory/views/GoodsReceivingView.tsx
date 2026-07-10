@@ -380,21 +380,15 @@ const PrfSelector: React.FC<{
                     businessUnitId,
                     [] // Only fetch PRFs for the selected BU, not all user BUs
                 );
-                // Filter for PRFs that belong to this BU and are in relevant statuses
                 const prfs = reqs.filter(r =>
                     r.prfDetails &&
                     r.businessId === businessUnitId &&
                     [
-                        'FUNDS_RELEASED',
-                        'APPROVED_FOR_PAYMENT',
-                        'FOR_FUND_RELEASE',
                         'FOR_CHECK_PREPARATION',
                         'PENDING_CHECK_AUTH_BOD',
-                        'PENDING_BOD_APPROVAL',
-                        'PENDING_GM_BR_APPROVAL',
-                        'PENDING_FINANCE_HEAD_BR_APPROVAL',
-                        'PRF_PENDING_MANAGER',
-                        'PENDING_GM_PRF_APPROVAL',
+                        'FOR_FUND_RELEASE',
+                        'FUNDS_RELEASED',
+                        'APPROVED_FOR_PAYMENT',
                         'LIQUIDATION_FILED',
                         'AUDITED_CLEARED'
                     ].includes(r.status)
