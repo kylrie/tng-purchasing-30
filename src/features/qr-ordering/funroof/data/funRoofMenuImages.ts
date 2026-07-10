@@ -11,8 +11,9 @@
 //
 // Source: owner-provided folder "TFR MENU IMAGES" (FOOD/, DRINK/BOTTLES/, Games),
 // matched to existing snapshot items by label. Food photos resized to ~800px;
-// bottle product shots padded to 600x600 square (owner standard); cans kept as
-// webp. Bottle + shot records of the same product share one image.
+// bottle product shots padded to 600x600 square (owner standard); the clear
+// water bottle is likewise squared so it is visible; the Coke cans are kept as
+// their original webp. Bottle + shot records of the same product share one image.
 
 export const FUN_ROOF_MENU_IMAGES: Readonly<Record<string, string>> = {
     // ── Food (Bestsellers / Pizza / Bar Chows) — owner FOOD/ photos ──
@@ -80,9 +81,9 @@ export const FUN_ROOF_MENU_IMAGES: Readonly<Record<string, string>> = {
     fr094: '/funroof/menu/baileys.jpg',
 
     // ── Non-Alcoholic ──
-    fr095: '/funroof/menu/nature-spring.webp',             // BOTTLED WATER (Nature Spring)
-    fr097: '/funroof/menu/coke-regular.webp',              // COKE REGULAR IN CAN
-    fr098: '/funroof/menu/coke-zero.webp',                 // COKE ZERO IN CAN
+    fr095: '/funroof/menu/nature-spring.jpg',              // BOTTLED WATER (Nature Spring — padded square so the clear bottle is visible)
+    fr097: '/funroof/menu/coke-regular.webp',             // COKE REGULAR IN CAN (owner original)
+    fr098: '/funroof/menu/coke-zero.webp',                // COKE ZERO IN CAN (owner original)
 
     // ── Beers ──
     fr106: '/funroof/menu/heineken.jpg',                   // HEINEKEN ORIGINAL
