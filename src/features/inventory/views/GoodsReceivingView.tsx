@@ -560,7 +560,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
 
     useEffect(() => {
         if (!selectedBusinessUnit) return;
-        InventoryService.getInventory(selectedBusinessUnit).then(setItems);
+        InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL').then(setItems);
         // Reset state when BU changes
         stopCamera();
         setStep(0);
@@ -810,7 +810,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                 receivingMeta
             );
             setApplySuccess(true);
-            setItems(await InventoryService.getInventory(selectedBusinessUnit));
+            setItems(await InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL'));
         } catch (err) {
             setApplyError(err instanceof Error ? err.message : 'Failed to update inventory.');
         } finally {
