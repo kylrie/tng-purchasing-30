@@ -14,6 +14,7 @@ import { FUN_ROOF_BUSINESS_ID } from '../utils/customerMenuUrl';
 import { withBusinessParam } from '../utils/adminBusinessParam';
 import FunRoofProductSheet from './FunRoofProductSheet';
 import FunRoofCartDrawer, { type FunRoofPick } from './FunRoofCartDrawer';
+import { FUN_ROOF_ORDERING_PAUSED, FUN_ROOF_ORDERING_PAUSED_MESSAGE } from './funRoofOrderingStatus';
 
 /**
  * The Fun Roof — QR customer menu + ordering (business unit b1).
@@ -130,6 +131,11 @@ const FunRoofMenuView: React.FC = () => {
 
     const handleCheckout = async () => {
         if (submitting) return;
+        // P0 CONTAINMENT: Fun Roof (b1) online ordering is paused — never create an
+        // order or navigate. Defense-in-depth: the cart CTA is already blocked below,
+        // this guard makes it impossible to reach createQrOrder even if a stale/cached
+        // client somehow invokes checkout. See funRoofOrderingStatus.ts.
+        if (FUN_ROOF_ORDERING_PAUSED) { setSubmitError(FUN_ROOF_ORDERING_PAUSED_MESSAGE); return; }
         if (!canSubmitRealOrder) {
             if (usingRealTable) return; // real table still resolving — wait, don't go to demo
             // Demo / local fallback — the shared demo checkout (no real order).
@@ -338,6 +344,8 @@ const FunRoofMenuView: React.FC = () => {
                 onCheckout={handleCheckout}
                 submitting={submitting}
                 submitError={submitError}
+                orderingPaused={FUN_ROOF_ORDERING_PAUSED}
+                pausedMessage={FUN_ROOF_ORDERING_PAUSED_MESSAGE}
             />
         </div>
     );

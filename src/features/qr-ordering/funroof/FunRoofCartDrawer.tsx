@@ -27,6 +27,11 @@ interface Props {
     submitting?: boolean;
     /** Diner-friendly error from a failed submit; shown above the CTA. */
     submitError?: string;
+    /** P0 containment: when true, online ordering is paused — the checkout CTA is
+     *  blocked and replaced by the call-staff maintenance notice (no order created). */
+    orderingPaused?: boolean;
+    /** Maintenance copy shown while ordering is paused. */
+    pausedMessage?: string;
 }
 
 const LEAVE_MS = 250;
@@ -34,12 +39,15 @@ const LEAVE_MS = 250;
 /**
  * The Fun Roof — "My picks" drawer (dark neon theme).
  *
- * A purely LOCAL shortlist the guest can build while browsing and show to a
- * server. It intentionally does NOT submit an order, take payment, or touch the
- * POS — online ordering is a deliberate future boundary (mirrors the dormant
- * checkout in the Inflatable Island module). The footer states that plainly.
+ * The guest builds a local shortlist while browsing. When a real table is resolved
+ * and ordering is not paused, the footer's "Proceed to checkout" CTA calls
+ * `onCheckout` → FunRoofMenuView.handleCheckout → createQrOrder → the shared Xendit
+ * hosted checkout (same transaction flow as the Inflatable Island module). Without
+ * a resolved table the CTA is disabled ("Scan a table QR to order"); while
+ * `orderingPaused` (P0 containment) it is replaced by a call-staff maintenance
+ * notice and no order is created. Editing picks stays fully local.
  */
-const FunRoofCartDrawer: React.FC<Props> = ({ open, lines, tableNumber, onClose, onChangeQty, onRemove, onClear, onCheckout, submitting = false, submitError = '' }) => {
+const FunRoofCartDrawer: React.FC<Props> = ({ open, lines, tableNumber, onClose, onChangeQty, onRemove, onClear, onCheckout, submitting = false, submitError = '', orderingPaused = false, pausedMessage = '' }) => {
     const [mounted, setMounted] = useState(false);
     const [entered, setEntered] = useState(false);
 
@@ -168,6 +176,19 @@ const FunRoofCartDrawer: React.FC<Props> = ({ open, lines, tableNumber, onClose,
                             <span className="text-sm font-semibold" style={{ color: T.text }}>Total</span>
                             <span className="text-2xl font-black tracking-tight tabular-nums" style={{ color: FUN_ROOF_COLORS.lime }}>{peso(subtotal)}</span>
                         </div>
+                        {orderingPaused ? (
+                            /* P0 containment: online ordering paused — browse only, no order created. */
+                            <>
+                                <p role="status" className="mb-3 flex items-start gap-2 text-xs font-medium rounded-xl px-3 py-2.5 leading-relaxed" style={{ color: '#ffd0e0', background: 'rgba(245,32,155,0.12)', border: '1px solid rgba(245,32,155,0.3)' }}>
+                                    <AlertCircle size={15} className="mt-0.5 shrink-0" />
+                                    <span className="min-w-0">{pausedMessage}</span>
+                                </p>
+                                <button type="button" disabled aria-disabled="true" className="w-full py-4 rounded-[1.25rem] font-semibold text-sm cursor-not-allowed" style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`, color: T.textFaint }}>
+                                    Online ordering paused
+                                </button>
+                            </>
+                        ) : (
+                        <>
                         {submitError && (
                             <p role="alert" className="mb-3 flex items-start gap-2 text-xs font-medium rounded-xl px-3 py-2" style={{ color: '#ffd0e0', background: 'rgba(245,32,155,0.12)', border: '1px solid rgba(245,32,155,0.3)' }}>
                                 <AlertCircle size={14} className="mt-0.5 shrink-0" />
@@ -189,6 +210,8 @@ const FunRoofCartDrawer: React.FC<Props> = ({ open, lines, tableNumber, onClose,
                             <button type="button" disabled title="Scan a table QR to order" className="w-full py-4 rounded-[1.25rem] font-semibold text-sm cursor-not-allowed" style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}`, color: T.textFaint }}>
                                 Scan a table QR to order
                             </button>
+                        )}
+                        </>
                         )}
                     </div>
                 )}
