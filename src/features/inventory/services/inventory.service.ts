@@ -41,6 +41,7 @@ export interface ReceivingMeta {
     supplierName?: string;
     documentType?: string;
     inputMethod?: 'upload' | 'camera' | 'manual';
+    receivedAt?: Date;
 }
 
 /**
@@ -585,6 +586,9 @@ export class InventoryService {
         if (!receivedItems.length) return;
 
         const now = Timestamp.now();
+        const receivedAtTimestamp = receivingMeta?.receivedAt 
+            ? Timestamp.fromDate(receivingMeta.receivedAt) 
+            : now;
         const logItems: GoodsReceivingLogItem[] = [];
         
         // Group items to prevent duplicate reads/writes if the same item is scanned twice
@@ -665,7 +669,7 @@ export class InventoryService {
                     notes: `Received ${received.qtyReceived} ${inventoryItem.units.buyUnit}(s) via receiving module.`,
                     performedBy: performedBy.id,
                     performedByName: performedBy.name,
-                    timestamp: now
+                    timestamp: receivedAtTimestamp
                 });
 
                 // Clean floating point math for log
@@ -697,7 +701,7 @@ export class InventoryService {
                     totalValue: logItems.reduce((sum, i) => sum + i.totalPrice, 0),
                     receivedBy: performedBy.id,
                     receivedByName: performedBy.name,
-                    receivedAt: now
+                    receivedAt: receivedAtTimestamp
                 });
             }
         });
