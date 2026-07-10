@@ -1,16 +1,18 @@
 // The Fun Roof (b1) online-ordering pause switch.
 //
-// History: a 2026-07-10 live checkout (QR-00019) created an unpaid order but
-// skipped Xendit because a stale build baked the b1 payment gate to false. That
-// root cause is now fixed durably — b1 checkout routing is enabled from tracked
-// SOURCE (see PAYMENTS_ENABLED_BUSINESSES in services/qrPaymentsGate.ts), so no
-// build can silently skip Xendit for the Fun Roof — and ordering is RE-OPENED.
+// Client routing is fixed durably from tracked SOURCE (PAYMENTS_ENABLED_BUSINESSES
+// in services/qrPaymentsGate.ts) and the server gate QR_PAYMENTS_ENABLED is now
+// ON. The full path is verified up to Xendit: order -> checkout -> payment page ->
+// createXenditSession — and it fails safe (never a false success).
 //
-// Flip back to `true` to instantly pause Fun Roof online ordering again (browse
-// stays available; the checkout CTA becomes a call-staff notice and no qr_orders
-// doc is created). This flag is read ONLY by the Fun Roof module (b1); Inflatable
-// Island (b3), the POS, tables and reservations are untouched.
-export const FUN_ROOF_ORDERING_PAUSED = false;
+// RE-PAUSED (2026-07-10): with the gate ON, createXenditSession stopped returning
+// FAILED_PRECONDITION but now fails at the Xendit API call itself with 500
+// INTERNAL ("Could not start the payment"). Xendit cannot open, so ordering is
+// paused pending an infra fix (most likely the enabled XENDIT_SECRET_KEY version /
+// live-key activation — a server/owner action, not client code). Reopen by
+// flipping to `false` AFTER a live createXenditSession succeeds. This flag is read
+// ONLY by the Fun Roof module (b1); b3, POS, tables and reservations are untouched.
+export const FUN_ROOF_ORDERING_PAUSED = true;
 
 // Exact copy the owner approved for the containment block.
 export const FUN_ROOF_ORDERING_PAUSED_MESSAGE =
