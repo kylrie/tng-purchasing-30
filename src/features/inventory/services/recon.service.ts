@@ -32,8 +32,9 @@ export interface ReconRow {
     purchasesOut: number;     // Returns
     stockOnHand: number;      // Calculated: beginning + in - out
     posSales: number;
-    eventSales: number;
-    endingSystem: number;     // Calculated: stockOnHand - posSales - eventSales
+    eventSales: number;       // Linked to Event Sales Import
+    prodWaste: number;        // Linked to Production consumption / Wastage
+    endingSystem: number;     // Calculated: stockOnHand - posSales - eventSales - prodWaste
     endingActual: number | null; // Editable — user-entered physical count
     variance: number | null;     // Calculated: endingActual - endingSystem
     costPerUnit: number;
@@ -123,11 +124,11 @@ export class ReconService {
         );
         
         const txSnap = await getDocs(txQuery);
-        
-        const purchasesMap = new Map<string, number>();
+               const purchasesMap = new Map<string, number>();
         const returnsMap = new Map<string, number>();
         const posSalesMap = new Map<string, number>();
         const eventSalesMap = new Map<string, number>();
+        const prodWasteMap = new Map<string, number>();
         const netChangeMap = new Map<string, number>();
 
         const endTimestamp = Timestamp.fromDate(endDate);
@@ -145,7 +146,7 @@ export class ReconService {
             let effect = 0;
             if (['RECEIVE', 'PRODUCTION_OUTPUT', 'POS_REVERSAL'].includes(type)) {
                 effect = qty;
-            } else if (['RETURN', 'TRANSFER_OUT', 'THEORETICAL_USAGE', 'POS_SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
+            } else if (['RETURN', 'TRANSFER_OUT', 'THEORETICAL_USAGE', 'POS_SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE', 'EVENT_CONSUMPTION'].includes(type)) {
                 effect = -qty;
             } else if (type === 'ADJUSTMENT') {
                 effect = rawQty;
@@ -160,8 +161,10 @@ export class ReconService {
                     returnsMap.set(itemId, (returnsMap.get(itemId) || 0) + qty);
                 } else if (['THEORETICAL_USAGE', 'POS_SALE'].includes(type)) {
                     posSalesMap.set(itemId, (posSalesMap.get(itemId) || 0) + qty);
-                } else if (['PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
+                } else if (['EVENT_CONSUMPTION'].includes(type)) {
                     eventSalesMap.set(itemId, (eventSalesMap.get(itemId) || 0) + qty);
+                } else if (['PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
+                    prodWasteMap.set(itemId, (prodWasteMap.get(itemId) || 0) + qty);
                 }
             }
         }
@@ -203,7 +206,7 @@ export class ReconService {
 
                     if (['RECEIVE', 'PRODUCTION_OUTPUT', 'POS_REVERSAL'].includes(type)) {
                         change += qty;
-                    } else if (['RETURN', 'TRANSFER_OUT', 'THEORETICAL_USAGE', 'POS_SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
+                    } else if (['RETURN', 'TRANSFER_OUT', 'THEORETICAL_USAGE', 'POS_SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE', 'EVENT_CONSUMPTION'].includes(type)) {
                         change -= qty;
                     } else if (type === 'ADJUSTMENT') {
                         change += rawQty;
@@ -221,6 +224,7 @@ export class ReconService {
                 const purchasesOut = returnsMap.get(item.id) || 0;
                 const posSales = posSalesMap.get(item.id) || 0;
                 const eventSales = eventSalesMap.get(item.id) || 0;
+                const prodWaste = prodWasteMap.get(item.id) || 0;
 
                 // Determine beginning inventory using the closest completed stock count
                 const itemCounts = completedCountsMap.get(item.id) || [];
@@ -258,7 +262,7 @@ export class ReconService {
                 }
 
                 const stockOnHand = beginningInventory + purchasesIn - purchasesOut;
-                const endingSystem = stockOnHand - posSales - eventSales;
+                const endingSystem = stockOnHand - posSales - eventSales - prodWaste;
                 const categoryLabel = item.type === 'RAW_MATERIAL' ? 'RAW MAT' : 'PROD';
 
                 return {
@@ -272,6 +276,7 @@ export class ReconService {
                     stockOnHand,
                     posSales,
                     eventSales,
+                    prodWaste,
                     endingSystem,
                     endingActual: null,
                     variance: null,
@@ -404,6 +409,7 @@ export class ReconService {
                 stockOnHand: r.stockOnHand ?? 0,
                 posSales: r.posSales ?? 0,
                 eventSales: r.eventSales ?? 0,
+                prodWaste: r.prodWaste ?? 0,
                 endingSystem: r.endingSystem ?? 0,
                 endingActual: r.endingActual ?? null,
                 variance: r.endingActual !== null ? r.endingActual - r.endingSystem : null,

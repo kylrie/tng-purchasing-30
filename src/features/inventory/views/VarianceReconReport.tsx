@@ -49,7 +49,8 @@ function buildExportData(rows: ReconRow[], periodLabel: string) {
         'Purchases (IN)': r.purchasesIn,
         'Stock On Hand': r.stockOnHand,
         'POS Sales': r.posSales,
-        'Prod/Waste': r.eventSales,
+        'Event Sales': r.eventSales,
+        'Prod/Waste': r.prodWaste ?? 0,
         'Ending (System)': r.endingSystem,
         'Ending (Actual)': r.endingActual ?? '',
         'Variance': r.variance ?? '',
@@ -757,6 +758,7 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                                             <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 whitespace-nowrap">Purchases (IN)</th>
                                             <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 whitespace-nowrap bg-blue-50/50 dark:bg-blue-900/10">Stock On Hand</th>
                                             <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-orange-600 dark:text-orange-400 whitespace-nowrap">POS Sales</th>
+                                            <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-pink-600 dark:text-pink-400 whitespace-nowrap">Event Sales</th>
                                             <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 whitespace-nowrap">Prod/Waste</th>
                                             <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400 whitespace-nowrap bg-cyan-50/50 dark:bg-cyan-900/10">Ending (System)</th>
                                             <th className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 whitespace-nowrap bg-amber-50/50 dark:bg-amber-900/10">Ending (Actual)</th>
@@ -794,8 +796,11 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
                                                     <td className="px-4 py-3 text-right font-medium text-orange-600 dark:text-orange-400">
                                                         {row.posSales > 0 ? formatQty(row.posSales) : '—'}
                                                     </td>
-                                                    <td className="px-4 py-3 text-right font-medium text-purple-600 dark:text-purple-400">
+                                                    <td className="px-4 py-3 text-right font-medium text-pink-600 dark:text-pink-400">
                                                         {row.eventSales > 0 ? formatQty(row.eventSales) : '—'}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-medium text-purple-600 dark:text-purple-400">
+                                                        {row.prodWaste > 0 ? formatQty(row.prodWaste) : '—'}
                                                     </td>
                                                     <td className="px-4 py-3 text-right font-bold text-cyan-700 dark:text-cyan-400 bg-cyan-50/30 dark:bg-cyan-900/5">{formatQty(row.endingSystem)}</td>
 
