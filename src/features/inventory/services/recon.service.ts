@@ -69,6 +69,7 @@ const COL = {
     POS_SALES: 'pos_sales',
     REQUISITIONS: 'requisitions',
     RECON_HISTORY: 'recon_history',
+    STOCK_COUNTS: 'stock_counts',
 } as const;
 
 // ============================================================
@@ -104,6 +105,14 @@ export class ReconService {
         );
         const itemsSnap = await getDocs(itemsQ);
         const items = itemsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as (InventoryItem & { id: string })[];
+
+        // Fetch completed stock counts to use as starting/ending baseline counts
+        const stockCountsQ = query(
+            collection(db, COL.STOCK_COUNTS),
+            where('businessUnitId', '==', businessUnitId),
+            where('status', '==', 'COMPLETED')
+        );
+        const stockCountsSnap = await getDocs(stockCountsQ);
 
         // 2. Query all transactions since the start date to calculate historical stock via rollback
         const txQuery = query(
@@ -157,6 +166,53 @@ export class ReconService {
             }
         }
 
+        // Extract completed counts for all items to map in memory
+        const completedCountsMap = new Map<string, { date: Timestamp; qty: number }[]>();
+        for (const docSnap of stockCountsSnap.docs) {
+            const data = docSnap.data();
+            const date = data.completedAt || data.startedAt;
+            if (!date) continue;
+            const sessionItems = data.items || [];
+            for (const sessionItem of sessionItems) {
+                const itemId = sessionItem.itemId;
+                const itemDoc = items.find(i => i.id === itemId);
+                if (!itemDoc) continue;
+                const conversion = itemDoc.units?.conversion > 0 ? itemDoc.units.conversion : 1;
+                const qty = (sessionItem.count + (sessionItem.partialCount || 0)) * conversion;
+                
+                if (!completedCountsMap.has(itemId)) {
+                    completedCountsMap.set(itemId, []);
+                }
+                completedCountsMap.get(itemId)!.push({ date, qty });
+            }
+        }
+
+        const startDateTimestamp = Timestamp.fromDate(startDate);
+
+        // Helper to compute net stock change between two timestamps in memory
+        const getNetChangeBetween = (itemId: string, t1: Timestamp, t2: Timestamp) => {
+            let change = 0;
+            for (const docSnap of txSnap.docs) {
+                const data = docSnap.data();
+                if (data.itemId !== itemId) continue;
+                const ts = data.timestamp as Timestamp;
+                if (ts.toMillis() >= t1.toMillis() && ts.toMillis() < t2.toMillis()) {
+                    const type = data.type as string;
+                    const qty = Math.abs((data.quantity as number) || 0);
+                    const rawQty = (data.quantity as number) || 0;
+
+                    if (['RECEIVE', 'PRODUCTION_OUTPUT', 'POS_REVERSAL'].includes(type)) {
+                        change += qty;
+                    } else if (['RETURN', 'TRANSFER_OUT', 'THEORETICAL_USAGE', 'POS_SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
+                        change -= qty;
+                    } else if (type === 'ADJUSTMENT') {
+                        change += rawQty;
+                    }
+                }
+            }
+            return change;
+        };
+
         // 3. Build and return rows
         return items
             .filter(item => item.type === 'RAW_MATERIAL' || item.type === 'PRODUCTION')
@@ -166,9 +222,40 @@ export class ReconService {
                 const posSales = posSalesMap.get(item.id) || 0;
                 const eventSales = eventSalesMap.get(item.id) || 0;
 
-                const netChange = netChangeMap.get(item.id) || 0;
-                let beginningInventory = (item.currentStock ?? 0) - netChange;
-                if (Number.isNaN(beginningInventory)) beginningInventory = 0;
+                // Determine beginning inventory using the closest completed stock count
+                const itemCounts = completedCountsMap.get(item.id) || [];
+                itemCounts.sort((a, b) => a.date.toMillis() - b.date.toMillis());
+
+                let beginningInventory = 0;
+                let foundBase = false;
+
+                // Case 1: Find the latest completed count BEFORE or ON startDate
+                const countsBefore = itemCounts.filter(cc => cc.date.toMillis() <= startDateTimestamp.toMillis());
+                if (countsBefore.length > 0) {
+                    const lastCount = countsBefore[countsBefore.length - 1];
+                    const changeAfter = getNetChangeBetween(item.id, lastCount.date, startDateTimestamp);
+                    beginningInventory = lastCount.qty + changeAfter;
+                    foundBase = true;
+                } else {
+                    // Case 2: Find the earliest completed count AFTER startDate
+                    const countsAfter = itemCounts.filter(cc => cc.date.toMillis() > startDateTimestamp.toMillis());
+                    if (countsAfter.length > 0) {
+                        const firstCount = countsAfter[0];
+                        const changeBefore = getNetChangeBetween(item.id, startDateTimestamp, firstCount.date);
+                        beginningInventory = firstCount.qty - changeBefore;
+                        foundBase = true;
+                    }
+                }
+
+                // Case 3: Fall back to general rollback from current live stock
+                if (!foundBase) {
+                    const netChange = netChangeMap.get(item.id) || 0;
+                    beginningInventory = (item.currentStock ?? 0) - netChange;
+                }
+
+                if (Number.isNaN(beginningInventory) || beginningInventory < 0) {
+                    beginningInventory = 0;
+                }
 
                 const stockOnHand = beginningInventory + purchasesIn - purchasesOut;
                 const endingSystem = stockOnHand - posSales - eventSales;

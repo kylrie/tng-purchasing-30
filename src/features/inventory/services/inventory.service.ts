@@ -369,9 +369,10 @@ export class InventoryService {
                 throw new Error('Session not found');
             }
 
-            const now = Timestamp.now();
+            const now = session.completedAt || session.startedAt || Timestamp.now();
             const auditLogs: Omit<StocktakeAuditLog, 'id'>[] = [];
             const inventoryUpdates: { id: string; data: Partial<InventoryItem> }[] = [];
+            const stockTransactions: any[] = [];
 
             // Update inventory stock levels and collect audit data
             for (const countItem of session.items) {
@@ -385,6 +386,7 @@ export class InventoryService {
                 const conversion = itemDoc.units.conversion > 0 ? itemDoc.units.conversion : 1;
                 const stockBefore = itemDoc.currentStock ?? 0;
                 const newStock = (countItem.count + countItem.partialCount) * conversion;
+                const variance = newStock - stockBefore;
 
                 inventoryUpdates.push({
                     id: countItem.itemId,
@@ -400,11 +402,26 @@ export class InventoryService {
                     itemType: itemDoc.type,
                     stockBefore,
                     stockAfter: newStock,
-                    variance: newStock - stockBefore,
+                    variance,
                     unit: itemDoc.units?.recipeUnit || '',
                     countedBy: session.performedBy,
                     countedByName: session.performedByName ?? 'Unknown',
                     submittedAt: now
+                });
+
+                // Build STOCK_TAKE transaction document for history ledger
+                stockTransactions.push({
+                    itemId: itemDoc.id,
+                    itemName: itemDoc.name,
+                    businessUnitId: session.businessUnitId,
+                    type: 'STOCK_TAKE',
+                    quantity: variance,
+                    balanceAfter: newStock,
+                    referenceId: sessionId,
+                    notes: `Stock Take Audit: Physical count set to ${newStock} (Variance: ${variance > 0 ? '+' : ''}${variance})`,
+                    performedBy: session.performedBy,
+                    performedByName: session.performedByName ?? 'Unknown',
+                    timestamp: now
                 });
             }
 
@@ -430,6 +447,17 @@ export class InventoryService {
             } catch (logErr) {
                 console.error('[InventoryService] Failed to write stocktake audit logs:', logErr);
                 // Non-critical — don't fail the submit if logging fails
+            }
+
+            // Write all stock transactions using batches
+            try {
+                const BATCH_SIZE = 400; // Firebase limit is 500
+                for (let i = 0; i < stockTransactions.length; i += BATCH_SIZE) {
+                    const chunk = stockTransactions.slice(i, i + BATCH_SIZE);
+                    await FirestoreService.batchCreateDocuments('stock_transactions', chunk);
+                }
+            } catch (txErr) {
+                console.error('[InventoryService] Failed to write stocktake transactions:', txErr);
             }
 
             // Mark session as completed (include name if provided)
