@@ -105,12 +105,11 @@ export class ReconService {
         const itemsSnap = await getDocs(itemsQ);
         const items = itemsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as (InventoryItem & { id: string })[];
 
-        // 2. Perform a SINGLE PASS query for all transactions within the date range
+        // 2. Query all transactions since the start date to calculate historical stock via rollback
         const txQuery = query(
             collection(db, COL.STOCK_TRANSACTIONS),
             where('businessUnitId', '==', businessUnitId),
             where('timestamp', '>=', Timestamp.fromDate(startDate)),
-            where('timestamp', '<=', Timestamp.fromDate(endDate)),
             orderBy('timestamp', 'desc')
         );
         
@@ -120,6 +119,9 @@ export class ReconService {
         const returnsMap = new Map<string, number>();
         const posSalesMap = new Map<string, number>();
         const eventSalesMap = new Map<string, number>();
+        const netChangeMap = new Map<string, number>();
+
+        const endTimestamp = Timestamp.fromDate(endDate);
 
         // Single pass O(N) aggregation of filtered documents
         for (const docSnap of txSnap.docs) {
@@ -127,15 +129,31 @@ export class ReconService {
             const type = data.type as string;
             const itemId = data.itemId as string;
             const qty = Math.abs((data.quantity as number) || 0);
+            const rawQty = (data.quantity as number) || 0;
+            const ts = data.timestamp as Timestamp;
 
-            if (['RECEIVE', 'PRODUCTION_OUTPUT'].includes(type)) {
-                purchasesMap.set(itemId, (purchasesMap.get(itemId) || 0) + qty);
-            } else if (['RETURN', 'TRANSFER_OUT'].includes(type)) {
-                returnsMap.set(itemId, (returnsMap.get(itemId) || 0) + qty);
-            } else if (['THEORETICAL_USAGE', 'POS_SALE'].includes(type)) {
-                posSalesMap.set(itemId, (posSalesMap.get(itemId) || 0) + qty);
-            } else if (['PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
-                eventSalesMap.set(itemId, (eventSalesMap.get(itemId) || 0) + qty);
+            // Calculate net effect on stock for rollback calculation
+            let effect = 0;
+            if (['RECEIVE', 'PRODUCTION_OUTPUT', 'POS_REVERSAL'].includes(type)) {
+                effect = qty;
+            } else if (['RETURN', 'TRANSFER_OUT', 'THEORETICAL_USAGE', 'POS_SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
+                effect = -qty;
+            } else if (type === 'ADJUSTMENT') {
+                effect = rawQty;
+            }
+            netChangeMap.set(itemId, (netChangeMap.get(itemId) || 0) + effect);
+
+            // Only aggregate columns strictly inside [startDate, endDate]
+            if (ts.toMillis() <= endTimestamp.toMillis()) {
+                if (['RECEIVE', 'PRODUCTION_OUTPUT'].includes(type)) {
+                    purchasesMap.set(itemId, (purchasesMap.get(itemId) || 0) + qty);
+                } else if (['RETURN', 'TRANSFER_OUT'].includes(type)) {
+                    returnsMap.set(itemId, (returnsMap.get(itemId) || 0) + qty);
+                } else if (['THEORETICAL_USAGE', 'POS_SALE'].includes(type)) {
+                    posSalesMap.set(itemId, (posSalesMap.get(itemId) || 0) + qty);
+                } else if (['PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE'].includes(type)) {
+                    eventSalesMap.set(itemId, (eventSalesMap.get(itemId) || 0) + qty);
+                }
             }
         }
 
@@ -148,7 +166,8 @@ export class ReconService {
                 const posSales = posSalesMap.get(item.id) || 0;
                 const eventSales = eventSalesMap.get(item.id) || 0;
 
-                let beginningInventory = item.currentStock ?? 0;
+                const netChange = netChangeMap.get(item.id) || 0;
+                let beginningInventory = (item.currentStock ?? 0) - netChange;
                 if (Number.isNaN(beginningInventory)) beginningInventory = 0;
 
                 const stockOnHand = beginningInventory + purchasesIn - purchasesOut;
