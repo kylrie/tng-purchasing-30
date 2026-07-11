@@ -6,6 +6,8 @@ import {
     classifyFunRoofCategory,
     mapFunRoofRecord,
     loadFunRoofMenu,
+    orderFunRoofItemsImageFirst,
+    type FunRoofItem,
 } from './funRoofMenu';
 import { FUN_ROOF_MENU_SNAPSHOT } from './data/funRoofMenu.snapshot';
 
@@ -68,4 +70,41 @@ test('the real snapshot has the expected shape (bottle/shot pairs present, price
     assert.equal(jwBlue.length, 2); // Bottle + Shot
     assert.deepEqual(jwBlue.map(i => i.serving).sort(), ['Bottle', 'Shot']);
     assert.ok(items.every(i => Number.isFinite(i.sellingPrice) && i.sellingPrice > 0));
+});
+
+test('image-first ordering is a pure re-order: same ids, none added/dropped, no field mutated', () => {
+    const mapped = FUN_ROOF_MENU_SNAPSHOT.map(mapFunRoofRecord);
+    const ordered = loadFunRoofMenu();
+    assert.equal(ordered.length, mapped.length, 'no item added or dropped');
+    assert.deepEqual([...ordered.map(i => i.id)].sort(), [...mapped.map(i => i.id)].sort(), 'same id set');
+    // identity fields untouched — compare each item by id against its mapped source
+    const byId = new Map(mapped.map(i => [i.id, i]));
+    for (const it of ordered) {
+        const src = byId.get(it.id)!;
+        assert.deepEqual(it, src, `"${it.name}" fields unchanged (name/price/category/group/image/serving/tag)`);
+    }
+});
+
+test('INVARIANT: within every sub-tab, image items come before non-image items', () => {
+    const items = loadFunRoofMenu();
+    for (const g of FUN_ROOF_MENU_GROUPS) {
+        for (const sub of g.subcategories) {
+            const tab = items.filter(i => i.group === g.key && i.category === sub);
+            const firstNoImage = tab.findIndex(i => !i.imageUrl);
+            if (firstNoImage === -1) continue; // all have images
+            // no image item may appear before a non-image one → nothing after the first gap has an image
+            const anyImageAfterGap = tab.slice(firstNoImage).some(i => !!i.imageUrl);
+            assert.equal(anyImageAfterGap, false, `${g.key}/${sub}: an image item is stranded below a blank one`);
+        }
+    }
+});
+
+test('image-first ordering is STABLE (preserves relative order within each half)', () => {
+    const mk = (id: string, hasImg: boolean): FunRoofItem => ({
+        id, name: id, group: 'Drinks', category: 'Classics', sellingPrice: 1,
+        bestSeller: false, isAvailable: true, ...(hasImg ? { imageUrl: `/x/${id}.jpg` } : {}),
+    });
+    // A no-img, B img, C no-img, D img  →  B, D, A, C
+    const input = [mk('A', false), mk('B', true), mk('C', false), mk('D', true)];
+    assert.deepEqual(orderFunRoofItemsImageFirst(input).map(i => i.id), ['B', 'D', 'A', 'C']);
 });

@@ -102,9 +102,33 @@ export function mapFunRoofRecord(rec: FunRoofMenuRecord): FunRoofItem {
 }
 
 /**
+ * Presentation order: within each sub-tab (the group+category the view filters by),
+ * items that HAVE an image float to the top and items without stay below — each half
+ * keeping its original relative order (STABLE). This is a pure re-order only: no item
+ * is added, dropped, renamed, re-priced, or moved to another category, and the fixed
+ * nav still owns group/section order. Keyed on group+category so it matches exactly
+ * what the customer sees per tab (categories are unique per group, so this can never
+ * merge two tabs). "Has image" = the mapper set imageUrl from funRoofMenuImages.ts.
+ */
+export function orderFunRoofItemsImageFirst(items: FunRoofItem[]): FunRoofItem[] {
+    const keyOrder: string[] = []; // sub-tab keys in first-appearance order (category order preserved)
+    const withImage = new Map<string, FunRoofItem[]>();
+    const withoutImage = new Map<string, FunRoofItem[]>();
+    for (const it of items) {
+        const key = `${it.group} ${it.category}`;
+        if (!withImage.has(key)) { withImage.set(key, []); withoutImage.set(key, []); keyOrder.push(key); }
+        (it.imageUrl ? withImage.get(key)! : withoutImage.get(key)!).push(it);
+    }
+    const out: FunRoofItem[] = [];
+    for (const key of keyOrder) out.push(...withImage.get(key)!, ...withoutImage.get(key)!);
+    return out;
+}
+
+/**
  * The Fun Roof menu, mapped for the UI. Single data entry point for the view —
  * swap the snapshot for a live b1 read here later with no change to the view.
+ * Items with images are surfaced first within each sub-tab (pure presentation).
  */
 export function loadFunRoofMenu(records: FunRoofMenuRecord[] = FUN_ROOF_MENU_SNAPSHOT): FunRoofItem[] {
-    return records.map(mapFunRoofRecord);
+    return orderFunRoofItemsImageFirst(records.map(mapFunRoofRecord));
 }
