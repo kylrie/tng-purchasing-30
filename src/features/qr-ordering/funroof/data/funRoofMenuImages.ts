@@ -9,8 +9,9 @@
 // project-owned static files — NEVER hotlink the owner's OneDrive or a remote
 // host from production. Scope is b1 only; nothing here touches b3/Inflatable.
 //
-// Source: owner-provided folder "TFR MENU IMAGES" (FOOD/, DRINK/BOTTLES/, Games),
-// matched to existing snapshot items by label. Food photos resized to ~800px;
+// Source: owner-provided folder "TFR MENU IMAGES" (FOOD/, DRINK/BOTTLES/, Games,
+// CLASSIC DRINKS/), matched to existing snapshot items by label. Food + cocktail
+// photos resized to ~800px on the long edge;
 // bottle product shots padded to 600x600 square (owner standard); the clear
 // water bottle is likewise squared so it is visible; the Coke cans are kept as
 // their original webp. Bottle + shot records of the same product share one image.
@@ -31,6 +32,13 @@ export const FUN_ROOF_MENU_IMAGES: Readonly<Record<string, string>> = {
     fr012: '/funroof/menu/shrimp-spam-croquettes.jpg',     // SHRIMP & SPAM CROQUETTES
     fr013: '/funroof/menu/truffled-shrimp-popcorn.jpg',    // TRUFFLED SHRIMP POPCORN
     fr014: '/funroof/menu/tfr-fries.jpg',                  // TFR FRIES
+
+    // ── Classics (cocktails) — owner CLASSIC DRINKS/ photos ──
+    fr114: '/funroof/menu/amaretto-sour.jpg',              // AMARETTO SOUR
+    fr116: '/funroof/menu/classic-margarita.jpg',          // CLASSIC MARGARITA
+    fr119: '/funroof/menu/long-island-iced-tea.jpg',       // LONG ISLAND ICED TEA
+    fr122: '/funroof/menu/pina-colada.jpg',                // PINA COLADA
+    fr124: '/funroof/menu/white-russian.jpg',              // WHITE RUSSIAN
 
     // ── Whiskey (bottle + shot share one image) ──
     fr020: '/funroof/menu/jw-blue.jpg',                    // JOHNNIE WALKER BLUE LABEL
