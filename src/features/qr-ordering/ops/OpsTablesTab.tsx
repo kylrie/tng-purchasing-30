@@ -13,7 +13,8 @@ import {
     resolveTableStatus, nextReservation, upcomingReservations, hasReservationConflict,
     RESERVATION_HOLD_MINUTES, type TableStatus, type ReservationLite,
 } from './tableStatus';
-import { isActiveStatus } from './qrOpsStatus';
+import { paymentStatusPresentation, orderStatusPresentation, CHIP_CLS } from './qrOpsStatus';
+import { activeOrdersForTable, summarizeItems, formatMoney, elapsedLabel } from './tableOrderSummary';
 import { isValidPhMobile } from '../utils/phMobile';
 import { formatTableLabel } from '../utils/tableUtils';
 
@@ -28,11 +29,22 @@ import { formatTableLabel } from '../utils/tableUtils';
  * QR administration (the "Open Table Manager" action below).
  */
 
-/** Minimal order shape the occupancy resolver needs (from the parent live feed). */
+/** Order shape the Tables board reads from the parent live feed (a subset of the
+ *  ops OpsOrder — occupancy + the active-order summary shown on OCCUPIED cards). */
 export interface OpsTableOrder {
+    id: string;
+    orderNumber: string;
     tableId?: string;
     tableNumber: string;
     status: string;
+    paymentStatus: string;
+    items: { name: string; qty: number; notes?: string }[];
+    totalAmount: number;
+    currency?: string;
+    customerName?: string;
+    businessUnitId?: string;
+    createdAtMillis: number;
+    paidAtMillis?: number | null;
 }
 
 interface TableRow {
@@ -63,6 +75,7 @@ interface DerivedTable {
     status: TableStatus;
     reservations: ReservationLite[];   // this table's reservations (for the popup)
     next: ReservationLite | null;      // nearest upcoming (shown first)
+    activeOrders: OpsTableOrder[];      // active orders on this table, latest first (OCCUPIED summary)
 }
 
 const OpsTablesTab: React.FC<{
@@ -100,32 +113,30 @@ const OpsTablesTab: React.FC<{
         return () => unsub();
     }, [businessUnitId]);
 
-    // Active orders per table (occupancy) — match by authoritative tableId, then number.
-    const occupancy = useMemo(() => {
-        const byId = new Set<string>();
-        const byNumber = new Set<string>();
-        for (const o of orders) {
-            if (!isActiveStatus(o.status)) continue;
-            if (o.tableId) byId.add(o.tableId);
-            if (o.tableNumber) byNumber.add(o.tableNumber);
-        }
-        return { byId, byNumber };
-    }, [orders]);
+    // Defensive BU scope: the live feed is already businessUnitId-scoped upstream,
+    // but guard anyway so a b1 board can never render a b3 order.
+    const scopedOrders = useMemo(
+        () => orders.filter(o => !o.businessUnitId || o.businessUnitId === businessUnitId),
+        [orders, businessUnitId],
+    );
 
     const derived: DerivedTable[] = useMemo(() => {
         return tables.map(row => {
             const mine = reservations
                 .filter(r => r.tableId === row.id)
                 .map(toReservationLite);
-            const hasActiveOrder = occupancy.byId.has(row.id) || occupancy.byNumber.has(row.tableNumber);
+            // Same active-status + table-match rule that decides OCCUPIED, so the
+            // card summary can never disagree with the status chip. Latest first.
+            const activeOrders = activeOrdersForTable(scopedOrders, row.id, row.tableNumber);
             return {
                 row,
-                status: resolveTableStatus(hasActiveOrder, mine, now),
+                status: resolveTableStatus(activeOrders.length > 0, mine, now),
                 reservations: mine,
                 next: nextReservation(mine, now),
+                activeOrders,
             };
         });
-    }, [tables, reservations, occupancy, now]);
+    }, [tables, reservations, scopedOrders, now]);
 
     const selected = derived.find(d => d.row.id === selectedTableId) ?? null;
 
@@ -183,6 +194,9 @@ const OpsTablesTab: React.FC<{
                                     <span className={`mt-2.5 inline-flex items-center gap-1.5 px-2 py-1 rounded-full border text-[11px] font-black uppercase tracking-wide ${s.chip}`}>
                                         <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} /> {s.label}
                                     </span>
+                                    {d.status === 'OCCUPIED' && d.activeOrders.length > 0 && (
+                                        <OccupiedCardSummary orders={d.activeOrders} now={now} />
+                                    )}
                                     {d.next && (
                                         <div className="mt-2 text-[11px] leading-tight text-slate-500">
                                             <span className="font-bold text-slate-600">Next:</span> {reservationDateLabel(d.next.reservationAtMillis, now)}
@@ -201,6 +215,7 @@ const OpsTablesTab: React.FC<{
                     table={selected.row}
                     status={selected.status}
                     reservations={selected.reservations}
+                    activeOrders={selected.activeOrders}
                     now={now}
                     onClose={() => setSelectedTableId(null)}
                 />
@@ -213,6 +228,70 @@ const LegendDot: React.FC<{ cls: string; label: string }> = ({ cls, label }) => 
     <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-bold text-slate-500"><span className={`w-2 h-2 rounded-full ${cls}`} /> {label}</span>
 );
 
+// ── Compact active-order summary on an OCCUPIED table card ────────────────────
+// Read-only. Shows the latest active order: number · payment, first 3 item lines
+// (+X more), total, elapsed; and a count when a table has more than one.
+const OccupiedCardSummary: React.FC<{ orders: OpsTableOrder[]; now: number }> = ({ orders, now }) => {
+    const primary = orders[0];
+    const pay = paymentStatusPresentation(primary.paymentStatus);
+    const { lines, moreLines } = summarizeItems(primary.items, 3);
+    return (
+        <div className="mt-2 border-t border-slate-100 pt-2">
+            <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-black text-slate-800 tabular-nums truncate">{primary.orderNumber}</span>
+                <span className={`shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wide ${CHIP_CLS[pay.color]}`}>{pay.label}</span>
+            </div>
+            <ul className="mt-1 space-y-0.5 text-[11px] leading-tight text-slate-600">
+                {lines.map((l, i) => (
+                    <li key={i} className="truncate"><span className="font-bold tabular-nums">{l.qty}×</span> {l.name}</li>
+                ))}
+                {moreLines > 0 && <li className="text-slate-400 font-semibold">+{moreLines} more</li>}
+            </ul>
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+                <span className="text-[11px] font-black text-slate-900">Total {formatMoney(primary.totalAmount, primary.currency)}</span>
+                <span className="text-[10px] font-semibold text-slate-400">{elapsedLabel(now - primary.createdAtMillis)}</span>
+            </div>
+            {orders.length > 1 && (
+                <div className="mt-1 text-[10px] font-black uppercase tracking-wide text-blue-700">{orders.length} active orders</div>
+            )}
+        </div>
+    );
+};
+
+// ── Full active-order detail card (inside the table modal) ────────────────────
+// Read-only. Order number, kitchen/bar + payment state, full item list with
+// notes, customer + created time + elapsed, and the total.
+const ActiveOrderCard: React.FC<{ order: OpsTableOrder; now: number }> = ({ order, now }) => {
+    const pay = paymentStatusPresentation(order.paymentStatus);
+    const st = orderStatusPresentation(order.status);
+    const created = new Date(order.createdAtMillis).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return (
+        <div className="rounded-xl border-2 border-blue-200 bg-blue-50/40 p-3">
+            <div className="flex items-center justify-between gap-2">
+                <span className="font-black tabular-nums">{order.orderNumber}</span>
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${CHIP_CLS[st.color]}`}>{st.label}</span>
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${CHIP_CLS[pay.color]}`}>{pay.label}</span>
+                </div>
+            </div>
+            <ul className="mt-2 divide-y divide-slate-100 text-sm">
+                {order.items.map((l, i) => (
+                    <li key={i} className="py-1">
+                        <span className="font-black tabular-nums">{l.qty}×</span> {l.name}
+                        {l.notes && <span className="block text-[11px] text-slate-500 italic">“{l.notes}”</span>}
+                    </li>
+                ))}
+            </ul>
+            <div className="mt-2 flex items-end justify-between gap-2 border-t-2 border-slate-200 pt-2">
+                <span className="text-xs font-bold text-slate-500 min-w-0 truncate">
+                    {order.customerName ? `${order.customerName} · ` : ''}{created} · {elapsedLabel(now - order.createdAtMillis)}
+                </span>
+                <span className="text-base font-black shrink-0">{formatMoney(order.totalAmount, order.currency)}</span>
+            </div>
+        </div>
+    );
+};
+
 // ════════════════════════════════════════════════════════════════════════════
 // Table popup — next reservation first, then quick reservation for FREE tables
 // ════════════════════════════════════════════════════════════════════════════
@@ -220,9 +299,10 @@ const TablePanel: React.FC<{
     table: TableRow;
     status: TableStatus;
     reservations: ReservationLite[];
+    activeOrders: OpsTableOrder[];
     now: number;
     onClose: () => void;
-}> = ({ table, status, reservations, now, onClose }) => {
+}> = ({ table, status, reservations, activeOrders, now, onClose }) => {
     const closeRef = useRef<HTMLButtonElement>(null);
     const [reserving, setReserving] = useState(false);
 
@@ -257,6 +337,18 @@ const TablePanel: React.FC<{
                 </div>
 
                 <div className="p-4 space-y-4">
+                    {/* ACTIVE ORDER — shown first for an occupied table (read-only) */}
+                    {activeOrders.length > 0 && (
+                        <section>
+                            <h3 className="text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">
+                                {activeOrders.length > 1 ? `${activeOrders.length} active orders` : 'Active order'}
+                            </h3>
+                            <div className="space-y-3">
+                                {activeOrders.map(ord => <ActiveOrderCard key={ord.id} order={ord} now={now} />)}
+                            </div>
+                        </section>
+                    )}
+
                     {/* NEXT RESERVATION — always first when one exists */}
                     {upcoming.length > 0 ? (
                         <section>
