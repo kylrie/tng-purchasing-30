@@ -7,6 +7,7 @@ import {
     mapFunRoofRecord,
     loadFunRoofMenu,
     orderFunRoofItemsImageFirst,
+    isExcludedFromFunRoofQrMenu,
     type FunRoofItem,
 } from './funRoofMenu';
 import { FUN_ROOF_MENU_SNAPSHOT } from './data/funRoofMenu.snapshot';
@@ -14,15 +15,18 @@ import { FUN_ROOF_MENU_SNAPSHOT } from './data/funRoofMenu.snapshot';
 const NAV = new Map<string, string>(); // subcategory -> group
 for (const g of FUN_ROOF_MENU_GROUPS) for (const s of g.subcategories) NAV.set(s, g.key);
 
+/** Snapshot records that remain visible in the customer QR menu (exclusion applied). */
+const VISIBLE_RECORDS = FUN_ROOF_MENU_SNAPSHOT.filter(r => !isExcludedFromFunRoofQrMenu(r.name));
+
 test('nav is Drinks · Food · Play with the venue sub-tabs', () => {
     assert.deepEqual(FUN_ROOF_MENU_GROUPS.map(g => g.key), ['Drinks', 'Food', 'Play']);
     assert.ok(FUN_ROOF_MENU_GROUPS[0].subcategories.includes('Classics'));
     assert.deepEqual(FUN_ROOF_MENU_GROUPS[2].subcategories, ['Packages', 'Games']);
 });
 
-test('COMPLETENESS: every snapshot item maps to a visible nav tab (nothing hidden)', () => {
+test('COMPLETENESS: every non-excluded snapshot item maps to a visible nav tab (nothing hidden)', () => {
     const items = loadFunRoofMenu();
-    assert.equal(items.length, FUN_ROOF_MENU_SNAPSHOT.length, 'no items dropped');
+    assert.equal(items.length, VISIBLE_RECORDS.length, 'only the QR-only exclusion list is dropped');
     for (const it of items) {
         assert.ok(NAV.has(it.category), `"${it.name}" → unknown sub-tab "${it.category}"`);
         assert.equal(NAV.get(it.category), it.group, `"${it.name}" group/sub mismatch`);
@@ -73,9 +77,9 @@ test('the real snapshot has the expected shape (bottle/shot pairs present, price
 });
 
 test('image-first ordering is a pure re-order: same ids, none added/dropped, no field mutated', () => {
-    const mapped = FUN_ROOF_MENU_SNAPSHOT.map(mapFunRoofRecord);
+    const mapped = VISIBLE_RECORDS.map(mapFunRoofRecord);
     const ordered = loadFunRoofMenu();
-    assert.equal(ordered.length, mapped.length, 'no item added or dropped');
+    assert.equal(ordered.length, mapped.length, 'no item added or dropped (beyond the QR exclusion)');
     assert.deepEqual([...ordered.map(i => i.id)].sort(), [...mapped.map(i => i.id)].sort(), 'same id set');
     // identity fields untouched — compare each item by id against its mapped source
     const byId = new Map(mapped.map(i => [i.id, i]));
@@ -107,4 +111,19 @@ test('image-first ordering is STABLE (preserves relative order within each half)
     // A no-img, B img, C no-img, D img  →  B, D, A, C
     const input = [mk('A', false), mk('B', true), mk('C', false), mk('D', true)];
     assert.deepEqual(orderFunRoofItemsImageFirst(input).map(i => i.id), ['B', 'D', 'A', 'C']);
+});
+
+test('QR-only exclusion: Seattle Dog and Wagyu Onigiri are hidden from the customer menu', () => {
+    // Sanity: both names really exist in the raw snapshot, so this test is meaningful.
+    assert.ok(FUN_ROOF_MENU_SNAPSHOT.some(r => /^seattle dog$/i.test(r.name.trim())), 'Seattle Dog is in the snapshot');
+    assert.ok(FUN_ROOF_MENU_SNAPSHOT.some(r => /^wagyu onigiri$/i.test(r.name.trim())), 'Wagyu Onigiri is in the snapshot');
+
+    const items = loadFunRoofMenu();
+    assert.equal(items.filter(i => /seattle dog/i.test(i.name)).length, 0, 'Seattle Dog not in QR menu');
+    assert.equal(items.filter(i => /wagyu onigiri/i.test(i.name)).length, 0, 'Wagyu Onigiri not in QR menu');
+
+    // Exactly two items removed vs the full snapshot; nothing else dropped.
+    assert.equal(items.length, FUN_ROOF_MENU_SNAPSHOT.length - 2, 'exactly 2 items removed');
+    // A neighbouring Bar Chows item is untouched (surrounding items still visible).
+    assert.ok(items.some(i => /not calamari/i.test(i.name) && i.category === 'Bar Chows'), 'other Bar Chows items remain');
 });

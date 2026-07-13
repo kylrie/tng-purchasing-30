@@ -125,10 +125,30 @@ export function orderFunRoofItemsImageFirst(items: FunRoofItem[]): FunRoofItem[]
 }
 
 /**
+ * QR-ONLY exclusion list (owner request, 2026-07-11). Items pulled from the
+ * customer-facing Fun Roof QR menu ONLY — they remain in POS, inventory, reports,
+ * and historical orders, which read their own sources and never this snapshot.
+ * Matched by NORMALIZED NAME so the removal survives a snapshot regen (the sheet's
+ * row ids can shift when rows change; the item name is the stable, owner-facing
+ * key). To restore an item, delete its name here (or remove the sheet row).
+ */
+const QR_MENU_EXCLUDED_NAMES: ReadonlySet<string> = new Set([
+    'seattle dog',   // was fr006 · Bar Chows
+    'wagyu onigiri', // was fr008 · Bar Chows
+]);
+
+/** True when a snapshot record is hidden from the customer QR menu (QR-only). */
+export function isExcludedFromFunRoofQrMenu(name: string): boolean {
+    return QR_MENU_EXCLUDED_NAMES.has((name ?? '').trim().toLowerCase());
+}
+
+/**
  * The Fun Roof menu, mapped for the UI. Single data entry point for the view —
  * swap the snapshot for a live b1 read here later with no change to the view.
- * Items with images are surfaced first within each sub-tab (pure presentation).
+ * The QR-only exclusion list is applied first (customer menu only), then items
+ * with images are surfaced first within each sub-tab (pure presentation).
  */
 export function loadFunRoofMenu(records: FunRoofMenuRecord[] = FUN_ROOF_MENU_SNAPSHOT): FunRoofItem[] {
-    return orderFunRoofItemsImageFirst(records.map(mapFunRoofRecord));
+    const visible = records.filter(rec => !isExcludedFromFunRoofQrMenu(rec.name));
+    return orderFunRoofItemsImageFirst(visible.map(mapFunRoofRecord));
 }
