@@ -73,7 +73,16 @@ export class EventImportService {
 
         if (rawRows.length === 0) throw new Error('The uploaded file contains no data rows.');
 
-        const headers = Object.keys(rawRows[0]).map(h => h.trim());
+        // Trim all keys in the raw rows to prevent mapping issues from Excel whitespace (e.g. "QTY ")
+        const cleanRows = rawRows.map(row => {
+            const clean: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(row)) {
+                clean[k.trim()] = v;
+            }
+            return clean;
+        });
+
+        const headers = Object.keys(cleanRows[0]);
         const normalize = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
 
         let availableHeaders = [...headers];
@@ -151,7 +160,7 @@ export class EventImportService {
         const events: EventImportRow[] = [];
         let current: EventImportRow | null = null;
 
-        for (const row of rawRows) {
+        for (const row of cleanRows) {
             const eventName = raw(row, nameCol);
             const itemName = raw(row, itemCol);
             const qtyRaw = qtyCol ? Number(row[qtyCol]) : 0;
