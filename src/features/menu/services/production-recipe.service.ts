@@ -35,7 +35,7 @@ function buildBomRecipe(
             ingredientId: ri.inventoryItemId,
             ingredientName: ri.inventoryItemName,
             quantityUsed: yieldQuantity > 0 ? (ri.baseQuantity / yieldQuantity) : 0,
-            unit: ri.unit, // Just pass the unit shown
+            unit: ri.unit || 'EA', // Fallback to 'EA' if unit is undefined/null/empty to prevent Firestore crash
             wastagePercent: ri.wastagePercent ?? 0,
         };
     });
