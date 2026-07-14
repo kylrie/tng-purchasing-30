@@ -1045,32 +1045,39 @@ export const PrfView: React.FC<PrfViewProps> = ({
     // FILTER LOGIC: 4 Workflow Tab Buckets
     // ============================================================================
 
+    const requisitionsFilteredByBU = useMemo(() => {
+        if (!selectedBusinessUnit || selectedBusinessUnit === 'all') {
+            return visibleRequisitions;
+        }
+        return visibleRequisitions.filter(r => r.businessId === selectedBusinessUnit);
+    }, [visibleRequisitions, selectedBusinessUnit]);
+
     // Tab 0: "Drafts" - Saved drafts not yet submitted
     const draftReqs = useMemo(() => {
-        return visibleRequisitions.filter(r =>
+        return requisitionsFilteredByBU.filter(r =>
             r.status === RequisitionStatus.DRAFT
         );
-    }, [visibleRequisitions]);
+    }, [requisitionsFilteredByBU]);
 
     // Tab 1: "For Processing" - Parent BURFs waiting to become PRFs
     // Includes BURF_PARTIALLY_PROCESSED for multi-batch PRF creation
     const processingReqs = useMemo(() => {
-        return visibleRequisitions.filter(r =>
+        return requisitionsFilteredByBU.filter(r =>
             (r.status === RequisitionStatus.READY_FOR_PRF ||
                 r.status === RequisitionStatus.BURF_PARTIALLY_PROCESSED) &&
             !r.id.includes('-Batch') // Exclude child batches
         );
-    }, [visibleRequisitions]);
+    }, [requisitionsFilteredByBU]);
 
     // Tab 2: "For Liquidation" - Funds released, awaiting liquidation docs
     // PCF Replenishments (identified by linkedPcfId) are EXCLUDED - they don't need liquidation
     const liquidationReqs = useMemo(() => {
-        return visibleRequisitions.filter(r =>
+        return requisitionsFilteredByBU.filter(r =>
             r.status === RequisitionStatus.FUNDS_RELEASED &&
             r.prfDetails && // Only PRFs
             !r.linkedPcfId // Exclude PCF Replenishments - they go straight to History
         );
-    }, [visibleRequisitions]);
+    }, [requisitionsFilteredByBU]);
 
     // Tab 3: "History" - Completed/Rejected/Liquidated items
     const historyReqs = useMemo(() => {
@@ -1081,11 +1088,11 @@ export const PrfView: React.FC<PrfViewProps> = ({
             RequisitionStatus.REJECTED,
             RequisitionStatus.CANCELLED,
         ];
-        return visibleRequisitions.filter(r =>
+        return requisitionsFilteredByBU.filter(r =>
             historyStatuses.includes(r.status) &&
             (r.prfDetails || r.status === RequisitionStatus.REJECTED) // PRFs or rejected items
         );
-    }, [visibleRequisitions]);
+    }, [requisitionsFilteredByBU]);
 
     // Get current tab's data
     const getTabData = () => {
