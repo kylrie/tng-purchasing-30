@@ -159,7 +159,14 @@ export class ReconService {
                     purchasesMap.set(itemId, (purchasesMap.get(itemId) || 0) + qty);
                 } else if (['RETURN', 'TRANSFER_OUT'].includes(type)) {
                     returnsMap.set(itemId, (returnsMap.get(itemId) || 0) + qty);
-                } else if (['THEORETICAL_USAGE', 'POS_SALE'].includes(type)) {
+                } else if (type === 'THEORETICAL_USAGE') {
+                    const isEvent = data.notes?.includes('for Event:') || data.notes?.includes('for Event ');
+                    if (isEvent) {
+                        eventSalesMap.set(itemId, (eventSalesMap.get(itemId) || 0) + qty);
+                    } else {
+                        posSalesMap.set(itemId, (posSalesMap.get(itemId) || 0) + qty);
+                    }
+                } else if (type === 'POS_SALE') {
                     posSalesMap.set(itemId, (posSalesMap.get(itemId) || 0) + qty);
                 } else if (['EVENT_CONSUMPTION'].includes(type)) {
                     eventSalesMap.set(itemId, (eventSalesMap.get(itemId) || 0) + qty);
