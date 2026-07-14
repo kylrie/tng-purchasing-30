@@ -55,14 +55,19 @@ service cloud.firestore {
     }
     
     function hasPermission(permission) {
-      // Super Admin always has all permissions, otherwise check permissions doc
+      // Super Admin always has all permissions, otherwise check user overrides and permissions doc
+      let userData = getUserData();
       let permDoc = getPermissionsDoc();
-      let userRole = getUserRole();
       
       return isSuperAdmin() || (
+        // 1. Check user-specific overrides
+        userData.permissions != null &&
+        userData.permissions.hasAny([permission])
+      ) || (
+        // 2. Check role-based permissions
         permDoc.permissions != null && 
-        permDoc.permissions[userRole] != null &&
-        permDoc.permissions[userRole].hasAny([permission])
+        permDoc.permissions[userData.role] != null &&
+        permDoc.permissions[userData.role].hasAny([permission])
       );
     }
     
@@ -754,14 +759,25 @@ service cloud.firestore {
         isSuperAdminOrAdmin() ||
         hasPermission('inventory:item:view:all') ||
         (hasPermission('inventory:item:view:bu') && belongsToSameBU(resource)) ||
+        // Menu users (CHEF/OPERATIONS) can read all items in their BU for recipe cost calculations
+        // This is intentional: they need raw material prices to calculate recipe costs, but cannot edit them
+        ((hasPermission('menu:finished_goods:view:all') || hasPermission('menu:recipe:view:all')) && belongsToSameBU(resource)) ||
         // Fallback for backwards compatibility if no explicit permission
         (!hasPermission('inventory:item:view:all') && !hasPermission('inventory:item:view:bu') && belongsToSameBU(resource))
       );
       
-      allow create: if isSignedIn() && (hasPermission('inventory:item:create') || hasPermission('inventory:item:edit'));
+      allow create: if isSignedIn() && (
+        hasPermission('inventory:item:create') || 
+        hasPermission('inventory:item:edit') ||
+        ((request.resource.data.get('type', '') == 'FINISHED_GOOD' || request.resource.data.get('type', '') == 'PRODUCTION') && 
+         (hasPermission('menu:finished_goods:create') || hasPermission('menu:finished_goods:edit') || 
+          hasPermission('menu:recipe:create') || hasPermission('menu:recipe:edit')))
+      );
       
       allow update: if isSignedIn() && (
         hasPermission('inventory:item:edit') ||
+        ((resource.data.get('type', '') == 'FINISHED_GOOD' || resource.data.get('type', '') == 'PRODUCTION') && 
+         (hasPermission('menu:finished_goods:edit') || hasPermission('menu:recipe:edit'))) ||
         (hasPermission('ui:module_access:view:pos') && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['currentStock', 'theoreticalStock', 'updatedAt'])) ||
         hasPermission('pos:import:delete') ||
         hasPermission('pos:import:edit') ||

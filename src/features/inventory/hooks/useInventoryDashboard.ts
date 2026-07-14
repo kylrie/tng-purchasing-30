@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { InventoryDashboardService } from '../services/inventory-dashboard.service';
 import type { DashboardKPIs, DashboardPeriod } from '../services/inventory-dashboard.service';
 import { getRollingStaffVariance } from '../services/staff-variance.service';
@@ -20,7 +20,13 @@ export function useInventoryDashboard(
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const customRangeKey = customRange ? `${customRange.start.getTime()}-${customRange.end.getTime()}` : '';
+    const startMs = customRange?.start.getTime();
+    const endMs = customRange?.end.getTime();
+
+    const memoizedCustomRange = useMemo(() => {
+        if (startMs === undefined || endMs === undefined) return undefined;
+        return { start: new Date(startMs), end: new Date(endMs) };
+    }, [startMs, endMs]);
 
     const fetchDashboardData = useCallback(async () => {
         if (!userOrBuId) return;
@@ -29,7 +35,7 @@ export function useInventoryDashboard(
         try {
             // ── Single source of truth: let the service compute all KPIs ──
             const [kpiData, varianceData] = await Promise.all([
-                InventoryDashboardService.getDashboardKPIs(userOrBuId, timeFilter, customRange),
+                InventoryDashboardService.getDashboardKPIs(userOrBuId, timeFilter, memoizedCustomRange),
                 getRollingStaffVariance(userOrBuId, 7)
             ]);
 
@@ -66,7 +72,7 @@ export function useInventoryDashboard(
         } finally {
             setTimeout(() => setLoading(false), 300);
         }
-    }, [userOrBuId, timeFilter, customRangeKey]);
+    }, [userOrBuId, timeFilter, memoizedCustomRange]);
 
     // Fetch KPI and Variance data on mount/filter change
     useEffect(() => {

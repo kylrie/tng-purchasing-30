@@ -206,7 +206,7 @@ export class ProductionRecipeService {
 
         await updateDoc(doc(db, COLLECTION, recipeId), updateData);
 
-        // Update linked inventory item if exists
+        // Update linked inventory item if exists, otherwise create it
         const recipe = await this.getRecipe(recipeId);
         if (recipe?.linkedInventoryItemId) {
             try {
@@ -218,6 +218,35 @@ export class ProductionRecipeService {
                 }, { skipRecipeRecalculation: true });
             } catch (err) {
                 console.error('Error updating linked inventory item:', err);
+            }
+        } else if (recipe) {
+            try {
+                const inventoryItemId = await InventoryService.createInventoryItem({
+                    businessUnitId: recipe.businessUnitId,
+                    name: input.name,
+                    type: 'PRODUCTION',
+                    category: 'Mixers', // Default category for production items
+                    ...(input.serviceType && { serviceType: input.serviceType }),
+                    sku: `PROD-${recipeId.slice(0, 6).toUpperCase()}`,
+                    storageAreas: [],
+                    units: {
+                        recipeUnit: input.yieldUnit,
+                        buyUnit: input.yieldUnit,
+                        conversion: 1
+                    },
+                    costPerUnit,
+                    parLevel: 0,
+                    currentStock: 0,
+                    recipe: buildBomRecipe(ingredientsWithCost, input.yieldQuantity)
+                });
+
+                // Link the new inventory item to the recipe
+                await updateDoc(doc(db, COLLECTION, recipeId), {
+                    linkedInventoryItemId: inventoryItemId
+                });
+                console.log(`[ProductionRecipeService] Created missing linked inventory item ${inventoryItemId} for recipe ${recipeId}`);
+            } catch (err) {
+                console.error('Error creating missing linked inventory item during update:', err);
             }
         }
     }
