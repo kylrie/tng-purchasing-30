@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, Calendar, Package, Users, Eye, Download, ChevronDown } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, Calendar, Package, Users, Eye, Download, ChevronDown, Trash2 } from 'lucide-react';
 import { EventImportService } from '../services/event-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 import type { EventImportMappedRow, EventImportBatch, EventSimulatedDeduction } from '../types/event-sales.types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 
@@ -115,6 +116,7 @@ const SearchableItemSelect: React.FC<{
 const EventImportDashboard: React.FC<Props> = () => {
     const { currentUser } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
+    const { hasPermission } = usePermissions();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectedBU = selectedBusinessUnit === 'all' ? (currentUser?.businessUnitIds?.[0] || '') : selectedBusinessUnit;
 
@@ -127,6 +129,7 @@ const EventImportDashboard: React.FC<Props> = () => {
     const [importHistory, setImportHistory] = useState<EventImportBatch[]>([]);
     const [simDeductions, setSimDeductions] = useState<EventSimulatedDeduction[]>([]);
     const [loading, setLoading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [successId, setSuccessId] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
@@ -185,6 +188,22 @@ const EventImportDashboard: React.FC<Props> = () => {
     };
 
     const resetState = () => { setViewState('UPLOAD'); setFile(null); setMappedRows([]); setSimDeductions([]); setError(null); setSuccessId(null); };
+
+    const handleDeleteBatch = async (batchId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm('Are you sure you want to delete this event import batch and reverse its inventory deductions? This cannot be undone.')) return;
+
+        setIsDeleting(batchId);
+        try {
+            await EventImportService.deleteImportBatch(batchId, currentUser?.id || '', currentUser?.name || 'Unknown User');
+            setImportHistory(prev => prev.filter(b => b.id !== batchId));
+        } catch (err) {
+            console.error('Failed to delete batch:', err);
+            alert('Failed to delete import batch. Please try again.');
+        } finally {
+            setIsDeleting(null);
+        }
+    };
 
     const handleResetMatch = useCallback((rowIndex: number, itemIndex: number) => {
         setMappedRows(prev => prev.map(r => {
@@ -491,9 +510,25 @@ const EventImportDashboard: React.FC<Props> = () => {
                                                 {batch.totalEvents} events · {batch.totalPax} pax · ₱{batch.totalRevenue?.toLocaleString() ?? '0'}
                                             </p>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-slate-400">{batch.importedByName}</p>
-                                            <p className="text-xs text-slate-500">{batch.importedAt?.toDate?.()?.toLocaleString() ?? ''}</p>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-right">
+                                                <p className="text-xs text-slate-400">{batch.importedByName}</p>
+                                                <p className="text-xs text-slate-500">{batch.importedAt?.toDate?.()?.toLocaleString() ?? ''}</p>
+                                            </div>
+                                            {hasPermission('pos:import:delete') && (
+                                                <button
+                                                    onClick={(e) => handleDeleteBatch(batch.id, e)}
+                                                    disabled={isDeleting === batch.id}
+                                                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Delete Import & Reverse Deductions"
+                                                >
+                                                    {isDeleting === batch.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

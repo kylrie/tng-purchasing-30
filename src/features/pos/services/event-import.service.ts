@@ -574,6 +574,142 @@ export class EventImportService {
         return batchImportId;
     }
 
+    /**
+     * Delete an event import batch and reverse its inventory deductions.
+     */
+    static async deleteImportBatch(
+        batchImportId: string,
+        userId: string,
+        userName: string
+    ): Promise<void> {
+        // 1. Get the batch metadata
+        const batchRef = doc(db, COL.EVENT_IMPORT_BATCHES, batchImportId);
+
+        // 2. Get all event_sales for this batch
+        const salesQuery = query(
+            collection(db, COL.EVENT_SALES),
+            where('batchImportId', '==', batchImportId)
+        );
+        const salesSnap = await getDocs(salesQuery);
+
+        // 3. Get all original stock_transactions for this batch
+        const txQuery = query(
+            collection(db, COL.STOCK_TRANSACTIONS),
+            where('referenceId', '==', batchImportId)
+        );
+        const txSnap = await getDocs(txQuery);
+
+        // 4. Get all original production_logs for this batch (UNRECORDED_AUTO_PRODUCTION)
+        const logsQuery = query(
+            collection(db, 'production_logs'),
+            where('referenceId', '==', batchImportId),
+            where('referenceType', '==', 'EVENT_IMPORT')
+        );
+        const logsSnap = await getDocs(logsQuery);
+
+        // 5. Calculate total deducted per item from the original transactions.
+        const DEDUCTION_TYPES = new Set(['THEORETICAL_USAGE', 'EVENT_CONSUMPTION']);
+        const deductionsByItem = new Map<string, {
+            qty: number;
+            businessUnitId: string;
+            unitCost: number;
+            itemName: string;
+        }>();
+
+        txSnap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!DEDUCTION_TYPES.has(data.type)) return;
+            const itemId = data.itemId as string;
+            const prev = deductionsByItem.get(itemId);
+            deductionsByItem.set(itemId, {
+                qty: (prev?.qty || 0) + Math.abs(data.quantity as number || 0),
+                businessUnitId: data.businessUnitId,
+                unitCost: data.unitCost || 0,
+                itemName: data.itemName || 'Unknown Item',
+            });
+        });
+
+        // Build Firestore batches
+        const MAX_OPS = 490;
+        const batches: ReturnType<typeof writeBatch>[] = [];
+        let currentBatch = writeBatch(db);
+        let opCount = 0;
+
+        const ensureBatch = () => {
+            if (opCount >= MAX_OPS) {
+                batches.push(currentBatch);
+                currentBatch = writeBatch(db);
+                opCount = 0;
+            }
+        };
+
+        const now = Timestamp.now();
+
+        // 6. Delete all event_sales docs
+        salesSnap.docs.forEach(docSnap => {
+            ensureBatch();
+            currentBatch.delete(docSnap.ref);
+            opCount++;
+        });
+
+        // 7. Delete the original stock_transactions
+        txSnap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!DEDUCTION_TYPES.has(data.type)) return;
+            ensureBatch();
+            currentBatch.delete(docSnap.ref);
+            opCount++;
+        });
+
+        // 8. Delete any auto production logs
+        logsSnap.docs.forEach(docSnap => {
+            ensureBatch();
+            currentBatch.delete(docSnap.ref);
+            opCount++;
+        });
+
+        // 9. For each affected item: add an EVENT_REVERSAL audit record and restore stock
+        for (const [itemId, info] of deductionsByItem.entries()) {
+            const adjTxRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
+            ensureBatch();
+            currentBatch.set(adjTxRef, {
+                itemId,
+                itemName: info.itemName,
+                businessUnitId: info.businessUnitId,
+                type: 'EVENT_REVERSAL',
+                quantity: info.qty,   // positive = stock returned
+                unitCost: info.unitCost,
+                totalValue: info.qty * info.unitCost,
+                referenceId: batchImportId,
+                notes: `Reversed Event Import Batch ${batchImportId} — ${info.qty} units of ${info.itemName} returned to stock`,
+                performedBy: userId,
+                performedByName: userName,
+                timestamp: now,
+                createdAt: now,
+            });
+            opCount++;
+
+            // Re-increment stock
+            ensureBatch();
+            currentBatch.update(doc(db, COL.INVENTORY_ITEMS, itemId), {
+                currentStock: increment(info.qty),
+                theoreticalStock: increment(info.qty),
+                updatedAt: now,
+            });
+            opCount++;
+        }
+
+        // 10. Delete the batch import metadata itself
+        ensureBatch();
+        currentBatch.delete(batchRef);
+        opCount++;
+
+        batches.push(currentBatch);
+        for (const batch of batches) {
+            await batch.commit();
+        }
+    }
+
     // ================================================================
     // QUERY HELPERS
     // ================================================================
