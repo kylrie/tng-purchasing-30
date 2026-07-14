@@ -4,7 +4,7 @@ import { EventImportService } from '../services/event-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { usePermissions } from '../../../hooks/usePermissions';
-import type { EventImportMappedRow, EventImportBatch, EventSimulatedDeduction } from '../types/event-sales.types';
+import type { EventImportMappedRow, EventImportBatch, EventSimulatedDeduction, EventSalesRecord } from '../types/event-sales.types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 
 interface Props { businesses: { id: string; name: string }[]; }
@@ -133,6 +133,9 @@ const EventImportDashboard: React.FC<Props> = () => {
     const [error, setError] = useState<string | null>(null);
     const [successId, setSuccessId] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
+    const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
+    const [batchSales, setBatchSales] = useState<EventSalesRecord[]>([]);
+    const [batchSalesLoading, setBatchSalesLoading] = useState(false);
 
     // Load history on tab switch
     useEffect(() => {
@@ -197,11 +200,33 @@ const EventImportDashboard: React.FC<Props> = () => {
         try {
             await EventImportService.deleteImportBatch(batchId, currentUser?.id || '', currentUser?.name || 'Unknown User');
             setImportHistory(prev => prev.filter(b => b.id !== batchId));
+            if (expandedBatchId === batchId) {
+                setExpandedBatchId(null);
+                setBatchSales([]);
+            }
         } catch (err) {
             console.error('Failed to delete batch:', err);
             alert('Failed to delete import batch. Please try again.');
         } finally {
             setIsDeleting(null);
+        }
+    };
+
+    const handleBatchClick = async (batchId: string) => {
+        if (expandedBatchId === batchId) {
+            setExpandedBatchId(null);
+            setBatchSales([]);
+            return;
+        }
+        setExpandedBatchId(batchId);
+        setBatchSalesLoading(true);
+        try {
+            const sales = await EventImportService.getEventSalesByBatchId(batchId);
+            setBatchSales(sales);
+        } catch (err) {
+            console.error('Failed to load batch details:', err);
+        } finally {
+            setBatchSalesLoading(false);
         }
     };
 
@@ -501,38 +526,95 @@ const EventImportDashboard: React.FC<Props> = () => {
                         <div className="p-8 text-center text-slate-400">No event imports found.</div>
                     ) : (
                         <div className="divide-y divide-slate-700/30">
-                            {importHistory.map(batch => (
-                                <div key={batch.id} className="p-4 hover:bg-slate-700/20 transition-colors">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-white font-medium">{batch.fileName}</p>
-                                            <p className="text-xs text-slate-400 mt-1">
-                                                {batch.totalEvents} events · {batch.totalPax} pax · ₱{batch.totalRevenue?.toLocaleString() ?? '0'}
-                                            </p>
-                                        </div>
-                                        <div className="flex items-center gap-4">
-                                            <div className="text-right">
-                                                <p className="text-xs text-slate-400">{batch.importedByName}</p>
-                                                <p className="text-xs text-slate-500">{batch.importedAt?.toDate?.()?.toLocaleString() ?? ''}</p>
+                            {importHistory.map(batch => {
+                                const isExpanded = expandedBatchId === batch.id;
+                                return (
+                                    <div key={batch.id} className="border-b border-slate-700/30 last:border-b-0">
+                                        <div 
+                                            onClick={() => handleBatchClick(batch.id)}
+                                            className="p-4 hover:bg-slate-700/20 transition-colors cursor-pointer flex items-center justify-between"
+                                        >
+                                            <div>
+                                                <p className="text-white font-medium">{batch.fileName}</p>
+                                                <p className="text-xs text-slate-400 mt-1">
+                                                    {batch.totalEvents} events · {batch.totalPax} pax · ₱{batch.totalRevenue?.toLocaleString() ?? '0'}
+                                                </p>
                                             </div>
-                                            {hasPermission('pos:import:delete') && (
-                                                <button
-                                                    onClick={(e) => handleDeleteBatch(batch.id, e)}
-                                                    disabled={isDeleting === batch.id}
-                                                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
-                                                    title="Delete Import & Reverse Deductions"
-                                                >
-                                                    {isDeleting === batch.id ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <Trash2 className="w-4 h-4" />
-                                                    )}
-                                                </button>
-                                            )}
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-right">
+                                                    <p className="text-xs text-slate-400">{batch.importedByName}</p>
+                                                    <p className="text-xs text-slate-500">{batch.importedAt?.toDate?.()?.toLocaleString() ?? ''}</p>
+                                                </div>
+                                                {hasPermission('pos:import:delete') && (
+                                                    <button
+                                                        onClick={(e) => handleDeleteBatch(batch.id, e)}
+                                                        disabled={isDeleting === batch.id}
+                                                        className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
+                                                        title="Delete Import & Reverse Deductions"
+                                                    >
+                                                        {isDeleting === batch.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Trash2 className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                                <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                            </div>
                                         </div>
+
+                                        {/* Expanded Detail */}
+                                        {isExpanded && (
+                                            <div className="border-t border-slate-700/50 bg-slate-900/30 p-4 space-y-4">
+                                                {batchSalesLoading ? (
+                                                    <div className="flex items-center justify-center py-8">
+                                                        <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
+                                                        <span className="ml-3 text-slate-400 text-sm">Loading batch details...</span>
+                                                    </div>
+                                                ) : batchSales.length === 0 ? (
+                                                    <div className="py-4 text-center text-slate-500 text-sm">No event records found for this batch.</div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {batchSales.map(event => (
+                                                            <div key={event.id} className="bg-slate-800/40 border border-slate-700/30 rounded-xl p-4 space-y-3">
+                                                                <div className="flex justify-between items-start">
+                                                                    <div>
+                                                                        <h4 className="font-semibold text-white text-sm">{event.eventName}</h4>
+                                                                        <p className="text-xs text-slate-400 mt-0.5">
+                                                                            {event.eventDate} {event.packageName && `• ${event.packageName}`}
+                                                                        </p>
+                                                                    </div>
+                                                                    <span className="px-2 py-0.5 rounded bg-violet-500/20 text-violet-400 text-xs font-semibold">
+                                                                        {event.paxCount} Pax
+                                                                    </span>
+                                                                </div>
+                                                                <div className="border-t border-slate-700/30 pt-2">
+                                                                    <table className="w-full text-xs text-slate-300">
+                                                                        <thead>
+                                                                            <tr className="text-slate-400 border-b border-slate-700/30 text-left font-semibold">
+                                                                                <th className="pb-1 font-medium">Item Name</th>
+                                                                                <th className="pb-1 text-right font-medium">Qty</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {event.items.map((item, itemIdx) => (
+                                                                                <tr key={itemIdx} className="border-b border-slate-700/10 hover:bg-slate-700/10">
+                                                                                    <td className="py-1 font-medium text-slate-200">{item.inventoryItemName}</td>
+                                                                                    <td className="py-1 text-right text-white font-semibold">{item.qty}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
