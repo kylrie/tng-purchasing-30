@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, Calendar, Package, Users, Eye, Download } from 'lucide-react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, Calendar, Package, Users, Eye, Download, ChevronDown } from 'lucide-react';
 import { EventImportService } from '../services/event-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
@@ -9,6 +9,108 @@ import type { InventoryItem } from '../../inventory/types/InventoryItem';
 interface Props { businesses: { id: string; name: string }[]; }
 type ViewState = 'UPLOAD' | 'PREVIEW' | 'SIMULATION' | 'COMMITTING' | 'SUCCESS';
 type Tab = 'import' | 'history';
+
+// ─── Searchable Item Dropdown for manual matching ────────────────────────
+const SearchableItemSelect: React.FC<{
+    items: (InventoryItem & { id: string })[];
+    onSelect: (itemId: string) => void;
+    placeholder?: string;
+}> = ({ items, onSelect, placeholder = 'Type to search...' }) => {
+    const [search, setSearch] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const [highlightIdx, setHighlightIdx] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
+
+    const filtered = useMemo(() => {
+        if (!search.trim()) return items;
+        const q = search.toLowerCase().trim();
+        return items.filter(i => i.name.toLowerCase().includes(q));
+    }, [items, search]);
+
+    // Reset highlight when filter changes
+    // eslint-disable-next-line
+    useEffect(() => setHighlightIdx(0), [filtered]);
+
+    // Click outside to close
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    // Scroll highlighted item into view
+    useEffect(() => {
+        if (isOpen && listRef.current) {
+            const el = listRef.current.children[highlightIdx] as HTMLElement;
+            el?.scrollIntoView({ block: 'nearest' });
+        }
+    }, [highlightIdx, isOpen]);
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setIsOpen(true);
+            setHighlightIdx(prev => Math.min(prev + 1, filtered.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlightIdx(prev => Math.max(prev - 1, 0));
+        } else if (e.key === 'Enter' && filtered[highlightIdx]) {
+            e.preventDefault();
+            onSelect(filtered[highlightIdx].id);
+            setIsOpen(false);
+            setSearch('');
+        } else if (e.key === 'Escape') {
+            setIsOpen(false);
+        }
+    };
+
+    return (
+        <div ref={containerRef} className="relative">
+            <div className="relative">
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setIsOpen(true); }}
+                    onFocus={() => setIsOpen(true)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={placeholder}
+                    className="w-full bg-slate-900/60 dark:bg-slate-700/80 text-slate-900 dark:text-white border border-red-500/30 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500"
+                />
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            </div>
+            {isOpen && (
+                <ul
+                    ref={listRef}
+                    className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl text-xs"
+                >
+                    {filtered.length === 0 ? (
+                        <li className="px-3 py-2 text-slate-500 dark:text-slate-400 text-center">No items found</li>
+                    ) : (
+                        filtered.map((item, idx) => (
+                            <li
+                                key={item.id}
+                                onClick={() => { onSelect(item.id); setIsOpen(false); setSearch(''); }}
+                                className={`px-3 py-1.5 cursor-pointer transition-colors ${
+                                    idx === highlightIdx
+                                        ? 'bg-cyan-500/10 text-cyan-400'
+                                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50'
+                                }`}
+                            >
+                                <div className="font-medium">{item.name}</div>
+                                <div className="text-[10px] text-slate-400">{item.category}</div>
+                            </li>
+                        ))
+                    )}
+                </ul>
+            )}
+        </div>
+    );
+};
 
 const EventImportDashboard: React.FC<Props> = () => {
     const { currentUser } = useAuth();
@@ -84,9 +186,54 @@ const EventImportDashboard: React.FC<Props> = () => {
 
     const resetState = () => { setViewState('UPLOAD'); setFile(null); setMappedRows([]); setSimDeductions([]); setError(null); setSuccessId(null); };
 
+    const handleResetMatch = useCallback((rowIndex: number, itemIndex: number) => {
+        setMappedRows(prev => prev.map(r => {
+            if (r.rowIndex !== rowIndex) return r;
+            const updatedItems = [...r.resolvedItems];
+            updatedItems[itemIndex] = {
+                ...updatedItems[itemIndex],
+                matchedItemId: null,
+                matchedItemName: null,
+                matchStatus: 'UNMATCHED' as const
+            };
+            const hasErrors = updatedItems.some(i => i.matchStatus === 'UNMATCHED');
+            return {
+                ...r,
+                resolvedItems: updatedItems,
+                hasErrors
+            };
+        }));
+    }, []);
+
+    const handleManualMatch = useCallback((rowIndex: number, itemIndex: number, itemId: string) => {
+        setMappedRows(prev => prev.map(r => {
+            if (r.rowIndex !== rowIndex) return r;
+            const updatedItems = [...r.resolvedItems];
+            const item = inventoryItems.find(i => i.id === itemId);
+            updatedItems[itemIndex] = {
+                ...updatedItems[itemIndex],
+                matchedItemId: itemId,
+                matchedItemName: item ? item.name : null,
+                matchStatus: item ? ('MATCHED' as const) : ('UNMATCHED' as const)
+            };
+            const hasErrors = updatedItems.some(i => i.matchStatus === 'UNMATCHED');
+            return {
+                ...r,
+                resolvedItems: updatedItems,
+                hasErrors
+            };
+        }));
+    }, [inventoryItems]);
+
     const matchedCount = mappedRows.filter(r => !r.hasErrors).length;
     const errorCount = mappedRows.filter(r => r.hasErrors).length;
     const totalPax = mappedRows.reduce((s, r) => s + r.paxCount, 0);
+
+    const matchableItems = useMemo(() => {
+        return inventoryItems.filter(i =>
+            i.type === 'FINISHED_GOOD' || i.type === 'PRODUCTION' || i.type === 'RAW_MATERIAL'
+        );
+    }, [inventoryItems]);
 
     // ── Render Helpers ──
     const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -194,13 +341,32 @@ const EventImportDashboard: React.FC<Props> = () => {
                                                     <td className="px-4 py-3 text-white font-medium">{row.eventName}</td>
                                                     <td className="px-4 py-3 text-slate-300">{row.packageName || '—'}</td>
                                                     <td className="px-4 py-3 text-cyan-400 font-semibold">{row.paxCount}</td>
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-4 py-3 min-w-[280px]">
                                                         {row.resolvedItems.map((item, j) => (
-                                                            <div key={j} className="flex items-center gap-1 mb-0.5">
-                                                                <StatusBadge status={item.matchStatus} />
-                                                                <span className="text-slate-300 text-xs">
-                                                                    {item.matchedItemName || item.inputText} ×{item.qty}
-                                                                </span>
+                                                            <div key={j} className="flex items-center justify-between gap-2 mb-1.5 p-1 bg-slate-900/10 border border-slate-700/10 dark:border-slate-700/30 rounded-lg">
+                                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                                    <StatusBadge status={item.matchStatus} />
+                                                                    <span className="text-slate-300 text-xs truncate" title={item.matchedItemName || item.inputText}>
+                                                                        {item.matchedItemName || item.inputText} ×{item.qty}
+                                                                    </span>
+                                                                </div>
+                                                                {item.matchStatus === 'MATCHED' ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleResetMatch(row.rowIndex, j)}
+                                                                        className="text-[10px] text-rose-500 hover:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 px-1.5 py-0.5 rounded transition-colors flex-shrink-0"
+                                                                    >
+                                                                        Change
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="w-40 flex-shrink-0">
+                                                                        <SearchableItemSelect
+                                                                            items={matchableItems}
+                                                                            onSelect={(itemId) => handleManualMatch(row.rowIndex, j, itemId)}
+                                                                            placeholder="Match item..."
+                                                                        />
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </td>
