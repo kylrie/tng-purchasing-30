@@ -37,8 +37,8 @@ export interface FunRoofItem {
 
 /** FIXED nav for The Fun Roof. Drinks first (it's a bar); Play = games + packages. */
 export const FUN_ROOF_MENU_GROUPS: { key: FunRoofGroup; subcategories: string[] }[] = [
-    { key: 'Drinks', subcategories: ['Classics', 'Beers', 'Whiskey', 'Tequila', 'Rum', 'Gin', 'Vodka', 'Liqueur', 'Ice Cold', 'Non-Alcoholic'] },
-    { key: 'Food', subcategories: ['Bestsellers', 'Pizza', 'Bar Chows', 'Ice Cream', 'Add-ons'] },
+    { key: 'Drinks', subcategories: ['Classics', 'Beers', 'Whiskey', 'Tequila', 'Rum', 'Gin', 'Vodka', 'Liqueur', 'Brandy & Cognac', 'Ice Cold', 'Non-Alcoholic'] },
+    { key: 'Food', subcategories: ['Bestsellers', 'Pizza', 'Bar Chows', 'Add-ons'] },
     { key: 'Play', subcategories: ['Packages', 'Games'] },
 ];
 
@@ -55,7 +55,6 @@ const CATEGORY_TO_SUB: Record<string, string> = {
     'The Fun Roof Bestsellers': 'Bestsellers',
     'Pizza': 'Pizza',
     'Bar Chows': 'Bar Chows',
-    'Ice Cream': 'Ice Cream',
     'Add Ons': 'Add-ons',
     'Whiskey': 'Whiskey',
     'Vodka': 'Vodka',
@@ -64,6 +63,7 @@ const CATEGORY_TO_SUB: Record<string, string> = {
     'Gin': 'Gin',
     'Ice Cold': 'Ice Cold',
     'Liqueur': 'Liqueur',
+    'Brandy & Cognac': 'Brandy & Cognac',
     'Non-Alcoholic': 'Non-Alcoholic',
     'Beers': 'Beers',
     'Classics': 'Classics',
@@ -133,8 +133,9 @@ export function orderFunRoofItemsImageFirst(items: FunRoofItem[]): FunRoofItem[]
  * key). To restore an item, delete its name here (or remove the sheet row).
  */
 const QR_MENU_EXCLUDED_NAMES: ReadonlySet<string> = new Set([
-    'seattle dog',   // was fr006 · Bar Chows
-    'wagyu onigiri', // was fr008 · Bar Chows
+    // Empty since 2026-07-16: the owner's APPROVED FINAL MENU sheet became the
+    // snapshot source, and the previously excluded items (Seattle Dog, Wagyu
+    // Onigiri) are no longer in it at all. The mechanism stays for future use.
 ]);
 
 /** True when a snapshot record is hidden from the customer QR menu (QR-only). */

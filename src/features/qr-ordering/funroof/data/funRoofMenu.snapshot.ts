@@ -1,14 +1,18 @@
 // The Fun Roof (business unit b1 · "THE FUN GUYS CORP.") — PUBLIC MENU SNAPSHOT
 //
-// GENERATED, READ-ONLY. Do not hand-edit. Source of truth = the owner's curated
-// "The Fun Roof Menu" Google Sheet (transcribed from the venue's printed menu),
-// exported as CSV. This intentionally REPLACES the earlier raw menu_items dump —
-// the owner provided this clean list as the correct customer menu.
+// GENERATED, READ-ONLY. Do not hand-edit. Source of truth = the owner's APPROVED
+// FINAL MENU Google Sheet (id 1395Cm2XGiXDgIgjuaYPkrcZZUf_tHee2GYc_5kjAPDs),
+// tabs "TFR BAR" (gid 777072053) + "TFR FOOD". Prices are the sheet's
+// "MENU SRP (INCLUSIVE OF VAT AND SC)" column — what the customer pays, VAT and
+// 10% service charge included. Play (Packages/Games) items are carried over
+// unchanged from the previous curated menu (kept per owner decision — they appear
+// in no sheet tab). fr### ids are stable across regens for the same product;
+// new sheet items get new ids (fr136+).
 //
-// Regenerate: export the sheet tab as CSV and re-run scripts/gen-snapshot. No
-// backend writes, no POS coupling. Prices in PHP (VAT-inclusive, per the sheet).
-// Snapshot taken: 2026-07-08. Items: 136.
-// Categories (in menu order): {"The Fun Roof Bestsellers":3,"Pizza":3,"Bar Chows":9,"Ice Cream":2,"Add Ons":3,"Whiskey":20,"Vodka":6,"Tequila/Mescal":16,"Rum":10,"Gin":10,"Ice Cold":3,"Liqueur":10,"Non-Alcoholic":11,"Beers":8,"Classics":12,"Packages":3,"Games":7}
+// Regenerate: export the two tabs as CSV and re-run the gen-snapshot script
+// (see git history of this file). No backend writes, no POS coupling.
+// Snapshot taken: 2026-07-16. Items: 93.
+// Categories (in menu order): {"The Fun Roof Bestsellers":2,"Pizza":3,"Bar Chows":4,"Add Ons":1,"Whiskey":8,"Vodka":4,"Tequila/Mescal":11,"Rum":4,"Gin":4,"Ice Cold":2,"Liqueur":2,"Brandy & Cognac":2,"Non-Alcoholic":11,"Beers":7,"Classics":18,"Packages":3,"Games":7}
 
 export interface FunRoofMenuRecord {
     id: string;
@@ -23,13 +27,13 @@ export interface FunRoofMenuRecord {
     tag?: string;
 }
 
-/** The complete Fun Roof menu, exactly as curated by the owner (read-only). */
+/** The complete Fun Roof menu, exactly as approved by the owner (read-only). */
 export const FUN_ROOF_MENU_SNAPSHOT: FunRoofMenuRecord[] = [
     {
         "id": "fr000",
         "category": "The Fun Roof Bestsellers",
         "name": "PORK SISIG",
-        "sellingPrice": 450,
+        "sellingPrice": 500,
         "description": "Grilled, crispy pork with a spicy, tangy kick served sizzling hot with an egg on top for that perfect bite!",
         "tag": "Bestseller"
     },
@@ -37,233 +41,89 @@ export const FUN_ROOF_MENU_SNAPSHOT: FunRoofMenuRecord[] = [
         "id": "fr001",
         "category": "The Fun Roof Bestsellers",
         "name": "TFR SMASHED SLIDERS",
-        "sellingPrice": 630,
+        "sellingPrice": 650,
         "description": "Smashed beef patty, cheddar, smoked BBQ mayo, caramelized onion, jack cheese sauce, crispy chips.",
-        "tag": "Bestseller"
-    },
-    {
-        "id": "fr002",
-        "category": "The Fun Roof Bestsellers",
-        "name": "SINUGLAW CHEESE TACO",
-        "sellingPrice": 545,
-        "description": "Tangy grilled pork and fresh ceviche wrapped in a cheesy taco.",
         "tag": "Bestseller"
     },
     {
         "id": "fr003",
         "category": "Pizza",
-        "name": "PEPPERONI",
-        "sellingPrice": 655,
+        "name": "PEPPERONI PIZZA",
+        "sellingPrice": 650,
         "description": "Mozzarella, tomato concasse, pepperoni and burrata."
     },
     {
         "id": "fr004",
         "category": "Pizza",
-        "name": "PROSCIUTTO & ARUGULA",
-        "sellingPrice": 645,
+        "name": "PROSCIUTTO & ARUGULA PIZZA",
+        "sellingPrice": 750,
         "description": "Fresh flour dough, concasse, mozzarella, prosciutto crudo, arugula & burrata."
     },
     {
         "id": "fr005",
         "category": "Pizza",
-        "name": "FOUR CHEESE",
-        "sellingPrice": 545,
+        "name": "FOUR CHEESE PIZZA",
+        "sellingPrice": 650,
         "description": "Mozzarella, feta, blue cheese and parmesan with parsley as garnish."
-    },
-    {
-        "id": "fr006",
-        "category": "Bar Chows",
-        "name": "SEATTLE DOG",
-        "sellingPrice": 475,
-        "description": "This hotdog's got a punch: creamy cream cheese, pickled cucumbers, and big flavor!",
-        "tag": "Chef's Reco"
     },
     {
         "id": "fr007",
         "category": "Bar Chows",
         "name": "NOT CALAMARI",
-        "sellingPrice": 350,
+        "sellingPrice": 380,
         "description": "Deep fried crispy enoki mushroom with special sauce.",
         "tag": "Chef's Reco"
     },
     {
-        "id": "fr008",
-        "category": "Bar Chows",
-        "name": "WAGYU ONIGIRI",
-        "sellingPrice": 480,
-        "description": "Wagyu strips, Japanese rice, & TFR yakiniku sauce."
-    },
-    {
-        "id": "fr009",
-        "category": "Bar Chows",
-        "name": "KALDERETA BIRRIA CHEESE TACO",
-        "sellingPrice": 400,
-        "description": "Braised beef, kaldereta puree, colby jack, cilantro, and onions in a cheesy taco shell."
-    },
-    {
-        "id": "fr010",
-        "category": "Bar Chows",
-        "name": "LECHON BELLY",
-        "sellingPrice": 850,
-        "description": "Crispy, tender, and juicy—crispy on the outside, tender inside!"
-    },
-    {
         "id": "fr011",
         "category": "Bar Chows",
-        "name": "CHICKEN TENDERS",
-        "sellingPrice": 345,
-        "description": "Flavors: sweet buffalo, habanero, and The Fun Rub."
+        "name": "CHICKEN TENDERS (BUFFALO)",
+        "sellingPrice": 380
     },
     {
-        "id": "fr012",
+        "id": "fr148",
         "category": "Bar Chows",
-        "name": "SHRIMP & SPAM CROQUETTES",
-        "sellingPrice": 440,
-        "description": "Shrimp, pork fat, spam, sesame, mozzarella and chives."
-    },
-    {
-        "id": "fr013",
-        "category": "Bar Chows",
-        "name": "TRUFFLED SHRIMP POPCORN",
-        "sellingPrice": 450,
-        "description": "Prawns, smoked pepper aioli & truffle oil."
+        "name": "CHICKEN TENDERS (SPICE RUB)",
+        "sellingPrice": 380
     },
     {
         "id": "fr014",
         "category": "Bar Chows",
         "name": "TFR FRIES",
-        "sellingPrice": 250,
+        "sellingPrice": 300,
         "description": "Shoestring potatoes and cajun."
-    },
-    {
-        "id": "fr015",
-        "category": "Ice Cream",
-        "name": "440ML CUP",
-        "sellingPrice": 591,
-        "description": "Flavors: vanilla, Brazilian choco, dark choco, choco.",
-        "serving": "440ml cup"
-    },
-    {
-        "id": "fr016",
-        "category": "Ice Cream",
-        "name": "115ML CUP",
-        "sellingPrice": 227,
-        "description": "Flavors: rocky road, cookie dough, coffee almond fudge, salted caramel vanilla.",
-        "serving": "115ml cup"
     },
     {
         "id": "fr017",
         "category": "Add Ons",
         "name": "STEAMED RICE",
-        "sellingPrice": 100
-    },
-    {
-        "id": "fr018",
-        "category": "Add Ons",
-        "name": "GARLIC RICE",
-        "sellingPrice": 100
-    },
-    {
-        "id": "fr019",
-        "category": "Add Ons",
-        "name": "CHEESE SAUCE",
-        "sellingPrice": 100
-    },
-    {
-        "id": "fr020",
-        "category": "Whiskey",
-        "name": "JOHNNIE WALKER BLUE LABEL",
-        "sellingPrice": 15000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr021",
-        "category": "Whiskey",
-        "name": "JOHNNIE WALKER BLUE LABEL",
-        "sellingPrice": 1500,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr022",
-        "category": "Whiskey",
-        "name": "JOHNNIE WALKER GOLD",
-        "sellingPrice": 5000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr023",
-        "category": "Whiskey",
-        "name": "JOHNNIE WALKER GOLD",
-        "sellingPrice": 400,
-        "serving": "Shot"
+        "sellingPrice": 130
     },
     {
         "id": "fr024",
         "category": "Whiskey",
         "name": "JOHNNIE WALKER BLACK LABEL",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
+        "sellingPrice": 4400,
+        "serving": "Bottle (700ml)"
     },
     {
         "id": "fr025",
         "category": "Whiskey",
         "name": "JOHNNIE WALKER BLACK LABEL",
-        "sellingPrice": 350,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr026",
-        "category": "Whiskey",
-        "name": "JOHNNIE WALKER BLONDE",
-        "sellingPrice": 2800,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr027",
-        "category": "Whiskey",
-        "name": "JOHNNIE WALKER BLONDE",
-        "sellingPrice": 350,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr028",
-        "category": "Whiskey",
-        "name": "DEWARS 12",
-        "sellingPrice": 3500,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr029",
-        "category": "Whiskey",
-        "name": "DEWARS 12",
         "sellingPrice": 300,
         "serving": "Shot"
     },
     {
         "id": "fr030",
         "category": "Whiskey",
-        "name": "JAMESON IRISH WHISKEY",
-        "sellingPrice": 2800,
-        "serving": "Bottle"
+        "name": "JOHN JAMESON",
+        "sellingPrice": 3300,
+        "serving": "Bottle (700ml)"
     },
     {
         "id": "fr031",
         "category": "Whiskey",
-        "name": "JAMESON IRISH WHISKEY",
-        "sellingPrice": 280,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr032",
-        "category": "Whiskey",
-        "name": "JAMESON BLACK BARREL",
-        "sellingPrice": 4000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr033",
-        "category": "Whiskey",
-        "name": "JAMESON BLACK BARREL",
+        "name": "JOHN JAMESON",
         "sellingPrice": 300,
         "serving": "Shot"
     },
@@ -271,8 +131,8 @@ export const FUN_ROOF_MENU_SNAPSHOT: FunRoofMenuRecord[] = [
         "id": "fr034",
         "category": "Whiskey",
         "name": "JACK DANIELS",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
+        "sellingPrice": 4400,
+        "serving": "Bottle (700ml)"
     },
     {
         "id": "fr035",
@@ -282,38 +142,24 @@ export const FUN_ROOF_MENU_SNAPSHOT: FunRoofMenuRecord[] = [
         "serving": "Shot"
     },
     {
-        "id": "fr036",
-        "category": "Whiskey",
-        "name": "JIM BEAM WHITE",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr037",
-        "category": "Whiskey",
-        "name": "JIM BEAM WHITE",
-        "sellingPrice": 220,
-        "serving": "Shot"
-    },
-    {
         "id": "fr038",
         "category": "Whiskey",
         "name": "CHARLES AND JAMES",
-        "sellingPrice": 2000,
-        "serving": "Bottle"
+        "sellingPrice": 2200,
+        "serving": "Bottle (1L)"
     },
     {
         "id": "fr039",
         "category": "Whiskey",
         "name": "CHARLES AND JAMES",
-        "sellingPrice": 200,
+        "sellingPrice": 300,
         "serving": "Shot"
     },
     {
         "id": "fr040",
         "category": "Vodka",
         "name": "ABSOLUT BLUE",
-        "sellingPrice": 2800,
+        "sellingPrice": 3000,
         "serving": "Bottle"
     },
     {
@@ -324,226 +170,120 @@ export const FUN_ROOF_MENU_SNAPSHOT: FunRoofMenuRecord[] = [
         "serving": "Shot"
     },
     {
-        "id": "fr042",
-        "category": "Vodka",
-        "name": "GREYGOOSE",
-        "sellingPrice": 4500,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr043",
-        "category": "Vodka",
-        "name": "GREYGOOSE",
-        "sellingPrice": 455,
-        "serving": "Shot"
-    },
-    {
         "id": "fr044",
         "category": "Vodka",
         "name": "BELVEDERE",
-        "sellingPrice": 4000,
+        "sellingPrice": 6000,
         "serving": "Bottle"
     },
     {
         "id": "fr045",
         "category": "Vodka",
         "name": "BELVEDERE",
-        "sellingPrice": 400,
+        "sellingPrice": 650,
         "serving": "Shot"
     },
     {
         "id": "fr046",
         "category": "Tequila/Mescal",
-        "name": "JOSE CUERVO ESPECIAL REPOSADO",
-        "sellingPrice": 3500,
-        "serving": "Bottle"
+        "name": "JOSE CUERVO REPOSADO",
+        "sellingPrice": 3400,
+        "serving": "Bottle (700ml)"
     },
     {
         "id": "fr047",
         "category": "Tequila/Mescal",
-        "name": "JOSE CUERVO ESPECIAL REPOSADO",
-        "sellingPrice": 320,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr048",
-        "category": "Tequila/Mescal",
-        "name": "JOSE CUERVO ESPECIAL SILVER",
-        "sellingPrice": 3550,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr049",
-        "category": "Tequila/Mescal",
-        "name": "JOSE CUERVO ESPECIAL SILVER",
-        "sellingPrice": 350,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr050",
-        "category": "Tequila/Mescal",
-        "name": "1800 REPOSADO",
-        "sellingPrice": 5500,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr051",
-        "category": "Tequila/Mescal",
-        "name": "1800 REPOSADO",
-        "sellingPrice": 400,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr052",
-        "category": "Tequila/Mescal",
-        "name": "1800 BLANCO",
-        "sellingPrice": 5000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr053",
-        "category": "Tequila/Mescal",
-        "name": "1800 BLANCO",
-        "sellingPrice": 400,
+        "name": "JOSE CUERVO REPOSADO",
+        "sellingPrice": 300,
         "serving": "Shot"
     },
     {
         "id": "fr054",
         "category": "Tequila/Mescal",
         "name": "PATRON SILVER",
-        "sellingPrice": 6400,
-        "serving": "Bottle"
+        "sellingPrice": 9000,
+        "serving": "Bottle (750ml)"
     },
     {
         "id": "fr055",
         "category": "Tequila/Mescal",
         "name": "PATRON SILVER",
-        "sellingPrice": 500,
+        "sellingPrice": 600,
         "serving": "Shot"
     },
     {
         "id": "fr056",
         "category": "Tequila/Mescal",
         "name": "PATRON ANEJO",
-        "sellingPrice": 6900,
+        "sellingPrice": 11000,
         "serving": "Bottle"
     },
     {
         "id": "fr057",
         "category": "Tequila/Mescal",
         "name": "PATRON ANEJO",
-        "sellingPrice": 650,
+        "sellingPrice": 750,
         "serving": "Shot"
     },
     {
         "id": "fr058",
         "category": "Tequila/Mescal",
         "name": "OLMECA",
-        "sellingPrice": 3550,
+        "sellingPrice": 4000,
         "serving": "Bottle"
     },
     {
         "id": "fr059",
         "category": "Tequila/Mescal",
         "name": "OLMECA",
-        "sellingPrice": 350,
+        "sellingPrice": 400,
         "serving": "Shot"
     },
     {
         "id": "fr060",
         "category": "Tequila/Mescal",
         "name": "CAZADORES",
-        "sellingPrice": 3550,
-        "serving": "Bottle"
+        "sellingPrice": 5500,
+        "serving": "Bottle (750ml)"
     },
     {
         "id": "fr061",
         "category": "Tequila/Mescal",
         "name": "CAZADORES",
-        "sellingPrice": 350,
+        "sellingPrice": 400,
         "serving": "Shot"
+    },
+    {
+        "id": "fr147",
+        "category": "Tequila/Mescal",
+        "name": "FRESH LEMON",
+        "sellingPrice": 50
     },
     {
         "id": "fr062",
         "category": "Rum",
         "name": "BACARDI GOLD",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
+        "sellingPrice": 3300,
+        "serving": "Bottle (750ml)"
     },
     {
         "id": "fr063",
         "category": "Rum",
         "name": "BACARDI GOLD",
-        "sellingPrice": 250,
+        "sellingPrice": 300,
         "serving": "Shot"
     },
     {
         "id": "fr064",
         "category": "Rum",
         "name": "BACARDI WHITE",
-        "sellingPrice": 2800,
+        "sellingPrice": 3300,
         "serving": "Bottle"
     },
     {
         "id": "fr065",
         "category": "Rum",
         "name": "BACARDI WHITE",
-        "sellingPrice": 250,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr066",
-        "category": "Rum",
-        "name": "DON PAPA",
-        "sellingPrice": 4200,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr067",
-        "category": "Rum",
-        "name": "DON PAPA",
-        "sellingPrice": 350,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr068",
-        "category": "Rum",
-        "name": "CAPTAIN MORGAN SPICE",
-        "sellingPrice": 2900,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr069",
-        "category": "Rum",
-        "name": "CAPTAIN MORGAN SPICE",
-        "sellingPrice": 250,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr070",
-        "category": "Rum",
-        "name": "MALIBU",
-        "sellingPrice": 2545,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr071",
-        "category": "Rum",
-        "name": "MALIBU",
-        "sellingPrice": 250,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr072",
-        "category": "Gin",
-        "name": "BOMBAY SAPPHIRE",
-        "sellingPrice": 4000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr073",
-        "category": "Gin",
-        "name": "BOMBAY SAPPHIRE",
         "sellingPrice": 300,
         "serving": "Shot"
     },
@@ -551,201 +291,124 @@ export const FUN_ROOF_MENU_SNAPSHOT: FunRoofMenuRecord[] = [
         "id": "fr074",
         "category": "Gin",
         "name": "TANQUERAY DRY",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
+        "sellingPrice": 4400,
+        "serving": "Bottle (750ml)"
     },
     {
         "id": "fr075",
         "category": "Gin",
         "name": "TANQUERAY DRY",
-        "sellingPrice": 250,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr076",
-        "category": "Gin",
-        "name": "SUNTORY ROKU",
-        "sellingPrice": 3800,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr077",
-        "category": "Gin",
-        "name": "SUNTORY ROKU",
-        "sellingPrice": 350,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr078",
-        "category": "Gin",
-        "name": "HENDRICKS",
-        "sellingPrice": 5000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr079",
-        "category": "Gin",
-        "name": "HENDRICKS",
-        "sellingPrice": 450,
+        "sellingPrice": 300,
         "serving": "Shot"
     },
     {
         "id": "fr080",
         "category": "Gin",
-        "name": "BEEFEATER",
-        "sellingPrice": 2500,
-        "serving": "Bottle"
+        "name": "BEEFEATER LONDON DRY GIN",
+        "sellingPrice": 3300,
+        "serving": "Bottle (700ml)"
     },
     {
         "id": "fr081",
         "category": "Gin",
-        "name": "BEEFEATER",
-        "sellingPrice": 250,
+        "name": "BEEFEATER LONDON DRY GIN",
+        "sellingPrice": 300,
         "serving": "Shot"
     },
     {
         "id": "fr082",
         "category": "Ice Cold",
         "name": "JAGERMEISTER",
-        "sellingPrice": 2500,
-        "serving": "Bottle"
+        "sellingPrice": 3400,
+        "serving": "Bottle (700ml)"
     },
     {
         "id": "fr083",
         "category": "Ice Cold",
         "name": "JAGERMEISTER",
-        "sellingPrice": 250,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr084",
-        "category": "Ice Cold",
-        "name": "JAGERMEISTER + 3 REDBULL CANS",
-        "sellingPrice": 2800,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr085",
-        "category": "Liqueur",
-        "name": "UBE LIQUEUR",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr086",
-        "category": "Liqueur",
-        "name": "UBE LIQUEUR",
-        "sellingPrice": 255,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr087",
-        "category": "Liqueur",
-        "name": "SULA CHOCOLATE",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr088",
-        "category": "Liqueur",
-        "name": "SULA CHOCOLATE",
-        "sellingPrice": 250,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr089",
-        "category": "Liqueur",
-        "name": "SULA COCONUT",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr090",
-        "category": "Liqueur",
-        "name": "SULA COCONUT",
-        "sellingPrice": 250,
-        "serving": "Shot"
-    },
-    {
-        "id": "fr091",
-        "category": "Liqueur",
-        "name": "SULA COFFEE",
-        "sellingPrice": 3000,
-        "serving": "Bottle"
-    },
-    {
-        "id": "fr092",
-        "category": "Liqueur",
-        "name": "SULA COFFEE",
-        "sellingPrice": 250,
+        "sellingPrice": 300,
         "serving": "Shot"
     },
     {
         "id": "fr093",
         "category": "Liqueur",
         "name": "BAILEYS",
-        "sellingPrice": 2500,
-        "serving": "Bottle"
+        "sellingPrice": 3300,
+        "serving": "Bottle (700ml)"
     },
     {
         "id": "fr094",
         "category": "Liqueur",
         "name": "BAILEYS",
-        "sellingPrice": 250,
+        "sellingPrice": 300,
+        "serving": "Shot"
+    },
+    {
+        "id": "fr140",
+        "category": "Brandy & Cognac",
+        "name": "HENNESSY",
+        "sellingPrice": 8000,
+        "serving": "Bottle"
+    },
+    {
+        "id": "fr139",
+        "category": "Brandy & Cognac",
+        "name": "HENNESSY",
+        "sellingPrice": 600,
         "serving": "Shot"
     },
     {
         "id": "fr095",
         "category": "Non-Alcoholic",
         "name": "BOTTLED WATER",
-        "sellingPrice": 85
+        "sellingPrice": 100
     },
     {
         "id": "fr096",
         "category": "Non-Alcoholic",
         "name": "COKE PITCHER",
-        "sellingPrice": 300
+        "sellingPrice": 350
     },
     {
         "id": "fr097",
         "category": "Non-Alcoholic",
         "name": "COKE REGULAR IN CAN",
-        "sellingPrice": 100
+        "sellingPrice": 130
     },
     {
         "id": "fr098",
         "category": "Non-Alcoholic",
         "name": "COKE ZERO IN CAN",
-        "sellingPrice": 100
+        "sellingPrice": 130
     },
     {
         "id": "fr099",
         "category": "Non-Alcoholic",
         "name": "SPRITE PITCHER",
-        "sellingPrice": 300
+        "sellingPrice": 350
     },
     {
         "id": "fr100",
         "category": "Non-Alcoholic",
         "name": "SPRITE IN CAN",
-        "sellingPrice": 100
+        "sellingPrice": 130
     },
     {
         "id": "fr101",
         "category": "Non-Alcoholic",
-        "name": "REDBULL",
-        "sellingPrice": 200
+        "name": "RED BULL IN CAN",
+        "sellingPrice": 300
     },
     {
         "id": "fr102",
         "category": "Non-Alcoholic",
         "name": "FR ICED TEA",
-        "sellingPrice": 230
+        "sellingPrice": 300
     },
     {
         "id": "fr103",
         "category": "Non-Alcoholic",
-        "name": "SCHWEPPES SODA",
+        "name": "SCHWEPPES SODA WATER",
         "sellingPrice": 100
     },
     {
@@ -764,121 +427,151 @@ export const FUN_ROOF_MENU_SNAPSHOT: FunRoofMenuRecord[] = [
         "id": "fr106",
         "category": "Beers",
         "name": "HEINEKEN ORIGINAL",
-        "sellingPrice": 180
+        "sellingPrice": 250
     },
     {
         "id": "fr107",
         "category": "Beers",
         "name": "SAN MIG APPLE",
-        "sellingPrice": 180
-    },
-    {
-        "id": "fr108",
-        "category": "Beers",
-        "name": "SAN MIG LIGHT",
-        "sellingPrice": 180
-    },
-    {
-        "id": "fr109",
-        "category": "Beers",
-        "name": "SAN MIG PALE PILSEN",
-        "sellingPrice": 180
+        "sellingPrice": 200
     },
     {
         "id": "fr110",
         "category": "Beers",
-        "name": "SAN MIG SUPER DRY CAN",
-        "sellingPrice": 180
-    },
-    {
-        "id": "fr111",
-        "category": "Beers",
-        "name": "HEINEKEN SILVER",
-        "sellingPrice": 180
+        "name": "SAN MIG SUPER DRY",
+        "sellingPrice": 250
     },
     {
         "id": "fr112",
         "category": "Beers",
-        "name": "TIGER CRYSTAL",
-        "sellingPrice": 180
+        "name": "TIGER CRYSTAL LIGHT",
+        "sellingPrice": 200
     },
     {
-        "id": "fr113",
+        "id": "fr138",
         "category": "Beers",
-        "name": "DRAFT BEER 330ML (SAN MIG PALE PILSEN OR SAN MIG LIGHT)",
-        "sellingPrice": 180
+        "name": "SMIRNOFF",
+        "sellingPrice": 200
+    },
+    {
+        "id": "fr136",
+        "category": "Beers",
+        "name": "DRAFT BEER - SAN MIG PALE",
+        "sellingPrice": 200
+    },
+    {
+        "id": "fr137",
+        "category": "Beers",
+        "name": "DRAFT BEER - SAN MIG LIGHT",
+        "sellingPrice": 200
     },
     {
         "id": "fr114",
         "category": "Classics",
         "name": "AMARETTO SOUR",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr115",
         "category": "Classics",
         "name": "COSMOPOLITAN",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr116",
         "category": "Classics",
         "name": "CLASSIC MARGARITA",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr117",
         "category": "Classics",
         "name": "CLASSIC WHISKY SOUR",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr118",
         "category": "Classics",
-        "name": "GIN TONIC",
+        "name": "GIN AND TONIC",
         "sellingPrice": 350
     },
     {
         "id": "fr119",
         "category": "Classics",
         "name": "LONG ISLAND ICED TEA",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr120",
         "category": "Classics",
         "name": "NEGRONI",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr121",
         "category": "Classics",
         "name": "OLD FASHIONED",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr122",
         "category": "Classics",
         "name": "PINA COLADA",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr123",
         "category": "Classics",
-        "name": "RUM COKE",
+        "name": "RHUM AND COKE",
         "sellingPrice": 350
     },
     {
         "id": "fr124",
         "category": "Classics",
         "name": "WHITE RUSSIAN",
-        "sellingPrice": 350
+        "sellingPrice": 400
     },
     {
         "id": "fr125",
         "category": "Classics",
         "name": "WHISKY HIGHBALL",
-        "sellingPrice": 350
+        "sellingPrice": 400
+    },
+    {
+        "id": "fr141",
+        "category": "Classics",
+        "name": "PINK GUAVA MARGARITA",
+        "sellingPrice": 400
+    },
+    {
+        "id": "fr142",
+        "category": "Classics",
+        "name": "MOJODOJO MOJITO",
+        "sellingPrice": 400
+    },
+    {
+        "id": "fr143",
+        "category": "Classics",
+        "name": "PINK AF",
+        "sellingPrice": 440
+    },
+    {
+        "id": "fr144",
+        "category": "Classics",
+        "name": "THE TIPSY UBE",
+        "sellingPrice": 440
+    },
+    {
+        "id": "fr145",
+        "category": "Classics",
+        "name": "COCO AMARETTO SOUR",
+        "sellingPrice": 440
+    },
+    {
+        "id": "fr146",
+        "category": "Classics",
+        "name": "SULA NEGRONI",
+        "sellingPrice": 440
     },
     {
         "id": "fr126",

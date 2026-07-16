@@ -6,99 +6,119 @@
 // Items with no entry keep the existing category fallback tile in the view.
 //
 // Assets live in /public/funroof/menu (served at /funroof/menu/*). They are
-// project-owned static files — NEVER hotlink the owner's OneDrive or a remote
-// host from production. Scope is b1 only; nothing here touches b3/Inflatable.
+// project-owned static files — NEVER hotlink the owner's OneDrive, Google Drive,
+// or any remote host from production. Scope is b1 only; nothing here touches
+// b3/Inflatable.
 //
-// Source: owner-provided folder "TFR MENU IMAGES" (FOOD/, DRINK/BOTTLES/, Games,
-// CLASSIC DRINKS/), matched to existing snapshot items by label. Food + cocktail
-// photos resized to ~800px on the long edge;
-// bottle product shots padded to 600x600 square (owner standard); the clear
-// water bottle is likewise squared so it is visible; the Coke cans are kept as
-// their original webp. Bottle + shot records of the same product share one image.
+// Sources: (a) owner-provided folder "TFR MENU IMAGES" (FOOD/, DRINK/BOTTLES/,
+// CLASSIC DRINKS/), and (b) 2026-07-16: the per-row Google Drive image links in
+// the owner's APPROVED FINAL MENU sheet, downloaded + processed locally (photos
+// ~800px long edge JPEG q85; product renders padded to 600x600 on white).
+// Bottle + shot records of the same product share one image.
 
 export const FUN_ROOF_MENU_IMAGES: Readonly<Record<string, string>> = {
-    // ── Food (Bestsellers / Pizza / Bar Chows) — owner FOOD/ photos ──
+    // ── Food — owner FOOD/ photos (kept) + sheet images ──
     fr000: '/funroof/menu/pork-sisig.jpg',                 // PORK SISIG
     fr001: '/funroof/menu/tfr-smashed-sliders.jpg',        // TFR SMASHED SLIDERS
-    fr002: '/funroof/menu/sinuglaw-cheese-taco.jpg',       // SINUGLAW CHEESE TACO
-    fr003: '/funroof/menu/pepperoni.jpg',                  // PEPPERONI
-    fr004: '/funroof/menu/prosciutto-arugula.jpg',         // PROSCIUTTO & ARUGULA
-    fr005: '/funroof/menu/four-cheese.jpg',                // FOUR CHEESE
+    fr003: '/funroof/menu/pepperoni.jpg',                  // PEPPERONI PIZZA
+    fr004: '/funroof/menu/prosciutto-arugula.jpg',         // PROSCIUTTO & ARUGULA PIZZA
+    fr005: '/funroof/menu/four-cheese.jpg',                // FOUR CHEESE PIZZA
     fr007: '/funroof/menu/not-calamari.jpg',               // NOT CALAMARI
-    fr008: '/funroof/menu/wagyu-onigiri.jpg',              // WAGYU ONIGIRI
-    fr009: '/funroof/menu/kaldereta-birria-cheese-taco.jpg', // KALDERETA BIRRIA CHEESE TACO
-    fr010: '/funroof/menu/lechon-belly.jpg',               // LECHON BELLY
-    fr011: '/funroof/menu/chicken-tenders.jpg',            // CHICKEN TENDERS
-    fr012: '/funroof/menu/shrimp-spam-croquettes.jpg',     // SHRIMP & SPAM CROQUETTES
-    fr013: '/funroof/menu/truffled-shrimp-popcorn.jpg',    // TRUFFLED SHRIMP POPCORN
+    fr011: '/funroof/menu/chicken-tenders.jpg',            // CHICKEN TENDERS (BUFFALO)
+    fr148: '/funroof/menu/chicken-tenders.jpg',            // CHICKEN TENDERS (SPICE RUB) — same sheet photo
     fr014: '/funroof/menu/tfr-fries.jpg',                  // TFR FRIES
+    fr017: '/funroof/menu/steamed-rice.jpg',               // STEAMED RICE (sheet)
 
-    // ── Classics (cocktails) — owner CLASSIC DRINKS/ photos ──
+    // ── Classics (cocktails) — owner CLASSIC DRINKS/ photos (kept) + sheet images ──
     fr114: '/funroof/menu/amaretto-sour.jpg',              // AMARETTO SOUR
+    fr115: '/funroof/menu/cosmopolitan.jpg',               // COSMOPOLITAN (sheet)
     fr116: '/funroof/menu/classic-margarita.jpg',          // CLASSIC MARGARITA
+    fr117: '/funroof/menu/classic-whisky-sour.jpg',        // CLASSIC WHISKY SOUR (sheet)
+    fr118: '/funroof/menu/gin-and-tonic.jpg',              // GIN AND TONIC (sheet)
     fr119: '/funroof/menu/long-island-iced-tea.jpg',       // LONG ISLAND ICED TEA
+    fr120: '/funroof/menu/negroni.jpg',                    // NEGRONI (sheet)
+    fr121: '/funroof/menu/old-fashioned.jpg',              // OLD FASHIONED (sheet)
     fr122: '/funroof/menu/pina-colada.jpg',                // PINA COLADA
+    fr123: '/funroof/menu/rhum-and-coke.jpg',              // RHUM AND COKE (sheet)
     fr124: '/funroof/menu/white-russian.jpg',              // WHITE RUSSIAN
+    fr125: '/funroof/menu/whisky-highball.jpg',            // WHISKY HIGHBALL (sheet)
+    fr141: '/funroof/menu/pink-guava-margarita.jpg',       // PINK GUAVA MARGARITA (sheet)
+    fr142: '/funroof/menu/mojodojo-mojito.jpg',            // MOJODOJO MOJITO (sheet)
+    fr143: '/funroof/menu/pink-af.jpg',                    // PINK AF (sheet)
+    fr144: '/funroof/menu/the-tipsy-ube.jpg',              // THE TIPSY UBE (sheet)
+    fr145: '/funroof/menu/coco-amaretto-sour.jpg',         // COCO AMARETTO SOUR (sheet)
+    fr146: '/funroof/menu/sula-negroni.jpg',               // SULA NEGRONI (sheet)
 
     // ── Whiskey (bottle + shot share one image) ──
-    fr020: '/funroof/menu/jw-blue.jpg',                    // JOHNNIE WALKER BLUE LABEL
-    fr021: '/funroof/menu/jw-blue.jpg',
     fr024: '/funroof/menu/jw-black.jpg',                   // JOHNNIE WALKER BLACK LABEL
     fr025: '/funroof/menu/jw-black.jpg',
-    fr030: '/funroof/menu/jameson.jpg',                    // JAMESON IRISH WHISKEY
+    fr030: '/funroof/menu/jameson.jpg',                    // JOHN JAMESON
     fr031: '/funroof/menu/jameson.jpg',
-    fr032: '/funroof/menu/jameson-black-barrel.jpg',       // JAMESON BLACK BARREL
-    fr033: '/funroof/menu/jameson-black-barrel.jpg',
+    fr034: '/funroof/menu/jack-daniels.jpg',               // JACK DANIELS (sheet)
+    fr035: '/funroof/menu/jack-daniels.jpg',
     fr038: '/funroof/menu/charles-and-james.jpg',          // CHARLES AND JAMES
     fr039: '/funroof/menu/charles-and-james.jpg',
 
     // ── Vodka ──
     fr040: '/funroof/menu/absolut-blue.jpg',               // ABSOLUT BLUE
     fr041: '/funroof/menu/absolut-blue.jpg',
-    fr042: '/funroof/menu/grey-goose.jpg',                 // GREYGOOSE
-    fr043: '/funroof/menu/grey-goose.jpg',
     fr044: '/funroof/menu/belvedere.jpg',                  // BELVEDERE
     fr045: '/funroof/menu/belvedere.jpg',
 
     // ── Tequila / Mezcal ──
-    fr046: '/funroof/menu/jose-cuervo-reposado.jpg',       // JOSE CUERVO ESPECIAL REPOSADO
+    fr046: '/funroof/menu/jose-cuervo-reposado.jpg',       // JOSE CUERVO REPOSADO
     fr047: '/funroof/menu/jose-cuervo-reposado.jpg',
+    fr054: '/funroof/menu/patron-silver.jpg',              // PATRON SILVER (sheet)
+    fr055: '/funroof/menu/patron-silver.jpg',
+    fr056: '/funroof/menu/patron-anejo.jpg',               // PATRON ANEJO (sheet)
+    fr057: '/funroof/menu/patron-anejo.jpg',
     fr058: '/funroof/menu/olmeca.jpg',                     // OLMECA
     fr059: '/funroof/menu/olmeca.jpg',
     fr060: '/funroof/menu/cazadores.jpg',                  // CAZADORES
     fr061: '/funroof/menu/cazadores.jpg',
+    fr147: '/funroof/menu/fresh-lemon.jpg',                // FRESH LEMON (sheet)
 
     // ── Rum ──
     fr062: '/funroof/menu/bacardi-gold.jpg',               // BACARDI GOLD
     fr063: '/funroof/menu/bacardi-gold.jpg',
     fr064: '/funroof/menu/bacardi-white.jpg',              // BACARDI WHITE (Superior)
     fr065: '/funroof/menu/bacardi-white.jpg',
-    fr068: '/funroof/menu/captain-morgan.jpg',             // CAPTAIN MORGAN SPICE
-    fr069: '/funroof/menu/captain-morgan.jpg',
 
     // ── Gin ──
     fr074: '/funroof/menu/tanqueray.jpg',                  // TANQUERAY DRY
     fr075: '/funroof/menu/tanqueray.jpg',
-    fr080: '/funroof/menu/beefeater.jpg',                  // BEEFEATER
+    fr080: '/funroof/menu/beefeater.jpg',                  // BEEFEATER LONDON DRY GIN
     fr081: '/funroof/menu/beefeater.jpg',
 
-    // ── Ice Cold / Liqueur ──
+    // ── Ice Cold / Liqueur / Brandy & Cognac ──
     fr082: '/funroof/menu/jagermeister.jpg',               // JAGERMEISTER (bottle)
     fr083: '/funroof/menu/jagermeister.jpg',               // JAGERMEISTER (shot)
     fr093: '/funroof/menu/baileys.jpg',                    // BAILEYS
     fr094: '/funroof/menu/baileys.jpg',
+    fr139: '/funroof/menu/hennessy.jpg',                   // HENNESSY (sheet; shot)
+    fr140: '/funroof/menu/hennessy.jpg',                   // HENNESSY (bottle)
 
     // ── Non-Alcoholic ──
     fr095: '/funroof/menu/nature-spring.jpg',              // BOTTLED WATER (Nature Spring — padded square so the clear bottle is visible)
+    fr096: '/funroof/menu/coke-pitcher.jpg',               // COKE PITCHER (sheet)
     fr097: '/funroof/menu/coke-regular.webp',             // COKE REGULAR IN CAN (owner original)
     fr098: '/funroof/menu/coke-zero.webp',                // COKE ZERO IN CAN (owner original)
+    fr099: '/funroof/menu/sprite-pitcher.jpg',             // SPRITE PITCHER (sheet)
+    fr100: '/funroof/menu/sprite-can.jpg',                 // SPRITE IN CAN (sheet)
+    fr101: '/funroof/menu/red-bull.jpg',                   // RED BULL IN CAN (sheet)
+    fr102: '/funroof/menu/fr-iced-tea.jpg',                // FR ICED TEA (sheet)
+    fr103: '/funroof/menu/schweppes-soda-water.jpg',       // SCHWEPPES SODA WATER (sheet)
+    fr104: '/funroof/menu/schweppes-tonic-water.jpg',      // SCHWEPPES TONIC WATER (sheet)
+    fr105: '/funroof/menu/little-miss-sunshine.jpg',       // LITTLE MISS SUNSHINE
 
     // ── Beers ──
     fr106: '/funroof/menu/heineken.jpg',                   // HEINEKEN ORIGINAL
-    fr112: '/funroof/menu/tiger-crystal.jpg',              // TIGER CRYSTAL
-
-    // ── Drink (signature) that exists in the snapshot ──
-    fr105: '/funroof/menu/little-miss-sunshine.jpg',       // LITTLE MISS SUNSHINE
+    fr107: '/funroof/menu/san-mig-apple.jpg',              // SAN MIG APPLE (sheet)
+    fr110: '/funroof/menu/san-mig-super-dry.jpg',          // SAN MIG SUPER DRY (sheet)
+    fr112: '/funroof/menu/tiger-crystal.jpg',              // TIGER CRYSTAL LIGHT
+    fr136: '/funroof/menu/draft-beer.jpg',                 // DRAFT BEER - SAN MIG PALE (sheet; shared)
+    fr137: '/funroof/menu/draft-beer.jpg',                 // DRAFT BEER - SAN MIG LIGHT (sheet; shared)
+    fr138: '/funroof/menu/smirnoff.jpg',                   // SMIRNOFF (sheet)
 
     // ── Play photos → the 3 Package items (one each, per owner) ──
     fr126: '/funroof/menu/unli-play-all-night.jpg',        // UNLI PLAY ALL NIGHT

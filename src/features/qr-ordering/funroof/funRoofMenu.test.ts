@@ -21,6 +21,8 @@ const VISIBLE_RECORDS = FUN_ROOF_MENU_SNAPSHOT.filter(r => !isExcludedFromFunRoo
 test('nav is Drinks · Food · Play with the venue sub-tabs', () => {
     assert.deepEqual(FUN_ROOF_MENU_GROUPS.map(g => g.key), ['Drinks', 'Food', 'Play']);
     assert.ok(FUN_ROOF_MENU_GROUPS[0].subcategories.includes('Classics'));
+    assert.ok(FUN_ROOF_MENU_GROUPS[0].subcategories.includes('Brandy & Cognac'), 'Hennessy sub-tab present');
+    assert.ok(!FUN_ROOF_MENU_GROUPS[1].subcategories.includes('Ice Cream'), 'empty Ice Cream tab removed');
     assert.deepEqual(FUN_ROOF_MENU_GROUPS[2].subcategories, ['Packages', 'Games']);
 });
 
@@ -70,10 +72,42 @@ test('field-whitelist + tag/serving/bestSeller mapping', () => {
 
 test('the real snapshot has the expected shape (bottle/shot pairs present, prices sane)', () => {
     const items = loadFunRoofMenu();
-    const jwBlue = items.filter(i => /JOHNNIE WALKER BLUE LABEL/i.test(i.name));
-    assert.equal(jwBlue.length, 2); // Bottle + Shot
-    assert.deepEqual(jwBlue.map(i => i.serving).sort(), ['Bottle', 'Shot']);
+    const jd = items.filter(i => /^JACK DANIELS$/i.test(i.name));
+    assert.equal(jd.length, 2); // Bottle + Shot
+    assert.deepEqual(jd.map(i => i.serving).sort(), ['Bottle (700ml)', 'Shot']);
     assert.ok(items.every(i => Number.isFinite(i.sellingPrice) && i.sellingPrice > 0));
+});
+
+test('FINAL APPROVED SHEET (2026-07-16): counts, prices, removals, Play preserved', () => {
+    const items = loadFunRoofMenu();
+    // 73 bar + 10 food from the sheet + 10 Play carried over = 93, no duplicate ids
+    assert.equal(items.length, 93);
+    assert.equal(new Set(items.map(i => i.id)).size, 93, 'ids unique');
+
+    // spot prices = the sheet's "MENU SRP (INCLUSIVE OF VAT AND SC)" column
+    const price = (name: string, serving?: string) => {
+        const hit = items.find(i => i.name === name && (serving === undefined || i.serving === serving));
+        assert.ok(hit, `${name}${serving ? ` (${serving})` : ''} present`);
+        return hit!.sellingPrice;
+    };
+    assert.equal(price('BOTTLED WATER'), 100);
+    assert.equal(price('SAN MIG APPLE'), 200);
+    assert.equal(price('PORK SISIG'), 500);
+    assert.equal(price('PATRON ANEJO', 'Bottle'), 11000);
+    assert.equal(price('HENNESSY', 'Shot'), 600);
+    assert.equal(price('COCO AMARETTO SOUR'), 440);
+    assert.equal(price('FR ICED TEA'), 300);
+    assert.equal(price('STEAMED RICE'), 130);
+
+    // items dropped by the approved sheet are gone
+    for (const gone of [/SEATTLE DOG/i, /WAGYU ONIGIRI/i, /LECHON BELLY/i, /GREYGOOSE/i, /DON PAPA/i, /JOHNNIE WALKER BLUE/i, /SULA CHOCOLATE/i, /ICE CREAM|440ML CUP|115ML CUP/i, /SINUGLAW/i])
+        assert.equal(items.some(i => gone.test(i.name)), false, `${gone} removed`);
+
+    // Play carried over unchanged (10 items, same ids/prices)
+    const play = items.filter(i => i.group === 'Play');
+    assert.equal(play.length, 10);
+    assert.equal(play.find(i => i.name === 'UNLI PLAY ALL NIGHT')?.sellingPrice, 500);
+    assert.equal(play.find(i => i.name === 'CRAZY GOLF')?.id, 'fr129');
 });
 
 test('image-first ordering is a pure re-order: same ids, none added/dropped, no field mutated', () => {
@@ -113,17 +147,10 @@ test('image-first ordering is STABLE (preserves relative order within each half)
     assert.deepEqual(orderFunRoofItemsImageFirst(input).map(i => i.id), ['B', 'D', 'A', 'C']);
 });
 
-test('QR-only exclusion: Seattle Dog and Wagyu Onigiri are hidden from the customer menu', () => {
-    // Sanity: both names really exist in the raw snapshot, so this test is meaningful.
-    assert.ok(FUN_ROOF_MENU_SNAPSHOT.some(r => /^seattle dog$/i.test(r.name.trim())), 'Seattle Dog is in the snapshot');
-    assert.ok(FUN_ROOF_MENU_SNAPSHOT.some(r => /^wagyu onigiri$/i.test(r.name.trim())), 'Wagyu Onigiri is in the snapshot');
-
+test('QR-only exclusion list is empty (approved sheet superseded it): nothing filtered', () => {
+    // The old exclusions (Seattle Dog, Wagyu Onigiri) are no longer in the snapshot at all.
     const items = loadFunRoofMenu();
-    assert.equal(items.filter(i => /seattle dog/i.test(i.name)).length, 0, 'Seattle Dog not in QR menu');
-    assert.equal(items.filter(i => /wagyu onigiri/i.test(i.name)).length, 0, 'Wagyu Onigiri not in QR menu');
-
-    // Exactly two items removed vs the full snapshot; nothing else dropped.
-    assert.equal(items.length, FUN_ROOF_MENU_SNAPSHOT.length - 2, 'exactly 2 items removed');
-    // A neighbouring Bar Chows item is untouched (surrounding items still visible).
-    assert.ok(items.some(i => /not calamari/i.test(i.name) && i.category === 'Bar Chows'), 'other Bar Chows items remain');
+    assert.equal(items.length, FUN_ROOF_MENU_SNAPSHOT.length, 'no item filtered by the exclusion list');
+    assert.equal(isExcludedFromFunRoofQrMenu('seattle dog'), false, 'mechanism intact, list empty');
+    assert.ok(items.some(i => /not calamari/i.test(i.name) && i.category === 'Bar Chows'), 'Bar Chows intact');
 });
