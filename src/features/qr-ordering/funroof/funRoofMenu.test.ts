@@ -23,7 +23,7 @@ test('nav is Drinks · Food · Play with the venue sub-tabs', () => {
     assert.ok(FUN_ROOF_MENU_GROUPS[0].subcategories.includes('Classics'));
     assert.ok(FUN_ROOF_MENU_GROUPS[0].subcategories.includes('Brandy & Cognac'), 'Hennessy sub-tab present');
     assert.ok(!FUN_ROOF_MENU_GROUPS[1].subcategories.includes('Ice Cream'), 'empty Ice Cream tab removed');
-    assert.deepEqual(FUN_ROOF_MENU_GROUPS[2].subcategories, ['Packages', 'Games']);
+    assert.deepEqual(FUN_ROOF_MENU_GROUPS[2].subcategories, ['Packages'], 'Games tab removed (packages only)');
 });
 
 test('COMPLETENESS: every non-excluded snapshot item maps to a visible nav tab (nothing hidden)', () => {
@@ -49,7 +49,6 @@ test('sheet categories map to the right group/sub-tab', () => {
     assert.deepEqual(c('The Fun Roof Bestsellers'), { group: 'Food', subcategory: 'Bestsellers' });
     assert.deepEqual(c('Pizza'), { group: 'Food', subcategory: 'Pizza' });
     assert.deepEqual(c('Add Ons'), { group: 'Food', subcategory: 'Add-ons' });
-    assert.deepEqual(c('Games'), { group: 'Play', subcategory: 'Games' });
     assert.deepEqual(c('Packages'), { group: 'Play', subcategory: 'Packages' });
 });
 
@@ -80,9 +79,10 @@ test('the real snapshot has the expected shape (bottle/shot pairs present, price
 
 test('FINAL APPROVED SHEET (2026-07-16): counts, prices, removals, Play preserved', () => {
     const items = loadFunRoofMenu();
-    // 73 bar + 10 food from the sheet + 10 Play carried over = 93, no duplicate ids
-    assert.equal(items.length, 93);
-    assert.equal(new Set(items.map(i => i.id)).size, 93, 'ids unique');
+    // 73 bar + 10 food from the sheet + 3 Packages (7 individual Games are
+    // QR-excluded per owner, 2026-07-16 pre-freeze fix) = 86, no duplicate ids
+    assert.equal(items.length, 86);
+    assert.equal(new Set(items.map(i => i.id)).size, 86, 'ids unique');
 
     // spot prices = the sheet's "MENU SRP (INCLUSIVE OF VAT AND SC)" column
     const price = (name: string, serving?: string) => {
@@ -103,11 +103,24 @@ test('FINAL APPROVED SHEET (2026-07-16): counts, prices, removals, Play preserve
     for (const gone of [/SEATTLE DOG/i, /WAGYU ONIGIRI/i, /LECHON BELLY/i, /GREYGOOSE/i, /DON PAPA/i, /JOHNNIE WALKER BLUE/i, /SULA CHOCOLATE/i, /ICE CREAM|440ML CUP|115ML CUP/i, /SINUGLAW/i])
         assert.equal(items.some(i => gone.test(i.name)), false, `${gone} removed`);
 
-    // Play carried over unchanged (10 items, same ids/prices)
+    // Play = the 3 Package items only (ids/prices unchanged); Games hidden
     const play = items.filter(i => i.group === 'Play');
-    assert.equal(play.length, 10);
+    assert.equal(play.length, 3);
+    assert.deepEqual(play.map(i => i.id).sort(), ['fr126', 'fr127', 'fr128']);
     assert.equal(play.find(i => i.name === 'UNLI PLAY ALL NIGHT')?.sellingPrice, 500);
-    assert.equal(play.find(i => i.name === 'CRAZY GOLF')?.id, 'fr129');
+    assert.ok(play.every(i => i.imageUrl), 'every kept Play item has its image');
+});
+
+test('the 7 individual Games are hidden from the QR menu (packages kept)', () => {
+    const GAMES = ['CRAZY GOLF', 'BATTING CAGE', 'EXTREME BASKETBALL', 'SHURIKEN THROW', 'SHUFFLE BOARD', 'CURLING', 'FEATHER BOWLING'];
+    // Sanity: all 7 really exist in the raw snapshot, so this test is meaningful.
+    for (const g of GAMES)
+        assert.ok(FUN_ROOF_MENU_SNAPSHOT.some(r => r.name === g), `${g} is in the snapshot`);
+    const items = loadFunRoofMenu();
+    for (const g of GAMES)
+        assert.equal(items.some(i => i.name === g), false, `${g} hidden from QR menu`);
+    // Exactly the 7 Games are filtered; nothing else dropped.
+    assert.equal(items.length, FUN_ROOF_MENU_SNAPSHOT.length - 7, 'exactly 7 items excluded');
 });
 
 test('image-first ordering is a pure re-order: same ids, none added/dropped, no field mutated', () => {
@@ -147,10 +160,8 @@ test('image-first ordering is STABLE (preserves relative order within each half)
     assert.deepEqual(orderFunRoofItemsImageFirst(input).map(i => i.id), ['B', 'D', 'A', 'C']);
 });
 
-test('QR-only exclusion list is empty (approved sheet superseded it): nothing filtered', () => {
-    // The old exclusions (Seattle Dog, Wagyu Onigiri) are no longer in the snapshot at all.
-    const items = loadFunRoofMenu();
-    assert.equal(items.length, FUN_ROOF_MENU_SNAPSHOT.length, 'no item filtered by the exclusion list');
-    assert.equal(isExcludedFromFunRoofQrMenu('seattle dog'), false, 'mechanism intact, list empty');
-    assert.ok(items.some(i => /not calamari/i.test(i.name) && i.category === 'Bar Chows'), 'Bar Chows intact');
+test('QR-only exclusion mechanism: only the 7 Games are on the list', () => {
+    assert.equal(isExcludedFromFunRoofQrMenu('crazy golf'), true);
+    assert.equal(isExcludedFromFunRoofQrMenu('seattle dog'), false, 'old exclusions gone from the source entirely');
+    assert.ok(loadFunRoofMenu().some(i => /not calamari/i.test(i.name) && i.category === 'Bar Chows'), 'Bar Chows intact');
 });

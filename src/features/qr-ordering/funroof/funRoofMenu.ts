@@ -39,7 +39,7 @@ export interface FunRoofItem {
 export const FUN_ROOF_MENU_GROUPS: { key: FunRoofGroup; subcategories: string[] }[] = [
     { key: 'Drinks', subcategories: ['Classics', 'Beers', 'Whiskey', 'Tequila', 'Rum', 'Gin', 'Vodka', 'Liqueur', 'Brandy & Cognac', 'Ice Cold', 'Non-Alcoholic'] },
     { key: 'Food', subcategories: ['Bestsellers', 'Pizza', 'Bar Chows', 'Add-ons'] },
-    { key: 'Play', subcategories: ['Packages', 'Games'] },
+    { key: 'Play', subcategories: ['Packages'] }, // Games tab removed 2026-07-16 (individual games hidden; packages only)
 ];
 
 /** sub-tab → group, derived from the nav so there is one source of truth. */
@@ -68,7 +68,8 @@ const CATEGORY_TO_SUB: Record<string, string> = {
     'Beers': 'Beers',
     'Classics': 'Classics',
     'Packages': 'Packages',
-    'Games': 'Games',
+    // 'Games' intentionally unmapped: all Games items are QR-excluded; if one
+    // ever slips past the exclusion it lands in FALLBACK_SUB (visible, never dropped).
 };
 
 /** Safe visible bucket for a category the map doesn't recognize (never drop an item). */
@@ -133,9 +134,18 @@ export function orderFunRoofItemsImageFirst(items: FunRoofItem[]): FunRoofItem[]
  * key). To restore an item, delete its name here (or remove the sheet row).
  */
 const QR_MENU_EXCLUDED_NAMES: ReadonlySet<string> = new Set([
-    // Empty since 2026-07-16: the owner's APPROVED FINAL MENU sheet became the
-    // snapshot source, and the previously excluded items (Seattle Dog, Wagyu
-    // Onigiri) are no longer in it at all. The mechanism stays for future use.
+    // Owner request 2026-07-16 (pre-freeze final fix): the 7 individual Games
+    // are hidden from the customer QR menu — only the Package items (with
+    // photos) stay under Play. Items remain in the snapshot (generated,
+    // read-only) and in historical orders; their b1 qrOnly menu_items are
+    // deactivated so checkout cannot order them either.
+    'crazy golf',         // was fr129 · Games
+    'batting cage',       // was fr130 · Games
+    'extreme basketball', // was fr131 · Games
+    'shuriken throw',     // was fr132 · Games
+    'shuffle board',      // was fr133 · Games
+    'curling',            // was fr134 · Games
+    'feather bowling',    // was fr135 · Games
 ]);
 
 /** True when a snapshot record is hidden from the customer QR menu (QR-only). */
