@@ -109,6 +109,11 @@ const FunRoofMenuView: React.FC = () => {
 
     const subcategories = useMemo(() => FUN_ROOF_MENU_GROUPS.find(g => g.key === activeGroup)?.subcategories ?? [], [activeGroup]);
     const visibleItems = useMemo(() => menuItems.filter(i => i.group === activeGroup && i.category === activeSub), [menuItems, activeGroup, activeSub]);
+    // Merged Food tab (owner request 2026-07-17): Best Sellers section first, then
+    // everything else. Pure partition of the same list — no item duplicated or hidden.
+    const isMergedFoodTab = activeGroup === 'Food' && activeSub === 'Food';
+    const bestSellerItems = useMemo(() => visibleItems.filter(i => i.bestSeller), [visibleItems]);
+    const otherFoodItems = useMemo(() => visibleItems.filter(i => !i.bestSeller), [visibleItems]);
     const countFor = (group: FunRoofGroup, sub: string) => menuItems.filter(i => i.group === group && i.category === sub).length;
 
     const handleGroupChange = (group: FunRoofGroup) => {
@@ -182,6 +187,40 @@ const FunRoofMenuView: React.FC = () => {
     }
 
     const tableLabel = tableStatus === 'resolving' ? '…' : formatTableLabel(tableNumber);
+
+    // One menu item card (unchanged design) — shared by the flat list and the
+    // merged Food tab's two sections so the card renders identically everywhere.
+    const renderItemCard = (item: FunRoofItem) => (
+        <div key={item.id} className="flex items-center gap-4 rounded-[20px] p-4" style={{ background: T.surface, border: `1px solid ${T.border}`, boxShadow: '0 10px 30px -12px rgba(0,0,0,0.6)' }}>
+            <button type="button" onClick={() => setDetailItem(item)} aria-haspopup="dialog" className="flex items-center gap-3.5 flex-1 min-w-0 text-left rounded-2xl outline-none focus-visible:ring-2" style={{ '--tw-ring-color': FUN_ROOF_COLORS.magenta } as React.CSSProperties}>
+                <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0" style={{ border: `1px solid ${T.border}` }}>
+                    {item.imageUrl ? (<img src={item.imageUrl} alt="" loading="lazy" decoding="async" width={80} height={80} className="w-full h-full object-cover" />) : (<ImageFallback group={item.group} />)}
+                </div>
+                <div className="flex-1 min-w-0 py-0.5">
+                    <h3 className="font-bold text-[16px] leading-tight line-clamp-2" style={{ color: T.text }}>{item.name}</h3>
+                    {item.description && (<p className="text-[13px] leading-snug mt-1 line-clamp-2" style={{ color: T.textMuted }}>{item.description}</p>)}
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                        {item.bestSeller && (<span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: FUN_ROOF_COLORS.ink, background: FUN_ROOF_COLORS.lime }}><Flame size={11} className="fill-current" /> Bestseller</span>)}
+                        {!item.bestSeller && item.tag && item.tag.length <= 16 && (<span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: FUN_ROOF_COLORS.cyan, background: 'rgba(55,211,230,0.12)', border: `1px solid rgba(55,211,230,0.3)` }}>{item.tag}</span>)}
+                        {item.serving && (<span className="text-[12px] font-medium" style={{ color: T.textFaint }}>{item.serving}</span>)}
+                    </div>
+                </div>
+            </button>
+            <div className="flex flex-col items-end justify-between self-stretch py-1 shrink-0">
+                <div className="font-extrabold text-[16px] tabular-nums" style={{ color: FUN_ROOF_COLORS.lime }}>{peso(item.sellingPrice)}</div>
+                <button type="button" onClick={() => handleQuickAdd(item)} aria-label={`Add ${item.name} to my picks`} className="w-[46px] h-[46px] rounded-2xl flex items-center justify-center active:scale-95 transition-transform duration-200" style={{ background: T.primarySoft, border: `1px solid ${T.borderStrong}` }}>
+                    <Plus size={20} strokeWidth={2.75} style={{ color: FUN_ROOF_COLORS.magenta }} />
+                </button>
+            </div>
+        </div>
+    );
+
+    const sectionHeading = (title: string) => (
+        <div className="flex items-center gap-4">
+            <h2 className="text-[15px] font-extrabold tracking-[0.15em] uppercase" style={{ color: FUN_ROOF_COLORS.cyan }}>{title}</h2>
+            <span className="h-px flex-1 rounded-full" style={{ background: `linear-gradient(90deg, ${FUN_ROOF_COLORS.magenta}66, transparent)` }} />
+        </div>
+    );
 
     return (
         <div className="min-h-dvh relative overflow-x-hidden" style={{ background: FUN_ROOF_BACKGROUND, color: T.text }}>
@@ -268,12 +307,7 @@ const FunRoofMenuView: React.FC = () => {
                     })}
                 </div>
 
-                <div className="mt-7 flex items-center gap-4">
-                    <h2 className="text-[15px] font-extrabold tracking-[0.15em] uppercase" style={{ color: FUN_ROOF_COLORS.cyan }}>{activeSub}</h2>
-                    <span className="h-px flex-1 rounded-full" style={{ background: `linear-gradient(90deg, ${FUN_ROOF_COLORS.magenta}66, transparent)` }} />
-                </div>
-
-                <div className="mt-4 space-y-4 pb-40">
+                <div className="mt-4 pb-40">
                     {visibleItems.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
                             <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-4" style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.border}` }}>
@@ -282,31 +316,29 @@ const FunRoofMenuView: React.FC = () => {
                             <h3 className="text-base font-bold mb-1" style={{ color: T.text }}>Nothing here yet</h3>
                             <p className="text-sm max-w-[16rem]" style={{ color: T.textMuted }}>Try another category — there’s plenty on the roof.</p>
                         </div>
-                    ) : (
-                        visibleItems.map(item => (
-                            <div key={item.id} className="flex items-center gap-4 rounded-[20px] p-4" style={{ background: T.surface, border: `1px solid ${T.border}`, boxShadow: '0 10px 30px -12px rgba(0,0,0,0.6)' }}>
-                                <button type="button" onClick={() => setDetailItem(item)} aria-haspopup="dialog" className="flex items-center gap-3.5 flex-1 min-w-0 text-left rounded-2xl outline-none focus-visible:ring-2" style={{ '--tw-ring-color': FUN_ROOF_COLORS.magenta } as React.CSSProperties}>
-                                    <div className="w-20 h-20 rounded-2xl overflow-hidden shrink-0" style={{ border: `1px solid ${T.border}` }}>
-                                        {item.imageUrl ? (<img src={item.imageUrl} alt="" loading="lazy" decoding="async" width={80} height={80} className="w-full h-full object-cover" />) : (<ImageFallback group={item.group} />)}
-                                    </div>
-                                    <div className="flex-1 min-w-0 py-0.5">
-                                        <h3 className="font-bold text-[16px] leading-tight line-clamp-2" style={{ color: T.text }}>{item.name}</h3>
-                                        {item.description && (<p className="text-[13px] leading-snug mt-1 line-clamp-2" style={{ color: T.textMuted }}>{item.description}</p>)}
-                                        <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                                            {item.bestSeller && (<span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: FUN_ROOF_COLORS.ink, background: FUN_ROOF_COLORS.lime }}><Flame size={11} className="fill-current" /> Bestseller</span>)}
-                                            {!item.bestSeller && item.tag && item.tag.length <= 16 && (<span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ color: FUN_ROOF_COLORS.cyan, background: 'rgba(55,211,230,0.12)', border: `1px solid rgba(55,211,230,0.3)` }}>{item.tag}</span>)}
-                                            {item.serving && (<span className="text-[12px] font-medium" style={{ color: T.textFaint }}>{item.serving}</span>)}
-                                        </div>
-                                    </div>
-                                </button>
-                                <div className="flex flex-col items-end justify-between self-stretch py-1 shrink-0">
-                                    <div className="font-extrabold text-[16px] tabular-nums" style={{ color: FUN_ROOF_COLORS.lime }}>{peso(item.sellingPrice)}</div>
-                                    <button type="button" onClick={() => handleQuickAdd(item)} aria-label={`Add ${item.name} to my picks`} className="w-[46px] h-[46px] rounded-2xl flex items-center justify-center active:scale-95 transition-transform duration-200" style={{ background: T.primarySoft, border: `1px solid ${T.borderStrong}` }}>
-                                        <Plus size={20} strokeWidth={2.75} style={{ color: FUN_ROOF_COLORS.magenta }} />
-                                    </button>
+                    ) : isMergedFoodTab ? (
+                        // Merged Food tab — Best Sellers section on top, then the rest.
+                        // Same items, partitioned by the bestSeller flag (never duplicated).
+                        <>
+                            {bestSellerItems.length > 0 && (
+                                <div className="mt-3">
+                                    {sectionHeading('Best Sellers')}
+                                    <p className="mt-1.5 text-[13px]" style={{ color: T.textMuted }}>Guest favorites from The Fun Roof kitchen.</p>
+                                    <div className="mt-4 space-y-4">{bestSellerItems.map(renderItemCard)}</div>
                                 </div>
-                            </div>
-                        ))
+                            )}
+                            {otherFoodItems.length > 0 && (
+                                <div className="mt-8">
+                                    {sectionHeading('All Food')}
+                                    <div className="mt-4 space-y-4">{otherFoodItems.map(renderItemCard)}</div>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            <div className="mt-3">{sectionHeading(activeSub)}</div>
+                            <div className="mt-4 space-y-4">{visibleItems.map(renderItemCard)}</div>
+                        </>
                     )}
                 </div>
             </div>

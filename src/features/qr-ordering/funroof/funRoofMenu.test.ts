@@ -23,6 +23,8 @@ test('nav is Drinks · Food · Play with the venue sub-tabs', () => {
     assert.ok(FUN_ROOF_MENU_GROUPS[0].subcategories.includes('Classics'));
     assert.ok(FUN_ROOF_MENU_GROUPS[0].subcategories.includes('Brandy & Cognac'), 'Hennessy sub-tab present');
     assert.ok(!FUN_ROOF_MENU_GROUPS[1].subcategories.includes('Ice Cream'), 'empty Ice Cream tab removed');
+    // Food restructure (2026-07-17): Pizza + Bar Chows merged into one Food tab; Add-ons separate.
+    assert.deepEqual(FUN_ROOF_MENU_GROUPS[1].subcategories, ['Food', 'Add-ons'], 'Food merged (no Pizza / Bar Chows tabs)');
     assert.deepEqual(FUN_ROOF_MENU_GROUPS[2].subcategories, ['Packages'], 'Games tab removed (packages only)');
 });
 
@@ -46,8 +48,9 @@ test('sheet categories map to the right group/sub-tab', () => {
     assert.deepEqual(c('Classics'), { group: 'Drinks', subcategory: 'Classics' });
     assert.deepEqual(c('Whiskey'), { group: 'Drinks', subcategory: 'Whiskey' });
     assert.deepEqual(c('Tequila/Mescal'), { group: 'Drinks', subcategory: 'Tequila' });
-    assert.deepEqual(c('The Fun Roof Bestsellers'), { group: 'Food', subcategory: 'Bestsellers' });
-    assert.deepEqual(c('Pizza'), { group: 'Food', subcategory: 'Pizza' });
+    assert.deepEqual(c('The Fun Roof Bestsellers'), { group: 'Food', subcategory: 'Food' });
+    assert.deepEqual(c('Pizza'), { group: 'Food', subcategory: 'Food' });
+    assert.deepEqual(c('Bar Chows'), { group: 'Food', subcategory: 'Food' });
     assert.deepEqual(c('Add Ons'), { group: 'Food', subcategory: 'Add-ons' });
     assert.deepEqual(c('Packages'), { group: 'Play', subcategory: 'Packages' });
 });
@@ -160,8 +163,22 @@ test('image-first ordering is STABLE (preserves relative order within each half)
     assert.deepEqual(orderFunRoofItemsImageFirst(input).map(i => i.id), ['B', 'D', 'A', 'C']);
 });
 
+test('FOOD MERGE (2026-07-17): bestsellers + pizza + bar chows in one Food tab, add-ons separate, no duplicates', () => {
+    const items = loadFunRoofMenu();
+    const foodTab = items.filter(i => i.group === 'Food' && i.category === 'Food');
+    const addOns = items.filter(i => i.group === 'Food' && i.category === 'Add-ons');
+    // 2 bestsellers + 3 pizza + 4 bar chows merged; 1 add-on separate (per snapshot header)
+    assert.equal(foodTab.length, 9, 'Pizza + Bar Chows + Bestsellers merged under Food');
+    assert.equal(addOns.length, 1, 'Add-ons stays its own tab');
+    // Best Seller flags survive the merge (the view surfaces them on top)
+    const best = foodTab.filter(i => i.bestSeller);
+    assert.deepEqual(best.map(i => i.name).sort(), ['PORK SISIG', 'TFR SMASHED SLIDERS']);
+    // one entry per item — nothing duplicated by the merge
+    assert.equal(new Set(foodTab.map(i => i.id)).size, foodTab.length, 'no duplicate items in Food');
+});
+
 test('QR-only exclusion mechanism: only the 7 Games are on the list', () => {
     assert.equal(isExcludedFromFunRoofQrMenu('crazy golf'), true);
     assert.equal(isExcludedFromFunRoofQrMenu('seattle dog'), false, 'old exclusions gone from the source entirely');
-    assert.ok(loadFunRoofMenu().some(i => /not calamari/i.test(i.name) && i.category === 'Bar Chows'), 'Bar Chows intact');
+    assert.ok(loadFunRoofMenu().some(i => /not calamari/i.test(i.name) && i.category === 'Food'), 'Bar Chows items intact (merged under Food)');
 });

@@ -38,7 +38,9 @@ export interface FunRoofItem {
 /** FIXED nav for The Fun Roof. Drinks first (it's a bar); Play = games + packages. */
 export const FUN_ROOF_MENU_GROUPS: { key: FunRoofGroup; subcategories: string[] }[] = [
     { key: 'Drinks', subcategories: ['Classics', 'Beers', 'Whiskey', 'Tequila', 'Rum', 'Gin', 'Vodka', 'Liqueur', 'Brandy & Cognac', 'Ice Cold', 'Non-Alcoholic'] },
-    { key: 'Food', subcategories: ['Bestsellers', 'Pizza', 'Bar Chows', 'Add-ons'] },
+    // Food restructure (owner request 2026-07-17): Pizza + Bar Chows merged into a
+    // single "Food" tab (bestsellers surface first in the view); Add-ons stays separate.
+    { key: 'Food', subcategories: ['Food', 'Add-ons'] },
     { key: 'Play', subcategories: ['Packages'] }, // Games tab removed 2026-07-16 (individual games hidden; packages only)
 ];
 
@@ -52,9 +54,9 @@ const SUBCATEGORY_GROUP: Map<string, FunRoofGroup> = (() => {
 /** Raw sheet category → nav sub-tab. The sheet is authoritative, so this is a
  *  direct rename map (no fuzzy matching). Extend if the sheet adds a section. */
 const CATEGORY_TO_SUB: Record<string, string> = {
-    'The Fun Roof Bestsellers': 'Bestsellers',
-    'Pizza': 'Pizza',
-    'Bar Chows': 'Bar Chows',
+    'The Fun Roof Bestsellers': 'Food', // bestSeller flag keeps them at the top of the tab
+    'Pizza': 'Food',
+    'Bar Chows': 'Food',
     'Add Ons': 'Add-ons',
     'Whiskey': 'Whiskey',
     'Vodka': 'Vodka',
@@ -73,7 +75,7 @@ const CATEGORY_TO_SUB: Record<string, string> = {
 };
 
 /** Safe visible bucket for a category the map doesn't recognize (never drop an item). */
-const FALLBACK_SUB = 'Bar Chows';
+const FALLBACK_SUB = 'Food';
 
 /** Resolve a raw sheet category to its (group, sub-tab). Never throws. */
 export function classifyFunRoofCategory(category: string): { group: FunRoofGroup; subcategory: string } {
