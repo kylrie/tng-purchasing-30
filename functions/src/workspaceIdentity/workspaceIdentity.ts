@@ -35,6 +35,12 @@ import { OidcClaims } from './oidc';
 import { FirebaseClaims } from './employeeToken';
 
 const ERP_DATABASE_ID = 'tng-systems';
+const DEPLOY_REGION = 'us-central1'; // matches every other function in this codebase
+// Dedicated, narrow runtime identity — NOT shared with any other function.
+// Grant it ONLY roles/datastore.user on the tng-systems project (see
+// docs/WORKSPACE_IDENTITY_BROKER.md). Non-secret: an SA email is an identifier,
+// not a credential.
+const RUNTIME_SERVICE_ACCOUNT = 'workspace-identity-broker@tng-systems.iam.gserviceaccount.com';
 
 function bearer(header: string | undefined): string {
   const h = header ?? '';
@@ -94,7 +100,20 @@ function buildConfig(): BrokerConfig {
   return cachedConfig;
 }
 
-export const workspaceIdentity = onRequest(async (req, res) => {
+export const workspaceIdentity = onRequest(
+  {
+    region: DEPLOY_REGION,
+    // Attach the dedicated narrow runtime SA directly from source — avoids any
+    // window where the function would run under the broad default GCF SA.
+    serviceAccount: RUNTIME_SERVICE_ACCOUNT,
+    // CRITICAL: firebase-tools defaults httpsTrigger.invoker to ["public"] on
+    // first deploy when this is left unset. "private" means NO invoker binding
+    // is created at deploy time (not even for this account) — the caller SA is
+    // granted roles/run.invoker in a separate, explicit, scoped-to-this-service
+    // step after deploy. This guarantees no public/allUsers window ever exists.
+    invoker: 'private',
+  },
+  async (req, res) => {
   // No CORS by design; block preflight and non-POST.
   if (req.method === 'OPTIONS') {
     res.status(405).end();
