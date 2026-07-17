@@ -137,11 +137,57 @@ export interface RoutableLine {
 }
 
 /**
+ * The Fun Roof (b1) business-unit id. See funRoofBusinessUnit note below.
+ */
+const FUN_ROOF_BUSINESS_UNIT_ID = 'b1';
+
+/**
+ * The Fun Roof (b1) is a rooftop BAR whose live `menu_items.category` values are
+ * FINE drink categories (Whiskey, Vodka, Tequila/Mescal, Rum, Gin, Liqueur,
+ * Brandy & Cognac, Classics/cocktails, Ice Cold, Beers, Non-Alcoholic) — NOT the
+ * coarse "Beverages"/"Mains" that the generic classifier (tuned for BEACHBOSSES /
+ * b3) understands. Under the generic path a spirit category with no matching name
+ * keyword (e.g. "Whiskey" / "JACK DANIELS") falls to the KITCHEN default, so bar
+ * drinks wrongly print on the kitchen ticket.
+ *
+ * This explicit set forces every Fun Roof DRINK category to the BAR station. It is
+ * consulted ONLY when the routed order is b1, so b3 (and any other unit) keeps its
+ * existing behavior byte-for-byte. Anything NOT in this set falls through to the
+ * generic classifier, which already routes b1's food categories (Pizza, Bar Chows,
+ * Add Ons, Bestsellers, Packages) and any coarse drink categories correctly.
+ * Values are normalized (lowercased + trimmed) before lookup. Keep in sync with
+ * the Fun Roof menu categories if the sheet adds a new drink section.
+ */
+const FUN_ROOF_BAR_CATEGORIES: ReadonlySet<string> = new Set([
+    // Spirits
+    'whiskey', 'whisky', 'vodka', 'rum', 'gin',
+    'tequila', 'mescal', 'mezcal', 'tequila/mescal', 'tequila / mescal', 'tequila/mezcal',
+    'liqueur', 'liquor',
+    'brandy', 'cognac', 'brandy & cognac', 'brandy and cognac',
+    // Cocktails
+    'classics', 'classic cocktails', 'cocktails', 'signature', 'signature cocktails',
+    // Beer + other drinks (also handled generically; listed for robustness/clarity)
+    'beers', 'beer', 'draft beer', 'bottled beer',
+    'non-alcoholic', 'non alcoholic', 'ice cold',
+]);
+
+/**
  * Classify one order line to its station. BAR iff the fully-refined group is
  * 'Drinks'; otherwise KITCHEN. Robust to BOTH fine subcategories (demo/mock) and
  * coarse real categories ("Beverages"/"Mains"). Pure + deterministic.
+ *
+ * `businessUnitId` is optional and, when it is The Fun Roof (b1), applies the
+ * Fun-Roof drink-category override (fine spirit/cocktail categories → BAR) BEFORE
+ * the generic logic. Omitting it (or any non-b1 value) preserves the original
+ * generic behavior exactly — b3 is unaffected.
  */
-export function classifyStation(line: RoutableLine): Station {
+export function classifyStation(line: RoutableLine, businessUnitId?: string): Station {
+    if (businessUnitId === FUN_ROOF_BUSINESS_UNIT_ID) {
+        const cat = (typeof line.category === 'string' ? line.category : '').trim().toLowerCase();
+        if (FUN_ROOF_BAR_CATEGORIES.has(cat)) return 'BAR';
+        // Not a known Fun Roof drink category → fall through to the generic
+        // classifier (food → KITCHEN default; coarse drink categories → BAR).
+    }
     const name = typeof line.productName === 'string' ? line.productName : '';
     const category = typeof line.category === 'string' ? line.category : '';
     const { group } = refineByName(name, normalizeCategory(category));
@@ -151,11 +197,13 @@ export function classifyStation(line: RoutableLine): Station {
 /**
  * Split an order's lines into KITCHEN (food) and BAR (drink) buckets, preserving
  * order. A station bucket is empty when the order has no lines for it. Pure.
+ * `businessUnitId` is threaded to classifyStation for the b1 override (optional;
+ * omitting it preserves the original generic behavior).
  */
-export function splitByStation<T extends RoutableLine>(lines: T[]): Record<Station, T[]> {
+export function splitByStation<T extends RoutableLine>(lines: T[], businessUnitId?: string): Record<Station, T[]> {
     const out: Record<Station, T[]> = { KITCHEN: [], BAR: [] };
     for (const line of Array.isArray(lines) ? lines : []) {
-        out[classifyStation(line)].push(line);
+        out[classifyStation(line, businessUnitId)].push(line);
     }
     return out;
 }

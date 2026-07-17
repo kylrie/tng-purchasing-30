@@ -61,3 +61,66 @@ test('splitByStation tolerates a non-array input', () => {
     const split = splitByStation(undefined as any);
     assert.deepEqual(split, { KITCHEN: [], BAR: [] });
 });
+
+// ── The Fun Roof (b1) fine-category routing (P0 fix 2026-07-17) ───────────────
+// b1's live menu_items use FINE drink categories (Whiskey, Vodka, …) that the
+// generic classifier sends to KITCHEN by default. Passing businessUnitId==='b1'
+// forces every Fun Roof drink category to BAR. Uses REAL b1 item names/categories.
+
+test('b1: every Fun Roof spirit / cocktail / beer category routes to BAR', () => {
+    const bar = (name: string, category: string) =>
+        assert.equal(classifyStation({ productName: name, category }, 'b1'), 'BAR', `${name} (${category})`);
+    bar('JACK DANIELS (Shot)', 'Whiskey');
+    bar('PATRON SILVER (Shot)', 'Tequila/Mescal');
+    bar('BACARDI GOLD (Shot)', 'Rum');
+    bar('TANQUERAY DRY (Shot)', 'Gin');
+    bar('ABSOLUT BLUE (Shot)', 'Vodka');
+    bar('BAILEYS (Shot)', 'Liqueur');
+    bar('HENNESSY (Shot)', 'Brandy & Cognac');
+    bar('AMARETTO SOUR', 'Classics');
+    bar('COSMOPOLITAN', 'Classics');
+    bar('WHITE RUSSIAN', 'Classics');
+    bar('JAGERMEISTER (Shot)', 'Ice Cold');
+    bar('SAN MIG APPLE', 'Beers');
+    bar('FR ICED TEA', 'Non-Alcoholic');
+});
+
+test('b1: food categories still route to KITCHEN', () => {
+    const kitchen = (name: string, category: string) =>
+        assert.equal(classifyStation({ productName: name, category }, 'b1'), 'KITCHEN', `${name} (${category})`);
+    kitchen('PEPPERONI PIZZA', 'Pizza');
+    kitchen('NOT CALAMARI', 'Bar Chows');          // "Bar Chows" = D Chow food, NOT a drink
+    kitchen('PORK SISIG', 'The Fun Roof Bestsellers');
+    kitchen('STEAMED RICE', 'Add Ons');
+    kitchen('CHICKEN TENDERS (BUFFALO)', 'Bar Chows');
+});
+
+test('b1: Packages / Play route to KITCHEN (pinned MVP behavior — no split printing)', () => {
+    // Packages are Play/games; there is no play print station in the MVP, so they
+    // route with the food default. If a package ever bundles drinks, the order-line
+    // data does not express that split, so we do NOT invent split printing here.
+    assert.equal(classifyStation({ productName: 'UNLI PLAY ALL NIGHT', category: 'Packages' }, 'b1'), 'KITCHEN');
+});
+
+test('b1 override is scoped to b1: the SAME fine category is unchanged for b3 / default', () => {
+    // Regression guard: a "Whiskey" line under b3 (or with no businessUnitId) keeps
+    // the ORIGINAL generic behavior (KITCHEN) — the b1 fix must not leak to b3.
+    assert.equal(classifyStation({ productName: 'JACK DANIELS', category: 'Whiskey' }, 'b3'), 'KITCHEN');
+    assert.equal(classifyStation({ productName: 'JACK DANIELS', category: 'Whiskey' }), 'KITCHEN');
+    // And b3's real coarse categories are still routed correctly under b1 too
+    // (generic fallback), so nothing regresses if b1 ever has a coarse line.
+    assert.equal(classifyStation({ productName: 'San Miguel', category: 'Beverages' }, 'b1'), 'BAR');
+    assert.equal(classifyStation({ productName: 'Chicken Inasal', category: 'Mains' }, 'b1'), 'KITCHEN');
+});
+
+test('b1: splitByStation routes a mixed Fun Roof order correctly', () => {
+    const lines = [
+        { productName: 'PORK SISIG', category: 'The Fun Roof Bestsellers' },
+        { productName: 'JACK DANIELS (Shot)', category: 'Whiskey' },
+        { productName: 'PEPPERONI PIZZA', category: 'Pizza' },
+        { productName: 'AMARETTO SOUR', category: 'Classics' },
+    ];
+    const split = splitByStation(lines, 'b1');
+    assert.deepEqual(split.KITCHEN.map(l => l.productName), ['PORK SISIG', 'PEPPERONI PIZZA']);
+    assert.deepEqual(split.BAR.map(l => l.productName), ['JACK DANIELS (Shot)', 'AMARETTO SOUR']);
+});

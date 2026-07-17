@@ -51,6 +51,24 @@ test('food-only order → only a KITCHEN job; drinks-only → only a BAR job', (
     assert.deepEqual(drink.map(j => j.station), ['BAR']);
 });
 
+test('b1 (The Fun Roof): fine drink categories land on the BAR job, food on KITCHEN', () => {
+    const jobs = buildInitialPrintJobs('frOrd', {
+        businessUnitId: 'b1', orderNumber: 'QR-00099', tableNumber: '3',
+        items: [
+            { productName: 'PORK SISIG', quantity: 1, category: 'The Fun Roof Bestsellers' },
+            { productName: 'JACK DANIELS (Shot)', quantity: 2, category: 'Whiskey' },
+            { productName: 'PEPPERONI PIZZA', quantity: 1, category: 'Pizza' },
+            { productName: 'AMARETTO SOUR', quantity: 1, category: 'Classics' },
+        ],
+    });
+    assert.equal(jobs.length, 2);
+    const kitchen = jobs.find(j => j.station === 'KITCHEN')!;
+    const bar = jobs.find(j => j.station === 'BAR')!;
+    assert.deepEqual(kitchen.lines.map(l => l.name), ['PORK SISIG', 'PEPPERONI PIZZA']);
+    assert.deepEqual(bar.lines.map(l => l.name), ['JACK DANIELS (Shot)', 'AMARETTO SOUR']);
+    assert.equal(bar.businessUnitId, 'b1');
+});
+
 test('no items → no jobs', () => {
     assert.deepEqual(buildInitialPrintJobs('empty', { items: [] }), []);
     assert.deepEqual(buildInitialPrintJobs('none', {}), []);
