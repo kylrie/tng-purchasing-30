@@ -107,33 +107,68 @@ export class ReconService {
         const itemsSnap = await getDocs(itemsQ);
         const items = itemsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as (InventoryItem & { id: string })[];
 
-        // Fetch completed stock counts to use as starting/ending baseline counts
-        const stockCountsQ = query(
-            collection(db, COL.STOCK_COUNTS),
+        // 2. Look for the most recent completed recon whose periodEnd is before this startDate
+        //    This gives us a trusted anchor for beginningInventory
+        const anchorMap = new Map<string, number>(); // itemId -> endingActual from prior recon
+        const reconQ = query(
+            collection(db, COL.RECON_HISTORY),
             where('businessUnitId', '==', businessUnitId),
-            where('status', '==', 'COMPLETED')
+            orderBy('savedAt', 'desc'),
+            firestoreLimit(10) // Check recent recons
         );
-        const stockCountsSnap = await getDocs(stockCountsQ);
+        const reconSnap = await getDocs(reconQ);
+        
+        // Find the most recent recon whose periodEnd is strictly before our startDate
+        // IMPORTANT: Use local date formatting, NOT toISOString() which converts to UTC
+        // and shifts dates backward in positive UTC offset timezones (e.g. UTC+8)
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const startDateStr = `${startDate.getFullYear()}-${pad(startDate.getMonth() + 1)}-${pad(startDate.getDate())}`;
+        
+        for (const reconDoc of reconSnap.docs) {
+            const reconData = reconDoc.data();
+            const reconPeriodEnd = reconData.periodEnd as string; // ISO date string e.g. "2026-07-14"
+            
+            if (reconPeriodEnd && reconPeriodEnd <= startDateStr) {
+                // This recon ended on or before our period starts — use it as anchor
+                const rows = reconData.rows as Array<{ itemId: string; endingActual: number | null }>;
+                if (rows) {
+                    for (const row of rows) {
+                        if (row.endingActual !== null && row.endingActual !== undefined) {
+                            anchorMap.set(row.itemId, row.endingActual);
+                        }
+                    }
+                }
+                break; // Use the most recent matching recon
+            }
+        }
 
-        // 2. Query all transactions since the start date to calculate historical stock via rollback
+        // 3. Query transactions for the period
+        const startTimestamp = Timestamp.fromDate(startDate);
+        const endTimestamp = Timestamp.fromDate(endDate);
+        
+        // If we have an anchor, we only need transactions within [startDate, endDate] for column aggregation
+        // If no anchor, we need transactions from startDate to NOW for rollback calculation
+        const txQueryConstraints = [
+            where('businessUnitId', '==', businessUnitId),
+            where('timestamp', '>=', startTimestamp),
+            orderBy('timestamp', 'desc')
+        ];
+        
         const txQuery = query(
             collection(db, COL.STOCK_TRANSACTIONS),
-            where('businessUnitId', '==', businessUnitId),
-            where('timestamp', '>=', Timestamp.fromDate(startDate)),
-            orderBy('timestamp', 'desc')
+            ...txQueryConstraints
         );
         
         const txSnap = await getDocs(txQuery);
-               const purchasesMap = new Map<string, number>();
+        const purchasesMap = new Map<string, number>();
         const returnsMap = new Map<string, number>();
         const posSalesMap = new Map<string, number>();
         const eventSalesMap = new Map<string, number>();
         const prodWasteMap = new Map<string, number>();
-        const netChangeMap = new Map<string, number>();
+        const netChangeMap = new Map<string, number>(); // All changes from startDate to NOW (for rollback)
+        const periodNetChangeMap = new Map<string, number>(); // Changes within [startDate, endDate] only
 
-        const endTimestamp = Timestamp.fromDate(endDate);
-
-        // Single pass O(N) aggregation of filtered documents
+        // Single pass O(N) aggregation
         for (const docSnap of txSnap.docs) {
             const data = docSnap.data();
             const type = data.type as string;
@@ -142,7 +177,7 @@ export class ReconService {
             const rawQty = (data.quantity as number) || 0;
             const ts = data.timestamp as Timestamp;
 
-            // Calculate net effect on stock for rollback calculation
+            // Calculate net effect on stock
             let effect = 0;
             if (['RECEIVE', 'PRODUCTION_OUTPUT', 'POS_REVERSAL'].includes(type)) {
                 effect = qty;
@@ -151,10 +186,14 @@ export class ReconService {
             } else if (type === 'ADJUSTMENT') {
                 effect = rawQty;
             }
+            
+            // netChange includes everything from startDate to NOW (for currentStock rollback fallback)
             netChangeMap.set(itemId, (netChangeMap.get(itemId) || 0) + effect);
 
-            // Only aggregate columns strictly inside [startDate, endDate]
+            // Only aggregate columns and period net change within [startDate, endDate]
             if (ts.toMillis() <= endTimestamp.toMillis()) {
+                periodNetChangeMap.set(itemId, (periodNetChangeMap.get(itemId) || 0) + effect);
+                
                 if (['RECEIVE', 'PRODUCTION_OUTPUT'].includes(type)) {
                     purchasesMap.set(itemId, (purchasesMap.get(itemId) || 0) + qty);
                 } else if (['RETURN', 'TRANSFER_OUT'].includes(type)) {
@@ -176,54 +215,7 @@ export class ReconService {
             }
         }
 
-        // Extract completed counts for all items to map in memory
-        const completedCountsMap = new Map<string, { date: Timestamp; qty: number }[]>();
-        for (const docSnap of stockCountsSnap.docs) {
-            const data = docSnap.data();
-            const date = data.completedAt || data.startedAt;
-            if (!date) continue;
-            const sessionItems = data.items || [];
-            for (const sessionItem of sessionItems) {
-                const itemId = sessionItem.itemId;
-                const itemDoc = items.find(i => i.id === itemId);
-                if (!itemDoc) continue;
-                const conversion = itemDoc.units?.conversion > 0 ? itemDoc.units.conversion : 1;
-                const qty = (sessionItem.count + (sessionItem.partialCount || 0)) * conversion;
-                
-                if (!completedCountsMap.has(itemId)) {
-                    completedCountsMap.set(itemId, []);
-                }
-                completedCountsMap.get(itemId)!.push({ date, qty });
-            }
-        }
-
-        const startDateTimestamp = Timestamp.fromDate(startDate);
-
-        // Helper to compute net stock change between two timestamps in memory
-        const getNetChangeBetween = (itemId: string, t1: Timestamp, t2: Timestamp) => {
-            let change = 0;
-            for (const docSnap of txSnap.docs) {
-                const data = docSnap.data();
-                if (data.itemId !== itemId) continue;
-                const ts = data.timestamp as Timestamp;
-                if (ts.toMillis() >= t1.toMillis() && ts.toMillis() < t2.toMillis()) {
-                    const type = data.type as string;
-                    const qty = Math.abs((data.quantity as number) || 0);
-                    const rawQty = (data.quantity as number) || 0;
-
-                    if (['RECEIVE', 'PRODUCTION_OUTPUT', 'POS_REVERSAL'].includes(type)) {
-                        change += qty;
-                    } else if (['RETURN', 'TRANSFER_OUT', 'THEORETICAL_USAGE', 'POS_SALE', 'PRODUCTION_CONSUMPTION', 'PRODUCTION_CONSUME', 'WASTAGE', 'EVENT_CONSUMPTION'].includes(type)) {
-                        change -= qty;
-                    } else if (type === 'ADJUSTMENT') {
-                        change += rawQty;
-                    }
-                }
-            }
-            return change;
-        };
-
-        // 3. Build and return rows
+        // 4. Build and return rows
         return items
             .filter(item => item.type === 'RAW_MATERIAL' || item.type === 'PRODUCTION')
             .map(item => {
@@ -233,33 +225,13 @@ export class ReconService {
                 const eventSales = eventSalesMap.get(item.id) || 0;
                 const prodWaste = prodWasteMap.get(item.id) || 0;
 
-                // Determine beginning inventory using the closest completed stock count
-                const itemCounts = completedCountsMap.get(item.id) || [];
-                itemCounts.sort((a, b) => a.date.toMillis() - b.date.toMillis());
-
-                let beginningInventory = 0;
-                let foundBase = false;
-
-                // Case 1: Find the latest completed count BEFORE or ON startDate
-                const countsBefore = itemCounts.filter(cc => cc.date.toMillis() <= startDateTimestamp.toMillis());
-                if (countsBefore.length > 0) {
-                    const lastCount = countsBefore[countsBefore.length - 1];
-                    const changeAfter = getNetChangeBetween(item.id, lastCount.date, startDateTimestamp);
-                    beginningInventory = lastCount.qty + changeAfter;
-                    foundBase = true;
+                let beginningInventory: number;
+                
+                if (anchorMap.has(item.id)) {
+                    // Use the ending actual from the previous recon as our beginning
+                    beginningInventory = anchorMap.get(item.id)!;
                 } else {
-                    // Case 2: Find the earliest completed count AFTER startDate
-                    const countsAfter = itemCounts.filter(cc => cc.date.toMillis() > startDateTimestamp.toMillis());
-                    if (countsAfter.length > 0) {
-                        const firstCount = countsAfter[0];
-                        const changeBefore = getNetChangeBetween(item.id, startDateTimestamp, firstCount.date);
-                        beginningInventory = firstCount.qty - changeBefore;
-                        foundBase = true;
-                    }
-                }
-
-                // Case 3: Fall back to general rollback from current live stock
-                if (!foundBase) {
+                    // Fallback: rollback from currentStock using ALL transactions from startDate to NOW
                     const netChange = netChangeMap.get(item.id) || 0;
                     beginningInventory = (item.currentStock ?? 0) - netChange;
                 }
@@ -300,7 +272,8 @@ export class ReconService {
         user: User,
         rows: ReconRow[],
         businessUnitId: string,
-        periodLabel: string
+        periodLabel: string,
+        periodEndDate?: Date
     ): Promise<ReconSaveResult> {
         if (!user) {
             throw new Error('Access denied: Authentication context is missing');
@@ -343,11 +316,12 @@ export class ReconService {
 
             // 1. Update currentStock on the inventory item
             const itemRef = doc(db, COL.INVENTORY_ITEMS, row.itemId);
+            const ts = periodEndDate ? Timestamp.fromDate(periodEndDate) : Timestamp.now();
             currentBatch.update(itemRef, {
                 currentStock: actualCount,
                 theoreticalStock: actualCount, // Reset theoretical to match physical
                 updatedAt: Timestamp.now(),
-                lastReconAt: Timestamp.now(), // Sentinel: POS import should skip deductions for transactions before this
+                lastReconAt: ts, // Sentinel: POS import should skip deductions for transactions before this
             });
             updatedItems++;
             opCount++;
@@ -366,7 +340,7 @@ export class ReconService {
                     notes: `Inventory Recon: System expected ${row.endingSystem.toFixed(1)}, actual count ${actualCount}. Variance: ${variance > 0 ? '+' : ''}${variance.toFixed(1)}`,
                     performedBy: user.id,
                     performedByName: user.name,
-                    timestamp: Timestamp.now(),
+                    timestamp: ts,
                 });
                 adjustmentsCreated++;
                 opCount++;

@@ -402,11 +402,13 @@ const VarianceReconReport: React.FC<VarianceReconReportProps> = ({ businesses, c
         setError(null);
         setSaveResult(null);
         try {
+            const endDate = new Date(dateRange.end + 'T23:59:59');
             const result = await ReconService.savePhysicalCounts(
                 currentUser,
                 rows,
                 selectedBU,
-                periodLabel
+                periodLabel,
+                endDate
             );
             setSaveResult(result);
             // Clear draft after successful save

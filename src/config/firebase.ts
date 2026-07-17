@@ -82,7 +82,7 @@ if (recaptchaSiteKey) {
 // Initialize services
 // For multi-database setup:
 // - Production: VITE_FIREBASE_DATABASE_ID = "tng-systems"
-// - Staging: VITE_FIREBASE_DATABASE_ID = "" or undefined (uses "(default)" database)
+// - Staging: VITE_FIREBASE_DATABASE_ID = "staging"
 const dbId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
 const effectiveDbId = dbId && dbId.trim() !== '' ? dbId : undefined;
 
