@@ -96,8 +96,10 @@ function toLine(it: { productName?: string; quantity?: number; notes?: string })
  */
 export function buildInitialPrintJobs(orderId: string, order: PrintableOrder): PrintJobDoc[] {
     const items = Array.isArray(order.items) ? order.items : [];
-    const byStation = splitByStation(items);
     const businessUnitId = typeof order.businessUnitId === 'string' ? order.businessUnitId : '';
+    // Route per business unit: The Fun Roof (b1) forces its fine drink categories
+    // to BAR; all other units keep the generic classification (b3 unchanged).
+    const byStation = splitByStation(items, businessUnitId);
     const displayOrderNumber = typeof order.orderNumber === 'string' ? order.orderNumber : orderId;
     const tableNumber =
         (typeof order.tableNumber === 'string' && order.tableNumber) ||
