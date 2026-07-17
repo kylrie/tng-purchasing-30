@@ -45,3 +45,7 @@ export { setAutoPrint, retryPrintJob } from './qr/printControl';
 export { onInventoryItemUpdated } from './inventory/recipeRecalculation';
 export { setPosPin, verifyPosPin } from './posAuth';
 export { checkoutOrder } from './posOrders';
+
+// Workspace Identity Broker — narrow ERP→Workspace identity/authorization API
+// (service-to-service OIDC; returns only the minimized identity contract).
+export { workspaceIdentity } from './workspaceIdentity/workspaceIdentity';
