@@ -33,6 +33,7 @@ import { resolveIdentity, BrokerConfig, BrokerLogger } from './workspaceIdentity
 import { firestoreDatastore, FirestoreLike } from './datastore';
 import { OidcClaims } from './oidc';
 import { FirebaseClaims } from './employeeToken';
+import { isBrokerRoute, normalizePathname } from './routing';
 
 const ERP_DATABASE_ID = 'tng-systems';
 const DEPLOY_REGION = 'us-central1'; // matches every other function in this codebase
@@ -114,12 +115,21 @@ export const workspaceIdentity = onRequest(
     invoker: 'private',
   },
   async (req, res) => {
-  // No CORS by design; block preflight and non-POST.
+  // Normalize + match the single approved route (POST /resolve). See ./routing.
+  // Workspace calls the Cloud Run URL at /resolve; the alias-root / stripped
+  // mount presents "/". Everything else is rejected.
+  const rawPath = req.path ?? req.url;
+  const pathname = normalizePathname(rawPath);
+
+  // Safe routing log — method + normalized pathname only (no token, no PII).
+  logger.info({ msg: 'broker request', method: req.method ?? '', pathname });
+
+  // No CORS by design; block preflight explicitly.
   if (req.method === 'OPTIONS') {
     res.status(405).end();
     return;
   }
-  if (req.method !== 'POST' || (req.path ?? '/') !== '/') {
+  if (!isBrokerRoute(req.method, rawPath)) {
     res.status(404).json({ error: 'BAD_REQUEST' });
     return;
   }

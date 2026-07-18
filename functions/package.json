@@ -13,6 +13,7 @@
         "logs": "firebase functions:log",
         "lint": "eslint --ext .js,.ts .",
         "test": "npx tsx --test src/qr/orderLogic.test.ts src/qr/__tests__/rateLimit.test.ts src/qr/__tests__/createQrTable.handler.test.ts src/qr/__tests__/createQrOrder.handler.test.ts src/qr/__tests__/getPublicMenu.handler.test.ts src/qr/__tests__/getQrOrder.handler.test.ts src/qr/__tests__/postOfficialInvoice.handler.test.ts src/qr/__tests__/listQrTables.handler.test.ts src/qr/__tests__/getQrTableToken.handler.test.ts src/qr/__tests__/releaseLogic.test.ts src/qr/__tests__/releaseOrder.test.ts src/qr/__tests__/xenditClient.test.ts src/qr/__tests__/createXenditSession.handler.test.ts src/qr/__tests__/xenditWebhook.handler.test.ts src/qr/__tests__/updateQrOrderStatus.handler.test.ts src/qr/__tests__/stationRouting.test.ts src/qr/__tests__/printJobLogic.test.ts src/qr/__tests__/printControl.handler.test.ts",
+        "test:broker": "npx tsx --test src/workspaceIdentity/__tests__/routing.test.ts src/workspaceIdentity/__tests__/workspaceIdentity.test.ts",
         "test:emulator": "firebase emulators:exec --only firestore --project demo-tng-qr \"npx tsx --test src/qr/__tests__/rules.emulator.test.ts\""
     },
     "engines": {
