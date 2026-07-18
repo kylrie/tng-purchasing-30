@@ -24,7 +24,7 @@
 
 import { onRequest } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import { getApp } from 'firebase-admin/app';
+import { getApp, getApps, initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { OAuth2Client } from 'google-auth-library';
@@ -32,7 +32,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { resolveIdentity, BrokerConfig, BrokerLogger } from './workspaceIdentity.handler';
 import { firestoreDatastore, FirestoreLike } from './datastore';
 import { OidcClaims } from './oidc';
-import { FirebaseClaims } from './employeeToken';
+import { FirebaseClaims, decodeSafeClaims } from './employeeToken';
 import { isBrokerRoute, normalizePathname } from './routing';
 
 const ERP_DATABASE_ID = 'tng-systems';
@@ -73,6 +73,13 @@ function buildConfig(): BrokerConfig {
         'WORKSPACE_BROKER_CALLERS are required.',
     );
   }
+  // Fail closed on a missing ERP project id — token verification MUST be pinned
+  // to an explicit Firebase project, never an empty/ambiguous default.
+  if (!erpProjectId) {
+    throw new Error(
+      'workspaceIdentity misconfigured: WORKSPACE_BROKER_ERP_PROJECT is required.',
+    );
+  }
 
   const oauthClient = new OAuth2Client();
   const verifyJwtSignature = async (token: string): Promise<OidcClaims> => {
@@ -80,8 +87,28 @@ function buildConfig(): BrokerConfig {
     return (ticket.getPayload() ?? {}) as OidcClaims;
   };
 
-  const auth = getAuth(getApp());
+  // Verify employee tokens against the ERP Firebase project EXPLICITLY. Using a
+  // dedicated Admin app pinned to `erpProjectId` (tng-systems) guarantees
+  // verifyIdToken checks the token's aud/iss for that project — never a project
+  // inferred from an unrelated credential or the Cloud Run runtime default,
+  // which is what rejected valid tng-systems tokens (stage 4,
+  // FIREBASE_TOKEN_REJECTED). Firestore keeps using the runtime default app.
+  const brokerApp =
+    getApps().find((a) => a.name === 'workspace-broker') ??
+    initializeApp({ projectId: erpProjectId }, 'workspace-broker');
+  const auth = getAuth(brokerApp);
   const verifyFirebaseSignature = async (token: string): Promise<FirebaseClaims> => {
+    // SAFE pre-verification breadcrumb: the token's iss/aud/sub vs the project we
+    // verify against. Never the token itself. Makes a project mismatch obvious in
+    // Cloud Run logs, joined by the caller's x-request-id.
+    const c = decodeSafeClaims(token);
+    logger.info({
+      msg: 'employee token claims',
+      token_iss: c.iss,
+      token_aud: c.aud,
+      token_sub: c.sub,
+      broker_project: erpProjectId,
+    });
     const decoded = await auth.verifyIdToken(token, true);
     return decoded as unknown as FirebaseClaims;
   };
