@@ -1,0 +1,27 @@
+# TNG QR Print Bridge — Fun Roof (b1) Windows package
+# Defense-in-depth secret protection for THIS folder. The bridge root .gitignore
+# already ignores these names everywhere, but keep this here too so a real config
+# or key dropped in this folder can NEVER be committed by accident.
+#
+# NOTE: config.example.json is intentionally NOT ignored — it is the template and
+# must stay tracked. Only the REAL, filled-in files below are ignored.
+
+# Real, machine-specific config (contains the live business unit / paths)
+config.json
+
+# Firebase service-account key — SECRET. Never commit, never email.
+service-account.json
+*-service-account.json
+serviceAccount*.json
+*.key
+*.pem
+
+# Environment / secret files
+.env
+.env.*
+
+# Build output & deps (in case anyone runs npm here by mistake)
+node_modules/
+dist/
+daemon/
+*.log
