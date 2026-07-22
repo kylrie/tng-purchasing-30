@@ -16,7 +16,11 @@
 import { FirestoreService, where } from '../../../shared/services/firestore.service';
 import type { Unsubscribe } from 'firebase/firestore';
 import type { QrOrderStatus } from '../types/qrOrder.types';
-import { MENU_GROUPS } from '../data/mockMenu';
+import { isDrinkCategory } from '../utils/isDrinkCategory';
+
+// Re-exported so existing importers (QrOpsView, kitchen/bar routing) keep working
+// unchanged while the pure implementation lives in a firebase-free util.
+export { isDrinkCategory };
 
 /** The three bar lanes (matches the existing board columns). */
 export type BarLane = 'paid' | 'mixing' | 'ready';
@@ -39,17 +43,6 @@ export interface BarCard {
     lines: BarCardLine[];
     /** True when the same order also has food being prepared in the kitchen. */
     hasFoodInKitchen: boolean;
-}
-
-/** Category names under the "Drinks" group — the single source of the food/drink
- *  split, reused from the approved menu hierarchy. */
-const DRINK_CATEGORIES = new Set<string>(
-    MENU_GROUPS.find(g => g.key === 'Drinks')?.subcategories ?? [],
-);
-
-/** True when a menu-item category belongs to the bar (a drink). Pure/testable. */
-export function isDrinkCategory(category: string): boolean {
-    return DRINK_CATEGORIES.has(category);
 }
 
 /**

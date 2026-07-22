@@ -41,6 +41,7 @@ export interface ReceivingMeta {
     supplierName?: string;
     documentType?: string;
     inputMethod?: 'upload' | 'camera' | 'manual';
+    receivedAt?: Date;
 }
 
 /**
@@ -368,9 +369,10 @@ export class InventoryService {
                 throw new Error('Session not found');
             }
 
-            const now = Timestamp.now();
+            const now = session.completedAt || session.startedAt || Timestamp.now();
             const auditLogs: Omit<StocktakeAuditLog, 'id'>[] = [];
             const inventoryUpdates: { id: string; data: Partial<InventoryItem> }[] = [];
+            const stockTransactions: any[] = [];
 
             // Update inventory stock levels and collect audit data
             for (const countItem of session.items) {
@@ -384,6 +386,7 @@ export class InventoryService {
                 const conversion = itemDoc.units.conversion > 0 ? itemDoc.units.conversion : 1;
                 const stockBefore = itemDoc.currentStock ?? 0;
                 const newStock = (countItem.count + countItem.partialCount) * conversion;
+                const variance = newStock - stockBefore;
 
                 inventoryUpdates.push({
                     id: countItem.itemId,
@@ -399,11 +402,26 @@ export class InventoryService {
                     itemType: itemDoc.type,
                     stockBefore,
                     stockAfter: newStock,
-                    variance: newStock - stockBefore,
+                    variance,
                     unit: itemDoc.units?.recipeUnit || '',
                     countedBy: session.performedBy,
                     countedByName: session.performedByName ?? 'Unknown',
                     submittedAt: now
+                });
+
+                // Build STOCK_TAKE transaction document for history ledger
+                stockTransactions.push({
+                    itemId: itemDoc.id,
+                    itemName: itemDoc.name,
+                    businessUnitId: session.businessUnitId,
+                    type: 'STOCK_TAKE',
+                    quantity: variance,
+                    balanceAfter: newStock,
+                    referenceId: sessionId,
+                    notes: `Stock Take Audit: Physical count set to ${newStock} (Variance: ${variance > 0 ? '+' : ''}${variance})`,
+                    performedBy: session.performedBy,
+                    performedByName: session.performedByName ?? 'Unknown',
+                    timestamp: now
                 });
             }
 
@@ -429,6 +447,17 @@ export class InventoryService {
             } catch (logErr) {
                 console.error('[InventoryService] Failed to write stocktake audit logs:', logErr);
                 // Non-critical — don't fail the submit if logging fails
+            }
+
+            // Write all stock transactions using batches
+            try {
+                const BATCH_SIZE = 400; // Firebase limit is 500
+                for (let i = 0; i < stockTransactions.length; i += BATCH_SIZE) {
+                    const chunk = stockTransactions.slice(i, i + BATCH_SIZE);
+                    await FirestoreService.batchCreateDocuments('stock_transactions', chunk);
+                }
+            } catch (txErr) {
+                console.error('[InventoryService] Failed to write stocktake transactions:', txErr);
             }
 
             // Mark session as completed (include name if provided)
@@ -585,6 +614,9 @@ export class InventoryService {
         if (!receivedItems.length) return;
 
         const now = Timestamp.now();
+        const receivedAtTimestamp = receivingMeta?.receivedAt 
+            ? Timestamp.fromDate(receivingMeta.receivedAt) 
+            : now;
         const logItems: GoodsReceivingLogItem[] = [];
         
         // Group items to prevent duplicate reads/writes if the same item is scanned twice
@@ -631,9 +663,11 @@ export class InventoryService {
 
                 // Process Cost Updates using Weighted Average Cost (WAC)
                 if (received.unitPrice > 0 && received.unitPrice !== inventoryItem.buyCost) {
-                    const oldTotalValue = oldStock * (inventoryItem.buyCost || 0);
+                    // Convert old stock from base units to buy units for the calculation
+                    const oldStockBuyUnits = oldStock / conversion;
+                    const oldTotalValue = oldStockBuyUnits * (inventoryItem.buyCost || 0);
                     const newTotalValue = received.qtyReceived * received.unitPrice;
-                    const totalQty = oldStock + received.qtyReceived; // In buy units
+                    const totalQty = oldStockBuyUnits + received.qtyReceived; // In buy units
                     
                     // Calculate WAC
                     const newBuyCost = totalQty > 0 ? (oldTotalValue + newTotalValue) / totalQty : received.unitPrice;
@@ -642,6 +676,8 @@ export class InventoryService {
                     const newBaseCost = newBuyCost / conversion;
                     updateData.baseCost = newBaseCost;
                     updateData.costPerUnit = newBaseCost; 
+                    // Note: We intentionally DO NOT update inventoryItem.units.conversion here.
+                    // Conversion can only be updated manually by the user.
                 }
 
                 const itemRef = doc(db, COLLECTIONS.INVENTORY_ITEMS, itemId);
@@ -661,7 +697,7 @@ export class InventoryService {
                     notes: `Received ${received.qtyReceived} ${inventoryItem.units.buyUnit}(s) via receiving module.`,
                     performedBy: performedBy.id,
                     performedByName: performedBy.name,
-                    timestamp: now
+                    timestamp: receivedAtTimestamp
                 });
 
                 // Clean floating point math for log
@@ -693,7 +729,7 @@ export class InventoryService {
                     totalValue: logItems.reduce((sum, i) => sum + i.totalPrice, 0),
                     receivedBy: performedBy.id,
                     receivedByName: performedBy.name,
-                    receivedAt: now
+                    receivedAt: receivedAtTimestamp
                 });
             }
         });
@@ -847,7 +883,7 @@ export class InventoryService {
             // 2a. Deduct full consumed quantity from raw material
             const rawItemRef = doc(db, 'inventory_items', rawItem.id);
             const rawNewStock = rawItem.currentStock - totalConsumed;
-            batch.update(rawItemRef, { currentStock: rawNewStock, updatedAt: now });
+            batch.update(rawItemRef, { currentStock: rawNewStock, theoreticalStock: rawNewStock, updatedAt: now });
 
             // 2b. Stock transaction audit for the deduction
             const deductTxnId = doc(collection(db, 'stock_transactions')).id;
@@ -913,7 +949,7 @@ export class InventoryService {
         const outputAdded = productionItem.units.conversion * batchMultiplier;
         const prodNewStock = productionItem.currentStock + outputAdded;
         const prodItemRef = doc(db, 'inventory_items', productionItem.id);
-        batch.update(prodItemRef, { currentStock: prodNewStock, updatedAt: now });
+        batch.update(prodItemRef, { currentStock: prodNewStock, theoreticalStock: prodNewStock, updatedAt: now });
 
         // 3a. Stock transaction for the production output
         const prodTxnId = doc(collection(db, 'stock_transactions')).id;

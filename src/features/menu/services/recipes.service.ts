@@ -279,7 +279,10 @@ export async function getMenuItems(businessUnitId: string): Promise<MenuItem[]> 
         );
 
         return items
-            .filter(item => item.isActive !== false)
+            // Exclude QR-only customer-menu items (e.g. the Fun Roof curated QR menu):
+            // they exist in menu_items ONLY so createQrOrder can reprice QR orders, and
+            // must never appear in the POS grid / menu management (no recipe/cost/BOM).
+            .filter(item => item.isActive !== false && (item as { qrOnly?: boolean }).qrOnly !== true)
             .sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
         console.error('Error fetching menu items:', error);

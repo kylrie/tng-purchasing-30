@@ -1,0 +1,14 @@
+{
+    "businessUnitId": "b1",
+    "databaseId": "tng-systems",
+    "serviceAccountPath": "./service-account.json",
+    "printers": {
+        "KITCHEN": { "host": "192.168.100.104", "port": 9100 },
+        "BAR": { "host": "192.168.100.104", "port": 9100 }
+    },
+    "maxAttempts": 3,
+    "retryDelayMs": 3000,
+    "socketTimeoutMs": 8000,
+    "heartbeatMs": 15000,
+    "pollIntervalMs": 20000
+}

@@ -11,6 +11,7 @@ interface PosImportPreviewModalProps {
     onConfirm: () => void;
     onCancel: () => void;
     isSubmitting?: boolean;
+    readOnly?: boolean; // If true, hides the Confirm/Cancel buttons and changes title
 }
 
 // Group deductions by parent FG for a tree view
@@ -25,7 +26,8 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
     simulatedDeductions,
     onConfirm,
     onCancel,
-    isSubmitting = false
+    isSubmitting = false,
+    readOnly = false
 }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -128,10 +130,12 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <ShieldAlert className="w-5 h-5 text-blue-500" />
-                            Import Preview — Dry Run
+                            {readOnly ? 'Sales Deductions Breakdown' : 'Import Preview — Dry Run'}
                         </h2>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                            Review all stock deductions before committing. This preview does not affect your inventory.
+                            {readOnly 
+                                ? 'Review the exact BOM explosion and raw material deductions for this sales upload.'
+                                : 'Review all stock deductions before committing. This preview does not affect your inventory.'}
                         </p>
                     </div>
                     <button
@@ -370,34 +374,46 @@ export const PosImportPreviewModal: React.FC<PosImportPreviewModalProps> = ({
                         <Info className="w-3.5 h-3.5" />
                         Click any menu item to expand its ingredient breakdown
                     </div>
-                    <div className="flex gap-3">
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            disabled={isSubmitting}
-                            className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="button"
-                            onClick={onConfirm}
-                            disabled={isSubmitting || simulatedDeductions.length === 0}
-                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/20"
-                        >
-                            {isSubmitting ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                    Processing Import...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    Confirm & Update Inventory
-                                </>
-                            )}
-                        </button>
-                    </div>
+                    {!readOnly ? (
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                disabled={isSubmitting}
+                                className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onConfirm}
+                                disabled={isSubmitting || simulatedDeductions.length === 0}
+                                className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 transition-all shadow-lg shadow-blue-500/20"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                        Processing Import...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        Confirm & Update Inventory
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                className="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

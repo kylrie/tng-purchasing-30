@@ -392,9 +392,9 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
 
         const newValue = parseFloat(editingStockValue) || 0;
         try {
-            await InventoryService.updateInventoryItem(editingStockId, { currentStock: newValue });
+            await InventoryService.updateInventoryItem(editingStockId, { currentStock: newValue, theoreticalStock: newValue });
             setItems(prev => prev.map(item =>
-                item.id === editingStockId ? { ...item, currentStock: newValue } : item
+                item.id === editingStockId ? { ...item, currentStock: newValue, theoreticalStock: newValue } : item
             ));
         } catch (err) {
             console.error('Error updating stock:', err);
@@ -416,11 +416,11 @@ const InventoryItemsView: React.FC<InventoryItemsViewProps> = ({ businesses, uom
         setIsImporting(true);
         try {
             for (const itemId of selectedItems) {
-                await InventoryService.updateInventoryItem(itemId, { currentStock: value });
+                await InventoryService.updateInventoryItem(itemId, { currentStock: value, theoreticalStock: value });
             }
             // Update local state
             setItems(prev => prev.map(item =>
-                selectedItems.has(item.id) ? { ...item, currentStock: value } : item
+                selectedItems.has(item.id) ? { ...item, currentStock: value, theoreticalStock: value } : item
             ));
             alert(`Updated ${selectedItems.size} item(s) to ${value}`);
             setSelectedItems(new Set());

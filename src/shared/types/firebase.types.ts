@@ -19,7 +19,8 @@ export interface FirestoreUser extends FirestoreDocument {
   status: UserStatus;
   avatar?: string;
   permissions?: string[]; // User-level permission overrides
-  posPin?: string; // 4-digit PIN for Point of Sale
+  posPin?: string; // Legacy 4-digit PIN for Point of Sale
+  posPinHash?: string; // Secure hashed 4-digit PIN for Point of Sale
 }
 
 // Main User type for the application - Re-export from single source of truth

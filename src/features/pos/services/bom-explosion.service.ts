@@ -231,6 +231,8 @@ export function simulateRecursiveBOM(
             }
 
             if (shortfall > 0) {
+                const hasRecipe = ingredientItem.recipe && ingredientItem.recipe.length > 0;
+
                 if (deductedFromPrep === 0) {
                     // Zero stock — show the prep item with 0 deduction + alert
                     simulatedDeductions.push({
@@ -242,7 +244,9 @@ export function simulateRecursiveBOM(
                         newTheoreticalStock: currentStock,
                         parentItemId,
                         parentItemName,
-                        alert: `⚠️ No production stock available. ${shortfall} units auto-exploded to raw materials below.`,
+                        alert: hasRecipe
+                            ? `⚠️ No production stock available. ${shortfall} units auto-exploded to raw materials below.`
+                            : `⚠️ Cannot auto-explode: ${ingredientItem.name} has no recipe configured.`,
                     });
                 } else {
                     // Partial stock — update the existing deduction's alert
@@ -254,7 +258,14 @@ export function simulateRecursiveBOM(
                 if (ingredientItem.recipe && ingredientItem.recipe.length > 0) {
                     for (const subIng of ingredientItem.recipe) {
                         const subItem = allItemsMap.get(subIng.ingredientId);
-                        if (!subItem) continue;
+                        if (!subItem) {
+                            // Append missing ingredient warning to the prep item's alert
+                            const lastDed = simulatedDeductions.find(d => d.itemId === ingredientItem.id && d.parentItemId === parentItemId);
+                            if (lastDed) {
+                                lastDed.alert += ` (Missing: ${subIng.ingredientName || subIng.ingredientId})`;
+                            }
+                            continue;
+                        }
 
                         const explodedQty = subIng.quantityUsed * shortfall;
                         const subCurrentStock = runningStock.has(subItem.id)
@@ -272,7 +283,6 @@ export function simulateRecursiveBOM(
                             newTheoreticalStock: subNewStock,
                             parentItemId,
                             parentItemName,
-                            alert: `Auto-produced from ${ingredientItem.name} — no production record found`,
                         });
                     }
                 }
@@ -347,6 +357,8 @@ export function simulateRecursiveBOMForEvent(
             }
 
             if (shortfall > 0) {
+                const hasRecipe = iItem.recipe && iItem.recipe.length > 0;
+
                 if (deductedFromPrep === 0) {
                     deductions.push({
                         itemId: iItem.id,
@@ -358,7 +370,9 @@ export function simulateRecursiveBOMForEvent(
                         parentItemId,
                         parentItemName,
                         eventName,
-                        alert: `⚠️ No production stock available. ${shortfall} units auto-exploded to raw materials below.`,
+                        alert: hasRecipe
+                            ? `⚠️ No production stock available. ${shortfall} units auto-exploded to raw materials below.`
+                            : `⚠️ Cannot auto-explode: ${iItem.name} has no recipe configured.`,
                     });
                 } else {
                     const lastDed = deductions[deductions.length - 1];
@@ -368,7 +382,13 @@ export function simulateRecursiveBOMForEvent(
                 if (iItem.recipe && iItem.recipe.length > 0) {
                     for (const subIng of iItem.recipe) {
                         const subItem = allItemsMap.get(subIng.ingredientId);
-                        if (!subItem) continue;
+                        if (!subItem) {
+                            const lastDed = deductions.find(d => d.itemId === iItem.id && d.parentItemId === parentItemId);
+                            if (lastDed) {
+                                lastDed.alert += ` (Missing: ${subIng.ingredientName || subIng.ingredientId})`;
+                            }
+                            continue;
+                        }
 
                         const explodedQty = subIng.quantityUsed * shortfall;
                         const subCurrentStock = runningStock.get(subItem.id)
@@ -386,7 +406,6 @@ export function simulateRecursiveBOMForEvent(
                             parentItemId,
                             parentItemName,
                             eventName,
-                            alert: `Auto-produced from ${iItem.name} — no production record found`,
                         });
                     }
                 }

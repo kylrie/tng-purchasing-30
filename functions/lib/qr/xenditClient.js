@@ -100,6 +100,12 @@ function createXenditHttpClient(config) {
             success_return_url: params.successUrl,
             cancel_return_url: params.cancelUrl,
             metadata: params.metadata,
+            // Preselect/restrict the channel the customer already chose in the app
+            // so the hosted page opens straight into it (no duplicate selection).
+            // Only sent when present — absent ⇒ Xendit offers all activated channels.
+            ...(params.allowedPaymentChannels && params.allowedPaymentChannels.length > 0
+                ? { allowed_payment_channels: params.allowedPaymentChannels }
+                : {}),
         };
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), timeoutMs);

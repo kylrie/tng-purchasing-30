@@ -157,6 +157,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     // Subscribe to businesses — always load ALL for name resolution.
     // BU selector visibility is handled separately in useBusinessUnit/Layout.
     useEffect(() => {
+        if (!currentUser) {
+            setBusinesses([]);
+            setLoadingBusinesses(false);
+            return;
+        }
+
         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreBusiness>(
             COLLECTIONS.BUSINESSES,
             (firestoreBizs) => {
@@ -177,6 +183,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     useEffect(() => {
         // REMOVED: setLoadingSuppliers(true);
 
+        if (!currentUser) {
+            setSuppliers([]);
+            setLoadingSuppliers(false);
+            return;
+        }
+
         const unsubscribe = FirestoreService.subscribeToCollection<FirestoreSupplier>(
             COLLECTIONS.SUPPLIERS,
             (firestoreSups) => {
@@ -191,7 +203,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         );
 
         return () => unsubscribe();
-    }, []);
+    }, [currentUser]);
 
     // Subscribe to notifications
     useEffect(() => {
@@ -240,6 +252,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     // Load all users
     useEffect(() => {
         const loadUsers = async () => {
+            if (!currentUser) {
+                setAllUsers([]);
+                return;
+            }
+
             try {
                 const firestoreUsers = await FirestoreService.getDocuments<FirestoreUser>(
                     COLLECTIONS.USERS
@@ -252,7 +269,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         };
 
         loadUsers();
-    }, []);
+    }, [currentUser]);
 
     // Requisition operations
     const createRequisition = React.useCallback(async (data: Omit<Requisition, 'id' | 'dateCreated' | 'timestamp'>): Promise<string> => {

@@ -162,10 +162,14 @@ export interface CreateQrOrderResult {
     status: QrOrderStatus;         // always 'AWAITING_PAYMENT' in Sprint 1
 }
 
-/** createXenditSession input — only the orderId; amount/price is never trusted
- *  from the client (read from the server order document). */
+/** createXenditSession input — the orderId (amount/price is never trusted from
+ *  the client; read from the server order document) plus the optional method the
+ *  customer already picked in checkout (gcash/maya/qrph/card), carried through so
+ *  Xendit opens straight into it. The server validates the method against a fixed
+ *  allowlist; an unknown value is rejected and a missing one offers all channels. */
 export interface CreateXenditSessionInput {
     orderId: string;
+    paymentMethod?: string;
 }
 
 /** createXenditSession output — the hosted-checkout link the phone redirects to. */
@@ -189,10 +193,14 @@ export interface PublicQrOrderLine {
     category: string;
 }
 
-/** Sanitized customer-facing order projection (getQrOrder output). NEVER
- *  includes businessUnitId / tableId / xendit* / officialInvoice* fields. */
+/** Sanitized customer-facing order projection (getQrOrder output). Exposes the
+ *  (non-sensitive) businessUnitId for branding; NEVER includes tableId / xendit* /
+ *  officialInvoice* fields. */
 export interface GetQrOrderResult {
     orderId: string;
+    /** Venue id (e.g. 'b1' The Fun Roof, 'b3' Inflatable Island) — drives the
+     *  customer pages' business branding/theme from authoritative order data. */
+    businessUnitId: string;
     orderNumber: string;
     tableNumber: string;
     status: QrOrderStatus;
@@ -243,4 +251,39 @@ export interface GetQrTableTokenResult {
     tableId: string;
     tableNumber: string;
     qrToken: string;
+}
+
+// ── qr_reservations/{reservationId} — quick table reservations (Ops → Tables) ──
+export type QrReservationStatus = 'BOOKED' | 'CANCELLED';
+
+export interface QrReservation {
+    id: string;
+    businessUnitId: string;        // authoritative — derived from the table record, never the client
+    tableId: string;
+    tableNumber: string;           // denormalized from the table record at creation
+    customerName: string;
+    customerPhone: string;         // normalized PH mobile (09XXXXXXXXX)
+    reservationAtMillis: number;   // reservation start (epoch ms)
+    holdMinutes: number;           // hold window from start (v1: fixed)
+    status: QrReservationStatus;
+    createdAtMillis: number;
+    createdBy?: string;            // uid of the staff who booked it
+}
+
+/** createQrReservation input — the server derives businessUnitId + tableNumber
+ *  from the authoritative qr_tables record; the client only names the table +
+ *  the when/who. */
+export interface CreateQrReservationInput {
+    tableId: string;
+    reservationAtMillis: number;
+    customerName: string;
+    customerPhone: string;
+}
+
+export interface CreateQrReservationResult {
+    reservationId: string;
+    tableId: string;
+    tableNumber: string;
+    businessUnitId: string;
+    reservationAtMillis: number;
 }

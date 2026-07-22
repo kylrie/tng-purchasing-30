@@ -5,6 +5,7 @@ import type { Business, User } from '../../procurement/types';
 import { isAdminOrSuperAdmin } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { listQrTables, isPermissionDenied } from '../services/qrTables.service';
+import { withBusinessParam } from '../utils/adminBusinessParam';
 
 /**
  * QR Hub — ERP-wide, cross-business entry point for QR ordering (top-level module).
@@ -88,9 +89,13 @@ const QrHubView: React.FC<QrHubViewProps> = ({ currentUser, businesses }) => {
     // Enter the per-business QR Operations dashboard with the business context set
     // explicitly (no manual Business Unit switcher step). The ops dashboard's
     // Tables tab links onward to the table/QR manager.
+    //
+    // The business id is carried in the URL (?bu=) so the selection is DURABLE:
+    // it survives hard refresh, new tab, cold open and paste, instead of being
+    // lost with the transient context (which silently reverted Fun Roof→Inflatable).
     const manage = (businessId: string) => {
         setSelectedBusinessUnit(businessId);
-        navigate('/qr-ops/overview');
+        navigate(withBusinessParam('/qr-ops/overview', businessId));
     };
 
     if (!isAdmin) {

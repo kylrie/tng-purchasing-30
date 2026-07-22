@@ -122,6 +122,41 @@ test('createXenditSession: rejects a SERVED / COMPLETED / CANCELLED order (faile
     }
 });
 
+// ── Payment-method handoff (carry the app selection into Xendit) ──────────────
+
+test('createXenditSession: carries the selected method into allowed_payment_channels (all four)', async () => {
+    const cases: [string, string][] = [['gcash', 'GCASH'], ['maya', 'PAYMAYA'], ['qrph', 'QRPH'], ['card', 'CARDS']];
+    for (const [method, code] of cases) {
+        const fake = new FakeFirestore();
+        seedOrder(fake, 'o1');
+        const client = stubClient();
+        await createXenditSessionHandler(asDb(fake), client, req({ orderId: 'o1', paymentMethod: method }), BASE_CONFIG);
+        assert.equal(client.calls.length, 1);
+        assert.deepEqual(client.calls[0].allowedPaymentChannels, [code], `${method} → ${code}`);
+        // channel is also recorded in metadata (observability) without dropping the base keys
+        assert.deepEqual(client.calls[0].metadata, { order_id: 'o1', table_no: '12', business_unit_id: 'bu1', payment_channel: code });
+    }
+});
+
+test('createXenditSession: no method → unrestricted (allowed_payment_channels absent, all channels)', async () => {
+    const fake = new FakeFirestore();
+    seedOrder(fake, 'o1');
+    const client = stubClient();
+    await createXenditSessionHandler(asDb(fake), client, req({ orderId: 'o1' }), BASE_CONFIG);
+    assert.equal(client.calls[0].allowedPaymentChannels, undefined);
+    assert.equal('payment_channel' in client.calls[0].metadata, false);
+});
+
+test('createXenditSession: unknown / injected channel string → invalid-argument, no client call', async () => {
+    for (const bad of ['bitcoin', 'CARDS', 'DANA', 'gcash;drop']) {
+        const fake = new FakeFirestore();
+        seedOrder(fake, 'o1');
+        const client = stubClient();
+        await expectReject(() => createXenditSessionHandler(asDb(fake), client, req({ orderId: 'o1', paymentMethod: bad }), BASE_CONFIG), 'invalid-argument');
+        assert.equal(client.calls.length, 0, `${bad} must not reach Xendit`);
+    }
+});
+
 test('createXenditSession: rejects an unknown order (not-found)', async () => {
     const fake = new FakeFirestore();
     await expectReject(() => createXenditSessionHandler(asDb(fake), stubClient(), req({ orderId: 'nope' }), BASE_CONFIG), 'not-found');

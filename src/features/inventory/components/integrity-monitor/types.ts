@@ -34,4 +34,6 @@ export interface SuspiciousRow {
   varQty: number;
   varPeso: number;
   status: 'Investigate' | 'Watch' | 'Normal';
+  costPerUnit: number;
+  itemId: string;
 }

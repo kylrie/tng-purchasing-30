@@ -23,6 +23,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.releaseQrOrder = releaseQrOrder;
 const firestore_1 = require("firebase-admin/firestore");
 const releaseLogic_1 = require("./releaseLogic");
+const printJobLogic_1 = require("./printJobLogic");
 const QR_ORDERS_COLLECTION = 'qr_orders';
 /**
  * Release a paid order to fulfillment. Reads the order and applies the release
@@ -45,7 +46,19 @@ async function releaseQrOrder(db, orderId, options) {
             releaseEventId: options.releaseEventId,
             releasedAt: firestore_1.FieldValue.serverTimestamp(),
         }));
-        return { released: true, orderId };
+        // Automatic printing: create the INITIAL station print jobs in the SAME
+        // transaction that marks the order released. Because release is exactly-once
+        // (the `released:true` guard) and atomic, these jobs are created exactly
+        // once too — a duplicate webhook / payment replay / re-driven release adds
+        // no new jobs. Only stations that have lines get a job (food → KITCHEN,
+        // drink → BAR). The local Print Bridge picks them up and prints. Writing
+        // the jobs here NEVER blocks the release itself.
+        const jobs = (0, printJobLogic_1.buildInitialPrintJobs)(orderId, (order ?? {}));
+        for (const job of jobs) {
+            const jobRef = db.collection(printJobLogic_1.PRINT_JOBS_COLLECTION).doc(job.id);
+            txn.set(jobRef, { ...job, createdAt: firestore_1.FieldValue.serverTimestamp() });
+        }
+        return { released: true, orderId, jobIds: jobs.map(j => j.id) };
     });
 }
 //# sourceMappingURL=releaseOrder.js.map

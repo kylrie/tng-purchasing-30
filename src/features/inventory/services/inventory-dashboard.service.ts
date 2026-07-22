@@ -53,6 +53,7 @@ export interface DashboardKPIs {
     periodLabel: string;
     recordedWaste: number;
     suspiciousItems: SuspiciousItem[];
+    spotCheckRecommendations: SuspiciousItem[];
     categoryRisks: CategoryRiskRecord[];
     itemCategoryMap: Record<string, string>;  // itemId → category for hook grouping
 }
@@ -164,7 +165,7 @@ export class InventoryDashboardService {
         userOrBuId: User | string,
         period: DashboardPeriod,
         customRange?: DateRange
-    ): Promise<{ suspiciousItems: SuspiciousItem[]; categoryRisks: CategoryRiskRecord[]; itemCategoryMap: Record<string, string> }> {
+    ): Promise<{ suspiciousItems: SuspiciousItem[]; spotCheckRecommendations: SuspiciousItem[]; categoryRisks: CategoryRiskRecord[]; itemCategoryMap: Record<string, string> }> {
         const { start, end } = customRange && period === 'custom' ? customRange : getDateRange(period);
         const tenantConstraints = this.resolveConstraints(userOrBuId, 'businessUnitId');
 
@@ -175,15 +176,32 @@ export class InventoryDashboardService {
             console.warn('[InventoryDashboardService] Executing cross-tenant ALL query. Security rules must enforce this.');
         }
 
+        const formatLocalDate = (d: Date) => {
+            const date = new Date(d);
+            date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+            return date.toISOString().split('T')[0];
+        };
+
         const q = query(
             collection(db, 'inventory_aggregates'),
             ...tenantConstraints,
-            where('date', '>=', start.toISOString().split('T')[0]),
-            where('date', '<=', end.toISOString().split('T')[0])
+            where('date', '>=', formatLocalDate(start)),
+            where('date', '<=', formatLocalDate(end))
         );
 
         const snapshot = await getDocs(q);
-        const itemMap = new Map<string, any>();
+        interface AggregateItemEntry {
+            itemName: string;
+            category: string;
+            type: string;
+            recipeUnit: string;
+            conversionRate: number;
+            costPerUnit: number;
+            expectedClosing: number;
+            varianceQty: number;
+            varianceValue: number;
+        }
+        const itemMap = new Map<string, AggregateItemEntry>();
         const itemCategoryMap: Record<string, string> = {};
 
         // O(1) loop over ~30-31 documents maximum for a month
@@ -263,7 +281,11 @@ export class InventoryDashboardService {
             .sort((a, b) => Math.abs(b.varianceValue) - Math.abs(a.varianceValue))
             .slice(0, 10);
 
-        return { suspiciousItems, categoryRisks, itemCategoryMap };
+        const spotCheckRecommendations = [...allItems]
+            .sort((a, b) => (b.expectedClosing * b.costPerUnit) - (a.expectedClosing * a.costPerUnit))
+            .slice(0, 10);
+
+        return { suspiciousItems, spotCheckRecommendations, categoryRisks, itemCategoryMap };
     }
 
     /**
@@ -318,6 +340,7 @@ export class InventoryDashboardService {
             periodLabel,
             recordedWaste: 0,
             suspiciousItems: inventoryAnalysis.suspiciousItems,
+            spotCheckRecommendations: inventoryAnalysis.spotCheckRecommendations,
             categoryRisks: inventoryAnalysis.categoryRisks,
             itemCategoryMap: inventoryAnalysis.itemCategoryMap,
         };

@@ -1,0 +1,31 @@
+{
+    "name": "tng-qr-print-bridge",
+    "version": "1.0.0",
+    "description": "TNG QR — local print bridge. Runs on the POS Windows machine, watches Firestore for PAID-order print jobs, and prints Kitchen/Bar tickets to the XP-Q801 via raw ESC/POS (TCP :9100). Headless: no browser required.",
+    "type": "commonjs",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "dev": "tsx src/index.ts",
+        "health": "node dist/health.js",
+        "test": "tsx --test src/__tests__/escpos.test.ts src/__tests__/retry.test.ts",
+        "install-service": "node dist/service/install.js",
+        "uninstall-service": "node dist/service/uninstall.js"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "dependencies": {
+        "firebase-admin": "^12.0.0"
+    },
+    "optionalDependencies": {
+        "node-windows": "^1.0.0-beta.8"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "tsx": "^4.7.0",
+        "typescript": "^5.4.0"
+    },
+    "private": true
+}

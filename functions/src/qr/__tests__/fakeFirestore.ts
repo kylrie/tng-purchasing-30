@@ -87,7 +87,13 @@ class CollectionRef extends Query {
 class FakeTransaction {
     private writes: (() => void)[] = [];
     constructor(private store: Store) {}
-    async get(ref: DocRef): Promise<DocSnap> { return ref.get(); }
+    // Admin SDK: transaction.get accepts a DocumentReference OR a Query. Both our
+    // DocRef and Query expose async get(), so delegate to whichever was passed.
+    async get(refOrQuery: DocRef): Promise<DocSnap>;
+    async get(refOrQuery: Query): Promise<{ empty: boolean; size: number; docs: DocSnap[] }>;
+    async get(refOrQuery: DocRef | Query): Promise<DocSnap | { empty: boolean; size: number; docs: DocSnap[] }> {
+        return refOrQuery.get();
+    }
     set(ref: DocRef, data: Data): void { this.writes.push(() => this.store.set(ref._collName, ref.id, data)); }
     update(ref: DocRef, data: Data): void { this.writes.push(() => this.store.update(ref._collName, ref.id, data)); }
     _commit(): void { this.writes.forEach(w => w()); }

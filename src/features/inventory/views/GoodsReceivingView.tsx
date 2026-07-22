@@ -380,21 +380,15 @@ const PrfSelector: React.FC<{
                     businessUnitId,
                     [] // Only fetch PRFs for the selected BU, not all user BUs
                 );
-                // Filter for PRFs that belong to this BU and are in relevant statuses
                 const prfs = reqs.filter(r =>
                     r.prfDetails &&
                     r.businessId === businessUnitId &&
                     [
-                        'FUNDS_RELEASED',
-                        'APPROVED_FOR_PAYMENT',
-                        'FOR_FUND_RELEASE',
                         'FOR_CHECK_PREPARATION',
                         'PENDING_CHECK_AUTH_BOD',
-                        'PENDING_BOD_APPROVAL',
-                        'PENDING_GM_BR_APPROVAL',
-                        'PENDING_FINANCE_HEAD_BR_APPROVAL',
-                        'PRF_PENDING_MANAGER',
-                        'PENDING_GM_PRF_APPROVAL',
+                        'FOR_FUND_RELEASE',
+                        'FUNDS_RELEASED',
+                        'APPROVED_FOR_PAYMENT',
                         'LIQUIDATION_FILED',
                         'AUDITED_CLEARED'
                     ].includes(r.status)
@@ -542,6 +536,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
     const [extraction, setExtraction] = useState<ExtractionResult | null>(null);
     const [rows, setRows] = useState<MatchedReceivingRow[]>([]);
     const [referenceNumber, setReferenceNumber] = useState('');
+    const [receivedDate, setReceivedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
     const [isApplying, setIsApplying] = useState(false);
     const [applySuccess, setApplySuccess] = useState(false);
     const [applyError, setApplyError] = useState<string | null>(null);
@@ -565,7 +560,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
 
     useEffect(() => {
         if (!selectedBusinessUnit) return;
-        InventoryService.getInventory(selectedBusinessUnit).then(setItems);
+        InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL').then(setItems);
         // Reset state when BU changes
         stopCamera();
         setStep(0);
@@ -575,6 +570,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
         setExtraction(null);
         setRows([]);
         setReferenceNumber('');
+        setReceivedDate(new Date().toISOString().split('T')[0]);
         setAnalyzeError(null);
         setApplySuccess(false);
         setApplyError(null);
@@ -796,7 +792,8 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                 prfIdentifier: selectedPrfIdentifier || undefined,
                 supplierName: selectedPrfSupplier || extraction?.supplierName || undefined,
                 documentType: extraction?.documentType || undefined,
-                inputMethod: inputMode
+                inputMethod: inputMode,
+                receivedAt: receivedDate ? new Date(receivedDate) : undefined
             };
 
             await InventoryService.receiveGoodsBatch(
@@ -807,7 +804,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                 receivingMeta
             );
             setApplySuccess(true);
-            setItems(await InventoryService.getInventory(selectedBusinessUnit));
+            setItems(await InventoryService.getInventory(selectedBusinessUnit, 'RAW_MATERIAL'));
         } catch (err) {
             setApplyError(err instanceof Error ? err.message : 'Failed to update inventory.');
         } finally {
@@ -824,6 +821,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
         setExtraction(null);
         setRows([]);
         setReferenceNumber('');
+        setReceivedDate(new Date().toISOString().split('T')[0]);
         setAnalyzeError(null);
         setApplySuccess(false);
         setApplyError(null);
@@ -1165,6 +1163,15 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                                         className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                                     />
                                 </div>
+                                <div className="w-[180px]">
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Date Received</p>
+                                    <input
+                                        type="date"
+                                        value={receivedDate}
+                                        onChange={e => setReceivedDate(e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                                    />
+                                </div>
                                 <div className="ml-auto w-full sm:w-auto flex items-center justify-end gap-2 mt-2 sm:mt-0">
                                     <span className="text-xs text-slate-400">{file?.name}</span>
                                     <button onClick={handleReset} className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors px-2 py-1 bg-slate-800 rounded">
@@ -1342,6 +1349,10 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
                                         <span className="text-sm text-slate-300">Ref: <span className="text-white font-medium">{referenceNumber}</span></span>
                                     </div>
                                 )}
+                                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800/50 border border-slate-700 rounded-lg">
+                                    <Calendar size={14} className="text-slate-400" />
+                                    <span className="text-sm text-slate-300">Date: <span className="text-white font-medium">{receivedDate}</span></span>
+                                </div>
                             </div>
 
                             <div className="space-y-2 mb-6">

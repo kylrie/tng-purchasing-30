@@ -19,9 +19,27 @@ import type {
     RecipeIngredient
 } from '../types/menu.types';
 import { InventoryService } from '../../inventory/services/inventory.service';
+import type { BomIngredient } from '../../inventory/types/InventoryItem';
 import { convertUnits } from './recipes.service';
 
 const COLLECTION = 'productionRecipes';
+
+function buildBomRecipe(
+    ingredients: RecipeIngredient[],
+    yieldQuantity: number
+): BomIngredient[] {
+    return ingredients.map(ri => {
+        // We use ri.unit as fallback. To be fully accurate we'd fetch the item, 
+        // but baseQuantity and unit are already saved accurately in productionRecipes
+        return {
+            ingredientId: ri.inventoryItemId,
+            ingredientName: ri.inventoryItemName,
+            quantityUsed: yieldQuantity > 0 ? (ri.baseQuantity / yieldQuantity) : 0,
+            unit: ri.unit || 'EA', // Fallback to 'EA' if unit is undefined/null/empty to prevent Firestore crash
+            wastagePercent: ri.wastagePercent ?? 0,
+        };
+    });
+}
 
 export class ProductionRecipeService {
     /**
@@ -123,7 +141,8 @@ export class ProductionRecipeService {
                 },
                 costPerUnit,
                 parLevel: 0,
-                currentStock: 0
+                currentStock: 0,
+                recipe: buildBomRecipe(ingredientsWithCost, input.yieldQuantity)
             });
 
             // Link the inventory item to the recipe
@@ -187,17 +206,47 @@ export class ProductionRecipeService {
 
         await updateDoc(doc(db, COLLECTION, recipeId), updateData);
 
-        // Update linked inventory item if exists
+        // Update linked inventory item if exists, otherwise create it
         const recipe = await this.getRecipe(recipeId);
         if (recipe?.linkedInventoryItemId) {
             try {
                 await InventoryService.updateInventoryItem(recipe.linkedInventoryItemId, {
                     name: input.name,
                     costPerUnit,
-                    ...(input.serviceType ? { serviceType: input.serviceType } : {})
+                    ...(input.serviceType ? { serviceType: input.serviceType } : {}),
+                    recipe: buildBomRecipe(ingredientsWithCost, input.yieldQuantity)
                 }, { skipRecipeRecalculation: true });
             } catch (err) {
                 console.error('Error updating linked inventory item:', err);
+            }
+        } else if (recipe) {
+            try {
+                const inventoryItemId = await InventoryService.createInventoryItem({
+                    businessUnitId: recipe.businessUnitId,
+                    name: input.name,
+                    type: 'PRODUCTION',
+                    category: 'Mixers', // Default category for production items
+                    ...(input.serviceType && { serviceType: input.serviceType }),
+                    sku: `PROD-${recipeId.slice(0, 6).toUpperCase()}`,
+                    storageAreas: [],
+                    units: {
+                        recipeUnit: input.yieldUnit,
+                        buyUnit: input.yieldUnit,
+                        conversion: 1
+                    },
+                    costPerUnit,
+                    parLevel: 0,
+                    currentStock: 0,
+                    recipe: buildBomRecipe(ingredientsWithCost, input.yieldQuantity)
+                });
+
+                // Link the new inventory item to the recipe
+                await updateDoc(doc(db, COLLECTION, recipeId), {
+                    linkedInventoryItemId: inventoryItemId
+                });
+                console.log(`[ProductionRecipeService] Created missing linked inventory item ${inventoryItemId} for recipe ${recipeId}`);
+            } catch (err) {
+                console.error('Error creating missing linked inventory item during update:', err);
             }
         }
     }

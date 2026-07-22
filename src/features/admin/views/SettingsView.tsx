@@ -617,7 +617,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     activeTab === 'pos' && (
                         <CashierSettingsPanel
                             allUsers={allUsers}
-                            setAllUsers={updateUser}
                             businesses={businesses}
                         />
                     )

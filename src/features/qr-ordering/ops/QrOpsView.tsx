@@ -1,21 +1,35 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, ListOrdered, ChefHat, Wine, Table2, History as HistoryIcon, LockKeyhole,
     AlertCircle, Loader2, LogOut, ChevronRight, X, Wifi, WifiOff, Clock, Receipt,
-    CheckCircle2, StickyNote,
+    CheckCircle2, StickyNote, Printer, Bluetooth, Power, RotateCcw, Zap, RefreshCw,
 } from 'lucide-react';
 import type { Business } from '../../procurement/types';
 import { useAuth } from '../../../contexts/useAuth';
+import { formatTableLabel } from '../utils/tableUtils';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
+import { readBusinessParam, resolveAdminBusinessUnit, withBusinessParam } from '../utils/adminBusinessParam';
 import { subscribeQrOrders, type OpsOrder, type OpsOrderLine } from '../services/qrOrders.service';
 import { isDrinkCategory } from '../services/barOrders.service';
+import {
+    connectPrinter, disconnectPrinter, isPrinterConnected, printTest, printStation,
+    getJobStatus, getPrintMode, setPrintMode, getPrinterIp, setPrinterIp,
+    type Station, type TicketLine, type PrintMode,
+} from '../services/qrPrinter.service';
+import {
+    subscribeBridgeStatus, subscribeOrderPrintJobs, setAutoPrint, retryPrintJob,
+    isBridgeOnline, overallPrinterState,
+    type BridgeStatus, type PrintJobView, type PrinterState,
+} from '../services/qrPrintStatus.service';
 import { updateQrOrderStatus, toUserFacingTransitionError, NEXT_STATUS } from '../services/updateOrderStatus.service';
 import {
     kitchenLaneFor, attentionFor, sortRank, isActiveStatus, orderStatusPresentation,
     SOLID_CLS, type KitchenLane, type OpsColor,
 } from './qrOpsStatus';
 import { StatusChip, PaymentChip, AttentionBadge, AccentBar, minutesSince, elapsedLabel, clockLabel } from './OpsShared';
+import { opsNavCounts } from './opsNavCounts';
+import OpsTablesTab from './OpsTablesTab';
 
 /**
  * QR Operations dashboard — the staff control surface, attached under QR Hub.
@@ -27,7 +41,7 @@ import { StatusChip, PaymentChip, AttentionBadge, AccentBar, minutesSince, elaps
  * busy worker knows in ~2s what is new, late, cooking, ready, or a problem.
  */
 
-type OpsTab = 'overview' | 'live' | 'kitchen' | 'bar' | 'tables' | 'history';
+export type OpsTab = 'overview' | 'live' | 'kitchen' | 'bar' | 'tables' | 'history';
 const TABS: { key: OpsTab; label: string; Icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }> }[] = [
     { key: 'overview', label: 'Overview', Icon: LayoutDashboard },
     { key: 'live', label: 'Live Orders', Icon: ListOrdered },
@@ -75,15 +89,40 @@ interface DerivedOrder extends OpsOrder {
 
 const TICK_MS = 10_000;
 
-const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
+const QrOpsView: React.FC<{
+    businesses?: Business[];
+    /** Embedded mode: mount inside the unified POS operations shell — no OpsShell
+     *  chrome; the POS shell owns the header + tab nav + business selection. When
+     *  false (default) this is the standalone /qr-ops experience (unchanged). */
+    embedded?: boolean;
+    /** Business unit to scope to when embedded (the POS-selected business). */
+    businessUnitId?: string;
+    /** Externally-controlled active tab when embedded. */
+    activeTab?: OpsTab;
+    /** Tab-change callback when embedded (parent updates its nav state). */
+    onNavigate?: (t: OpsTab) => void;
+}> = ({ businesses, embedded = false, businessUnitId: businessUnitIdProp, activeTab, onNavigate }) => {
     const { tab: tabParam } = useParams<{ tab?: string }>();
+    const location = useLocation();
     const navigate = useNavigate();
     const { currentUser, loading: authLoading } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
 
-    const tab: OpsTab = (TABS.find(t => t.key === tabParam)?.key) ?? 'overview';
+    const tab: OpsTab = embedded
+        ? (activeTab ?? 'overview')
+        : ((TABS.find(t => t.key === tabParam)?.key) ?? 'overview');
+    // When embedded, scope to the POS-selected business (prop). Standalone /qr-ops
+    // reads a DURABLE business id from the URL (?bu=) so the selection survives a
+    // hard refresh / new tab / cold open — instead of being lost with the transient
+    // context and silently reverting to the admin's home business (Fun Roof→b3).
+    // Driven entirely by the URL (?bu=) when standalone — it never writes back to
+    // the shared global switcher (that would leak this page's business into the
+    // rest of the ERP session).
+    const urlBusinessUnitId = readBusinessParam(location.search);
     const businessUnitId =
-        selectedBusinessUnit && selectedBusinessUnit !== 'all' ? selectedBusinessUnit : currentUser?.businessId ?? '';
+        (embedded && typeof businessUnitIdProp === 'string' && businessUnitIdProp)
+            ? businessUnitIdProp
+            : resolveAdminBusinessUnit({ urlBusinessUnitId, selectedBusinessUnit });
     // Canonical business-unit NAME from real TNG data (never hardcoded). Falls back
     // to the raw id only if the business record isn't in the accessible list.
     const businessName = businesses?.find(b => b.id === businessUnitId)?.name || businessUnitId || '—';
@@ -152,53 +191,111 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
     }), [orders, now]);
 
     // ── Live nav counts (drive the tab badges; awaiting-payment "lights up") ──
-    const navCounts: NavCounts = useMemo(() => ({
-        awaiting: derived.filter(o => o.status === 'AWAITING_PAYMENT').length,
-        live: derived.filter(o => isActiveStatus(o.status)).length,
-        kitchen: derived.filter(o => kitchenLaneFor(o.status) && foodLines(o.items).length > 0).length,
-        bar: derived.filter(o => kitchenLaneFor(o.status) && drinkLines(o.items).length > 0).length,
-        attention: derived.filter(o => o.attention.level !== 'none').length,
-    }), [derived]);
+    // Shared pure helper so the standalone QR dashboard and the embedded POS shell
+    // compute identical badge counts.
+    const navCounts: NavCounts = useMemo(() => opsNavCounts(derived, now), [derived, now]);
 
     // ── Order detail selection + transition action state ───────────────────
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const selected = derived.find(o => o.id === selectedId) ?? null;
     const [liveFilter, setLiveFilter] = useState<string>('active');
 
-    const openLiveWithFilter = (f: string) => { setLiveFilter(f); goTab('live'); };
-    const goTab = (t: OpsTab) => navigate(`/qr-ops/${t}`);
+    // ── Ticket printer: Bluetooth (spare test printer) or System/window.print
+    // (OS-installed XP-Q801). Both reuse existing print paths — no new bridge. ──
+    const [printerOpen, setPrinterOpen] = useState(false);
+    const [btConnected, setBtConnected] = useState<boolean>(() => isPrinterConnected());
+    const [printMode, setPrintModeState] = useState<PrintMode>(() => getPrintMode());
+    // System and Network modes need no pairing (always available); Bluetooth
+    // needs an active connection.
+    const printerReady = printMode === 'system' || printMode === 'qz' || btConnected;
 
-    // ── Non-ready gates ────────────────────────────────────────────────────
+    const openLiveWithFilter = (f: string) => { setLiveFilter(f); goTab('live'); };
+    const goTab = (t: OpsTab) => { if (embedded && onNavigate) onNavigate(t); else navigate(withBusinessParam(`/qr-ops/${t}`, businessUnitId)); };
+
+    // ── The tab content (shared by standalone + embedded renders) ──────────
+    const content = conn === 'loading' ? (
+        <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
+    ) : conn === 'error' ? (
+        <OfflineDiagnostics diagnostics={diagnostics} onRetry={() => setReloadKey(k => k + 1)} />
+    ) : tab === 'overview' ? (
+        <OverviewTab orders={derived} now={now} onCount={openLiveWithFilter} onOpen={setSelectedId} goTab={goTab} />
+    ) : tab === 'live' ? (
+        <LiveOrdersTab orders={derived} now={now} filter={liveFilter} setFilter={setLiveFilter} onOpen={setSelectedId} />
+    ) : tab === 'kitchen' ? (
+        <KitchenTab orders={derived} now={now} onOpen={setSelectedId} />
+    ) : tab === 'bar' ? (
+        <BarTab orders={derived} now={now} onOpen={setSelectedId} />
+    ) : tab === 'tables' ? (
+        <OpsTablesTab businessUnitId={businessUnitId} orders={derived} now={now}
+            onOpenManager={() => navigate(withBusinessParam('/qr-tables/live', businessUnitId))} />
+    ) : (
+        <HistoryTab orders={derived} onOpen={setSelectedId} />
+    );
+
+    // Overlays (order detail + printer panel) — identical in both modes.
+    const overlays = (
+        <>
+            {selected && <OrderDetailPanel order={selected} now={now} onClose={() => setSelectedId(null)}
+                printerConnected={printerReady} onNeedPrinter={() => setPrinterOpen(true)} />}
+            {printerOpen && <PrinterPanel mode={printMode} onModeChange={(m) => { setPrintMode(m); setPrintModeState(m); }}
+                btConnected={btConnected} setBtConnected={setBtConnected} businessUnitId={businessUnitId} onClose={() => setPrinterOpen(false)} />}
+        </>
+    );
+
+    // ── Embedded (inside the unified POS operations shell) ─────────────────
+    // The POS shell provides the header + tab nav; here we render only a slim
+    // status strip (printer + connection) and the tab content. No Exit button.
+    if (embedded) {
+        if (conn === 'unauthorized') {
+            return (
+                <div className="flex-1 flex items-center justify-center bg-slate-100">
+                    <Centered Icon={LockKeyhole} title="Staff sign-in required"
+                        body="Sign in with a staff account to view live orders." />
+                </div>
+            );
+        }
+        return (
+            <div className="flex-1 flex flex-col min-h-0 bg-slate-100 text-slate-900">
+                <div className="flex items-center justify-end gap-2 px-3 md:px-5 py-1.5 bg-white border-b border-slate-200 shrink-0">
+                    <button type="button" onClick={() => setPrinterOpen(true)} title="Printer setup"
+                        className={`inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-sm font-bold border-2 ${printerReady ? 'bg-emerald-50 text-emerald-800 border-emerald-400' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+                        <Printer size={15} strokeWidth={2.25} />
+                        <span className="hidden md:inline">Printer</span>
+                        <span className={`w-2 h-2 rounded-full ${printerReady ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                    </button>
+                    <ConnBadge conn={conn} lastUpdated={lastUpdated} />
+                </div>
+                <main className="flex-1 min-h-0 overflow-y-auto w-full px-3 md:px-5 py-4">{content}</main>
+                {overlays}
+            </div>
+        );
+    }
+
+    // ── Standalone (/qr-ops) — 'unauthorized' covers both "not signed in" and
+    // "signed in but no business durably selected". Distinguish them so a signed-in
+    // admin who arrived without a ?bu= is told to CHOOSE a business (via Exit
+    // Operations → QR Hub) rather than the misleading "sign in" message — and is
+    // NEVER silently defaulted to a business.
     if (conn === 'unauthorized') {
+        const noBusiness = signedIn && !businessUnitId;
         return (
             <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts} onRetry={() => setReloadKey(k => k + 1)}>
-                <Centered Icon={LockKeyhole} title="Staff sign-in required"
-                    body="Sign in with a staff account that has a business unit selected to view QR operations." />
+                {noBusiness ? (
+                    <Centered Icon={LockKeyhole} title="No business selected"
+                        body="Open QR Hub (Exit Operations, above) and choose a business to view its QR operations." />
+                ) : (
+                    <Centered Icon={LockKeyhole} title="Staff sign-in required"
+                        body="Sign in with a staff account to view QR operations." />
+                )}
             </OpsShell>
         );
     }
 
     return (
-        <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts} onRetry={() => setReloadKey(k => k + 1)}>
-            {conn === 'loading' ? (
-                <Centered Icon={Loader2} spin title="Loading live orders…" body="Connecting to the operations feed." />
-            ) : conn === 'error' ? (
-                <OfflineDiagnostics diagnostics={diagnostics} onRetry={() => setReloadKey(k => k + 1)} />
-            ) : tab === 'overview' ? (
-                <OverviewTab orders={derived} now={now} onCount={openLiveWithFilter} onOpen={setSelectedId} goTab={goTab} />
-            ) : tab === 'live' ? (
-                <LiveOrdersTab orders={derived} now={now} filter={liveFilter} setFilter={setLiveFilter} onOpen={setSelectedId} />
-            ) : tab === 'kitchen' ? (
-                <KitchenTab orders={derived} now={now} onOpen={setSelectedId} />
-            ) : tab === 'bar' ? (
-                <BarTab orders={derived} now={now} onOpen={setSelectedId} />
-            ) : tab === 'tables' ? (
-                <TablesTab />
-            ) : (
-                <HistoryTab orders={derived} onOpen={setSelectedId} />
-            )}
-
-            {selected && <OrderDetailPanel order={selected} now={now} onClose={() => setSelectedId(null)} />}
+        <OpsShell tab={tab} goTab={goTab} businessName={businessName} conn={conn} lastUpdated={lastUpdated} now={now} navCounts={navCounts}
+            printerConnected={printerReady} onOpenPrinter={() => setPrinterOpen(true)} onRetry={() => setReloadKey(k => k + 1)}>
+            {content}
+            {overlays}
         </OpsShell>
     );
 };
@@ -209,8 +306,9 @@ const QrOpsView: React.FC<{ businesses?: Business[] }> = ({ businesses }) => {
 const OpsShell: React.FC<{
     tab: OpsTab; goTab: (t: OpsTab) => void; businessName: string;
     conn: 'loading' | 'live' | 'error' | 'unauthorized'; lastUpdated: number; now: number;
-    navCounts?: NavCounts; onRetry: () => void; children: React.ReactNode;
-}> = ({ tab, goTab, businessName, conn, lastUpdated, navCounts, children }) => {
+    navCounts?: NavCounts; printerConnected?: boolean; onOpenPrinter?: () => void;
+    onRetry: () => void; children: React.ReactNode;
+}> = ({ tab, goTab, businessName, conn, lastUpdated, navCounts, printerConnected, onOpenPrinter, children }) => {
     const navigate = useNavigate();
     return (
         // Full-viewport operational surface — NO ERP shell. Neutral base (white / slate),
@@ -228,6 +326,14 @@ const OpsShell: React.FC<{
                         <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none">QR Operations</div>
                         <p className="text-base md:text-lg font-black tracking-tight leading-tight truncate">{businessName}</p>
                     </div>
+                    {onOpenPrinter && (
+                        <button type="button" onClick={onOpenPrinter} title="Printer setup"
+                            className={`shrink-0 inline-flex items-center gap-1.5 h-9 px-2.5 rounded-lg text-sm font-bold border-2 ${printerConnected ? 'bg-emerald-50 text-emerald-800 border-emerald-400' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+                            <Printer size={16} strokeWidth={2.25} />
+                            <span className="hidden md:inline">Printer</span>
+                            <span className={`w-2 h-2 rounded-full ${printerConnected ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                        </button>
+                    )}
                     <ConnBadge conn={conn} lastUpdated={lastUpdated} />
                 </div>
                 <nav className="w-full px-1 md:px-3 flex gap-1 overflow-x-auto">
@@ -678,24 +784,6 @@ const BarTab: React.FC<{ orders: DerivedOrder[]; now: number; onOpen: (id: strin
 };
 
 // ════════════════════════════════════════════════════════════════════════════
-// Tables (reuse existing manager)
-// ════════════════════════════════════════════════════════════════════════════
-const TablesTab: React.FC = () => {
-    const navigate = useNavigate();
-    return (
-        <div className="rounded-xl border-2 border-slate-200 bg-white p-6 text-center">
-            <Table2 size={30} className="mx-auto text-slate-500 mb-3" />
-            <h2 className="text-base font-black mb-1">Table & QR management</h2>
-            <p className="text-sm text-slate-500 mb-4 max-w-md mx-auto">Create tables, reveal QR tokens, and print customer QR codes in the dedicated table manager for this business.</p>
-            <button type="button" onClick={() => navigate('/qr-tables/live')}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-black">
-                Open table manager <ChevronRight size={16} />
-            </button>
-        </div>
-    );
-};
-
-// ════════════════════════════════════════════════════════════════════════════
 // History (closed orders)
 // ════════════════════════════════════════════════════════════════════════════
 const HistoryTab: React.FC<{ orders: DerivedOrder[]; onOpen: (id: string) => void }> = ({ orders, onOpen }) => {
@@ -733,7 +821,7 @@ function buildTimeline(o: DerivedOrder): TimelineEvent[] {
     return ev.sort((a, b) => a.atMillis - b.atMillis);
 }
 
-const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: () => void }> = ({ order: o, now, onClose }) => {
+const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: () => void; printerConnected: boolean; onNeedPrinter: () => void }> = ({ order: o, now, onClose, printerConnected, onNeedPrinter }) => {
     const closeRef = useRef<HTMLButtonElement>(null);
     useEffect(() => {
         closeRef.current?.focus();
@@ -753,7 +841,7 @@ const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: ()
                 {/* Header */}
                 <div className="sticky top-0 bg-white border-b-2 border-slate-200 px-4 py-3 flex items-center gap-3">
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline gap-2"><span className="text-lg font-black">{o.orderNumber}</span><span className="text-sm font-bold text-slate-500">Table {o.tableNumber}</span></div>
+                        <div className="flex items-baseline gap-2"><span className="text-lg font-black">{o.orderNumber}</span><span className="text-sm font-bold text-slate-500">{formatTableLabel(o.tableNumber)}</span></div>
                         <div className="text-xl font-black tabular-nums">₱{o.totalAmount.toFixed(2)}</div>
                     </div>
                     <button ref={closeRef} type="button" onClick={onClose} aria-label="Close" className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><X size={18} /></button>
@@ -774,6 +862,8 @@ const OrderDetailPanel: React.FC<{ order: DerivedOrder; now: number; onClose: ()
                             <div className="text-sm font-semibold mt-0.5">{o.attention.reason}</div>
                         </div>
                     )}
+
+                    <PrintButtons order={o} printerConnected={printerConnected} onNeedPrinter={onNeedPrinter} />
 
                     {/* Items */}
                     <section>
@@ -889,6 +979,304 @@ const OfflineDiagnostics: React.FC<{ diagnostics: OpsDiagnostics; onRetry: () =>
             </dl>
             <button type="button" onClick={onRetry} className="mt-4 px-5 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-black">Retry</button>
         </div>
+    );
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Automatic printing (Phase 6): live status of the local Print Bridge + the
+// per-BU Auto Print ON/OFF toggle. Additive — the manual modes below are unchanged.
+// ════════════════════════════════════════════════════════════════════════════
+const StatePill: React.FC<{ label: string; tone: 'ok' | 'bad' | 'unknown' }> = ({ label, tone }) => {
+    const cls = tone === 'ok' ? 'bg-emerald-100 text-emerald-800 border-emerald-400'
+        : tone === 'bad' ? 'bg-red-100 text-red-700 border-red-300'
+        : 'bg-slate-100 text-slate-500 border-slate-300';
+    return <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-black border ${cls}`}>{label}</span>;
+};
+
+const StatRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+    <div className="flex items-center justify-between gap-3">
+        <span className="text-slate-500 font-semibold">{label}</span>
+        <span className="text-right">{children}</span>
+    </div>
+);
+
+const AutoPrintSection: React.FC<{ businessUnitId: string }> = ({ businessUnitId }) => {
+    const [status, setStatus] = useState<BridgeStatus | null>(null);
+    const [now, setNow] = useState<number>(() => Date.now());
+    const [optimistic, setOptimistic] = useState<boolean | null>(null);
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState('');
+
+    useEffect(() => {
+        if (!businessUnitId) return;
+        const unsub = subscribeBridgeStatus(businessUnitId, setStatus, () => setStatus(null));
+        const id = window.setInterval(() => setNow(Date.now()), 5000);
+        return () => { unsub(); window.clearInterval(id); };
+    }, [businessUnitId]);
+
+    const online = isBridgeOnline(status, now);
+    const printer: PrinterState = overallPrinterState(status, now);
+    const reported = status?.autoPrint !== false; // default ON unless explicitly OFF
+    const autoOn = optimistic !== null ? optimistic : reported;
+    const lastPrint = status?.lastPrint ?? null;
+
+    // Clear the optimistic override once the bridge's heartbeat confirms it.
+    useEffect(() => { if (optimistic !== null && reported === optimistic) setOptimistic(null); }, [reported, optimistic]);
+
+    const toggle = async () => {
+        const next = !autoOn;
+        setBusy(true); setErr(''); setOptimistic(next);
+        try { await setAutoPrint(businessUnitId, next); }
+        catch (e) { setOptimistic(null); setErr((e as Error)?.message || 'Could not change auto print.'); }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="rounded-xl border-2 border-slate-200 overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2.5 bg-slate-900 text-white">
+                <div className="flex items-center gap-2 font-black"><Zap size={16} /> Automatic printing</div>
+                <button type="button" onClick={toggle} disabled={busy}
+                    className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-black border-2 ${autoOn ? 'bg-emerald-500 border-emerald-400 text-white' : 'bg-slate-700 border-slate-600 text-slate-200'} disabled:opacity-50`}>
+                    {busy ? <Loader2 size={14} className="animate-spin" /> : <Power size={14} />} {autoOn ? 'ON' : 'OFF'}
+                </button>
+            </div>
+            <div className="p-3 space-y-2 text-sm">
+                <StatRow label="Bridge"><StatePill label={online ? 'ONLINE' : 'OFFLINE'} tone={online ? 'ok' : 'bad'} /></StatRow>
+                <StatRow label="Printer"><StatePill label={printer} tone={printer === 'ONLINE' ? 'ok' : printer === 'OFFLINE' ? 'bad' : 'unknown'} /></StatRow>
+                <StatRow label="Auto print"><StatePill label={autoOn ? 'ON' : 'OFF'} tone={autoOn ? 'ok' : 'unknown'} /></StatRow>
+                <StatRow label="Last print">
+                    {lastPrint ? (
+                        <span className={`font-bold ${lastPrint.status === 'PRINTED' ? 'text-emerald-700' : 'text-red-600'}`}>
+                            {lastPrint.station} {lastPrint.order} · {lastPrint.status} · {new Date(lastPrint.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    ) : <span className="text-slate-400">—</span>}
+                </StatRow>
+                {err && <div role="alert" className="rounded bg-red-600 text-white px-2 py-1 text-xs font-bold">{err}</div>}
+                {!online && (
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                        The print bridge on the POS computer isn't reporting in — tickets won't print automatically until it's running. Use the manual buttons below meanwhile.
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// Printer: setup panel (top bar) + per-order Kitchen/Bar print buttons.
+// Reuses the proven POS Bluetooth path (qrPrinter.service → POSPrinterService).
+// ════════════════════════════════════════════════════════════════════════════
+const PrinterPanel: React.FC<{
+    mode: PrintMode; onModeChange: (m: PrintMode) => void;
+    btConnected: boolean; setBtConnected: (b: boolean) => void; businessUnitId: string; onClose: () => void;
+}> = ({ mode, onModeChange, btConnected, setBtConnected, businessUnitId, onClose }) => {
+    const [ip, setIpLocal] = useState(() => getPrinterIp());
+    const [busy, setBusy] = useState<'connect' | 'test' | null>(null);
+    const [error, setError] = useState('');
+    const [ok, setOk] = useState('');
+
+    const doConnect = async () => {
+        setError(''); setOk(''); setBusy('connect');
+        try { await connectPrinter(); setBtConnected(true); setOk('Printer paired.'); }
+        catch (e) { setBtConnected(isPrinterConnected()); setError((e as Error)?.message || 'Pairing failed.'); }
+        finally { setBusy(null); }
+    };
+    const doTest = async () => {
+        setError(''); setOk(''); setBusy('test');
+        try { await printTest(); setOk(mode === 'system' ? 'Sent to system printer.' : 'Test ticket sent.'); }
+        catch (e) { setError((e as Error)?.message || 'Test print failed.'); if (mode === 'bluetooth') setBtConnected(isPrinterConnected()); }
+        finally { setBusy(null); }
+    };
+    const doDisconnect = () => { disconnectPrinter(); setBtConnected(false); setOk('Disconnected.'); setError(''); };
+
+    const ModeBtn: React.FC<{ m: PrintMode; label: string }> = ({ m, label }) => (
+        <button type="button" onClick={() => onModeChange(m)}
+            className={`flex-1 py-2.5 rounded-lg text-sm font-black border-2 ${mode === m ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}>
+            {label}
+        </button>
+    );
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Printer setup">
+            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border-2 border-slate-200 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b-2 border-slate-200">
+                    <div className="flex items-center gap-2"><Printer size={18} /><h2 className="font-black">Ticket printer</h2></div>
+                    <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 rounded-lg bg-slate-100 hover:bg-slate-200 flex items-center justify-center"><X size={18} /></button>
+                </div>
+                <div className="p-4 space-y-3">
+                    {/* Automatic printing (Phase 6) — the headless bridge prints on PAID.
+                        The manual modes below remain as a fallback / diagnostics. */}
+                    <AutoPrintSection businessUnitId={businessUnitId} />
+
+                    <div>
+                        <div className="text-[11px] font-black uppercase tracking-wide text-slate-500 mb-1.5">Manual print (fallback)</div>
+                        <div className="flex gap-2">
+                            <ModeBtn m="system" label="System" />
+                            <ModeBtn m="qz" label="IP / Network" />
+                            <ModeBtn m="bluetooth" label="Bluetooth" />
+                        </div>
+                    </div>
+
+                    {error && <div role="alert" className="rounded-lg bg-red-600 text-white px-3 py-2 text-sm font-bold flex items-center gap-2"><AlertCircle size={15} />{error}</div>}
+                    {ok && <div className="rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm font-bold flex items-center gap-2"><CheckCircle2 size={15} />{ok}</div>}
+
+                    {mode === 'bluetooth' ? (
+                        <>
+                            <div className={`flex items-center gap-2 rounded-lg border-2 px-3 py-2.5 font-bold ${btConnected ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+                                <span className={`w-2.5 h-2.5 rounded-full ${btConnected ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                                {btConnected ? 'Printer connected' : 'No printer connected'}
+                            </div>
+                            <button type="button" onClick={doConnect} disabled={busy === 'connect'} className="w-full py-3 rounded-lg bg-slate-900 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                                {busy === 'connect' ? <Loader2 size={18} className="animate-spin" /> : <Bluetooth size={18} />} {btConnected ? 'Re-pair printer' : 'Pair printer'}
+                            </button>
+                            <button type="button" onClick={doTest} disabled={busy === 'test'} className="w-full py-3 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                                {busy === 'test' ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />} Test print
+                            </button>
+                            {btConnected && (
+                                <button type="button" onClick={doDisconnect} className="w-full py-2.5 rounded-lg bg-white border-2 border-slate-300 text-slate-700 font-bold flex items-center justify-center gap-2">
+                                    <Power size={16} /> Disconnect
+                                </button>
+                            )}
+                            <p className="text-xs text-slate-500 leading-relaxed pt-1">
+                                Web Bluetooth — Fred's spare test printer. Pairing needs a tap and resets on reload. Android/desktop Chrome or Edge only (not iPhone/iPad).
+                            </p>
+                        </>
+                    ) : mode === 'qz' ? (
+                        <>
+                            <div className="space-y-1.5">
+                                <label className="text-[11px] font-black uppercase tracking-wide text-slate-500">Printer IP or Name</label>
+                                <input type="text" placeholder="e.g. 192.168.1.100 or XP-Q801" 
+                                    className="w-full h-11 px-3 rounded-lg border-2 border-slate-300 font-bold focus:border-slate-500 outline-none"
+                                    value={ip} onChange={e => { setIpLocal(e.target.value); setPrinterIp(e.target.value); }} />
+                            </div>
+                            <div className="rounded-lg border-2 border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 mt-2">
+                                Prints silently to a network IP or local printer via QZ Tray.
+                            </div>
+                            <button type="button" onClick={doTest} disabled={busy === 'test'} className="w-full py-3 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                                {busy === 'test' ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />} Test print
+                            </button>
+                            <p className="text-xs text-slate-500 leading-relaxed pt-1">
+                                Requires QZ Tray to be installed and running on the device. No print dialogs.
+                            </p>
+                        </>
+                    ) : (
+                        <>
+                            <div className="rounded-lg border-2 border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700">
+                                Prints via the browser's print dialog to the OS-installed printer (the location's <b>XP-Q801</b>), 80mm.
+                            </div>
+                            <button type="button" onClick={doTest} disabled={busy === 'test'} className="w-full py-3 rounded-lg bg-blue-600 text-white font-black flex items-center justify-center gap-2 disabled:opacity-60">
+                                {busy === 'test' ? <Loader2 size={18} className="animate-spin" /> : <Receipt size={18} />} Test print
+                            </button>
+                            <p className="text-xs text-slate-500 leading-relaxed pt-1">
+                                Set the <b>XP-Q801</b> as the default printer and enable its driver's <b>auto-cut</b>. A print dialog appears per ticket (browser rule). Silent raw ESC/POS to :9100 needs a local bridge — a later option.
+                            </p>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PrintButtons: React.FC<{ order: DerivedOrder; printerConnected: boolean; onNeedPrinter: () => void }> = ({ order, printerConnected, onNeedPrinter }) => {
+    const [busy, setBusy] = useState<Station | null>(null);
+    const [msg, setMsg] = useState<{ station: Station; ok: boolean; text: string } | null>(null);
+    const [, force] = useState(0);
+
+    // Live AUTOMATIC-print job status for this order (the bridge). Separate from the
+    // manual browser-print ledger below.
+    const [autoJobs, setAutoJobs] = useState<PrintJobView[]>([]);
+    const [retrying, setRetrying] = useState<Station | null>(null);
+    useEffect(() => {
+        const unsub = subscribeOrderPrintJobs(order.id, setAutoJobs, () => { /* status only */ });
+        return () => unsub();
+    }, [order.id]);
+    const autoJobFor = (station: Station): PrintJobView | null => autoJobs.find(j => j.station === station) ?? null;
+    const doRetry = async (station: Station, jobId: string) => {
+        setRetrying(station);
+        try { await retryPrintJob(jobId); } catch { /* status reflects the outcome */ } finally { setRetrying(null); }
+    };
+
+    const food = foodLines(order.items);
+    const drink = drinkLines(order.items);
+    const paid = order.paymentStatus === 'PAID' || (order.status !== 'AWAITING_PAYMENT' && order.status !== 'PAYMENT_FAILED');
+
+    const run = async (station: Station, lines: OpsOrderLine[]) => {
+        if (!printerConnected) { onNeedPrinter(); return; }
+        const reprint = getJobStatus(order.id, station) === 'PRINTED';
+        setBusy(station); setMsg(null);
+        const ticketLines: TicketLine[] = lines.map(l => ({ qty: l.qty, name: l.name, note: l.notes }));
+        const res = await printStation(
+            { orderNumber: order.orderNumber, tableNumber: order.tableNumber, station, lines: ticketLines, paid, atMillis: order.createdAtMillis },
+            order.id, { reprint },
+        );
+        setBusy(null);
+        setMsg({ station, ok: res.ok, text: res.ok ? (reprint ? 'Reprinted' : 'Printed') : (res.error || 'Failed') });
+        force(n => n + 1);
+    };
+
+    const verb = (station: Station) => {
+        const s = getJobStatus(order.id, station);
+        return s === 'FAILED' ? 'Retry' : s === 'PRINTED' ? 'Reprint' : 'Print';
+    };
+
+    if (food.length === 0 && drink.length === 0) return null;
+    return (
+        <section>
+            <h3 className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5"><Printer size={14} /> Print tickets</h3>
+            <div className="grid grid-cols-2 gap-2">
+                {food.length > 0 && (
+                    <button type="button" onClick={() => run('KITCHEN', food)} disabled={busy === 'KITCHEN'}
+                        className="py-3 rounded-lg bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-1.5 disabled:opacity-60">
+                        {busy === 'KITCHEN' ? <Loader2 size={16} className="animate-spin" /> : <ChefHat size={16} />} {verb('KITCHEN')} Kitchen
+                    </button>
+                )}
+                {drink.length > 0 && (
+                    <button type="button" onClick={() => run('BAR', drink)} disabled={busy === 'BAR'}
+                        className="py-3 rounded-lg bg-slate-900 text-white text-sm font-black flex items-center justify-center gap-1.5 disabled:opacity-60">
+                        {busy === 'BAR' ? <Loader2 size={16} className="animate-spin" /> : <Wine size={16} />} {verb('BAR')} Bar
+                    </button>
+                )}
+            </div>
+            {!printerConnected && <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700"><RotateCcw size={12} /> No printer connected — tap a button to open printer setup.</p>}
+            {msg && <p className={`mt-2 text-xs font-bold ${msg.ok ? 'text-emerald-700' : 'text-red-600'}`}>{msg.station}: {msg.text}</p>}
+
+            {/* Automatic-print status (the bridge). Shows per station once a paid
+                order has generated jobs; FAILED offers a one-tap Retry. */}
+            {(autoJobFor('KITCHEN') || autoJobFor('BAR')) && (
+                <div className="mt-2.5 rounded-lg border-2 border-slate-200 p-2 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-slate-500"><Zap size={12} /> Auto-print</div>
+                    {(['KITCHEN', 'BAR'] as Station[]).map(st => {
+                        const j = autoJobFor(st);
+                        if (!j) return null;
+                        const s = j.status || 'PENDING';
+                        const tone = s === 'PRINTED' ? 'ok' : s === 'FAILED' ? 'bad' : 'unknown';
+                        return (
+                            <div key={st} className="flex items-center justify-between gap-2 text-xs">
+                                <span className="font-semibold text-slate-600">{st === 'KITCHEN' ? 'Kitchen' : 'Bar'}</span>
+                                <span className="flex items-center gap-2">
+                                    <StatePill label={s} tone={tone} />
+                                    {s === 'FAILED' && (
+                                        <button type="button" onClick={() => doRetry(st, j.id)} disabled={retrying === st}
+                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-900 text-white text-xs font-bold disabled:opacity-60">
+                                            {retrying === st ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Retry
+                                        </button>
+                                    )}
+                                </span>
+                            </div>
+                        );
+                    })}
+                    {autoJobFor('KITCHEN')?.status === 'FAILED' || autoJobFor('BAR')?.status === 'FAILED' ? (
+                        <p className="text-[11px] text-amber-700 font-semibold">Auto-print failed — retry, or use the manual buttons above.</p>
+                    ) : null}
+                </div>
+            )}
+
+            {(getJobStatus(order.id, 'KITCHEN') || getJobStatus(order.id, 'BAR')) && (
+                <p className="mt-1 text-[11px] text-slate-400 tabular-nums">Manual: Kitchen {getJobStatus(order.id, 'KITCHEN') ?? '—'} · Bar {getJobStatus(order.id, 'BAR') ?? '—'}</p>
+            )}
+        </section>
     );
 };
 

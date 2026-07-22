@@ -1,44 +1,13 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.aggregateStockTransactions = void 0;
-const functions = __importStar(require("firebase-functions"));
-const admin = __importStar(require("firebase-admin"));
+const firestore_1 = require("firebase-functions/v2/firestore");
+const firestore_2 = require("firebase-admin/firestore");
+const app_1 = require("firebase-admin/app");
+const db = (0, firestore_2.getFirestore)((0, app_1.getApp)(), 'tng-systems');
 // Reusable helper to get costPerUnit
 const getItemCost = async (itemId, businessUnitId) => {
-    const snap = await admin.firestore().collection('inventory_items').doc(itemId).get();
+    const snap = await db.collection('inventory_items').doc(itemId).get();
     if (!snap.exists)
         return { cost: 0, category: 'Other', recipeUnit: 'pcs', conversionRate: 1, type: 'Other', name: 'Unknown' };
     const data = snap.data();
@@ -53,16 +22,17 @@ const getItemCost = async (itemId, businessUnitId) => {
         name: data?.name || 'Unknown'
     };
 };
-exports.aggregateStockTransactions = functions.firestore
-    .document('stock_transactions/{txId}')
-    .onCreate(async (snap, context) => {
-    const tx = snap.data();
-    if (!tx.timestamp || !tx.itemId || !tx.businessUnitId)
+exports.aggregateStockTransactions = (0, firestore_1.onDocumentCreated)({
+    document: 'stock_transactions/{txId}',
+    database: 'tng-systems'
+}, async (event) => {
+    const tx = event.data?.data();
+    if (!tx || !tx.timestamp || !tx.itemId || !tx.businessUnitId)
         return;
     // Convert Timestamp to YYYY-MM-DD string
     const dateStr = tx.timestamp.toDate().toISOString().split('T')[0];
     // Document ID: businessUnitId_YYYY-MM-DD_itemId
-    const aggRef = admin.firestore().collection('inventory_aggregates')
+    const aggRef = db.collection('inventory_aggregates')
         .doc(`${tx.businessUnitId}_${dateStr}_${tx.itemId}`);
     const itemInfo = await getItemCost(tx.itemId, tx.businessUnitId);
     const updates = {
@@ -78,11 +48,11 @@ exports.aggregateStockTransactions = functions.firestore
     };
     // Increment specific transaction type buckets using atomic increments
     // We preserve the sign of tx.quantity for ADJUSTMENT and other signed types
-    updates[`${tx.type}_qty`] = admin.firestore.FieldValue.increment(tx.quantity);
+    updates[`${tx.type}_qty`] = firestore_2.FieldValue.increment(tx.quantity);
     // For peso, we generally want positive value for the report logic, but if tx.quantity was negative (loss),
     // we should track it signed.
     const signedPeso = tx.quantity * itemInfo.cost;
-    updates[`${tx.type}_peso`] = admin.firestore.FieldValue.increment(signedPeso);
+    updates[`${tx.type}_peso`] = firestore_2.FieldValue.increment(signedPeso);
     await aggRef.set(updates, { merge: true });
 });
 //# sourceMappingURL=aggregators.js.map

@@ -33,6 +33,10 @@ export interface XenditCreateSessionParams {
     cancelUrl: string;
     metadata: Record<string, string>;
     idempotencyKey: string;
+    /** When set, restricts the hosted checkout to these Xendit channel codes
+     *  (e.g. ['GCASH']) so the customer isn't asked to pick a method again.
+     *  Omitted ⇒ all activated channels are offered (prior behaviour). */
+    allowedPaymentChannels?: string[];
 }
 
 /** The normalized result the handler persists. */
@@ -141,6 +145,12 @@ export function createXenditHttpClient(config: XenditHttpClientConfig): XenditCl
             success_return_url: params.successUrl,
             cancel_return_url: params.cancelUrl,
             metadata: params.metadata,
+            // Preselect/restrict the channel the customer already chose in the app
+            // so the hosted page opens straight into it (no duplicate selection).
+            // Only sent when present — absent ⇒ Xendit offers all activated channels.
+            ...(params.allowedPaymentChannels && params.allowedPaymentChannels.length > 0
+                ? { allowed_payment_channels: params.allowedPaymentChannels }
+                : {}),
         };
 
         const controller = new AbortController();

@@ -11,6 +11,7 @@ import type {
 } from '../types/InventoryItem';
 import { SERVICE_TYPES, DEPARTMENTS } from '../types/InventoryItem';
 import { GeminiVisionService } from '../../../shared/services/gemini-vision.service';
+import { ItemSalesHistoryTab } from './ItemSalesHistoryTab';
 
 // ============================================================
 // TYPES
@@ -94,6 +95,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
     const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA);
     const [saving, setSaving] = useState(false);
     const [autoCategorizing, setAutoCategorizing] = useState(false);
+    const [activeTab, setActiveTab] = useState<'details' | 'history'>('details');
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const isEditing = !!item;
@@ -195,6 +197,7 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                 units,
                 parLevel: Math.round((formData.parLevel || 0) * (formData.conversion || 1)),
                 currentStock: formData.currentStock || 0,
+                theoreticalStock: formData.currentStock || 0,
                 costPerUnit: baseCost, // Legacy fallback
                 buyCost: formData.buyCost || 0,
                 baseCost: baseCost,    // Crucial: baseCost is the primary value used by POS BOM explosion and Recipe builder
@@ -277,7 +280,24 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                         </button>
                     </div>
 
-                    {/* Form */}
+                    {isEditing && (
+                        <div className="flex items-center gap-1 px-4 py-2 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
+                            <button
+                                onClick={() => setActiveTab('details')}
+                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'details' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                            >
+                                Details
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('history')}
+                                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${activeTab === 'history' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                            >
+                                Sales Deductions History
+                            </button>
+                        </div>
+                    )}
+
+                    {activeTab === 'details' && (
                     <form onSubmit={handleSubmit} className="p-4 space-y-6">
                         {/* Global Error */}
                         {errors.submit && (
@@ -597,6 +617,11 @@ const InventoryItemModal: React.FC<InventoryItemModalProps> = ({
                             </button>
                         </div>
                     </form>
+                    )}
+
+                    {activeTab === 'history' && isEditing && item && (
+                        <ItemSalesHistoryTab item={item as InventoryItem & { id: string }} />
+                    )}
                 </div>
             </div>
         </>

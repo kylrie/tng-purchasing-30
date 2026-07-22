@@ -67,34 +67,100 @@ export class EventImportService {
 
     static async parseFile(file: File): Promise<EventImportRow[]> {
         const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rawRows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
 
         if (rawRows.length === 0) throw new Error('The uploaded file contains no data rows.');
 
-        const headers = Object.keys(rawRows[0]).map(h => h.trim());
+        // Trim all keys in the raw rows to prevent mapping issues from Excel whitespace (e.g. "QTY ")
+        const cleanRows = rawRows.map(row => {
+            const clean: Record<string, unknown> = {};
+            for (const [k, v] of Object.entries(row)) {
+                clean[k.trim()] = v;
+            }
+            return clean;
+        });
+
+        const headers = Object.keys(cleanRows[0]);
         const normalize = (key: string) => key.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-        const findCol = (keywords: string[]): string | null =>
-            headers.find(h => keywords.some(kw => normalize(h).includes(normalize(kw)))) || null;
+        let availableHeaders = [...headers];
+        const consumeCol = (keywords: string[]): string | null => {
+            // First pass: exact match (case-insensitive, normalized)
+            let found = availableHeaders.find(h => keywords.some(kw => normalize(h) === normalize(kw)));
+            if (!found) {
+                // Second pass: includes match
+                found = availableHeaders.find(h => keywords.some(kw => normalize(h).includes(normalize(kw))));
+            }
+            if (found) {
+                availableHeaders = availableHeaders.filter(h => h !== found);
+                return found;
+            }
+            return null;
+        };
 
-        const dateCol = findCol(['eventdate', 'date']);
-        const nameCol = findCol(['eventname', 'event']);
-        const pkgCol = findCol(['packagename', 'package']);
-        const paxCol = findCol(['guestcount', 'pax', 'guests']);
-        const itemCol = findCol(['item', 'itemname', 'product']);
-        const qtyCol = findCol(['qty', 'quantity']);
+        const dateCol = consumeCol(['eventdate', 'date']);
+        const nameCol = consumeCol(['eventname', 'event']);
+        const pkgCol = consumeCol(['packagename', 'package']);
+        const paxCol = consumeCol(['guestcount', 'pax', 'guests']);
+        const itemCol = consumeCol(['item', 'itemname', 'product']);
+        const qtyCol = consumeCol(['qty', 'quantity']);
 
         if (!itemCol) throw new Error('Missing required ITEM column.');
 
-        const raw = (row: Record<string, unknown>, key: string | null): string =>
-            key ? String(row[key] ?? '').trim() : '';
+        const formatDate = (val: unknown): string => {
+            if (val instanceof Date) {
+                const year = val.getFullYear();
+                const month = String(val.getMonth() + 1).padStart(2, '0');
+                const day = String(val.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            if (typeof val === 'number') {
+                if (val > 25000 && val < 70000) {
+                    const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+                    const year = date.getUTCFullYear();
+                    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                    const day = String(date.getUTCDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                }
+            }
+            
+            const str = String(val ?? '').trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+            
+            if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+                const parts = str.split('/');
+                const first = parseInt(parts[0], 10);
+                const second = parseInt(parts[1], 10);
+                const year = parseInt(parts[2], 10);
+                
+                let month = first;
+                let day = second;
+                
+                if (first > 12) {
+                    day = first;
+                    month = second;
+                }
+                return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            }
+
+            return str;
+        };
+
+        const raw = (row: Record<string, unknown>, key: string | null, isDate: boolean = false): string => {
+            if (!key) return '';
+            const val = row[key];
+            if (isDate) {
+                return formatDate(val);
+            }
+            return String(val ?? '').trim();
+        };
 
         const events: EventImportRow[] = [];
         let current: EventImportRow | null = null;
 
-        for (const row of rawRows) {
+        for (const row of cleanRows) {
             const eventName = raw(row, nameCol);
             const itemName = raw(row, itemCol);
             const qtyRaw = qtyCol ? Number(row[qtyCol]) : 0;
@@ -104,7 +170,7 @@ export class EventImportService {
             if (eventName) {
                 if (current && current.items.length > 0) events.push(current);
                 current = {
-                    eventDate: raw(row, dateCol),
+                    eventDate: raw(row, dateCol, true),
                     eventName,
                     packageName: raw(row, pkgCol),
                     paxCount: paxCol ? (parseInt(String(row[paxCol]), 10) || 0) : 0,
@@ -299,9 +365,9 @@ export class EventImportService {
         const allItemsMap = new Map<string, InventoryItem & { id: string }>();
         allItemsSnap.docs.forEach(d => allItemsMap.set(d.id, { id: d.id, ...d.data() } as InventoryItem & { id: string }));
 
-        // BOM Explosion: aggregate RM and direct FG deductions
-        const rmDeductionMap = new Map<string, { totalQty: number; note: string }>();
-        const fgDirectDeductionMap = new Map<string, { totalQty: number; note: string }>();
+        // BOM Explosion: group RM and direct FG deductions by eventDate (YYYY-MM-DD string)
+        const rmDeductionByDate = new Map<string, Map<string, { totalQty: number; fgName: string }>>();
+        const fgDirectDeductionByDate = new Map<string, Map<string, { totalQty: number; fgName: string }>>();
 
         // Running stock tracker for PRODUCTION items to support auto-explode fallback
         const prodRunningStock = new Map<string, number>();
@@ -314,22 +380,24 @@ export class EventImportService {
         // Track unrecorded production logs for database alert
         const autoProductionLogs: AutoProductionLog[] = [];
 
-        /**
-         * [HIGH] AUDIT FIX: BOM explosion now delegates to the shared
-         * recursiveExplosion() from bom-explosion.service.ts.
-         *
-         * However, we need a thin adapter because Event uses { totalQty, note }
-         * while POS uses { totalQty, fgName }. We convert at the call site.
-         */
-        const rmDeductionMapBridge = new Map<string, { totalQty: number; fgName: string }>();
-
         let totalPax = 0;
 
         for (const row of rowsToCommit) {
             totalPax += row.paxCount;
             const eventNote = `Event: ${row.eventName}`;
-            const demandMap = new Map<string, number>();
+            const dateStr = row.eventDate;
 
+            if (!rmDeductionByDate.has(dateStr)) {
+                rmDeductionByDate.set(dateStr, new Map());
+            }
+            if (!fgDirectDeductionByDate.has(dateStr)) {
+                fgDirectDeductionByDate.set(dateStr, new Map());
+            }
+
+            const dateRmMap = rmDeductionByDate.get(dateStr)!;
+            const dateFgMap = fgDirectDeductionByDate.get(dateStr)!;
+
+            const demandMap = new Map<string, number>();
             for (const item of row.resolvedItems) {
                 if (item.matchedItemId) {
                     demandMap.set(item.matchedItemId, (demandMap.get(item.matchedItemId) ?? 0) + item.qty);
@@ -340,26 +408,29 @@ export class EventImportService {
                 const fgItem = allItemsMap.get(fgId);
                 if (!fgItem) continue;
                 if (fgItem.recipe && fgItem.recipe.length > 0) {
-                    // Delegate to shared BOM explosion service
+                    // Create a temporary bridge to collect explosive deductions for this specific event row
+                    const tempBridge = new Map<string, { totalQty: number; fgName: string }>();
                     recursiveExplosion(
                         fgItem, totalQty, eventNote,
                         allItemsMap, prodRunningStock,
-                        rmDeductionMapBridge, autoProductionLogs
+                        tempBridge, autoProductionLogs
                     );
+                    // Accumulate tempBridge into dateRmMap
+                    for (const [rmId, val] of tempBridge) {
+                        const prev = dateRmMap.get(rmId);
+                        dateRmMap.set(rmId, {
+                            totalQty: (prev?.totalQty ?? 0) + val.totalQty,
+                            fgName: prev?.fgName ?? val.fgName,
+                        });
+                    }
                 } else {
-                    const prev = fgDirectDeductionMap.get(fgId);
-                    fgDirectDeductionMap.set(fgId, { totalQty: (prev?.totalQty ?? 0) + totalQty, note: prev?.note ?? eventNote });
+                    const prev = dateFgMap.get(fgId);
+                    dateFgMap.set(fgId, {
+                        totalQty: (prev?.totalQty ?? 0) + totalQty,
+                        fgName: prev?.fgName ?? eventNote,
+                    });
                 }
             }
-        }
-
-        // Convert bridge map → event's rmDeductionMap format
-        for (const [rmId, { totalQty, fgName }] of rmDeductionMapBridge) {
-            const prev = rmDeductionMap.get(rmId);
-            rmDeductionMap.set(rmId, {
-                totalQty: (prev?.totalQty ?? 0) + totalQty,
-                note: prev?.note ?? fgName,
-            });
         }
 
         const batchDocRef = doc(collection(db, COL.EVENT_IMPORT_BATCHES));
@@ -401,63 +472,64 @@ export class EventImportService {
             opCount++;
         }
 
-        // RM deductions
-        // [CRITICAL] AUDIT FIX: Uses increment() for concurrency-safe stock updates
-        for (const [rmId, { totalQty, note }] of rmDeductionMap) {
-            const rmItem = allItemsMap.get(rmId);
-            if (!rmItem) continue;
+        // RM deductions (grouped by eventDate to allow backtracking/variance)
+        for (const [dateStr, dateRmMap] of rmDeductionByDate) {
+            const eventTs = importDateToTimestamp(dateStr);
 
-            ensureBatch();
-            currentBatch.set(doc(collection(db, COL.STOCK_TRANSACTIONS)), {
-                itemId: rmId, itemName: rmItem.name, businessUnitId,
-                type: 'THEORETICAL_USAGE', quantity: totalQty,
-                unitCost: rmItem.costPerUnit ?? 0, totalValue: totalQty * (rmItem.costPerUnit ?? 0),
-                referenceId: batchImportId,
-                notes: `Deducted ${totalQty} ${rmItem.units?.recipeUnit ?? ''} ${rmItem.name} for ${note} (${fileName})`,
-                performedBy: userId, performedByName: userName,
-                timestamp: now, createdAt: now,
-            });
-            opCount++;
+            for (const [rmId, { totalQty, fgName }] of dateRmMap) {
+                const rmItem = allItemsMap.get(rmId);
+                if (!rmItem) continue;
 
-            /**
-             * [CRITICAL] AUDIT FIX: Concurrency-safe stock update.
-             * Uses Firestore increment(-totalQty) instead of computing
-             * absolute values in memory.
-             */
-            ensureBatch();
-            currentBatch.update(doc(db, COL.INVENTORY_ITEMS, rmId), {
-                currentStock: increment(-totalQty),
-                theoreticalStock: increment(-totalQty),
-                updatedAt: now,
-            });
-            opCount++;
+                ensureBatch();
+                currentBatch.set(doc(collection(db, COL.STOCK_TRANSACTIONS)), {
+                    itemId: rmId, itemName: rmItem.name, businessUnitId,
+                    type: 'THEORETICAL_USAGE', quantity: totalQty,
+                    unitCost: rmItem.costPerUnit ?? 0, totalValue: totalQty * (rmItem.costPerUnit ?? 0),
+                    referenceId: batchImportId,
+                    notes: `Deducted ${totalQty} ${rmItem.units?.recipeUnit ?? ''} ${rmItem.name} for ${fgName} (${fileName})`,
+                    performedBy: userId, performedByName: userName,
+                    timestamp: eventTs, createdAt: eventTs,
+                });
+                opCount++;
+
+                ensureBatch();
+                currentBatch.update(doc(db, COL.INVENTORY_ITEMS, rmId), {
+                    currentStock: increment(-totalQty),
+                    theoreticalStock: increment(-totalQty),
+                    updatedAt: eventTs,
+                });
+                opCount++;
+            }
         }
 
-        // Direct FG deductions (no-recipe items)
-        // [CRITICAL] Same increment() fix applied here
-        for (const [fgId, { totalQty, note }] of fgDirectDeductionMap) {
-            const fgItem = allItemsMap.get(fgId);
-            if (!fgItem) continue;
+        // Direct FG deductions (grouped by eventDate)
+        for (const [dateStr, dateFgMap] of fgDirectDeductionByDate) {
+            const eventTs = importDateToTimestamp(dateStr);
 
-            ensureBatch();
-            currentBatch.set(doc(collection(db, COL.STOCK_TRANSACTIONS)), {
-                itemId: fgId, itemName: fgItem.name, businessUnitId,
-                type: 'EVENT_CONSUMPTION', quantity: totalQty,
-                unitCost: fgItem.costPerUnit ?? 0, totalValue: totalQty * (fgItem.costPerUnit ?? 0),
-                referenceId: batchImportId,
-                notes: `Deducted ${totalQty} ${fgItem.units?.recipeUnit ?? ''} ${fgItem.name} for ${note} (${fileName})`,
-                performedBy: userId, performedByName: userName,
-                timestamp: now, createdAt: now,
-            });
-            opCount++;
+            for (const [fgId, { totalQty, fgName }] of dateFgMap) {
+                const fgItem = allItemsMap.get(fgId);
+                if (!fgItem) continue;
 
-            ensureBatch();
-            currentBatch.update(doc(db, COL.INVENTORY_ITEMS, fgId), {
-                currentStock: increment(-totalQty),
-                theoreticalStock: increment(-totalQty),
-                updatedAt: now,
-            });
-            opCount++;
+                ensureBatch();
+                currentBatch.set(doc(collection(db, COL.STOCK_TRANSACTIONS)), {
+                    itemId: fgId, itemName: fgItem.name, businessUnitId,
+                    type: 'EVENT_CONSUMPTION', quantity: totalQty,
+                    unitCost: fgItem.costPerUnit ?? 0, totalValue: totalQty * (fgItem.costPerUnit ?? 0),
+                    referenceId: batchImportId,
+                    notes: `Deducted ${totalQty} ${fgItem.units?.recipeUnit ?? ''} ${fgItem.name} for ${fgName} (${fileName})`,
+                    performedBy: userId, performedByName: userName,
+                    timestamp: eventTs, createdAt: eventTs,
+                });
+                opCount++;
+
+                ensureBatch();
+                currentBatch.update(doc(db, COL.INVENTORY_ITEMS, fgId), {
+                    currentStock: increment(-totalQty),
+                    theoreticalStock: increment(-totalQty),
+                    updatedAt: eventTs,
+                });
+                opCount++;
+            }
         }
 
         // Batch metadata
@@ -500,6 +572,142 @@ export class EventImportService {
         for (const batch of batches) await batch.commit();
 
         return batchImportId;
+    }
+
+    /**
+     * Delete an event import batch and reverse its inventory deductions.
+     */
+    static async deleteImportBatch(
+        batchImportId: string,
+        userId: string,
+        userName: string
+    ): Promise<void> {
+        // 1. Get the batch metadata
+        const batchRef = doc(db, COL.EVENT_IMPORT_BATCHES, batchImportId);
+
+        // 2. Get all event_sales for this batch
+        const salesQuery = query(
+            collection(db, COL.EVENT_SALES),
+            where('batchImportId', '==', batchImportId)
+        );
+        const salesSnap = await getDocs(salesQuery);
+
+        // 3. Get all original stock_transactions for this batch
+        const txQuery = query(
+            collection(db, COL.STOCK_TRANSACTIONS),
+            where('referenceId', '==', batchImportId)
+        );
+        const txSnap = await getDocs(txQuery);
+
+        // 4. Get all original production_logs for this batch (UNRECORDED_AUTO_PRODUCTION)
+        const logsQuery = query(
+            collection(db, 'production_logs'),
+            where('referenceId', '==', batchImportId),
+            where('referenceType', '==', 'EVENT_IMPORT')
+        );
+        const logsSnap = await getDocs(logsQuery);
+
+        // 5. Calculate total deducted per item from the original transactions.
+        const DEDUCTION_TYPES = new Set(['THEORETICAL_USAGE', 'EVENT_CONSUMPTION']);
+        const deductionsByItem = new Map<string, {
+            qty: number;
+            businessUnitId: string;
+            unitCost: number;
+            itemName: string;
+        }>();
+
+        txSnap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!DEDUCTION_TYPES.has(data.type)) return;
+            const itemId = data.itemId as string;
+            const prev = deductionsByItem.get(itemId);
+            deductionsByItem.set(itemId, {
+                qty: (prev?.qty || 0) + Math.abs(data.quantity as number || 0),
+                businessUnitId: data.businessUnitId,
+                unitCost: data.unitCost || 0,
+                itemName: data.itemName || 'Unknown Item',
+            });
+        });
+
+        // Build Firestore batches
+        const MAX_OPS = 490;
+        const batches: ReturnType<typeof writeBatch>[] = [];
+        let currentBatch = writeBatch(db);
+        let opCount = 0;
+
+        const ensureBatch = () => {
+            if (opCount >= MAX_OPS) {
+                batches.push(currentBatch);
+                currentBatch = writeBatch(db);
+                opCount = 0;
+            }
+        };
+
+        const now = Timestamp.now();
+
+        // 6. Delete all event_sales docs
+        salesSnap.docs.forEach(docSnap => {
+            ensureBatch();
+            currentBatch.delete(docSnap.ref);
+            opCount++;
+        });
+
+        // 7. Delete the original stock_transactions
+        txSnap.docs.forEach(docSnap => {
+            const data = docSnap.data();
+            if (!DEDUCTION_TYPES.has(data.type)) return;
+            ensureBatch();
+            currentBatch.delete(docSnap.ref);
+            opCount++;
+        });
+
+        // 8. Delete any auto production logs
+        logsSnap.docs.forEach(docSnap => {
+            ensureBatch();
+            currentBatch.delete(docSnap.ref);
+            opCount++;
+        });
+
+        // 9. For each affected item: add an EVENT_REVERSAL audit record and restore stock
+        for (const [itemId, info] of deductionsByItem.entries()) {
+            const adjTxRef = doc(collection(db, COL.STOCK_TRANSACTIONS));
+            ensureBatch();
+            currentBatch.set(adjTxRef, {
+                itemId,
+                itemName: info.itemName,
+                businessUnitId: info.businessUnitId,
+                type: 'EVENT_REVERSAL',
+                quantity: info.qty,   // positive = stock returned
+                unitCost: info.unitCost,
+                totalValue: info.qty * info.unitCost,
+                referenceId: batchImportId,
+                notes: `Reversed Event Import Batch ${batchImportId} — ${info.qty} units of ${info.itemName} returned to stock`,
+                performedBy: userId,
+                performedByName: userName,
+                timestamp: now,
+                createdAt: now,
+            });
+            opCount++;
+
+            // Re-increment stock
+            ensureBatch();
+            currentBatch.update(doc(db, COL.INVENTORY_ITEMS, itemId), {
+                currentStock: increment(info.qty),
+                theoreticalStock: increment(info.qty),
+                updatedAt: now,
+            });
+            opCount++;
+        }
+
+        // 10. Delete the batch import metadata itself
+        ensureBatch();
+        currentBatch.delete(batchRef);
+        opCount++;
+
+        batches.push(currentBatch);
+        for (const batch of batches) {
+            await batch.commit();
+        }
     }
 
     // ================================================================

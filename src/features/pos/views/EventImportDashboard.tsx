@@ -1,18 +1,122 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, Calendar, Package, Users, Eye, Download } from 'lucide-react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertTriangle, Loader2, History, Calendar, Package, Users, Eye, Download, ChevronDown, Trash2 } from 'lucide-react';
 import { EventImportService } from '../services/event-import.service';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
-import type { EventImportMappedRow, EventImportBatch, EventSimulatedDeduction } from '../types/event-sales.types';
+import { usePermissions } from '../../../hooks/usePermissions';
+import type { EventImportMappedRow, EventImportBatch, EventSimulatedDeduction, EventSalesRecord } from '../types/event-sales.types';
 import type { InventoryItem } from '../../inventory/types/InventoryItem';
 
 interface Props { businesses: { id: string; name: string }[]; }
 type ViewState = 'UPLOAD' | 'PREVIEW' | 'SIMULATION' | 'COMMITTING' | 'SUCCESS';
 type Tab = 'import' | 'history';
 
+// ─── Searchable Item Dropdown for manual matching ────────────────────────
+const SearchableItemSelect: React.FC<{
+    items: (InventoryItem & { id: string })[];
+    onSelect: (itemId: string) => void;
+    placeholder?: string;
+}> = ({ items, onSelect, placeholder = 'Type to search...' }) => {
+    const [search, setSearch] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const [highlightIdx, setHighlightIdx] = useState(0);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLUListElement>(null);
+
+    const filtered = useMemo(() => {
+        if (!search.trim()) return items;
+        const q = search.toLowerCase().trim();
+        return items.filter(i => i.name.toLowerCase().includes(q));
+    }, [items, search]);
+
+    // Reset highlight when filter changes
+    // eslint-disable-next-line
+    useEffect(() => setHighlightIdx(0), [filtered]);
+
+    // Click outside to close
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    // Scroll highlighted item into view
+    useEffect(() => {
+        if (isOpen && listRef.current) {
+            const el = listRef.current.children[highlightIdx] as HTMLElement;
+            el?.scrollIntoView({ block: 'nearest' });
+        }
+    }, [highlightIdx, isOpen]);
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setIsOpen(true);
+            setHighlightIdx(prev => Math.min(prev + 1, filtered.length - 1));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setHighlightIdx(prev => Math.max(prev - 1, 0));
+        } else if (e.key === 'Enter' && filtered[highlightIdx]) {
+            e.preventDefault();
+            onSelect(filtered[highlightIdx].id);
+            setIsOpen(false);
+            setSearch('');
+        } else if (e.key === 'Escape') {
+            setIsOpen(false);
+        }
+    };
+
+    return (
+        <div ref={containerRef} className="relative">
+            <div className="relative">
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setIsOpen(true); }}
+                    onFocus={() => setIsOpen(true)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={placeholder}
+                    className="w-full bg-slate-900/60 dark:bg-slate-700/80 text-slate-900 dark:text-white border border-red-500/30 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500"
+                />
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+            </div>
+            {isOpen && (
+                <ul
+                    ref={listRef}
+                    className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl text-xs"
+                >
+                    {filtered.length === 0 ? (
+                        <li className="px-3 py-2 text-slate-500 dark:text-slate-400 text-center">No items found</li>
+                    ) : (
+                        filtered.map((item, idx) => (
+                            <li
+                                key={item.id}
+                                onClick={() => { onSelect(item.id); setIsOpen(false); setSearch(''); }}
+                                className={`px-3 py-1.5 cursor-pointer transition-colors ${
+                                    idx === highlightIdx
+                                        ? 'bg-cyan-500/10 text-cyan-400'
+                                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700/50'
+                                }`}
+                            >
+                                <div className="font-medium">{item.name}</div>
+                                <div className="text-[10px] text-slate-400">{item.category}</div>
+                            </li>
+                        ))
+                    )}
+                </ul>
+            )}
+        </div>
+    );
+};
+
 const EventImportDashboard: React.FC<Props> = () => {
     const { currentUser } = useAuth();
     const { selectedBusinessUnit } = useBusinessUnit();
+    const { hasPermission } = usePermissions();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectedBU = selectedBusinessUnit === 'all' ? (currentUser?.businessUnitIds?.[0] || '') : selectedBusinessUnit;
 
@@ -25,9 +129,13 @@ const EventImportDashboard: React.FC<Props> = () => {
     const [importHistory, setImportHistory] = useState<EventImportBatch[]>([]);
     const [simDeductions, setSimDeductions] = useState<EventSimulatedDeduction[]>([]);
     const [loading, setLoading] = useState(false);
+    const [isDeleting, setIsDeleting] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [successId, setSuccessId] = useState<string | null>(null);
     const [dragActive, setDragActive] = useState(false);
+    const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
+    const [batchSales, setBatchSales] = useState<EventSalesRecord[]>([]);
+    const [batchSalesLoading, setBatchSalesLoading] = useState(false);
 
     // Load history on tab switch
     useEffect(() => {
@@ -84,9 +192,92 @@ const EventImportDashboard: React.FC<Props> = () => {
 
     const resetState = () => { setViewState('UPLOAD'); setFile(null); setMappedRows([]); setSimDeductions([]); setError(null); setSuccessId(null); };
 
+    const handleDeleteBatch = async (batchId: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!confirm('Are you sure you want to delete this event import batch and reverse its inventory deductions? This cannot be undone.')) return;
+
+        setIsDeleting(batchId);
+        try {
+            await EventImportService.deleteImportBatch(batchId, currentUser?.id || '', currentUser?.name || 'Unknown User');
+            setImportHistory(prev => prev.filter(b => b.id !== batchId));
+            if (expandedBatchId === batchId) {
+                setExpandedBatchId(null);
+                setBatchSales([]);
+            }
+        } catch (err) {
+            console.error('Failed to delete batch:', err);
+            alert('Failed to delete import batch. Please try again.');
+        } finally {
+            setIsDeleting(null);
+        }
+    };
+
+    const handleBatchClick = async (batchId: string) => {
+        if (expandedBatchId === batchId) {
+            setExpandedBatchId(null);
+            setBatchSales([]);
+            return;
+        }
+        setExpandedBatchId(batchId);
+        setBatchSalesLoading(true);
+        try {
+            const sales = await EventImportService.getEventSalesByBatchId(batchId);
+            setBatchSales(sales);
+        } catch (err) {
+            console.error('Failed to load batch details:', err);
+        } finally {
+            setBatchSalesLoading(false);
+        }
+    };
+
+    const handleResetMatch = useCallback((rowIndex: number, itemIndex: number) => {
+        setMappedRows(prev => prev.map(r => {
+            if (r.rowIndex !== rowIndex) return r;
+            const updatedItems = [...r.resolvedItems];
+            updatedItems[itemIndex] = {
+                ...updatedItems[itemIndex],
+                matchedItemId: null,
+                matchedItemName: null,
+                matchStatus: 'UNMATCHED' as const
+            };
+            const hasErrors = updatedItems.some(i => i.matchStatus === 'UNMATCHED');
+            return {
+                ...r,
+                resolvedItems: updatedItems,
+                hasErrors
+            };
+        }));
+    }, []);
+
+    const handleManualMatch = useCallback((rowIndex: number, itemIndex: number, itemId: string) => {
+        setMappedRows(prev => prev.map(r => {
+            if (r.rowIndex !== rowIndex) return r;
+            const updatedItems = [...r.resolvedItems];
+            const item = inventoryItems.find(i => i.id === itemId);
+            updatedItems[itemIndex] = {
+                ...updatedItems[itemIndex],
+                matchedItemId: itemId,
+                matchedItemName: item ? item.name : null,
+                matchStatus: item ? ('MATCHED' as const) : ('UNMATCHED' as const)
+            };
+            const hasErrors = updatedItems.some(i => i.matchStatus === 'UNMATCHED');
+            return {
+                ...r,
+                resolvedItems: updatedItems,
+                hasErrors
+            };
+        }));
+    }, [inventoryItems]);
+
     const matchedCount = mappedRows.filter(r => !r.hasErrors).length;
     const errorCount = mappedRows.filter(r => r.hasErrors).length;
     const totalPax = mappedRows.reduce((s, r) => s + r.paxCount, 0);
+
+    const matchableItems = useMemo(() => {
+        return inventoryItems.filter(i =>
+            i.type === 'FINISHED_GOOD' || i.type === 'PRODUCTION' || i.type === 'RAW_MATERIAL'
+        );
+    }, [inventoryItems]);
 
     // ── Render Helpers ──
     const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
@@ -194,13 +385,32 @@ const EventImportDashboard: React.FC<Props> = () => {
                                                     <td className="px-4 py-3 text-white font-medium">{row.eventName}</td>
                                                     <td className="px-4 py-3 text-slate-300">{row.packageName || '—'}</td>
                                                     <td className="px-4 py-3 text-cyan-400 font-semibold">{row.paxCount}</td>
-                                                    <td className="px-4 py-3">
+                                                    <td className="px-4 py-3 min-w-[280px]">
                                                         {row.resolvedItems.map((item, j) => (
-                                                            <div key={j} className="flex items-center gap-1 mb-0.5">
-                                                                <StatusBadge status={item.matchStatus} />
-                                                                <span className="text-slate-300 text-xs">
-                                                                    {item.matchedItemName || item.inputText} ×{item.qty}
-                                                                </span>
+                                                            <div key={j} className="flex items-center justify-between gap-2 mb-1.5 p-1 bg-slate-900/10 border border-slate-700/10 dark:border-slate-700/30 rounded-lg">
+                                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                                    <StatusBadge status={item.matchStatus} />
+                                                                    <span className="text-slate-300 text-xs truncate" title={item.matchedItemName || item.inputText}>
+                                                                        {item.matchedItemName || item.inputText} ×{item.qty}
+                                                                    </span>
+                                                                </div>
+                                                                {item.matchStatus === 'MATCHED' ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleResetMatch(row.rowIndex, j)}
+                                                                        className="text-[10px] text-rose-500 hover:text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 px-1.5 py-0.5 rounded transition-colors flex-shrink-0"
+                                                                    >
+                                                                        Change
+                                                                    </button>
+                                                                ) : (
+                                                                    <div className="w-40 flex-shrink-0">
+                                                                        <SearchableItemSelect
+                                                                            items={matchableItems}
+                                                                            onSelect={(itemId) => handleManualMatch(row.rowIndex, j, itemId)}
+                                                                            placeholder="Match item..."
+                                                                        />
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         ))}
                                                     </td>
@@ -316,22 +526,95 @@ const EventImportDashboard: React.FC<Props> = () => {
                         <div className="p-8 text-center text-slate-400">No event imports found.</div>
                     ) : (
                         <div className="divide-y divide-slate-700/30">
-                            {importHistory.map(batch => (
-                                <div key={batch.id} className="p-4 hover:bg-slate-700/20 transition-colors">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-white font-medium">{batch.fileName}</p>
-                                            <p className="text-xs text-slate-400 mt-1">
-                                                {batch.totalEvents} events · {batch.totalPax} pax · ₱{batch.totalRevenue?.toLocaleString() ?? '0'}
-                                            </p>
+                            {importHistory.map(batch => {
+                                const isExpanded = expandedBatchId === batch.id;
+                                return (
+                                    <div key={batch.id} className="border-b border-slate-700/30 last:border-b-0">
+                                        <div 
+                                            onClick={() => handleBatchClick(batch.id)}
+                                            className="p-4 hover:bg-slate-700/20 transition-colors cursor-pointer flex items-center justify-between"
+                                        >
+                                            <div>
+                                                <p className="text-white font-medium">{batch.fileName}</p>
+                                                <p className="text-xs text-slate-400 mt-1">
+                                                    {batch.totalEvents} events · {batch.totalPax} pax · ₱{batch.totalRevenue?.toLocaleString() ?? '0'}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-right">
+                                                    <p className="text-xs text-slate-400">{batch.importedByName}</p>
+                                                    <p className="text-xs text-slate-500">{batch.importedAt?.toDate?.()?.toLocaleString() ?? ''}</p>
+                                                </div>
+                                                {hasPermission('pos:import:delete') && (
+                                                    <button
+                                                        onClick={(e) => handleDeleteBatch(batch.id, e)}
+                                                        disabled={isDeleting === batch.id}
+                                                        className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
+                                                        title="Delete Import & Reverse Deductions"
+                                                    >
+                                                        {isDeleting === batch.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Trash2 className="w-4 h-4" />
+                                                        )}
+                                                    </button>
+                                                )}
+                                                <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-xs text-slate-400">{batch.importedByName}</p>
-                                            <p className="text-xs text-slate-500">{batch.importedAt?.toDate?.()?.toLocaleString() ?? ''}</p>
-                                        </div>
+
+                                        {/* Expanded Detail */}
+                                        {isExpanded && (
+                                            <div className="border-t border-slate-700/50 bg-slate-900/30 p-4 space-y-4">
+                                                {batchSalesLoading ? (
+                                                    <div className="flex items-center justify-center py-8">
+                                                        <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
+                                                        <span className="ml-3 text-slate-400 text-sm">Loading batch details...</span>
+                                                    </div>
+                                                ) : batchSales.length === 0 ? (
+                                                    <div className="py-4 text-center text-slate-500 text-sm">No event records found for this batch.</div>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {batchSales.map(event => (
+                                                            <div key={event.id} className="bg-slate-800/40 border border-slate-700/30 rounded-xl p-4 space-y-3">
+                                                                <div className="flex justify-between items-start">
+                                                                    <div>
+                                                                        <h4 className="font-semibold text-white text-sm">{event.eventName}</h4>
+                                                                        <p className="text-xs text-slate-400 mt-0.5">
+                                                                            {event.eventDate} {event.packageName && `• ${event.packageName}`}
+                                                                        </p>
+                                                                    </div>
+                                                                    <span className="px-2 py-0.5 rounded bg-violet-500/20 text-violet-400 text-xs font-semibold">
+                                                                        {event.paxCount} Pax
+                                                                    </span>
+                                                                </div>
+                                                                <div className="border-t border-slate-700/30 pt-2">
+                                                                    <table className="w-full text-xs text-slate-300">
+                                                                        <thead>
+                                                                            <tr className="text-slate-400 border-b border-slate-700/30 text-left font-semibold">
+                                                                                <th className="pb-1 font-medium">Item Name</th>
+                                                                                <th className="pb-1 text-right font-medium">Qty</th>
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody>
+                                                                            {event.items.map((item, itemIdx) => (
+                                                                                <tr key={itemIdx} className="border-b border-slate-700/10 hover:bg-slate-700/10">
+                                                                                    <td className="py-1 font-medium text-slate-200">{item.inventoryItemName}</td>
+                                                                                    <td className="py-1 text-right text-white font-semibold">{item.qty}</td>
+                                                                                </tr>
+                                                                            ))}
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

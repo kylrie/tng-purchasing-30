@@ -18,7 +18,6 @@ import { AuthContext } from './AuthContext';
 // =====================================================
 const LOCKOUT_STORAGE_KEY = 'auth_lockout_until';
 const ATTEMPTS_STORAGE_KEY = 'auth_login_attempts';
-const SESSION_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
 interface AuthProviderProps {
     children: ReactNode;
@@ -241,43 +240,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setLoading(false);
         }
     }, [navigate]);
-
-    // =====================================================
-    // FIX M7: Session Timeout - Auto-logout after 1 hour inactivity
-    // FIX BUG 11: Added logout to dependency array
-    // =====================================================
-    useEffect(() => {
-        if (!currentUser) return; // Only track when user is logged in
-
-        let timeoutId: ReturnType<typeof setTimeout>;
-
-        const resetTimer = () => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(async () => {
-                console.log('⏰ Session expired due to inactivity');
-                await logout();
-            }, SESSION_TIMEOUT_MS);
-        };
-
-        // Activity events that reset the timer
-        const activityEvents = ['mousedown', 'keydown', 'touchstart', 'scroll'];
-
-        // Add listeners
-        activityEvents.forEach(event => {
-            window.addEventListener(event, resetTimer);
-        });
-
-        // Start initial timer
-        resetTimer();
-
-        // Cleanup
-        return () => {
-            clearTimeout(timeoutId);
-            activityEvents.forEach(event => {
-                window.removeEventListener(event, resetTimer);
-            });
-        };
-    }, [currentUser, logout]); // SESSION_TIMEOUT_MS is a module-level constant, not reactive
 
     const value = {
         currentUser,

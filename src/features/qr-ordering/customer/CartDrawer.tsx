@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X, Minus, Plus, Trash2, ShoppingCart, StickyNote, Loader2, AlertCircle } from 'lucide-react';
+import { formatTableLabel } from '../utils/tableUtils';
 
 /**
  * QR Ordering — Cart Drawer (Phase 1 UI · Sprint 2 order submit)
@@ -115,7 +116,7 @@ const CartDrawer: React.FC<CartDrawerProps> = ({ open, lines, tableNumber, onClo
                         <div className="min-w-0">
                             <p className="text-sm font-bold text-slate-900 leading-tight">Your order</p>
                             <p className="text-[11px] font-semibold text-[#0d6e62] tracking-wide">
-                                Table {tableNumber}{count > 0 ? ` · ${count} item${count > 1 ? 's' : ''}` : ''}
+                                {formatTableLabel(tableNumber)}{count > 0 ? ` · ${count} item${count > 1 ? 's' : ''}` : ''}
                             </p>
                         </div>
                     </div>

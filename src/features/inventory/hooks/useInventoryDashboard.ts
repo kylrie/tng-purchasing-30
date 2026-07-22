@@ -1,38 +1,32 @@
-import { useState, useEffect, useCallback } from 'react';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { db } from '../../../config/firebase';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { InventoryDashboardService } from '../services/inventory-dashboard.service';
 import type { DashboardKPIs, DashboardPeriod } from '../services/inventory-dashboard.service';
 import { getRollingStaffVariance } from '../services/staff-variance.service';
 import type { StaffVarianceRecord } from '../services/staff-variance.service';
 import { InvestigationsService } from '../services/investigations.service';
 import type { InvestigationCase } from '../services/investigations.service';
-import { getTenantConstraints } from '../../../shared/utils/tenantFilters';
+
 import type { User } from '../../procurement/types';
 
-function getDateRangeFromPeriod(period: DashboardPeriod): [Date, Date] {
-    const now = new Date();
-    const end = new Date(now);
-    end.setHours(23, 59, 59, 999);
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
 
-    if (period === 'week') {
-        const day = start.getDay();
-        const diff = day === 0 ? 6 : day - 1;
-        start.setDate(start.getDate() - diff);
-    } else if (period === 'month') {
-        start.setDate(1);
-    }
-    return [start, end];
-}
-
-export function useInventoryDashboard(userOrBuId: User | string | undefined, timeFilter: DashboardPeriod) {
+export function useInventoryDashboard(
+    userOrBuId: User | string | undefined,
+    timeFilter: DashboardPeriod,
+    customRange?: { start: Date; end: Date }
+) {
     const [kpis, setKpis] = useState<DashboardKPIs | null>(null);
     const [shiftVariances, setShiftVariances] = useState<StaffVarianceRecord[]>([]);
     const [investigations, setInvestigations] = useState<InvestigationCase[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    const startMs = customRange?.start.getTime();
+    const endMs = customRange?.end.getTime();
+
+    const memoizedCustomRange = useMemo(() => {
+        if (startMs === undefined || endMs === undefined) return undefined;
+        return { start: new Date(startMs), end: new Date(endMs) };
+    }, [startMs, endMs]);
 
     const fetchDashboardData = useCallback(async () => {
         if (!userOrBuId) return;
@@ -41,59 +35,14 @@ export function useInventoryDashboard(userOrBuId: User | string | undefined, tim
         try {
             // ── Single source of truth: let the service compute all KPIs ──
             const [kpiData, varianceData] = await Promise.all([
-                InventoryDashboardService.getDashboardKPIs(userOrBuId, timeFilter),
+                InventoryDashboardService.getDashboardKPIs(userOrBuId, timeFilter, memoizedCustomRange),
                 getRollingStaffVariance(userOrBuId, 7)
             ]);
 
             if (kpiData) {
-                // ── POS Sales by FG/Menu Category ──
-                // Category Risk Panel must group by the Finished Good's category
-                // (e.g. 'Food', 'Beverage') — NOT by the raw-material inventory
-                // category ('Dry Goods', 'Mixers'). POS sales records already carry
-                // the FG category, so we query them directly.
-                const dateRange = getDateRangeFromPeriod(timeFilter);
-                const startTs = Timestamp.fromDate(dateRange[0]);
-                const endTs = Timestamp.fromDate(dateRange[1]);
-                const tenantConstraints = typeof userOrBuId === 'string'
-                    ? (userOrBuId === 'ALL' ? [] : [where('businessUnitId', '==', userOrBuId)])
-                    : getTenantConstraints(userOrBuId, 'businessUnitId');
-
-                const posSalesQuery = query(
-                    collection(db, 'pos_sales'),
-                    ...tenantConstraints,
-                    where('createdAt', '>=', startTs),
-                    where('createdAt', '<=', endTs)
-                );
-                const posSalesSnap = await getDocs(posSalesQuery);
-
-                const categoryRiskMap: Record<string, { sales: number; expected: number; loss: number }> = {};
-                posSalesSnap.forEach(doc => {
-                    const data = doc.data();
-                    const cat = (data.category || 'Other').trim();
-                    if (!categoryRiskMap[cat]) categoryRiskMap[cat] = { sales: 0, expected: 0, loss: 0 };
-                    categoryRiskMap[cat].sales += (data.amount || 0);
-                    categoryRiskMap[cat].expected += (data.costs || 0);
-                });
-
-                // Attribute ADJUSTMENT (unexplained gap/loss) to 'Kitchen Loss'
-                if (kpiData.unexplainedVariance > 0) {
-                    if (!categoryRiskMap['Kitchen Loss']) categoryRiskMap['Kitchen Loss'] = { sales: 0, expected: 0, loss: 0 };
-                    categoryRiskMap['Kitchen Loss'].loss += kpiData.unexplainedVariance;
-                }
-
-                // Replace service-level inventory-category grouping with POS-derived
-                // FG categories so Sales, Expected, and Loss all align.
-                kpiData.categoryRisks = Object.entries(categoryRiskMap).map(([name, data]) => ({
-                    id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-                    name,
-                    salesValue: data.sales,
-                    expectedValue: data.expected,
-                    actualValue: data.expected - data.loss,
-                    lossValue: data.loss,
-                    variancePercent: data.expected > 0
-                        ? (data.loss / data.expected) * 100
-                        : 0,
-                })).sort((a, b) => Math.abs(b.salesValue) - Math.abs(a.salesValue));
+                // We rely on the backend service's kpiData.categoryRisks (derived from inventory_aggregates)
+                // to supply accurate Expected Usage, Actual Usage, and Loss Value.
+                // We do NOT overwrite it with pos_sales since pos_sales does not have costs.
 
                 if (kpiData.suspiciousItems) {
                     // DEFENSIVE: Strip out any FINISHED_GOOD items that might have leaked
@@ -103,6 +52,14 @@ export function useInventoryDashboard(userOrBuId: User | string | undefined, tim
                         .filter((item) => TRACKABLE_TYPES.has(item.type))
                         // Only show items with a real variance — hide perfectly balanced rows
                         .filter(item => item.varianceQty !== 0 || item.varianceValue !== 0);
+                }
+
+                if (kpiData.spotCheckRecommendations) {
+                    const TRACKABLE_TYPES = new Set(['RAW_MATERIAL', 'PRODUCTION']);
+                    kpiData.spotCheckRecommendations = kpiData.spotCheckRecommendations
+                        .filter((item) => TRACKABLE_TYPES.has(item.type))
+                        // Only show items that have been used (expected closing usage > 0)
+                        .filter(item => item.expectedClosing > 0);
                 }
             }
 
@@ -115,7 +72,7 @@ export function useInventoryDashboard(userOrBuId: User | string | undefined, tim
         } finally {
             setTimeout(() => setLoading(false), 300);
         }
-    }, [userOrBuId, timeFilter]);
+    }, [userOrBuId, timeFilter, memoizedCustomRange]);
 
     // Fetch KPI and Variance data on mount/filter change
     useEffect(() => {

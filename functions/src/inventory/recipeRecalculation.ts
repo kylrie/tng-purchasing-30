@@ -9,7 +9,7 @@ const db = getFirestore(getApp(), 'tng-systems');
  * If the cost (buyCost, baseCost) changes, it recalculates all dependent production recipes
  * and menu items for that business unit asynchronously, preventing client-side blocking.
  */
-export const onInventoryItemUpdated = onDocumentUpdated('inventory_items/{itemId}', async (event) => {
+export const onInventoryItemUpdated = onDocumentUpdated({ document: 'inventory_items/{itemId}', database: 'tng-systems' }, async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();
 

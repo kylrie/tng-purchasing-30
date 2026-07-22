@@ -21,6 +21,7 @@ export { createQrOrder } from './qr/createQrOrder';
 export { createQrTable } from './qr/createQrTable';
 export { listQrTables } from './qr/listQrTables';
 export { getQrTableToken } from './qr/getQrTableToken';
+export { createQrReservation } from './qr/createQrReservation';
 
 // QR Ordering — Sprint 2 (customer order-status read)
 export { getQrOrder } from './qr/getQrOrder';
@@ -37,5 +38,10 @@ export { xenditWebhook } from './qr/xenditWebhook';
 // QR Ordering — Operations (staff kitchen/fulfillment status transitions)
 export { updateQrOrderStatus } from './qr/updateQrOrderStatus';
 
+// QR Ordering — Automatic printing (staff control of the local Print Bridge)
+export { setAutoPrint, retryPrintJob } from './qr/printControl';
+
 // Inventory — Background Recipe Recalculation
 export { onInventoryItemUpdated } from './inventory/recipeRecalculation';
+export { setPosPin, verifyPosPin } from './posAuth';
+export { checkoutOrder } from './posOrders';

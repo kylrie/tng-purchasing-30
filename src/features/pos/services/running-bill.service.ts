@@ -1,4 +1,4 @@
-import { doc, collection, runTransaction, getDocs, query, where, Timestamp, updateDoc } from 'firebase/firestore';
+import { doc, collection, runTransaction, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { db } from '../../../config/firebase';
 import { COLLECTIONS } from '../../../shared/types/firebase.types';
 import type { RunningBill, POSOrderCreateInput } from '../types/pos.types';
@@ -95,9 +95,15 @@ export class RunningBillService {
      */
     static async updateBillItems(billId: string, updates: Partial<RunningBill>): Promise<void> {
         const docRef = doc(db, this.COLLECTION, billId);
-        await updateDoc(docRef, {
-            ...updates,
-            updatedAt: Timestamp.now()
+        await runTransaction(db, async (transaction) => {
+            const billSnap = await transaction.get(docRef);
+            if (!billSnap.exists()) {
+                throw new Error("Bill does not exist.");
+            }
+            transaction.update(docRef, {
+                ...updates,
+                updatedAt: Timestamp.now()
+            });
         });
     }
 

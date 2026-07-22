@@ -102,6 +102,7 @@ export interface PosImportBatch {
   importedBy: string;
   importedByName: string;
   importedAt: Timestamp;
+  importDate?: string;
 }
 
 // ============================================================

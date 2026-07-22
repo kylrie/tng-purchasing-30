@@ -105,13 +105,13 @@ const POSSettingsModal: React.FC<POSSettingsModalProps> = ({ isOpen, onClose }) 
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl border border-slate-700 flex flex-col max-h-[90vh]">
-                <div className="flex items-center justify-between p-6 border-b border-slate-700">
-                    <h2 className="text-xl font-bold text-white">POS Configuration</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl border-2 border-slate-200 flex flex-col max-h-[90vh]">
+                <div className="flex items-center justify-between p-6 border-b-2 border-slate-200">
+                    <h2 className="text-xl font-black text-slate-900">POS Configuration</h2>
                     <button
                         onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors"
+                        className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
                     >
                         <X size={20} />
                     </button>
@@ -120,96 +120,106 @@ const POSSettingsModal: React.FC<POSSettingsModalProps> = ({ isOpen, onClose }) 
                 <div className="p-6 overflow-y-auto">
                     <form onSubmit={handleSave} className="space-y-6">
                         {error && (
-                            <div className="flex items-center gap-2 p-3 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 p-3 text-sm font-semibold text-red-600 bg-red-50 border-2 border-red-200 rounded-xl">
                                 <AlertCircle size={16} />
                                 <p>{error}</p>
                             </div>
                         )}
-                        
+
                         {success && (
-                            <div className="flex items-center gap-2 p-3 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                            <div className="flex items-center gap-2 p-3 text-sm font-semibold text-emerald-700 bg-emerald-50 border-2 border-emerald-200 rounded-xl">
                                 <p>Settings saved successfully!</p>
                             </div>
                         )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">VAT Rate (%)</label>
+                                <label className="block text-[11px] font-black uppercase tracking-wide text-slate-400 mb-2">VAT Rate (%)</label>
                                 <input
                                     type="number"
                                     value={vatRate}
                                     onChange={(e) => setVatRate(Number(e.target.value))}
-                                    className="w-full rounded-xl border border-slate-600 bg-slate-900/50 text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                    className="w-full rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-bold tabular-nums placeholder-slate-400 px-4 py-2.5 focus:border-slate-400 focus:outline-none transition-colors"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-2">Service Charge Rate (%)</label>
+                                <label className="block text-[11px] font-black uppercase tracking-wide text-slate-400 mb-2">Service Charge Rate (%)</label>
                                 <input
                                     type="number"
                                     value={serviceChargeRate}
                                     onChange={(e) => setServiceChargeRate(Number(e.target.value))}
-                                    className="w-full rounded-xl border border-slate-600 bg-slate-900/50 text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                    className="w-full rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-bold tabular-nums placeholder-slate-400 px-4 py-2.5 focus:border-slate-400 focus:outline-none transition-colors"
                                 />
                             </div>
                         </div>
 
-                        <div className="pt-6 border-t border-slate-700">
-                            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <div className="pt-6 border-t-2 border-slate-200">
+                            <h3 className="text-lg font-black text-slate-900 mb-4 flex items-center gap-2">
                                 <Printer className="w-5 h-5 text-slate-400" />
                                 Hardware Configuration (This Device)
                             </h3>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">Printer Connection</label>
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <label className="block text-[11px] font-black uppercase tracking-wide text-slate-400 mb-2">Printer Connection</label>
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                                         <button
                                             type="button"
                                             onClick={() => setPrinterType('simulator')}
-                                            className={`flex flex-col items-center justify-center p-2 rounded-xl border ${printerType === 'simulator' ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-900/50 border-slate-600 text-slate-400 hover:bg-slate-800'}`}
+                                            className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-colors ${printerType === 'simulator' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'}`}
                                         >
                                             <Monitor className="w-4 h-4 mb-1" />
-                                            <span className="text-[10px] font-medium">Simulator</span>
+                                            <span className="text-[10px] font-black">Simulator</span>
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => setPrinterType('bluetooth')}
-                                            className={`flex flex-col items-center justify-center p-2 rounded-xl border ${printerType === 'bluetooth' ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-900/50 border-slate-600 text-slate-400 hover:bg-slate-800'}`}
+                                            className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-colors ${printerType === 'bluetooth' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'}`}
                                         >
                                             <Bluetooth className="w-4 h-4 mb-1" />
-                                            <span className="text-[10px] font-medium">Bluetooth</span>
+                                            <span className="text-[10px] font-black">Bluetooth</span>
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => setPrinterType('lan')}
-                                            className={`flex flex-col items-center justify-center p-2 rounded-xl border ${printerType === 'lan' ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-900/50 border-slate-600 text-slate-400 hover:bg-slate-800'}`}
+                                            className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-colors ${printerType === 'lan' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'}`}
                                         >
                                             <Wifi className="w-4 h-4 mb-1" />
-                                            <span className="text-[10px] font-medium">LAN / IP</span>
+                                            <span className="text-[10px] font-black">LAN / IP</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPrinterType('qz')}
+                                            className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-colors ${printerType === 'qz' ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-400'}`}
+                                        >
+                                            <Printer className="w-4 h-4 mb-1" />
+                                            <span className="text-[10px] font-black">QZ Tray</span>
                                         </button>
                                     </div>
                                 </div>
-                                
-                                {printerType === 'lan' && (
+
+                                {(printerType === 'lan' || printerType === 'qz') && (
                                     <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-2">Printer IP Address</label>
+                                        <label className="block text-[11px] font-black uppercase tracking-wide text-slate-400 mb-2">
+                                            {printerType === 'qz' ? 'Printer Name or IP (e.g. 192.168.1.100)' : 'Printer IP Address'}
+                                        </label>
                                         <input
                                             type="text"
                                             value={printerIp}
                                             onChange={(e) => setPrinterIp(e.target.value)}
                                             placeholder="192.168.1.100"
-                                            className="w-full rounded-xl border border-slate-600 bg-slate-900/50 text-white px-4 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                            className="w-full rounded-xl border-2 border-slate-200 bg-white text-slate-900 font-bold tabular-nums placeholder-slate-400 px-4 py-2 focus:border-slate-400 focus:outline-none transition-colors"
                                         />
                                     </div>
                                 )}
                             </div>
-                            
+
                             <div className="mt-4">
                                 <button
                                     type="button"
                                     onClick={handleTestPrint}
                                     disabled={isTestingPrinter}
-                                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+                                    className="px-4 py-2 bg-white border-2 border-slate-200 hover:border-slate-400 text-slate-700 text-sm font-bold rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50"
                                 >
                                     {isTestingPrinter ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
                                     Test Connection
@@ -217,18 +227,18 @@ const POSSettingsModal: React.FC<POSSettingsModalProps> = ({ isOpen, onClose }) 
                             </div>
                         </div>
 
-                        <div className="pt-4 flex justify-end gap-3 border-t border-slate-700">
+                        <div className="pt-4 flex justify-end gap-3 border-t-2 border-slate-200">
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-5 py-2.5 text-slate-300 hover:text-white font-medium transition-colors"
+                                className="px-5 py-2.5 bg-white border-2 border-slate-200 hover:border-slate-400 text-slate-700 font-bold rounded-xl transition-colors"
                             >
                                 Cancel
                             </button>
                             <button
                                 type="submit"
                                 disabled={isSaving}
-                                className="flex items-center gap-2 px-6 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl transition-all disabled:opacity-50"
+                                className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl transition-colors disabled:opacity-50"
                             >
                                 {isSaving ? (
                                     <>

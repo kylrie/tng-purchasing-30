@@ -11,6 +11,7 @@
 
 import { httpsCallable } from 'firebase/functions';
 import { getQrFunctions } from './qrFunctions';
+import { resolveQrPaymentsEnabledWithDefaults } from './qrPaymentsGate';
 import type { CreateXenditSessionInput, CreateXenditSessionResult } from '../types/qrOrder.types';
 
 /**
@@ -19,18 +20,33 @@ import type { CreateXenditSessionInput, CreateXenditSessionResult } from '../typ
  * through Xendit checkout — otherwise the pre-payment flow is preserved. The
  * server callable ALSO refuses when its flag is off, so this is a UX gate, not a
  * security control.
+ *
+ * Scope: The Fun Roof (b1) is enabled by default from tracked SOURCE
+ * (`PAYMENTS_ENABLED_BUSINESSES` in qrPaymentsGate.ts), so its routing survives a
+ * build with no payment env at all. The global `VITE_QR_PAYMENTS_ENABLED` flag
+ * still turns routing on for ALL venues, and the `VITE_QR_PAYMENTS_BUSINESSES`
+ * allowlist remains an optional additive override to canary another venue without
+ * a code change. Venues neither in the source default nor the env allowlist stay
+ * on the pre-payment flow while the global flag is off.
  */
-export function isQrPaymentsEnabled(): boolean {
-    return String(import.meta.env.VITE_QR_PAYMENTS_ENABLED ?? '').toLowerCase() === 'true';
+export function isQrPaymentsEnabled(businessId?: string): boolean {
+    return resolveQrPaymentsEnabledWithDefaults(
+        import.meta.env.VITE_QR_PAYMENTS_ENABLED,
+        import.meta.env.VITE_QR_PAYMENTS_BUSINESSES,
+        businessId,
+    );
 }
 
-/** Create a payment session for an existing order and return the hosted-checkout link. */
-export async function createXenditSession(orderId: string): Promise<CreateXenditSessionResult> {
+/** Create a payment session for an existing order and return the hosted-checkout
+ *  link. `paymentMethod` (the diner's checkout choice: gcash/maya/qrph/card) is
+ *  passed through so Xendit opens straight into that channel; the server validates
+ *  it and, when omitted, falls back to offering all channels. */
+export async function createXenditSession(orderId: string, paymentMethod?: string): Promise<CreateXenditSessionResult> {
     const callable = httpsCallable<CreateXenditSessionInput, CreateXenditSessionResult>(
         getQrFunctions(),
         'createXenditSession',
     );
-    const { data } = await callable({ orderId });
+    const { data } = await callable({ orderId, paymentMethod });
     return data;
 }
 

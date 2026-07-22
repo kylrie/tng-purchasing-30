@@ -346,7 +346,7 @@ const Layout: React.FC<LayoutProps> = ({
             icon: Warehouse,
             canView: hasPermission('ui:module_access:view:inventory'),
             children: [
-                { path: '/inventory', label: 'Dashboard', icon: ShieldCheck, canView: currentUser.role === UserRole.GENERAL_MANAGER || currentUser.role === UserRole.SUPER_ADMIN },
+                { path: '/inventory', label: 'Integrity Monitor', icon: ShieldCheck, canView: currentUser.role === UserRole.GENERAL_MANAGER || currentUser.role === UserRole.SUPER_ADMIN },
                 {
                     label: 'Stock Management',
                     icon: Boxes,
@@ -354,6 +354,7 @@ const Layout: React.FC<LayoutProps> = ({
                     children: [
                         { path: '/inventory/items', label: 'All Items', icon: Package, canView: hasPermission('inventory:item:view:all') || hasPermission('inventory:item:view:bu') },
                         { path: '/inventory/stock-take', label: 'Stock Take', icon: Warehouse, canView: hasPermission('inventory:stock_take:view:all') || hasPermission('inventory:stock_take:view:bu') },
+                        { path: '/inventory/sales-deductions', label: 'Sales Deductions', icon: Receipt, canView: true },
                         { path: '/inventory/wastage', label: 'Wastage', icon: Trash2, canView: hasPermission('inventory:wastage:view:all') || hasPermission('inventory:wastage:view:bu') }
                     ]
                 },

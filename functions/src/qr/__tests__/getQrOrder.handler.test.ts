@@ -2,9 +2,9 @@
  * Integration tests — getQrOrder handler (Sprint 2).
  * Runs under `tsx --test` with the in-memory FakeFirestore (no emulator/Java).
  *
- * Covers: sanitized customer projection (no businessUnitId / tableId / xendit* /
- * officialInvoice* leakage), table-number resolution, not-found / invalid input,
- * and per-order rate limiting.
+ * Covers: sanitized customer projection (businessUnitId IS exposed for branding;
+ * no tableId / xendit* / officialInvoice* leakage), table-number resolution,
+ * not-found / invalid input, and per-order rate limiting.
  */
 
 import { test } from 'node:test';
@@ -15,8 +15,10 @@ import { FakeFirestore } from './fakeFirestore';
 import { asDb, req, expectReject } from './testUtils';
 
 // Fields that must NEVER appear in the customer DTO even though they live on the
-// stored order document.
-const SENSITIVE_KEYS = ['businessUnitId', 'tableId', 'xenditPaymentId', 'officialInvoiceNumber', 'updatedAt', 'orderType'];
+// stored order document. businessUnitId is intentionally EXCLUDED from this list:
+// it is the (non-sensitive) venue id the customer pages use to resolve business
+// branding/theme from authoritative order data — asserted present separately below.
+const SENSITIVE_KEYS = ['tableId', 'xenditPaymentId', 'officialInvoiceNumber', 'updatedAt', 'orderType'];
 
 function seed(): FakeFirestore {
     const fake = new FakeFirestore();
@@ -53,6 +55,7 @@ test('getQrOrder: returns a sanitized customer projection with resolved table nu
     const res = await getQrOrderHandler(asDb(fake), req({ orderId: 'o1' }));
 
     assert.equal(res.orderId, 'o1');
+    assert.equal(res.businessUnitId, 'bu1'); // exposed for branding/theme
     assert.equal(res.orderNumber, 'QR-00001');
     assert.equal(res.tableNumber, '12');
     assert.equal(res.status, 'AWAITING_PAYMENT');

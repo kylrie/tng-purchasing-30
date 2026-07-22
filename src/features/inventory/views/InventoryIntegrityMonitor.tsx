@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Search,
   AlertTriangle,
@@ -35,7 +35,7 @@ import { CategoryRiskGrid } from '../components/integrity-monitor/CategoryRiskGr
 import { SuspiciousItemsTable } from '../components/integrity-monitor/SuspiciousItemsTable';
 import type { KpiItem, CategoryRisk, SuspiciousRow } from '../components/integrity-monitor/types';
 
-type TimeFilter = 'Today' | 'Week' | 'Month';
+type TimeFilter = 'Today' | 'Week' | 'Month' | 'Custom';
 type ActiveTab = 'Overview' | 'Investigations' | 'Shift Overlay' | 'Notifications';
 
 // ============================================================
@@ -50,6 +50,24 @@ const InventoryIntegrityMonitor: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('Overview');
   const [modalOpen, setModalOpen] = useState(false);
   const [modalData, setModalData] = useState<AssignModalData | null>(null);
+
+  // Custom Date Range states: default to current month range
+  const getInitialStartDate = () => {
+    const d = new Date();
+    d.setDate(1); // Default to start of month for custom
+    return d.toISOString().split('T')[0];
+  };
+  const [customStartDate, setCustomStartDate] = useState<string>(getInitialStartDate());
+  const [customEndDate, setCustomEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  const customRange = useMemo(() => {
+    if (timeFilter !== 'Custom') return undefined;
+    const start = new Date(customStartDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(customEndDate);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }, [timeFilter, customStartDate, customEndDate]);
 
   // Resolve selectedBU: if global is 'all', fall back to user's own BU
   const selectedBU = selectedBusinessUnit === 'all'
@@ -67,7 +85,8 @@ const InventoryIntegrityMonitor: React.FC = () => {
     refetch,
   } = useInventoryDashboard(
     selectedBU === 'ALL' && currentUser ? currentUser : (selectedBU || currentUser?.businessId), 
-    filterKey
+    filterKey,
+    customRange
   );
 
   // Convert raw DashboardKPIs into UI components KpiItem[]
@@ -168,12 +187,33 @@ const InventoryIntegrityMonitor: React.FC = () => {
       varQty: Math.round(varQty * 100) / 100,
       varPeso: Math.round((item.varianceValue || (varQty * item.costPerUnit)) * 100) / 100,
       status: item.status,
+      costPerUnit: item.costPerUnit,
+      itemId: item.itemId,
+    };
+  }) || [];
+
+  const spotCheckRows: SuspiciousRow[] = dashboardKPIs?.spotCheckRecommendations.map((item: SuspiciousItem, index) => {
+    const varQty = item.actualClosing - item.expectedClosing;
+    return {
+      id: `spotcheck-${index}`,
+      item: item.itemName,
+      category: `${item.category || 'Inventory'}${item.recipeUnit ? ' • ' + item.recipeUnit : ''}`,
+      open: Math.round((item.openQty || 0) * 100) / 100,
+      recv: Math.round((item.recvQty || 0) * 100) / 100,
+      sold: Math.round((item.soldQty || 0) * 100) / 100,
+      expClose: Math.round(item.expectedClosing * 100) / 100,
+      actClose: Math.round(item.actualClosing * 100) / 100,
+      varQty: Math.round(varQty * 100) / 100,
+      varPeso: Math.round((item.varianceValue || (varQty * item.costPerUnit)) * 100) / 100,
+      status: item.status,
+      costPerUnit: item.costPerUnit,
+      itemId: item.itemId,
     };
   }) || [];
 
   const handleAssign = (row: SuspiciousRow) => {
     setModalData({
-      itemId: row.id,
+      itemId: row.itemId,
       itemName: row.item,
       category: row.category,
       estimatedLoss: Math.abs(row.varPeso),
@@ -192,7 +232,7 @@ const InventoryIntegrityMonitor: React.FC = () => {
     }
   };
 
-  const timeOptions: TimeFilter[] = ['Today', 'Week', 'Month'];
+  const timeOptions: TimeFilter[] = ['Today', 'Week', 'Month', 'Custom'];
   const tabOptions: { label: ActiveTab; icon: React.ElementType }[] = [
     { label: 'Overview', icon: BarChart3 },
     { label: 'Investigations', icon: Search },
@@ -223,6 +263,24 @@ const InventoryIntegrityMonitor: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* Custom Date Range Inputs */}
+            {timeFilter === 'Custom' && (
+              <div className="flex items-center gap-2 bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-1.5 border border-slate-200/50 dark:border-slate-700/50 shadow-inner animate-in fade-in slide-in-from-right-4 duration-300">
+                <input
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                />
+                <span className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase">to</span>
+                <input
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-sm font-semibold focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                />
+              </div>
+            )}
 
             {/* Time Filter Toggle */}
             <div className="flex bg-slate-100/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl p-1.5 border border-slate-200/50 dark:border-slate-700/50 shadow-inner">
@@ -303,7 +361,11 @@ const InventoryIntegrityMonitor: React.FC = () => {
             <CategoryRiskGrid categories={liveCategories} />
 
             {/* Suspicious Items Table */}
-            <SuspiciousItemsTable suspiciousItems={suspiciousItemsRows} onAssign={handleAssign} />
+            <SuspiciousItemsTable 
+              suspiciousItems={suspiciousItemsRows} 
+              spotCheckRecommendations={spotCheckRows} 
+              onAssign={handleAssign} 
+            />
           </div>
         )}
 

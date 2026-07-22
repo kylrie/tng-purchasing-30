@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { QrCode, Plus, Loader2, RefreshCw, LockKeyhole, AlertCircle, CheckCircle2, X, Copy, Table2, Printer, Download } from 'lucide-react';
+import { QrCode, Plus, Loader2, RefreshCw, LockKeyhole, AlertCircle, CheckCircle2, X, Copy, Table2, Printer, Download, Store } from 'lucide-react';
 import { isConfigValid } from '../../../config/firebase';
 import { buildQrMatrix, qrMatrixToSvgString } from './qrMatrix';
 import { QrSvg } from './QrSvg';
@@ -12,6 +12,9 @@ import {
 } from '../services/qrTables.service';
 import type { QrTableSummary } from '../types/qrOrder.types';
 import { MOCK_TABLES, MOCK_BUSINESS_UNIT, mockTokenFor } from '../data/mockTables';
+import { formatTableLabel } from '../utils/tableUtils';
+import { buildCustomerMenuUrl } from '../utils/customerMenuUrl';
+import { readBusinessParam, resolveAdminBusinessUnit } from '../utils/adminBusinessParam';
 
 /**
  * QR Ordering — Table Management (Sprint 2 · admin)
@@ -23,7 +26,7 @@ import { MOCK_TABLES, MOCK_BUSINESS_UNIT, mockTokenFor } from '../data/mockTable
  * ever shown in the list. No Xendit, no inventory, no deployment.
  */
 
-type ReadState = 'loading' | 'ready' | 'error' | 'unauthorized';
+type ReadState = 'loading' | 'ready' | 'error' | 'unauthorized' | 'no_business';
 
 const fmtDate = (ms: number): string => (ms ? new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
 
@@ -41,9 +44,16 @@ const TableManagementView: React.FC = () => {
 
     const isDemo = !mode || mode.trim().toLowerCase() === 'demo' || !isConfigValid;
     const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
+    // Business identity is DURABLE — read from the URL (?bu=) first so it survives
+    // hard refresh / new tab / cold open / paste. NO fallback to the signed-in
+    // admin's home business: that silently turned Fun Roof (b1) into Inflatable
+    // (b3) on refresh. When unresolved we show an explicit "no business" state.
+    // The view is driven entirely by the URL — it never writes back to the shared
+    // global switcher (which would leak this page's business into the rest of the ERP).
+    const urlBusinessUnitId = readBusinessParam(location.search);
     const businessUnitId = isDemo
         ? MOCK_BUSINESS_UNIT
-        : (selectedBusinessUnit && selectedBusinessUnit !== 'all' ? selectedBusinessUnit : currentUser?.businessId ?? '');
+        : resolveAdminBusinessUnit({ urlBusinessUnitId, selectedBusinessUnit });
 
     // ── List state ────────────────────────────────────────────────────────
     const [liveTables, setLiveTables] = useState<QrTableSummary[]>([]);
@@ -72,7 +82,10 @@ const TableManagementView: React.FC = () => {
     useEffect(() => {
         if (isDemo) { setReadState('ready'); return; }
         if (authLoading) { setReadState('loading'); return; }
-        if (!signedIn || !isAdmin || !businessUnitId) { setReadState('unauthorized'); return; }
+        if (!signedIn || !isAdmin) { setReadState('unauthorized'); return; }
+        // Signed-in admin but no durable business in the URL/switcher → explicit
+        // state (open QR Hub to choose one). NEVER silently default to a business.
+        if (!businessUnitId) { setReadState('no_business'); return; }
 
         let cancelled = false;
         setReadState('loading');
@@ -142,7 +155,9 @@ const TableManagementView: React.FC = () => {
         }
     };
 
-    const customerUrl = tokenValue ? `${window.location.origin}/order/${tokenValue}` : '';
+    // Business-aware customer link: Fun Roof (b1) tables open the standalone
+    // /funroof/<tableNumber> menu; all others use the token-based /order/<token>.
+    const customerUrl = buildCustomerMenuUrl(window.location.origin, businessUnitId, tokenPanel?.tableNumber ?? '', tokenValue);
     const copyUrl = () => {
         if (!customerUrl) return;
         navigator.clipboard?.writeText(customerUrl).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1800); }).catch(() => { /* clipboard unavailable */ });
@@ -209,7 +224,16 @@ const TableManagementView: React.FC = () => {
                             iconCls="text-slate-500"
                             title="Admin access required"
                             body="Sign in with an admin account to manage QR tables. Use /qr-tables/demo for the sample board."
-                            signInFrom={location.pathname}
+                            signInFrom={location.pathname + location.search}
+                        />
+                    ) : readState === 'no_business' ? (
+                        <StateCard
+                            Icon={Store}
+                            iconCls="text-slate-500"
+                            title="No business selected"
+                            body="Open QR Hub and choose a business to manage its tables and QR codes."
+                            to="/qr-hub"
+                            toLabel="Open QR Hub"
                         />
                     ) : (
                         <StateCard
@@ -296,7 +320,7 @@ const TableManagementView: React.FC = () => {
                             {rows.map(t => (
                                 <li key={t.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
                                     <div className="flex items-baseline gap-2 shrink-0 w-20">
-                                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Table</span>
+                                        <span className="text-sm font-black uppercase tracking-wider text-slate-400 mr-2">{formatTableLabel(t.tableNumber).replace(t.tableNumber, '').trim()}</span>
                                         <span className="text-2xl font-black text-slate-900 tabular-nums leading-none">{t.tableNumber}</span>
                                     </div>
                                     <div className="min-w-0 flex-1">
@@ -327,7 +351,7 @@ const TableManagementView: React.FC = () => {
                     <div className="relative w-full sm:max-w-md bg-white rounded-t-[1.5rem] sm:rounded-[1.5rem] shadow-2xl p-5 md:p-6">
                         <div className="flex items-start justify-between gap-3 mb-4">
                             <div>
-                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">Table {tokenPanel.tableNumber}</p>
+                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">{formatTableLabel(tokenPanel.tableNumber)}</p>
                                 <h3 className="text-lg font-black text-slate-900">QR access token</h3>
                             </div>
                             <button type="button" onClick={() => setTokenPanel(null)} aria-label="Close" className="w-10 h-10 -mr-1 -mt-1 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 active:scale-95 transition-all">
@@ -359,7 +383,7 @@ const TableManagementView: React.FC = () => {
                                             <p className="text-xs text-slate-500">Couldn’t render the QR code. You can still copy the link below.</p>
                                         </div>
                                     )}
-                                    <p className="mt-2 text-[11px] text-slate-500">Scan to open Table {tokenPanel.tableNumber}’s menu</p>
+                                    <p className="mt-2 text-[11px] text-slate-500">Scan to open {formatTableLabel(tokenPanel.tableNumber)}’s menu</p>
                                 </div>
 
                                 {/* Actions: print + download (only when the QR built) */}
@@ -406,7 +430,7 @@ const TableManagementView: React.FC = () => {
 }`}</style>
                                         <div className="qr-print-root hidden flex-col items-center justify-center text-center gap-4 p-10">
                                             <p className="text-lg font-semibold text-slate-600">Scan to view the menu &amp; order</p>
-                                            <p className="text-5xl font-black tracking-tight text-slate-900">Table {tokenPanel.tableNumber}</p>
+                                            <p className="text-5xl font-black tracking-tight text-slate-900">{formatTableLabel(tokenPanel.tableNumber)}</p>
                                             <QrSvg matrix={qr.matrix} size={320} ariaLabel={`QR code for table ${tokenPanel.tableNumber}`} />
                                             <p className="font-mono text-xs text-slate-500 break-all max-w-md">{customerUrl}</p>
                                             <p className="text-sm text-slate-500">Point your phone camera at the code, then tap the link.</p>
@@ -431,7 +455,10 @@ const StateCard: React.FC<{
     onRetry?: () => void;
     /** When set, render a Sign-in link that returns here after login. */
     signInFrom?: string;
-}> = ({ Icon, iconCls, title, body, onRetry, signInFrom }) => (
+    /** When set, render a plain navigation link (e.g. back to QR Hub). */
+    to?: string;
+    toLabel?: string;
+}> = ({ Icon, iconCls, title, body, onRetry, signInFrom, to, toLabel }) => (
     <div className="flex flex-col items-center text-center max-w-md">
         <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
             <Icon size={26} className={iconCls} strokeWidth={1.5} />
@@ -445,6 +472,14 @@ const StateCard: React.FC<{
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold active:scale-95 transition-transform"
             >
                 <LockKeyhole size={16} strokeWidth={2.5} /> Sign in
+            </Link>
+        )}
+        {to && (
+            <Link
+                to={to}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold active:scale-95 transition-transform"
+            >
+                <QrCode size={16} strokeWidth={2.5} /> {toLabel ?? 'Continue'}
             </Link>
         )}
         {onRetry && (

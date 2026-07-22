@@ -11,6 +11,7 @@ import { shouldUseMockMenu } from '../services/publicMenu.mapper';
 import ProductDetailsSheet from './ProductDetailsSheet';
 import CartDrawer from './CartDrawer';
 import type { CartLine } from './CartDrawer';
+import { formatTableLabel } from '../utils/tableUtils';
 
 /**
  * QR Ordering — Customer Menu (Inflatable Island Beach Club theme)
@@ -277,11 +278,13 @@ const CustomerMenuView: React.FC = () => {
 
                     <div className="relative mt-5 h-20">
                         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                            <p className="text-[13px] font-semibold tracking-[0.35em] text-[#0d6e62]">TABLE</p>
-                            {/* Shows the real human table number once getPublicMenu resolves it; a
-                                neutral "…" placeholder before then. The raw qrToken is NEVER rendered
-                                here (not even for one frame). truncate stays only as a width backstop. */}
-                            <p className="text-[46px] leading-none font-extrabold text-[#0d6e62] mt-1 max-w-[85vw] truncate px-2">{tableNumber || '…'}</p>
+                            {tableNumber ? (
+                                <div className="text-[46px] leading-none font-extrabold text-[#0d6e62] mt-1 max-w-[85vw] truncate px-2">
+                                    {formatTableLabel(tableNumber)}
+                                </div>
+                            ) : (
+                                <p className="text-[46px] leading-none font-extrabold text-[#0d6e62] mt-1 max-w-[85vw] truncate px-2">…</p>
+                            )}
                         </div>
                         <button
                             type="button"
