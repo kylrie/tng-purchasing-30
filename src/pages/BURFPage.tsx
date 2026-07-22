@@ -23,7 +23,7 @@ import {
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { COLLECTIONS } from '../shared/types/firebase.types';
-import type { Requisition, RequisitionItem, Business } from '../features/procurement/types';
+import type { Requisition, RequisitionItem, Business, BURFEventDetails } from '../features/procurement/types';
 import { RequisitionStatus } from '../features/procurement/types';
 import { RequisitionService } from '../features/procurement/services/requisitions.service';
 import { CounterService } from '../shared/services/counter.service';
@@ -32,6 +32,9 @@ import { isValidUrl } from '../shared/utils/validation';
 import { useAuth } from '../contexts/useAuth';
 import { useUOM } from '../shared/hooks/useUOM';
 import { UI_CONSTANTS } from '../config/constants';
+import EventDetailsCard from '../features/procurement/components/EventDetailsCard';
+import ProductionSummaryPanel from '../features/procurement/components/ProductionSummaryPanel';
+import { explodePackageRecipes, type ExplosionSummary } from '../features/procurement/services/eventProcurementService';
 
 // ============================================================
 // TYPES
@@ -207,6 +210,22 @@ const BURFPage: React.FC = () => {
     // Track which items are in edit mode
     const [editingItems, setEditingItems] = useState<Set<string>>(new Set());
 
+    // ========== EVENT PROCUREMENT STATE ==========
+    const DEFAULT_EVENT_DETAILS: BURFEventDetails = {
+        clientEventName: '',
+        eventDatetime: '',
+        venue: '',
+        packageName: '',
+        confirmedGuests: 0,
+        productionBufferPercent: 10,
+        totalServings: 0,
+        menuItems: [],
+    };
+    const [eventDetails, setEventDetails] = useState<BURFEventDetails>(DEFAULT_EVENT_DETAILS);
+    const [explosionSummary, setExplosionSummary] = useState<ExplosionSummary | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+
     // ========== COMPUTED VALUES ==========
     const isUrgent = useMemo(() => {
         if (!dateNeeded) return false;
@@ -271,6 +290,11 @@ const BURFPage: React.FC = () => {
                     setAttachmentLink(reqData.externalLink || reqData.attachments?.[0] || '');
                     setPurchaseType((reqData as Requisition & { purchaseType?: PurchaseType }).purchaseType || 'EVENT');
                     setItems(reqData.items || []);
+
+                    // Restore event details if present
+                    if (reqData.eventDetails) {
+                        setEventDetails(reqData.eventDetails);
+                    }
                 }
 
                 setLoading(false);
@@ -326,6 +350,46 @@ const BURFPage: React.FC = () => {
         markDirty();
     }, [markDirty]);
 
+    // ========== GENERATE REQUIREMENTS (RECIPE EXPLOSION) ==========
+    const handleGenerateRequirements = useCallback(async () => {
+        if (!currentUser) return;
+
+        // If items already exist, confirm overwrite first
+        if (items.length > 0 && !showOverwriteConfirm) {
+            setShowOverwriteConfirm(true);
+            return;
+        }
+        setShowOverwriteConfirm(false);
+        setIsGenerating(true);
+
+        try {
+            const result = await explodePackageRecipes({
+                menuItems: eventDetails.menuItems,
+                confirmedGuests: eventDetails.confirmedGuests,
+                bufferPercent: eventDetails.productionBufferPercent,
+                businessUnitId: currentUser.businessId,
+                eventName: eventDetails.clientEventName || 'Unnamed Event',
+            });
+
+            setItems(result.items);
+            setExplosionSummary(result.summary);
+            markDirty();
+
+            setStatusMessage({
+                type: 'success',
+                text: `✅ Successfully loaded ${result.items.length} raw material items based on recipe requirements.`,
+            });
+            setTimeout(() => setStatusMessage(null), UI_CONSTANTS.TOAST_DURATION);
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : 'Unknown error';
+            console.error('Generate Requirements error:', error);
+            setStatusMessage({ type: 'error', text: `Failed to generate: ${msg}` });
+            setTimeout(() => setStatusMessage(null), UI_CONSTANTS.TOAST_DURATION);
+        } finally {
+            setIsGenerating(false);
+        }
+    }, [currentUser, eventDetails, items.length, showOverwriteConfirm, markDirty]);
+
     const handleSave = async (isFinalSubmission: boolean) => {
         if (isSubmitting || isSavingDraft || !currentUser) return;
 
@@ -340,7 +404,8 @@ const BURFPage: React.FC = () => {
                 reqId = await CounterService.generateBURFId();
             }
 
-            const baseReq: Omit<Requisition, 'id'> & { id: string; purchaseType: PurchaseType } = {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const baseReq: any = {
                 id: reqId,
                 requesterId: currentUser.id,
                 requesterName: currentUser.name,
@@ -358,7 +423,11 @@ const BURFPage: React.FC = () => {
                 priority: isUrgent ? 'URGENT' : 'NORMAL',
                 attachments: attachmentLink ? [attachmentLink] : [],
                 timestamp: nowISO,
-                purchaseType, // NEW: Purchase type
+                purchaseType, // Purchase type
+                // Persist event details when purchase type is Event
+                ...(purchaseType === 'EVENT' && eventDetails.menuItems?.length > 0
+                    ? { eventDetails }
+                    : {}),
                 history: [
                     ...(originalRequisition?.history || []),
                     {
@@ -573,6 +642,60 @@ const BURFPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Section 1b: Event Details Card (conditional) */}
+                {purchaseType === 'EVENT' && currentUser && (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div className="lg:col-span-2">
+                            <EventDetailsCard
+                                businessUnitId={currentUser.businessId}
+                                eventDetails={eventDetails}
+                                onChange={setEventDetails}
+                                onMarkDirty={markDirty}
+                            />
+                        </div>
+                        <div className="lg:col-span-1">
+                            <ProductionSummaryPanel
+                                eventDetails={eventDetails}
+                                summary={explosionSummary}
+                                isGenerating={isGenerating}
+                                hasExistingItems={items.length > 0}
+                                onGenerate={handleGenerateRequirements}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Overwrite Confirmation Modal */}
+                {showOverwriteConfirm && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 max-w-md w-full p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-lg">
+                                    <AlertTriangle size={24} className="text-amber-600 dark:text-amber-400" />
+                                </div>
+                                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Replace Existing Items?</h3>
+                            </div>
+                            <p className="text-slate-600 dark:text-slate-300 mb-6">
+                                The Items Required table already has <strong>{items.length} item(s)</strong>. Generating requirements will replace them with the auto-calculated raw materials.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setShowOverwriteConfirm(false)}
+                                    className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-white rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleGenerateRequirements}
+                                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                                >
+                                    Replace & Generate
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Section 2: Items Table */}
                 <div className="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm dark:shadow-none">

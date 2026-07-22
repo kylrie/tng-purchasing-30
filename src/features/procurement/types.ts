@@ -417,6 +417,39 @@ export interface Requisition {
 
   // New Enhancements
   history?: RequisitionHistory[];
+
+  // Event Procurement - populated when purchaseType === 'EVENT'
+  eventDetails?: BURFEventDetails;
+}
+
+// ============================================================
+// EVENT PROCUREMENT - BURF Event Details
+// ============================================================
+
+/**
+ * A finished good added to an event menu.
+ * Sourced from inventory_items where type='FINISHED_GOOD' and serviceType='Event'.
+ */
+export interface EventMenuItem {
+  inventoryItemId: string;
+  inventoryItemName: string;
+  qtyPerPax: number;           // servings per guest (e.g. 1 slice/guest)
+}
+
+/**
+ * Event details stored on a BURF when purchaseType === 'EVENT'.
+ * Captures the event metadata and guest servings calculation
+ * needed by the Recipe Explosion Engine.
+ */
+export interface BURFEventDetails {
+  clientEventName: string;
+  eventDatetime: string;         // ISO 8601 datetime
+  venue: string;
+  packageName?: string;          // Optional label (e.g. "Premium Package A")
+  confirmedGuests: number;
+  productionBufferPercent: number; // Default: 10.0
+  totalServings: number;          // ceil(confirmedGuests * (1 + bufferPercent / 100))
+  menuItems: EventMenuItem[];     // Manually composed finished goods for this event
 }
 
 export interface NotificationItem {
