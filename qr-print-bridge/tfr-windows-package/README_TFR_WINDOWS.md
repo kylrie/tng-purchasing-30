@@ -161,6 +161,35 @@ That’s go-live. 🎉
 
 ---
 
+## Emergency fallback — if the PowerShell scripts won't run
+
+If `preflight-check.ps1` or `start-tfr-bridge.ps1` won't run at all — a red
+**parser error**, a *"running scripts is disabled on this system"* execution-policy
+message, or a file that looks corrupted — you do **not** need the scripts. They are
+only convenience wrappers. You can start the bridge by hand instead.
+
+Open **PowerShell**, then run these four commands one at a time, from the bridge
+folder:
+
+```powershell
+cd C:\qr-print-bridge
+npm install
+npm run build
+npm start
+```
+
+- `npm install` downloads the libraries (first run only — a few minutes).
+- `npm run build` compiles the bridge.
+- `npm start` runs it. Leave the window **open** — you'll see
+  *"bridge online — watching for PAID-order print jobs."* Press **Ctrl+C** to stop.
+
+> Change the path in the first line if you copied the folder somewhere else: it must
+> be the folder that **contains `package.json`** (the same folder that holds the
+> `tfr-windows-package` you received). `config.json` and `service-account.json` must
+> already be in that folder (Steps 5–6 above) or `npm start` stops with a clear error.
+
+---
+
 ## Install dependencies (what the start script does for you)
 
 You normally **don’t** run these by hand — `start-tfr-bridge.ps1` does them the

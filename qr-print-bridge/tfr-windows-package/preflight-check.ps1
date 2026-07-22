@@ -60,6 +60,7 @@ if (-not $bridgeRoot) {
     exit 1
 }
 Say-Info "Bridge folder : $bridgeRoot"
+Say-Pass "package.json found in bridge root"
 $configPath = Join-Path $bridgeRoot 'config.json'
 Say-Info "Config file   : $configPath"
 Write-Host ""
