@@ -19,6 +19,8 @@ export { aggregateStockTransactions } from './inventory/aggregators';
 export { getPublicMenu } from './qr/getPublicMenu';
 export { createQrOrder } from './qr/createQrOrder';
 export { createQrTable } from './qr/createQrTable';
+export { editQrTable } from './qr/editQrTable';
+export { deleteQrTable } from './qr/deleteQrTable';
 export { listQrTables } from './qr/listQrTables';
 export { getQrTableToken } from './qr/getQrTableToken';
 export { createQrReservation } from './qr/createQrReservation';

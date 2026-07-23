@@ -37,6 +37,9 @@ class Store {
         const cur = this.col(name).get(id) ?? {};
         this.col(name).set(id, { ...cur, ...data });
     }
+    delete(name: string, id: string): void {
+        this.col(name).delete(id);
+    }
     query(name: string, filters: [string, unknown][], limit?: number): { id: string; data: Data }[] {
         let rows = [...this.col(name).entries()].map(([id, data]) => ({ id, data }));
         for (const [field, value] of filters) rows = rows.filter(r => r.data[field] === value);
@@ -56,6 +59,7 @@ class DocRef {
     async get(): Promise<DocSnap> { return new DocSnap(this.id, this.store.get(this._collName, this.id)); }
     async set(data: Data): Promise<void> { this.store.set(this._collName, this.id, data); }
     async update(data: Data): Promise<void> { this.store.update(this._collName, this.id, data); }
+    async delete(): Promise<void> { this.store.delete(this._collName, this.id); }
 }
 
 class Query {

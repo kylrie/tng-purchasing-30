@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import { QrCode, Plus, Loader2, RefreshCw, LockKeyhole, AlertCircle, CheckCircle2, X, Copy, Table2, Printer, Download, Store } from 'lucide-react';
+import { QrCode, Plus, Loader2, RefreshCw, LockKeyhole, AlertCircle, CheckCircle2, X, Copy, Table2, Printer, Download, Store, Pencil, Trash2, Check } from 'lucide-react';
 import { isConfigValid } from '../../../config/firebase';
 import { buildQrMatrix, qrMatrixToSvgString } from './qrMatrix';
 import { QrSvg } from './QrSvg';
 import { useAuth } from '../../../contexts/useAuth';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import {
-    listQrTables, createQrTable, getQrTableToken,
-    toUserFacingTableError, toUserFacingCreateError,
+    listQrTables, createQrTable, getQrTableToken, editQrTable, deleteQrTable,
+    toUserFacingTableError, toUserFacingCreateError, toUserFacingEditError, toUserFacingDeleteError,
 } from '../services/qrTables.service';
 import type { QrTableSummary } from '../types/qrOrder.types';
 import { MOCK_TABLES, MOCK_BUSINESS_UNIT, mockTokenFor } from '../data/mockTables';
@@ -77,6 +77,16 @@ const TableManagementView: React.FC = () => {
     const [tokenError, setTokenError] = useState('');
     const [copied, setCopied] = useState(false);
 
+    // ── Edit (inline rename) + Delete (confirm modal) state ───────────────
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState('');
+    const [editSaving, setEditSaving] = useState(false);
+    const [editError, setEditError] = useState('');
+
+    const [deleteTarget, setDeleteTarget] = useState<{ tableId: string; tableNumber: string } | null>(null);
+    const [deleteBusy, setDeleteBusy] = useState(false);
+    const [deleteError, setDeleteError] = useState('');
+
     const signedIn = !!currentUser;
 
     useEffect(() => {
@@ -125,6 +135,19 @@ const TableManagementView: React.FC = () => {
         };
     }, [tokenPanel]);
 
+    // Delete-modal a11y: Escape closes (unless a delete is in flight) + scroll lock.
+    useEffect(() => {
+        if (!deleteTarget) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !deleteBusy) setDeleteTarget(null); };
+        window.addEventListener('keydown', onKey);
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            window.removeEventListener('keydown', onKey);
+            document.body.style.overflow = prevOverflow;
+        };
+    }, [deleteTarget, deleteBusy]);
+
     const rows = useMemo(() => (isDemo ? demoTables : liveTables), [isDemo, demoTables, liveTables]);
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -152,6 +175,56 @@ const TableManagementView: React.FC = () => {
         } catch (err) {
             setCreating(false);
             setCreateError(toUserFacingCreateError(err));
+        }
+    };
+
+    // ── Edit (inline rename) ──────────────────────────────────────────────
+    const startEdit = (t: QrTableSummary) => { setEditingId(t.id); setEditValue(t.tableNumber); setEditError(''); };
+    const cancelEdit = () => { setEditingId(null); setEditValue(''); setEditError(''); };
+
+    const saveEdit = async (e: React.FormEvent, t: QrTableSummary) => {
+        e.preventDefault();
+        const num = editValue.trim();
+        if (!num || editSaving) return;
+        if (num === t.tableNumber) { cancelEdit(); return; } // no-op rename
+        setEditSaving(true); setEditError('');
+
+        if (isDemo) {
+            if (demoTables.some(d => d.id !== t.id && d.isActive && d.tableNumber === num)) {
+                setEditSaving(false); setEditError('An active table with that number already exists.'); return;
+            }
+            setDemoTables(prev => prev.map(d => (d.id === t.id ? { ...d, tableNumber: num } : d))
+                .sort((a, b) => a.tableNumber.localeCompare(b.tableNumber, undefined, { numeric: true })));
+            setEditSaving(false); cancelEdit();
+            return;
+        }
+
+        try {
+            await editQrTable(t.id, num);
+            setEditSaving(false); cancelEdit();
+            setReloadKey(k => k + 1); // refresh the list
+        } catch (err) {
+            setEditSaving(false); setEditError(toUserFacingEditError(err));
+        }
+    };
+
+    // ── Delete (with confirmation) ────────────────────────────────────────
+    const confirmDelete = async () => {
+        if (!deleteTarget || deleteBusy) return;
+        setDeleteBusy(true); setDeleteError('');
+
+        if (isDemo) {
+            setDemoTables(prev => prev.filter(d => d.id !== deleteTarget.tableId));
+            setDeleteBusy(false); setDeleteTarget(null);
+            return;
+        }
+
+        try {
+            await deleteQrTable(deleteTarget.tableId);
+            setDeleteBusy(false); setDeleteTarget(null);
+            setReloadKey(k => k + 1); // refresh the list
+        } catch (err) {
+            setDeleteBusy(false); setDeleteError(toUserFacingDeleteError(err));
         }
     };
 
@@ -318,25 +391,86 @@ const TableManagementView: React.FC = () => {
                     ) : (
                         <ul className="space-y-3">
                             {rows.map(t => (
-                                <li key={t.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-center gap-3">
-                                    <div className="flex items-baseline gap-2 shrink-0 w-20">
-                                        <span className="text-sm font-black uppercase tracking-wider text-slate-400 mr-2">{formatTableLabel(t.tableNumber).replace(t.tableNumber, '').trim()}</span>
-                                        <span className="text-2xl font-black text-slate-900 tabular-nums leading-none">{t.tableNumber}</span>
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <StatusChip active={t.isActive} />
-                                            <span className="text-xs text-slate-500 truncate">BU: {t.businessUnitId}</span>
+                                <li key={t.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                                    {editingId === t.id ? (
+                                        /* ── Edit mode: inline rename (QR token/link stays the same) ── */
+                                        <form onSubmit={e => saveEdit(e, t)} className="flex flex-col gap-2">
+                                            <label htmlFor={`edit-table-${t.id}`} className="text-sm font-bold text-slate-700">Edit table number / name</label>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    id={`edit-table-${t.id}`}
+                                                    type="text"
+                                                    value={editValue}
+                                                    autoFocus
+                                                    onChange={e => { setEditValue(e.target.value); setEditError(''); }}
+                                                    aria-describedby={editError ? `edit-error-${t.id}` : undefined}
+                                                    className="flex-1 min-w-0 px-3 py-2.5 rounded-xl border-2 border-slate-300 text-base font-medium text-slate-900 focus:outline-none focus:border-blue-500"
+                                                />
+                                                <button
+                                                    type="submit"
+                                                    disabled={!editValue.trim() || editSaving}
+                                                    aria-busy={editSaving}
+                                                    className="shrink-0 inline-flex items-center gap-1.5 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:text-slate-500 text-white text-sm font-bold active:scale-95 transition-all"
+                                                >
+                                                    {editSaving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.75} />} Save
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={cancelEdit}
+                                                    aria-label="Cancel edit"
+                                                    className="shrink-0 inline-flex items-center justify-center h-11 w-11 rounded-xl border-2 border-slate-300 hover:border-slate-400 text-slate-600 active:scale-95 transition-all"
+                                                >
+                                                    <X size={18} aria-hidden />
+                                                </button>
+                                            </div>
+                                            {editError && (
+                                                <p id={`edit-error-${t.id}`} role="alert" className="flex items-start gap-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                                                    <AlertCircle size={16} className="mt-0.5 shrink-0" /> <span className="min-w-0">{editError}</span>
+                                                </p>
+                                            )}
+                                            <p className="text-[11px] text-slate-500">Only the number/name changes — the QR code and customer link stay the same.</p>
+                                        </form>
+                                    ) : (
+                                        /* ── View mode ─────────────────────────────────────────────── */
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex items-baseline gap-2 shrink-0 w-20">
+                                                <span className="text-sm font-black uppercase tracking-wider text-slate-400 mr-2">{formatTableLabel(t.tableNumber).replace(t.tableNumber, '').trim()}</span>
+                                                <span className="text-2xl font-black text-slate-900 tabular-nums leading-none">{t.tableNumber}</span>
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <StatusChip active={t.isActive} />
+                                                    <span className="text-xs text-slate-500 truncate">BU: {t.businessUnitId}</span>
+                                                </div>
+                                                <p className="text-xs text-slate-500 mt-1">Created {fmtDate(t.createdAtMillis)}</p>
+                                            </div>
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTokenPanel({ tableId: t.id, tableNumber: t.tableNumber })}
+                                                    className="inline-flex items-center gap-1.5 h-10 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold active:scale-95 transition-all"
+                                                >
+                                                    <QrCode size={16} strokeWidth={2.5} aria-hidden /> <span className="hidden sm:inline">Show QR</span>
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => startEdit(t)}
+                                                    aria-label={`Edit table ${t.tableNumber}`}
+                                                    className="inline-flex items-center justify-center h-10 w-10 rounded-xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-600 active:scale-95 transition-all"
+                                                >
+                                                    <Pencil size={16} strokeWidth={2.25} aria-hidden />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setDeleteTarget({ tableId: t.id, tableNumber: t.tableNumber }); setDeleteError(''); }}
+                                                    aria-label={`Delete table ${t.tableNumber}`}
+                                                    className="inline-flex items-center justify-center h-10 w-10 rounded-xl border-2 border-slate-200 hover:border-red-300 hover:bg-red-50 text-slate-500 hover:text-red-600 active:scale-95 transition-all"
+                                                >
+                                                    <Trash2 size={16} strokeWidth={2.25} aria-hidden />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <p className="text-xs text-slate-500 mt-1">Created {fmtDate(t.createdAtMillis)}</p>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => setTokenPanel({ tableId: t.id, tableNumber: t.tableNumber })}
-                                        className="shrink-0 inline-flex items-center gap-1.5 h-10 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold active:scale-95 transition-all"
-                                    >
-                                        <QrCode size={16} strokeWidth={2.5} aria-hidden /> Show QR
-                                    </button>
+                                    )}
                                 </li>
                             ))}
                         </ul>
@@ -439,6 +573,48 @@ const TableManagementView: React.FC = () => {
                                 )}
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Delete confirmation modal */}
+            {deleteTarget && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={`Delete table ${deleteTarget.tableNumber}`}>
+                    <button type="button" aria-label="Close" onClick={() => { if (!deleteBusy) setDeleteTarget(null); }} className="absolute inset-0 bg-slate-900/50" />
+                    <div className="relative w-full sm:max-w-md bg-white rounded-t-[1.5rem] sm:rounded-[1.5rem] shadow-2xl p-5 md:p-6">
+                        <div className="flex items-start gap-3 mb-4">
+                            <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                                <Trash2 size={20} className="text-red-600" aria-hidden />
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="text-lg font-black text-slate-900">Delete {formatTableLabel(deleteTarget.tableNumber)}?</h3>
+                                <p className="text-sm text-slate-600 mt-1">This removes the QR table from active table management. Paid order history will remain.</p>
+                            </div>
+                        </div>
+                        {deleteError && (
+                            <p role="alert" className="mb-3 flex items-start gap-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                                <AlertCircle size={16} className="mt-0.5 shrink-0" /> <span className="min-w-0">{deleteError}</span>
+                            </p>
+                        )}
+                        <div className="grid grid-cols-2 gap-2.5">
+                            <button
+                                type="button"
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={deleteBusy}
+                                className="inline-flex items-center justify-center h-11 rounded-xl border-2 border-slate-300 hover:border-slate-400 disabled:opacity-50 text-slate-800 text-sm font-bold active:scale-[0.98] transition-all"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={confirmDelete}
+                                disabled={deleteBusy}
+                                aria-busy={deleteBusy}
+                                className="inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-300 disabled:text-slate-500 text-white text-sm font-bold active:scale-[0.98] transition-all"
+                            >
+                                {deleteBusy ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} {deleteBusy ? 'Deleting…' : 'Delete table'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
