@@ -315,7 +315,7 @@ function ProtectedApp() {
                 {/* QR Hub — cross-business QR ordering entry point */}
                 <Route path="/qr-hub" element={
                   <ProtectedRoute permission="ui:module_access:view:qr_hub">
-                    <QrHubView currentUser={currentUser} businesses={accessibleBusinesses} />
+                    <QrHubView businesses={accessibleBusinesses} />
                   </ProtectedRoute>
                 } />
 

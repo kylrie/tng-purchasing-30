@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QrCode, Store, ChevronRight, Loader2, LockKeyhole, RefreshCw, ShieldCheck, FlaskConical } from 'lucide-react';
-import type { Business, User } from '../../procurement/types';
+import { QrCode, Store, ChevronRight, Loader2, RefreshCw, ShieldCheck, FlaskConical } from 'lucide-react';
+import type { Business } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { listQrTables, isPermissionDenied } from '../services/qrTables.service';
 import { withBusinessParam } from '../utils/adminBusinessParam';
@@ -37,11 +37,10 @@ const STATUS_META: Record<Exclude<QrStatus, 'checking'>, { label: string; cls: s
 };
 
 interface QrHubViewProps {
-    currentUser: User;
     businesses?: Business[];
 }
 
-const QrHubView: React.FC<QrHubViewProps> = ({ currentUser, businesses }) => {
+const QrHubView: React.FC<QrHubViewProps> = ({ businesses }) => {
     const navigate = useNavigate();
     const { setSelectedBusinessUnit } = useBusinessUnit();
 
