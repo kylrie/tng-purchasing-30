@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { ChefHat, CheckCircle2, Check, Clock, AlertTriangle, StickyNote, Loader2, RefreshCw, LockKeyhole, AlertCircle } from 'lucide-react';
+import { ChefHat, CheckCircle2, Check, Clock, AlertTriangle, StickyNote, Martini, Loader2, RefreshCw, LockKeyhole, AlertCircle } from 'lucide-react';
 import { MOCK_KITCHEN_ORDERS, LATE_THRESHOLD_MIN } from '../data/mockKitchen';
 import type { KitchenOrder } from '../data/mockKitchen';
 import { isConfigValid } from '../../../config/firebase';
@@ -74,6 +74,7 @@ function mockToCard(o: KitchenOrder): KitchenCard {
         minutesSinceOrder: o.minutesSincePaid,
         createdAtMillis: 0,
         lines: o.lines,
+        hasDrinksAtBar: false, // mock kitchen orders are food-only
     };
 }
 
@@ -130,6 +131,14 @@ const OrderCard: React.FC<{
                     </li>
                 ))}
             </ul>
+
+            {/* Drinks-also-at-bar note — mirrors the bar board's "Food also in kitchen". */}
+            {card.hasDrinksAtBar && (
+                <div className="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-100 border border-cyan-200 text-cyan-800 text-sm font-bold">
+                    <Martini size={15} strokeWidth={2.25} className="shrink-0" />
+                    Drinks also at bar
+                </div>
+            )}
 
             {/* Big action button — mock-only, demo mode. The live board is read-only. */}
             {interactive && onAdvance && (
