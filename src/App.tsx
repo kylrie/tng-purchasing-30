@@ -26,6 +26,7 @@ import { useSuppliers } from './features/inventory/hooks/useSuppliers';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, isConfigValid } from './config/firebase';
 import { useUOM } from './shared/hooks/useUOM';
+import { isStaleDeployError, reloadForStaleDeployOnce } from './shared/utils/staleDeploy';
 
 // Lazy load views for code splitting
 const CustomerMenuView = React.lazy(() => import('./features/qr-ordering/customer/CustomerMenuView'));
@@ -682,25 +683,42 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    // Diagnostics stay in the console only (never rendered to the user).
     console.error("Uncaught error:", error, errorInfo);
+    // A stale-bundle failure after a deploy self-heals with one guarded reload.
+    if (isStaleDeployError(error)) reloadForStaleDeployOnce();
   }
 
   render() {
     if (this.state.hasError) {
+      // Customer/staff-facing: NEVER expose raw error text, stacks, Vite internals,
+      // or env/config details. A stale-deploy error gets an "updated, reload"
+      // message; anything else a clean generic message. Both offer a reload.
+      const stale = isStaleDeployError(this.state.error);
       return (
-        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-8">
-          <div className="max-w-2xl w-full bg-slate-800 p-8 rounded-xl border border-red-500/50">
-            <h1 className="text-2xl font-bold text-red-400 mb-4">Something went wrong</h1>
-            <pre className="bg-slate-950 p-4 rounded overflow-auto text-sm text-red-200">
-              {this.state.error?.toString()}
-              {this.state.error?.stack}
-            </pre>
+        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-slate-800 p-8 rounded-2xl border border-slate-700 text-center shadow-xl">
+            <div className="text-4xl mb-4" aria-hidden="true">{stale ? '🔄' : '⚠️'}</div>
+            <h1 className="text-xl font-bold mb-2">
+              {stale ? 'The app was updated' : 'Something went wrong'}
+            </h1>
+            <p className="text-slate-300 mb-6">
+              {stale
+                ? 'A new version is available. Please reload to continue.'
+                : 'The app ran into a problem. Please reload to continue.'}
+            </p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-6 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white"
+              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-semibold transition-colors"
             >
-              Reload Page
+              Reload
             </button>
+            {/* Developer detail is DEV-only; production never renders internals. */}
+            {import.meta.env.DEV && this.state.error && (
+              <pre className="mt-6 bg-slate-950 p-4 rounded overflow-auto text-left text-xs text-red-300">
+                {this.state.error.stack ?? this.state.error.toString()}
+              </pre>
+            )}
           </div>
         </div>
       );
@@ -714,6 +732,28 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 
 function App() {
   if (!isConfigValid) {
+    // Production (e.g. a config-less build that reached hosting): show customers/staff
+    // a clean, reassuring screen with a reload — NEVER the internal env/VITE_ key
+    // names. The developer instructions below are DEV-only.
+    if (!import.meta.env.DEV) {
+      return (
+        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 font-sans">
+          <div className="max-w-md w-full bg-slate-800 p-8 rounded-2xl border border-slate-700 text-center shadow-xl">
+            <div className="text-4xl mb-4" aria-hidden="true">🔧</div>
+            <h1 className="text-xl font-bold mb-2">We’ll be right back</h1>
+            <p className="text-slate-300 mb-6">
+              The app is finishing an update. Please reload in a moment.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded-xl text-white font-semibold transition-colors"
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-8 font-sans">
         <div className="max-w-2xl w-full bg-slate-800 p-8 rounded-xl border border-amber-500/50 shadow-2xl">
