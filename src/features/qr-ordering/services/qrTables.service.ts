@@ -12,6 +12,8 @@ import type {
     ListQrTablesInput, ListQrTablesResult,
     CreateQrTableInput, CreateQrTableResult,
     GetQrTableTokenInput, GetQrTableTokenResult,
+    EditQrTableInput, EditQrTableResult,
+    DeleteQrTableInput, DeleteQrTableResult,
 } from '../types/qrOrder.types';
 
 /** List a business unit's tables (never includes qrToken). */
@@ -31,6 +33,20 @@ export async function createQrTable(businessUnitId: string, tableNumber: string)
 /** Reveal a single table's qrToken (admin, on explicit request). */
 export async function getQrTableToken(tableId: string): Promise<GetQrTableTokenResult> {
     const callable = httpsCallable<GetQrTableTokenInput, GetQrTableTokenResult>(getQrFunctions(), 'getQrTableToken');
+    const { data } = await callable({ tableId });
+    return data;
+}
+
+/** Rename a table (display number/name). The server keeps the qrToken/link stable. */
+export async function editQrTable(tableId: string, tableNumber: string): Promise<EditQrTableResult> {
+    const callable = httpsCallable<EditQrTableInput, EditQrTableResult>(getQrFunctions(), 'editQrTable');
+    const { data } = await callable({ tableId, tableNumber });
+    return data;
+}
+
+/** Delete a table record (blocked server-side if it has an active order/reservation). */
+export async function deleteQrTable(tableId: string): Promise<DeleteQrTableResult> {
+    const callable = httpsCallable<DeleteQrTableInput, DeleteQrTableResult>(getQrFunctions(), 'deleteQrTable');
     const { data } = await callable({ tableId });
     return data;
 }
@@ -72,5 +88,41 @@ export function toUserFacingCreateError(err: unknown): string {
             return 'Please enter a valid table number.';
         default:
             return 'Couldn’t create the table. Please try again.';
+    }
+}
+
+/** Staff-facing message for a failed rename. */
+export function toUserFacingEditError(err: unknown): string {
+    const code = (err as { code?: string } | null)?.code ?? '';
+    switch (code) {
+        case 'functions/already-exists':
+            return 'An active table with that number already exists.';
+        case 'functions/not-found':
+            return 'That table no longer exists.';
+        case 'functions/permission-denied':
+        case 'functions/unauthenticated':
+            return 'You need an admin account to edit tables.';
+        case 'functions/invalid-argument':
+            return 'Please enter a valid table number.';
+        default:
+            return 'Couldn’t rename the table. Please try again.';
+    }
+}
+
+/** Staff-facing message for a failed delete. */
+export function toUserFacingDeleteError(err: unknown): string {
+    const code = (err as { code?: string } | null)?.code ?? '';
+    switch (code) {
+        case 'functions/failed-precondition':
+            return 'This table has an active order or reservation. Clear it before deleting the table.';
+        case 'functions/not-found':
+            return 'That table no longer exists.';
+        case 'functions/permission-denied':
+        case 'functions/unauthenticated':
+            return 'You need an admin account to delete tables.';
+        case 'functions/invalid-argument':
+            return 'Something looks off with that request. Please try again.';
+        default:
+            return 'Couldn’t delete the table. Please try again.';
     }
 }

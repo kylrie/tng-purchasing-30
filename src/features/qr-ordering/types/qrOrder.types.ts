@@ -253,6 +253,30 @@ export interface GetQrTableTokenResult {
     qrToken: string;
 }
 
+/** Rename a table in place. The server preserves qrToken/tableId (the printed QR
+ *  keeps working) and only updates the display number/name. */
+export interface EditQrTableInput {
+    tableId: string;
+    tableNumber: string;
+}
+
+export interface EditQrTableResult {
+    tableId: string;
+    tableNumber: string;
+    businessUnitId: string;
+}
+
+/** Hard-delete a table record. Blocked server-side when the table has an active
+ *  order or an active reservation. Paid order history is unaffected. */
+export interface DeleteQrTableInput {
+    tableId: string;
+}
+
+export interface DeleteQrTableResult {
+    tableId: string;
+    deleted: true;
+}
+
 // ── qr_reservations/{reservationId} — quick table reservations (Ops → Tables) ──
 export type QrReservationStatus = 'BOOKED' | 'CANCELLED';
 
