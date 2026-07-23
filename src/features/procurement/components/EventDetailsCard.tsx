@@ -17,7 +17,7 @@ import {
   CalendarDays, Users, Percent, MapPin, Package, Utensils, Loader2,
   Plus, X, Search, ChevronDown,
 } from 'lucide-react';
-import type { InventoryItem } from '../../inventory/types/InventoryItem';
+import type { MenuItem } from '../../menu/types/menu.types';
 import type { BURFEventDetails, EventMenuItem } from '../types';
 import {
   getEventFinishedGoods,
@@ -38,7 +38,7 @@ const EventDetailsCard: React.FC<EventDetailsCardProps> = ({
   onMarkDirty,
 }) => {
   // Available finished goods from inventory
-  const [availableFG, setAvailableFG] = useState<(InventoryItem & { id: string })[]>([]);
+  const [availableFG, setAvailableFG] = useState<(MenuItem & { id: string })[]>([]);
   const [loadingFG, setLoadingFG] = useState(true);
 
   // Search / Add UI state
@@ -105,7 +105,7 @@ const EventDetailsCard: React.FC<EventDetailsCardProps> = ({
   };
 
   // Add a finished good to the menu
-  const handleAddMenuItem = (item: InventoryItem & { id: string }) => {
+  const handleAddMenuItem = (item: MenuItem & { id: string }) => {
     const newItem: EventMenuItem = {
       inventoryItemId: item.id,
       inventoryItemName: item.name,
@@ -326,7 +326,7 @@ const EventDetailsCard: React.FC<EventDetailsCardProps> = ({
                       </span>
                     </div>
                     <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0 ml-2">
-                      {item.department} · {item.category}
+                      {item.category}
                     </span>
                   </button>
                 ))

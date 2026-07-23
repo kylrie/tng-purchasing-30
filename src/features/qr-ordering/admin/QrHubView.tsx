@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QrCode, Store, ChevronRight, Loader2, LockKeyhole, RefreshCw, ShieldCheck, FlaskConical } from 'lucide-react';
 import type { Business, User } from '../../procurement/types';
-import { isAdminOrSuperAdmin } from '../../procurement/types';
 import { useBusinessUnit } from '../../../contexts/BusinessUnitContext';
 import { listQrTables, isPermissionDenied } from '../services/qrTables.service';
 import { withBusinessParam } from '../utils/adminBusinessParam';
@@ -45,7 +44,6 @@ interface QrHubViewProps {
 const QrHubView: React.FC<QrHubViewProps> = ({ currentUser, businesses }) => {
     const navigate = useNavigate();
     const { setSelectedBusinessUnit } = useBusinessUnit();
-    const isAdmin = isAdminOrSuperAdmin(currentUser.role);
 
     const [states, setStates] = useState<Record<string, BusinessQrState>>({});
     const [reloadKey, setReloadKey] = useState(0);
@@ -58,7 +56,7 @@ const QrHubView: React.FC<QrHubViewProps> = ({ currentUser, businesses }) => {
     const list = businesses ?? [];
 
     useEffect(() => {
-        if (!isAdmin || list.length === 0) return;
+        if (list.length === 0) return;
         let cancelled = false;
 
         // Seed every row as "checking", then resolve each independently so one
@@ -84,7 +82,7 @@ const QrHubView: React.FC<QrHubViewProps> = ({ currentUser, businesses }) => {
         });
 
         return () => { cancelled = true; };
-    }, [isAdmin, list, reloadKey]);
+    }, [list, reloadKey]);
 
     // Enter the per-business QR Operations dashboard with the business context set
     // explicitly (no manual Business Unit switcher step). The ops dashboard's
@@ -97,20 +95,6 @@ const QrHubView: React.FC<QrHubViewProps> = ({ currentUser, businesses }) => {
         setSelectedBusinessUnit(businessId);
         navigate(withBusinessParam('/qr-ops/overview', businessId));
     };
-
-    if (!isAdmin) {
-        return (
-            <div className="max-w-3xl mx-auto py-16 flex justify-center">
-                <div className="flex flex-col items-center text-center max-w-md">
-                    <div className="w-16 h-16 rounded-3xl bg-white border border-slate-200 shadow-sm flex items-center justify-center mb-4">
-                        <LockKeyhole size={26} className="text-slate-500" strokeWidth={1.5} />
-                    </div>
-                    <h3 className="text-base font-bold text-slate-700 mb-1">Admin access required</h3>
-                    <p className="text-slate-500 text-sm">QR Hub is available to admin accounts only.</p>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="max-w-3xl mx-auto">

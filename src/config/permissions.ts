@@ -268,6 +268,7 @@ export const ALL_PERMISSIONS = [
   'ui:module_access:view:audit',
   'ui:module_access:view:activity_log',
   'ui:module_access:view:budget_request',
+  'ui:module_access:view:qr_hub',
 
   // ─── UI: DASHBOARD WIDGETS ────────────────────────────────────────────
   'ui:widget:view:ready_for_prf',
@@ -557,6 +558,7 @@ export const PERMISSION_REGISTRY: Record<Permission, { label: string; category: 
   'ui:module_access:view:audit':        { label: 'Audit Module',              category: 'Module Access' },
   'ui:module_access:view:activity_log': { label: 'Activity Log Module',       category: 'Module Access' },
   'ui:module_access:view:budget_request': { label: 'Budget Request Module',   category: 'Module Access' },
+  'ui:module_access:view:qr_hub':         { label: 'QR Hub',                  category: 'Module Access' },
 
   // ─── UI: DASHBOARD WIDGETS ────────────────────────────────────────────
   'ui:widget:view:ready_for_prf':       { label: 'Ready for PRF Widget',      category: 'Dashboard' },

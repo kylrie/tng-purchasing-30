@@ -312,8 +312,12 @@ function ProtectedApp() {
                   </ProtectedRoute>
                 } />
 
-                {/* QR Hub — cross-business QR ordering entry point (admin-only; guarded inside the view) */}
-                <Route path="/qr-hub" element={<QrHubView currentUser={currentUser} businesses={accessibleBusinesses} />} />
+                {/* QR Hub — cross-business QR ordering entry point */}
+                <Route path="/qr-hub" element={
+                  <ProtectedRoute permission="ui:module_access:view:qr_hub">
+                    <QrHubView currentUser={currentUser} businesses={accessibleBusinesses} />
+                  </ProtectedRoute>
+                } />
 
                 {/* NOTE: /qr-ops/:tab? is intentionally NOT here. QR Operations is a full-screen
                     operational mode routed OUTSIDE this ERP <Layout> (see the "External Routes

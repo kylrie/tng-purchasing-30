@@ -30,6 +30,7 @@ import { CounterService } from '../shared/services/counter.service';
 import { sanitizeText, sanitizeItems } from '../shared/utils/sanitize';
 import { isValidUrl } from '../shared/utils/validation';
 import { useAuth } from '../contexts/useAuth';
+import { useBusinessUnit } from '../contexts/BusinessUnitContext';
 import { useUOM } from '../shared/hooks/useUOM';
 import { UI_CONSTANTS } from '../config/constants';
 import EventDetailsCard from '../features/procurement/components/EventDetailsCard';
@@ -174,6 +175,9 @@ const BURFPage: React.FC = () => {
     const { burfId } = useParams<Record<BURFPageParamKey, string | undefined>>();
     const navigate = useNavigate();
     const { currentUser } = useAuth();
+    const { selectedBusinessUnit } = useBusinessUnit();
+
+    const activeBusinessId = selectedBusinessUnit !== 'all' ? selectedBusinessUnit : currentUser?.businessId;
 
     const isEditMode = !!burfId;
 
@@ -236,9 +240,9 @@ const BURFPage: React.FC = () => {
     }, [dateNeeded]);
 
     const businessName = useMemo(() => {
-        if (!currentUser) return '';
-        return businesses.find(b => b.id === currentUser.businessId)?.name || currentUser.businessId;
-    }, [businesses, currentUser]);
+        if (!activeBusinessId) return '';
+        return businesses.find(b => b.id === activeBusinessId)?.name || activeBusinessId;
+    }, [businesses, activeBusinessId]);
 
     // ========== BROWSER CLOSE WARNING ==========
     // Note: In-app navigation blocking disabled for BrowserRouter compatibility
@@ -367,7 +371,7 @@ const BURFPage: React.FC = () => {
                 menuItems: eventDetails.menuItems,
                 confirmedGuests: eventDetails.confirmedGuests,
                 bufferPercent: eventDetails.productionBufferPercent,
-                businessUnitId: currentUser.businessId,
+                businessUnitId: activeBusinessId || '',
                 eventName: eventDetails.clientEventName || 'Unnamed Event',
             });
 
@@ -388,7 +392,7 @@ const BURFPage: React.FC = () => {
         } finally {
             setIsGenerating(false);
         }
-    }, [currentUser, eventDetails, items.length, showOverwriteConfirm, markDirty]);
+    }, [activeBusinessId, currentUser, eventDetails, items.length, showOverwriteConfirm, markDirty]);
 
     const handleSave = async (isFinalSubmission: boolean) => {
         if (isSubmitting || isSavingDraft || !currentUser) return;
@@ -410,7 +414,7 @@ const BURFPage: React.FC = () => {
                 requesterId: currentUser.id,
                 requesterName: currentUser.name,
                 requesterPhotoUrl: currentUser.avatar || '',
-                businessId: currentUser.businessId,
+                businessId: activeBusinessId || '',
                 ...(attachmentLink && isValidUrl(attachmentLink) ? { externalLink: attachmentLink } : {}),
                 items: sanitizeItems(items) as RequisitionItem[],
                 totalAmount: 0,
@@ -648,7 +652,7 @@ const BURFPage: React.FC = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                         <div className="lg:col-span-2">
                             <EventDetailsCard
-                                businessUnitId={currentUser.businessId}
+                                businessUnitId={activeBusinessId || ''}
                                 eventDetails={eventDetails}
                                 onChange={setEventDetails}
                                 onMarkDirty={markDirty}

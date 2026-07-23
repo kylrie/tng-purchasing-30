@@ -26,6 +26,7 @@ import {
 import { db } from '../../../config/firebase';
 import type { RequisitionItem, EventMenuItem } from '../types';
 import type { InventoryItem, BomIngredient } from '../../inventory/types/InventoryItem';
+import type { MenuItem } from '../../menu/types/menu.types';
 
 // ============================================================
 // TYPES
@@ -76,17 +77,15 @@ export type EventVenue = (typeof EVENT_VENUES)[number];
  */
 export async function getEventFinishedGoods(
   businessUnitId: string
-): Promise<(InventoryItem & { id: string })[]> {
-  const ref = collection(db, 'inventory_items');
+): Promise<(MenuItem & { id: string })[]> {
+  const ref = collection(db, 'menu_items');
   const q = query(
     ref,
     where('businessUnitId', '==', businessUnitId),
-    where('type', '==', 'FINISHED_GOOD'),
-    where('serviceType', '==', 'Event'),
     where('isActive', '==', true)
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as InventoryItem & { id: string }));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as MenuItem & { id: string }));
 }
 
 /**
@@ -147,6 +146,13 @@ export async function explodePackageRecipes(options: {
   // 2. Build full inventory map for BOM resolution
   const invMap = await getInventoryMap(businessUnitId);
 
+  // 2.5 Build menu items map for top-level FGs
+  const menuRef = collection(db, 'menu_items');
+  const menuQ = query(menuRef, where('businessUnitId', '==', businessUnitId), where('isActive', '==', true));
+  const menuSnap = await getDocs(menuQ);
+  const menuMap = new Map<string, MenuItem & { id: string }>();
+  menuSnap.docs.forEach((d) => menuMap.set(d.id, { id: d.id, ...d.data() } as MenuItem & { id: string }));
+
   // 3. Explode each finished good's BOM into raw materials
   //    Key = inventoryItemId, Value = aggregated quantity & metadata
   const rmAggregation = new Map<
@@ -157,31 +163,30 @@ export async function explodePackageRecipes(options: {
   let totalFoodCost = 0;
 
   for (const fg of menuItems) {
-    const fgItem = invMap.get(fg.inventoryItemId);
+    const fgItem = menuMap.get(fg.inventoryItemId);
     if (!fgItem) continue;
 
     // Total units of this FG needed = totalServings * qtyPerPax
     const fgUnitsNeeded = totalServings * fg.qtyPerPax;
 
     // If FG has a BOM recipe, explode it
-    if (fgItem.recipe && fgItem.recipe.length > 0) {
-      for (const ingredient of fgItem.recipe) {
-        const rmItem = invMap.get(ingredient.ingredientId);
+    if (fgItem.ingredients && fgItem.ingredients.length > 0) {
+      for (const ingredient of fgItem.ingredients) {
+        const rmItem = invMap.get(ingredient.inventoryItemId);
         if (!rmItem) continue;
 
         // Scale ingredient quantity by the number of FG units needed
-        // ingredient.quantityUsed is "per 1 unit of FG"
-        const requiredQty = fgUnitsNeeded * ingredient.quantityUsed;
+        const requiredQty = fgUnitsNeeded * ingredient.quantity;
 
         // Aggregate
-        const existing = rmAggregation.get(ingredient.ingredientId);
+        const existing = rmAggregation.get(ingredient.inventoryItemId);
         const unitCost = rmItem.baseCost ?? rmItem.costPerUnit ?? 0;
 
         if (existing) {
           existing.totalQty += requiredQty;
         } else {
-          rmAggregation.set(ingredient.ingredientId, {
-            name: ingredient.ingredientName || rmItem.name,
+          rmAggregation.set(ingredient.inventoryItemId, {
+            name: ingredient.inventoryItemName || rmItem.name,
             totalQty: requiredQty,
             unit: ingredient.unit || rmItem.units?.recipeUnit || 'EA',
             unitCost,
@@ -201,26 +206,29 @@ export async function explodePackageRecipes(options: {
             (cost) => { totalFoodCost += cost; }
           );
           // Remove the PRODUCTION item itself (we only want raw materials)
-          rmAggregation.delete(ingredient.ingredientId);
+          rmAggregation.delete(ingredient.inventoryItemId);
         }
       }
     } else {
-      // FG has no recipe — add it directly as a requirement
-      const unitCost = fgItem.baseCost ?? fgItem.costPerUnit ?? 0;
-      const existing = rmAggregation.get(fg.inventoryItemId);
-
-      if (existing) {
-        existing.totalQty += fgUnitsNeeded;
-      } else {
-        rmAggregation.set(fg.inventoryItemId, {
-          name: fgItem.name,
-          totalQty: fgUnitsNeeded,
-          unit: fgItem.units?.recipeUnit || 'EA',
-          unitCost,
-        });
+      // FG has no recipe — add it directly as a requirement if linked
+      if (fgItem.linkedInventoryItemId) {
+          const linkedInv = invMap.get(fgItem.linkedInventoryItemId);
+          if (linkedInv) {
+              const unitCost = linkedInv.baseCost ?? linkedInv.costPerUnit ?? 0;
+              const existing = rmAggregation.get(fgItem.linkedInventoryItemId);
+              if (existing) {
+                existing.totalQty += fgUnitsNeeded;
+              } else {
+                rmAggregation.set(fgItem.linkedInventoryItemId, {
+                  name: linkedInv.name,
+                  totalQty: fgUnitsNeeded,
+                  unit: linkedInv.units?.recipeUnit || 'EA',
+                  unitCost,
+                });
+              }
+              totalFoodCost += fgUnitsNeeded * unitCost;
+          }
       }
-
-      totalFoodCost += fgUnitsNeeded * unitCost;
     }
   }
 
