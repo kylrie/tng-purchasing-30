@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Requisition } from '../../procurement/types';
 import { RequisitionStatus, isSuperAdmin } from '../../procurement/types';
@@ -506,7 +506,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                    {filteredReqs.map(req => (
+                                    {filteredReqs.map((req: Requisition) => (
                                         <tr
                                             key={req.id}
                                             className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
@@ -776,7 +776,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                    {filteredBrPendingReqs.map(req => (
+                                    {filteredBrPendingReqs.map((req: Requisition) => (
                                         <tr
                                             key={req.id}
                                             className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
@@ -907,7 +907,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                    {filteredCheckPrepReqs.map(req => (
+                                    {filteredCheckPrepReqs.map((req: Requisition) => (
                                         <tr
                                             key={req.id}
                                             className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
@@ -993,7 +993,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-                                    {filteredCheckAuthReqs.map(req => (
+                                    {filteredCheckAuthReqs.map((req: Requisition) => (
                                         <tr
                                             key={req.id}
                                             className="hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
