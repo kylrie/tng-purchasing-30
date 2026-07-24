@@ -44,7 +44,6 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-// eslint-disable-next-line react-hooks/set-state-in-effect
       if (checkVoucherNumber !== '') setCheckVoucherNumber('');
       if (checkVoucherLink !== '') setCheckVoucherLink('');
       if (selectedCoa !== '') setSelectedCoa('');
@@ -58,6 +57,7 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
         .catch(err => console.error("Error loading COAs:", err))
         .finally(() => setLoadingCoas(false));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   if (!isOpen) return null;
