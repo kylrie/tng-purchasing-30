@@ -151,6 +151,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
 
     // Handle approve - Fast Track PRF creation
     const handleApprove = async (liquidation: PCFLiquidation) => {
+        if (processingId) return;
         if (!confirm(`Approve this PCF liquidation for ${formatCurrency(liquidation.totalAmount)}?\n\nThis will automatically create a PRF for replenishment (Fast Track - skips approval queue).`)) {
             return;
         }

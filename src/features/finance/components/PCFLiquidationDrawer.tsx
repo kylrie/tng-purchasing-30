@@ -225,6 +225,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
 
     // Handle submit
     const handleSubmit = async () => {
+        if (submitting || savingDraft) return;
         if (!isValid) return;
 
         setSubmitting(true);
@@ -243,7 +244,7 @@ const PCFLiquidationDrawer: React.FC<PCFLiquidationDrawerProps> = ({
 
     // Handle save draft
     const handleSaveDraft = async () => {
-        if (!onSaveDraft) return;
+        if (savingDraft || submitting || !onSaveDraft) return;
 
         // Basic validation - at least one expense with some data
         const hasData = expenses.some(e => e.amount > 0 || e.payeeVendor || e.orNo);

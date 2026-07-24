@@ -276,7 +276,7 @@ const LiquidationPage: React.FC = () => {
 
     // Save as Draft handler (saves without changing status)
     const handleSaveDraft = async () => {
-        if (!requisition || !currentUser) return;
+        if (isSubmitting || !requisition || !currentUser) return;
 
         setIsSubmitting(true);
         try {
@@ -342,10 +342,7 @@ const LiquidationPage: React.FC = () => {
 
     // Submit handler
     const handleSubmit = async () => {
-        if (!requisition || !currentUser) return;
-
-        // Validation removed - allow zero actual costs for cases where no spending occurred
-        // Previously required at least one actual cost > 0, but this prevents valid full-refund scenarios
+        if (isSubmitting || !requisition || !currentUser) return;
 
         setIsSubmitting(true);
         try {

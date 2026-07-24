@@ -828,7 +828,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
     }, []);
 
     const saveDraft = async () => {
-        if (!session) return;
+        if (isSavingDraft || isSubmitting || !session) return;
         setIsSavingDraft(true);
         try {
             for (const [itemId, state] of countStates) {
@@ -857,7 +857,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
     };
 
     const submitSession = async (sessionName: string) => {
-        if (!session) return;
+        if (isSubmitting || isSavingDraft || !session) return;
         setIsSubmitting(true);
         try {
             for (const [itemId, state] of countStates) {
