@@ -774,6 +774,7 @@ const GoodsReceivingView: React.FC<GoodsReceivingViewProps> = ({ businesses, cur
     // ---- Apply to inventory ----
 
     const handleApply = async () => {
+        if (isApplying) return;
         if (!currentUser) {
             setApplyError("You must be logged in to apply changes.");
             return;
