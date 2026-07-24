@@ -120,7 +120,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     };
 
     const handleSignatureConfirm = async (signatureBlob: Blob) => {
-        if (!signingReq) return;
+        if (signatureLoading || !signingReq) return;
         setSignatureLoading(true);
         try {
             const signatureUrl = await SignatureService.uploadSignature(

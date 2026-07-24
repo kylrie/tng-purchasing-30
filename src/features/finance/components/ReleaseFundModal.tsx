@@ -22,6 +22,7 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
   const [selectedCoa, setSelectedCoa] = useState<string>('');
   const [loadingCoas, setLoadingCoas] = useState(false);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   // FIX: Replace alert() with inline validation state
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -48,6 +49,7 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
       if (checkVoucherLink !== '') setCheckVoucherLink('');
       if (selectedCoa !== '') setSelectedCoa('');
       if (validationError !== null) setValidationError(null);
+      setIsSubmitting(false);
 
       // Load COAs
       setLoadingCoas(true);
@@ -60,7 +62,8 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
 
   if (!isOpen) return null;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    if (isSubmitting) return;
     // FIX: Replace alert() with inline validation
     if (!checkVoucherNumber.trim()) {
       setValidationError('Please enter a Check Voucher #.');
@@ -85,7 +88,12 @@ const ReleaseFundModal: React.FC<ReleaseFundModalProps> = ({ isOpen, onClose, on
     }
 
     setValidationError(null);
-    onConfirm(checkVoucherNumber.trim(), checkVoucherLink.trim(), finalCoaCode);
+    setIsSubmitting(true);
+    try {
+      await onConfirm(checkVoucherNumber.trim(), checkVoucherLink.trim(), finalCoaCode);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const canConfirm = !!checkVoucherNumber.trim() && (coas.length === 0 || !!selectedCoa);

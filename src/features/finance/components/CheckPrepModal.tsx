@@ -19,6 +19,7 @@ const CheckPrepModal: React.FC<CheckPrepModalProps> = ({ isOpen, onClose, onConf
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
+        if (isSubmitting) return;
         // FIX: Replace alert() with inline validation
         if (!bankRefNumber.trim()) {
             setValidationError('Please enter a Bank Ref #.');
