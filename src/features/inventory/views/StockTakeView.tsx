@@ -776,7 +776,7 @@ const StockTakeView: React.FC<StockTakeViewProps> = ({ currentUser, businesses }
             }
         };
         loadLogs();
-    }, [mainTab, selectedBusinessUnit]);
+    }, [mainTab, selectedBusinessUnit, canViewLogs]);
 
     // Derive unique categories from loaded items for dynamic filter pills
     const availableCategories = React.useMemo(() => {

@@ -179,6 +179,7 @@ const LiquidationPage: React.FC = () => {
             setReceiptsLink(requisition?.liquidationDetails?.receiptsLink || '');
             setRemarks(requisition?.liquidationDetails?.remarks || '');
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [requisition]); // Removed initialExpenses dependency to avoid infinite loop since it is a new object on every render
 
     // Calculate totals

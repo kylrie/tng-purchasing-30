@@ -87,6 +87,7 @@ const PCFApprovalView: React.FC<PCFApprovalViewProps> = ({ currentUser, business
         } else {
             loadHistoryLiquidations();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewMode]);
 
     // Get pending liquidations count
