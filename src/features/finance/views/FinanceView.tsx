@@ -65,7 +65,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     }, []);
 
     // Helper function to filter requisitions by search term and BU
-    const applyFilters = (reqs: Requisition[]) => {
+    const applyFilters = useCallback((reqs: Requisition[]) => {
         let filtered = reqs;
 
         // Apply BU filter using global context
@@ -97,7 +97,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
         }
 
         return filtered;
-    };
+    }, [selectedBusinessUnit, searchTerm, dateRange, businesses, allUsers]);
 
     // Approve handler for BR and Check Auth items
     const handleApprove = async (req: Requisition, e: React.MouseEvent) => {
@@ -248,9 +248,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     );
 
     // Apply filters to all requisition lists
-    const filteredBrPendingReqs = useMemo(() => applyFilters(brPendingReqs), [brPendingReqs, searchTerm, selectedBusinessUnit, businesses, allUsers, dateRange]);
-    const filteredCheckPrepReqs = useMemo(() => applyFilters(checkPrepReqs), [checkPrepReqs, searchTerm, selectedBusinessUnit, businesses, allUsers, dateRange]);
-    const filteredCheckAuthReqs = useMemo(() => applyFilters(checkAuthReqs), [checkAuthReqs, searchTerm, selectedBusinessUnit, businesses, allUsers, dateRange]);
+    const filteredBrPendingReqs = useMemo(() => applyFilters(brPendingReqs), [brPendingReqs, applyFilters]);
+    const filteredCheckPrepReqs = useMemo(() => applyFilters(checkPrepReqs), [checkPrepReqs, applyFilters]);
+    const filteredCheckAuthReqs = useMemo(() => applyFilters(checkAuthReqs), [checkAuthReqs, applyFilters]);
     const filteredPcfPending = useMemo(() => {
         let filtered = pcfPending;
         if (selectedBusinessUnit !== 'all') filtered = filtered.filter(liq => liq.businessId === selectedBusinessUnit);
@@ -299,7 +299,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({
     // Filter requisitions for PRF tabs (Fund Release)
     const filteredReqs = useMemo(() => {
         return applyFilters(displayedReqs);
-    }, [displayedReqs, searchTerm, selectedBusinessUnit, businesses, allUsers, dateRange]);
+    }, [displayedReqs, applyFilters]);
 
     // Export handler for current tab's filtered data
     const handleExport = () => {
