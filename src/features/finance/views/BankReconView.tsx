@@ -166,7 +166,7 @@ const BankReconView: React.FC = () => {
     // Save to Firestore
     // Save to Firestore with specific status
     const handleSaveStatus = async (status: 'PENDING_MATCH' | 'PENDING_AUDIT' | 'COMPLETED') => {
-        if (!parsedWorkbook || !currentUser) return;
+        if (saving || !parsedWorkbook || !currentUser) return;
         setSaving(true);
         try {
             await BankReconService.saveBankStatement(
@@ -191,6 +191,7 @@ const BankReconView: React.FC = () => {
     const handleSaveDraft = () => handleSaveStatus('PENDING_MATCH');
 
     const handleSubmitAudit = async () => {
+        if (saving) return;
         if (viewingStatement) {
             setSaving(true);
             try {
@@ -210,7 +211,7 @@ const BankReconView: React.FC = () => {
     };
 
     const handleMarkAudited = async () => {
-        if (!viewingStatement || viewingStatement.status !== 'PENDING_AUDIT' || !canAudit) return;
+        if (saving || !viewingStatement || viewingStatement.status !== 'PENDING_AUDIT' || !canAudit) return;
         if (!confirm('Are you sure you want to mark this statement as completely audited?')) return;
 
         setSaving(true);
@@ -229,7 +230,7 @@ const BankReconView: React.FC = () => {
     };
 
     const handleSaveAuditProgress = async () => {
-        if (!viewingStatement || viewingStatement.status !== 'PENDING_AUDIT' || !canAudit) return;
+        if (saving || !viewingStatement || viewingStatement.status !== 'PENDING_AUDIT' || !canAudit) return;
 
         setSaving(true);
         try {
