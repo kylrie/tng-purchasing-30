@@ -129,7 +129,7 @@ Rules:
 - Return ONLY the JSON, no other text`;
 
         const response = await client.models.generateContent({
-            model: 'gemini-3.5-flash',
+            model: 'gemini-3.6-flash',
             config: {
                 thinkingConfig: { thinkingBudget: -1 }
             },
@@ -217,7 +217,7 @@ Return ONLY a JSON object where the key is the exact item name and the value is 
 Do not return any markdown code block wrappers or other text. ONLY the raw JSON object.`;
 
         const response = await client.models.generateContent({
-            model: 'gemini-3.5-flash',
+            model: 'gemini-3.6-flash',
             config: {
                 thinkingConfig: { thinkingBudget: -1 }
             },
@@ -279,7 +279,7 @@ Return ONLY a JSON object where the key is the exact item name and the value is 
 Do not return any markdown code block wrappers or other text. ONLY the raw JSON object.`;
 
         const response = await client.models.generateContent({
-            model: 'gemini-3.5-flash',
+            model: 'gemini-3.6-flash',
             config: {
                 thinkingConfig: { thinkingBudget: -1 }
             },
@@ -346,7 +346,7 @@ Only output valid JSON. Do not use markdown blocks like \`\`\`json.`;
 
         try {
             const response = await client.models.generateContent({
-                model: 'gemini-3.5-flash',
+                model: 'gemini-3.6-flash',
                 contents: [
                     {
                         role: 'user',
@@ -425,7 +425,7 @@ Do not return any markdown code block wrappers or other text. ONLY the raw JSON 
         let rawText = '';
         try {
             const response = await client.models.generateContent({
-                model: 'gemini-3.5-flash',
+                model: 'gemini-3.6-flash',
                 config: {
                     temperature: 0.1,
                     thinkingConfig: { thinkingBudget: -1 }
